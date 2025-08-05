@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
 	import { initSatellite } from '@junobuild/core';
-	import Footer from '$lib/components/Footer.svelte';
-	import Background from '$lib/components/Background.svelte';
 	import '../app.css';
 
 	interface Props {
@@ -21,18 +19,15 @@
 	);
 </script>
 
-<div class="relative isolate min-h-[100dvh]">
-	<main
-		class="mx-auto max-w-(--breakpoint-2xl) px-8 py-16 md:px-24 [@media(min-height:800px)]:min-h-[calc(100dvh-128px)]"
-	>
-		<h1 class="text-5xl font-extrabold md:pt-16 md:text-6xl dark:text-white">Welcome to Juno</h1>
-
-		<div class="mt-8 grid w-full max-w-2xl grid-cols-2 gap-8">
+<div class="min-h-screen bg-gray-50">
+	<header class="bg-white shadow">
+		<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+			<h1 class="text-3xl font-bold text-gray-900">NFT Generative Collection Studio</h1>
+		</div>
+	</header>
+	<main>
+		<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 			{@render children?.()}
 		</div>
 	</main>
-
-	<Footer />
-
-	<Background />
 </div>

@@ -20,3 +20,28 @@ vite.config.ts.timestamp-*
 static/workers
 
 target
+
+# SvelteKit build artifacts
+.svelte-kit/
+.svelte-kit/output/
+
+# SvelteKit cache
+.svelte-kit/cache/
+
+# SvelteKit generated files
+.svelte-kit/generated/
+
+# SvelteKit output directory
+.svelte-kit/output/
+
+# AI Assistants
+.knowledge/
+.crush/
+.crushignore
+GEMINI.md
+QWEN.md
+CRUSH.md
+
+target
+.crush
+GEMINI.md

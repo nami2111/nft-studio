@@ -18,19 +18,19 @@ This document outlines the development tasks required to build the application f
 
 ### 1.3. Install Core Dependencies
 
-- [ ] Add Tailwind CSS to the SvelteKit project.
-- [ ] Add shadcn-svelte and its dependencies.
-- [ ] Add lucide-svelte for icons.
-- [ ] Add svelte-dnd-action for drag-and-drop.
-- [ ] Add jszip.
+- [X] Add Tailwind CSS to the SvelteKit project.
+- [X] Add shadcn-svelte and its dependencies.
+- [X] Add lucide-svelte for icons.
+- [X] Add svelte-dnd-action for drag-and-drop.
+- [X] Add jszip.
 
 ### 1.4. Define Data Structures
 
-- [ ] Create TypeScript interface files (`project.ts`, `layer.ts`, `trait.ts`) as defined in `SPEC.md`.
+- [X] Create TypeScript interface files (`project.ts`, `layer.ts`, `trait.ts`) as defined in `SPEC.md`.
 
 ### 1.5. Basic Layout
 
-- [ ] Create the main application layout in `routes/+layout.svelte` with a header and a main content area.
+- [X] Create the main application layout in `routes/+layout.svelte` with a header and a main content area.
 
 ## Phase 2: UI Component Scaffolding (The Skeleton)
 
@@ -38,22 +38,22 @@ This phase focuses on building the visual components without full interactivity.
 
 ### 2.1. Project Management UI
 
-- [ ] Build `ProjectSettings.svelte` with input fields for name, description, and dimensions.
+- [X] Build `ProjectSettings.svelte` with input fields for name, description, and dimensions.
 
 ### 2.2. Layer Management UI
 
-- [ ] Build `LayerManager.svelte` to display a list of layers.
-- [ ] Build `LayerItem.svelte` to represent a single layer, including a title and an area for traits. Add a file input for uploading images.
+- [X] Build `LayerManager.svelte` to display a list of layers.
+- [X] Build `LayerItem.svelte` to represent a single layer, including a title and an area for traits. Add a file input for uploading images.
 
 ### 2.3. Trait Management UI
 
-- [ ] Build `TraitCard.svelte` to display a trait's image thumbnail and name.
-- [ ] Build `RaritySlider.svelte` inside the `TraitCard` to show a static slider (1–5).
+- [X] Build `TraitCard.svelte` to display a trait's image thumbnail and name.
+- [X] Build `RaritySlider.svelte` inside the `TraitCard` to show a static slider (1–5).
 
 ### 2.4. Generator UI
 
-- [ ] Build `GenerationModal.svelte` using shadcn-svelte's Dialog component.
-- [ ] Add a number input, a static ProgressBar, and placeholder buttons ("Generate", "Cancel").
+- [X] Build `GenerationModal.svelte` using shadcn-svelte's Dialog component.
+- [X] Add a number input, a static ProgressBar, and placeholder buttons ("Generate", "Cancel").
 
 ## Phase 3: Core Functionality & State Management (The Engine)
 
@@ -61,36 +61,36 @@ This phase brings the application to life with logic.
 
 ### 3.1. State Management
 
-- [ ] Create a Svelte writable store (`project.store.ts`) to hold the entire Project object.
-- [ ] Connect UI components to the store to read data (e.g., `LayerManager` reads the `project.layers` array).
-- [ ] Implement functions to update the store (e.g., `addLayer`, `updateProjectName`, `updateRarityWeight`).
+- [X] Create a Svelte writable store (`project.store.ts`) to hold the entire Project object.
+- [X] Connect UI components to the store to read data (e.g., `LayerManager` reads the `project.layers` array).
+- [X] Implement functions to update the store (e.g., `addLayer`, `updateProjectName`, `updateRarityWeight`).
 
 ### 3.2. Interactive Functionality
 
-- [ ] Implement the file upload logic in `LayerItem.svelte` to add new traits to the store.
-- [ ] Implement the drag-and-drop logic in `LayerManager.svelte` to reorder layers in the store.
-- [ ] Connect the `RaritySlider` to update the `rarityWeight` for a trait in the store.
+- [X] Implement the file upload logic in `LayerItem.svelte` to add new traits to the store.
+- [X] Implement the drag-and-drop logic in `LayerManager.svelte` to reorder layers in the store.
+- [X] Connect the `RaritySlider` to update the `rarityWeight` for a trait in the store.
 
 ### 3.3. Web Worker Implementation
 
-- [ ] Create the `generation.worker.ts` file.
-- [ ] Implement the message listeners (`onmessage`) and senders (`postMessage`) as defined in `SPEC.md`.
-- [ ] Implement the `selectTrait` rarity algorithm inside the worker.
-- [ ] Implement the image composition logic using `OffscreenCanvas` inside the worker.
+- [X] Create the `generation.worker.ts` file.
+- [X] Implement the message listeners (`onmessage`) and senders (`postMessage`) as defined in `SPEC.md`.
+- [X] Implement the `selectTrait` rarity algorithm inside the worker.
+- [X] Implement the image composition logic using `OffscreenCanvas` inside the worker.
 
 ## Phase 4: Integration & End-to-End Flow (Connecting the Pieces)
 
 ### 4.1. Connect Generator Modal
 
-- [ ] In `GenerationModal.svelte`, implement the "Generate" button's onClick handler.
-- [ ] The handler should create a new instance of the Web Worker.
-- [ ] It should send the start message with the project data from the Svelte store.
+- [X] In `GenerationModal.svelte`, implement the "Generate" button's onClick handler.
+- [X] The handler should create a new instance of the Web Worker.
+- [X] It should send the start message with the project data from the Svelte store.
 
 ### 4.2. Handle Worker Communication
 
-- [ ] Implement the `onmessage` listener in `GenerationModal.svelte`.
-- [ ] Update the ProgressBar and status text when receiving progress messages.
-- [ ] Implement the Cancel button logic to terminate the worker (`worker.terminate()`).
+- [X] Implement the `onmessage` listener in `GenerationModal.svelte`.
+- [X] Update the ProgressBar and status text when receiving progress messages.
+- [X] Implement the Cancel button logic to terminate the worker (`worker.terminate()`).
 
 ### 4.3. Implement Final Output
 

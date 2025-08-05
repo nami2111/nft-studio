@@ -1,6 +1,6 @@
 # GEMINI.md: AI Assistant Guide
 
-This document provides context for AI assistants (like the Gemini CLI) to understand the structure, goals, and technical stack of the NFT Generative Collection Studio project.
+This document provides context for AI assistants (like the Gemini CLI) to understand the structure, goals, and technical stack of the NFT Generative Collection Studio project. Project PRD in `PRD.md` and SPEC in `SPEC.md`.
 
 ## 1. Project Goal
 
@@ -52,3 +52,19 @@ The codebase is organized following SvelteKit conventions.
 - **Build for production:** `pnpm build`
 - **Deploy to ICP:** `juno deploy`
 - **Add UI components:** `pnpm dlx shadcn-svelte@latest add [component_name]`
+
+## 6. Workflow
+
+- Use the MCP server's Sequential Thinking for complex problem solving.
+- Use the MCP server's Exa or Brave search to obtain up-to-date information, including the latest or long-term support versions of technologies/stack.
+- When selecting and completing a task from `TODO.md`, mark it as done to better track progress.
+- When the main task is complete, prompt the user to commit the changes with a clear and descriptive commit message.
+- Don't run server or deploy (`pnpm dev`or `juno dev` or `juno deploy`) let me do that manually.
+
+## 7. Knowledge & Tech/Stack Documentation
+
+- `/.knowledge/Juno-build-documentation.txt` -> Juno build Documentation.
+- `/.knowledge/Svelte-CLI-documentation.txt` -> Svelte CLI Documentation.
+- `/.knowledge/Svelte-documentation.txt` -> Svelte Documentation.
+- `/.knowledge/SvelteKit-documentation.txt` -> SvelteKit Documentation.
+- `/.knowledge/tailwindcss-documentation.txt` -> TailwindCSS Documentation.
