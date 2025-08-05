@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
 	import { initSatellite } from '@junobuild/core';
+	import { Toaster } from '$lib/components/ui/sonner';
 	import '../app.css';
 
 	interface Props {
@@ -30,4 +31,5 @@
 			{@render children?.()}
 		</div>
 	</main>
+	<Toaster position="top-right" />
 </div>

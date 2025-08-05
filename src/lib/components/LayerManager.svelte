@@ -2,7 +2,7 @@
 	import { project, addLayer, reorderLayers } from '$lib/stores/project.store';
 	import LayerItem from '$lib/components/LayerItem.svelte';
 	import { flip } from 'svelte/animate';
-	import { dragAndDrop } from 'svelte-dnd-action';
+	import { dndzone } from 'svelte-dnd-action';
 	import type { Layer } from '$lib/types/layer';
 
 	let layers = $state<Layer[]>([]);
@@ -35,26 +35,26 @@
 	}
 </script>
 
-<div class="bg-white shadow rounded-lg p-6 mt-6">
-	<div class="flex justify-between items-center mb-4">
+<div class="mt-6 rounded-lg bg-white p-6 shadow">
+	<div class="mb-4 flex items-center justify-between">
 		<h2 class="text-xl font-bold text-gray-800">Layers</h2>
 		<button
 			type="button"
-			class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-			on:click={handleAddLayer}
+			class="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-3 py-2 text-sm leading-4 font-medium text-white hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
+			onclick={handleAddLayer}
 		>
 			Add Layer
 		</button>
 	</div>
-	
-	<div 
+
+	<div
 		class="space-y-4"
-		use:dragAndDrop={{
+		use:dndzone={{
 			items: layers,
-			animation: flip
+			flipDurationMs: 150
 		}}
-		on:consider={handleDndConsider}
-		on:finalize={handleDndFinalize}
+		onconsider={handleDndConsider}
+		onfinalize={handleDndFinalize}
 	>
 		{#each layers as layer (layer.id)}
 			<LayerItem {layer} />

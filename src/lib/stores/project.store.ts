@@ -61,9 +61,7 @@ export function removeLayer(layerId: string) {
 export function updateLayerName(layerId: string, name: string) {
 	project.update((p) => ({
 		...p,
-		layers: p.layers.map((layer) =>
-			layer.id === layerId ? { ...layer, name } : layer
-		)
+		layers: p.layers.map((layer) => (layer.id === layerId ? { ...layer, name } : layer))
 	}));
 }
 
@@ -81,7 +79,7 @@ export function addTrait(layerId: string, trait: Omit<Trait, 'id'>) {
 								id: crypto.randomUUID()
 							}
 						]
-				  }
+					}
 				: layer
 		)
 	}));
@@ -95,7 +93,7 @@ export function removeTrait(layerId: string, traitId: string) {
 				? {
 						...layer,
 						traits: layer.traits.filter((trait) => trait.id !== traitId)
-				  }
+					}
 				: layer
 		)
 	}));
@@ -111,7 +109,7 @@ export function updateTraitRarity(layerId: string, traitId: string, rarityWeight
 						traits: layer.traits.map((trait) =>
 							trait.id === traitId ? { ...trait, rarityWeight } : trait
 						)
-				  }
+					}
 				: layer
 		)
 	}));
@@ -134,17 +132,33 @@ export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
 	});
 }
 
+// Interface for transferrable layer format
+interface TransferrableTrait {
+	id: string;
+	name: string;
+	imageData: ArrayBuffer;
+	rarityWeight: number;
+}
+
+interface TransferrableLayer {
+	id: string;
+	name: string;
+	order: number;
+	isOptional?: boolean;
+	traits: TransferrableTrait[];
+}
+
 // Helper function to prepare layers for transfer to worker
-export async function prepareLayersForWorker(layers: Layer[]): Promise<any[]> {
-	const transferrableLayers = [];
-	
+export async function prepareLayersForWorker(layers: Layer[]): Promise<TransferrableLayer[]> {
+	const transferrableLayers: TransferrableLayer[] = [];
+
 	for (const layer of layers) {
-		const transferrableTraits = [];
-		
+		const transferrableTraits: TransferrableTrait[] = [];
+
 		for (const trait of layer.traits) {
 			// Convert File to ArrayBuffer for transfer
 			const arrayBuffer = await fileToArrayBuffer(trait.imageData);
-			
+
 			transferrableTraits.push({
 				id: trait.id,
 				name: trait.name,
@@ -152,7 +166,7 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<any[]> {
 				rarityWeight: trait.rarityWeight
 			});
 		}
-		
+
 		transferrableLayers.push({
 			id: layer.id,
 			name: layer.name,
@@ -161,6 +175,6 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<any[]> {
 			traits: transferrableTraits
 		});
 	}
-	
+
 	return transferrableLayers;
 }

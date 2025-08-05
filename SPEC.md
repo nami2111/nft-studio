@@ -39,32 +39,32 @@ These interfaces define the core data structures of the application.
 ```typescript
 // project.ts
 interface Project {
-  id: string;
-  name: string;
-  description: string;
-  outputSize: {
-    width: number;
-    height: number;
-  };
-  layers: Layer[];
+	id: string;
+	name: string;
+	description: string;
+	outputSize: {
+		width: number;
+		height: number;
+	};
+	layers: Layer[];
 }
 
 // layer.ts
 interface Layer {
-  id: string; // e.g., 'background'
-  name: string; // e.g., 'Background'
-  order: number; // Stacking order, e.g., 0, 1, 2...
-  isOptional?: boolean; // For v1.1 Rules Engine
-  traits: Trait[];
+	id: string; // e.g., 'background'
+	name: string; // e.g., 'Background'
+	order: number; // Stacking order, e.g., 0, 1, 2...
+	isOptional?: boolean; // For v1.1 Rules Engine
+	traits: Trait[];
 }
 
 // trait.ts
 interface Trait {
-  id: string;
-  name: string; // e.g., 'Blue.png'
-  imageUrl: string; // Object URL created from uploaded file
-  imageData: File; // The raw file object
-  rarityWeight: number; // Integer from 1 (rarest) to 5 (most common)
+	id: string;
+	name: string; // e.g., 'Blue.png'
+	imageUrl: string; // Object URL created from uploaded file
+	imageData: File; // The raw file object
+	rarityWeight: number; // Integer from 1 (rarest) to 5 (most common)
 }
 ```
 
@@ -112,11 +112,11 @@ The worker will listen for a single message type, `start`, and post back multipl
 
 ```typescript
 interface StartMessage {
-  type: 'start';
-  payload: {
-    layers: Layer[];
-    collectionSize: number;
-  };
+	type: 'start';
+	payload: {
+		layers: Layer[];
+		collectionSize: number;
+	};
 }
 ```
 
@@ -124,27 +124,27 @@ interface StartMessage {
 
 ```typescript
 interface ProgressMessage {
-  type: 'progress';
-  payload: {
-    generatedCount: number;
-    totalCount: number;
-    statusText: string;
-  };
+	type: 'progress';
+	payload: {
+		generatedCount: number;
+		totalCount: number;
+		statusText: string;
+	};
 }
 
 interface CompleteMessage {
-  type: 'complete';
-  payload: {
-    images: { name: string; blob: Blob }[];
-    metadata: { name: string; data: object }[];
-  };
+	type: 'complete';
+	payload: {
+		images: { name: string; blob: Blob }[];
+		metadata: { name: string; data: object }[];
+	};
 }
 
 interface ErrorMessage {
-  type: 'error';
-  payload: {
-    message: string;
-  };
+	type: 'error';
+	payload: {
+		message: string;
+	};
 }
 ```
 
@@ -165,19 +165,19 @@ For each NFT to be generated:
 
 ```typescript
 function selectTrait(layer: Layer): Trait | null {
-  // Handle optional layers first (v1.1)
-  // ...
+	// Handle optional layers first (v1.1)
+	// ...
 
-  const totalWeight = layer.traits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
-  let randomNum = Math.random() * totalWeight;
+	const totalWeight = layer.traits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
+	let randomNum = Math.random() * totalWeight;
 
-  for (const trait of layer.traits) {
-    if (randomNum < trait.rarityWeight) {
-      return trait;
-    }
-    randomNum -= trait.rarityWeight;
-  }
-  return null; // Should not happen if weights are valid
+	for (const trait of layer.traits) {
+		if (randomNum < trait.rarityWeight) {
+			return trait;
+		}
+		randomNum -= trait.rarityWeight;
+	}
+	return null; // Should not happen if weights are valid
 }
 ```
 
