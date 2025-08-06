@@ -1,13 +1,52 @@
 <script lang="ts">
 	import type { Trait } from '$lib/types/trait';
 	import RaritySlider from '$lib/components/RaritySlider.svelte';
+	import { removeTrait, updateTraitName } from '$lib/stores/project.store';
+	import { Button } from '$lib/components/ui/button';
+	import { toast } from 'svelte-sonner';
+	import { Edit, Trash2, Check, X } from 'lucide-svelte';
 
 	interface Props {
 		trait: Trait;
 		layerId: string;
 	}
 
-	let { trait, layerId }: Props = $props();
+	const { trait, layerId }: Props = $props();
+
+	let traitName = $derived(trait.name);
+	let isEditing = $state(false);
+
+	function handleRemoveTrait() {
+		toast.warning(`Are you sure you want to delete "${trait.name}"?`, {
+			action: {
+				label: 'Delete',
+				onClick: () => {
+					removeTrait(layerId, trait.id);
+					toast.success(`Trait "${trait.name}" has been deleted.`);
+				}
+			},
+			cancel: {
+				label: 'Cancel',
+				onClick: () => {}
+			}
+		});
+	}
+
+	function handleUpdateName() {
+		if (traitName.trim() === '') {
+			toast.error('Trait name cannot be empty.');
+			traitName = trait.name; // Revert
+		} else {
+			updateTraitName(layerId, trait.id, traitName);
+			toast.success('Trait name updated.');
+		}
+		isEditing = false;
+	}
+
+	function cancelEdit() {
+		traitName = trait.name;
+		isEditing = false;
+	}
 </script>
 
 <div class="overflow-hidden rounded-lg border border-gray-200">
@@ -19,7 +58,31 @@
 		{/if}
 	</div>
 	<div class="p-2">
-		<p class="truncate text-sm font-medium text-gray-900">{trait.name}</p>
+		<div class="flex items-center justify-between">
+			{#if isEditing}
+				<input
+					bind:value={traitName}
+					class="w-full border-b bg-transparent text-sm font-medium focus:outline-none"
+					onkeydown={(e) => e.key === 'Enter' && handleUpdateName()}
+				/>
+				<div class="flex">
+					<Button variant="ghost" size="icon" onclick={handleUpdateName}
+						><Check class="h-4 w-4" /></Button
+					>
+					<Button variant="ghost" size="icon" onclick={cancelEdit}><X class="h-4 w-4" /></Button>
+				</div>
+			{:else}
+				<p class="truncate text-sm font-medium text-gray-900" title={trait.name}>{trait.name}</p>
+				<div class="flex">
+					<Button variant="ghost" size="icon" onclick={() => (isEditing = true)}
+						><Edit class="h-4 w-4" /></Button
+					>
+					<Button variant="ghost" size="icon" onclick={handleRemoveTrait}
+						><Trash2 class="h-4 w-4 text-red-500" /></Button
+					>
+				</div>
+			{/if}
+		</div>
 		<RaritySlider rarityWeight={trait.rarityWeight} traitId={trait.id} {layerId} />
 	</div>
 </div>

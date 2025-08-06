@@ -110,13 +110,13 @@ This phase brings the application to life with logic.
 
 ### 5.2. Refinement
 
-- [ ] Add loading spinners and disabled states to buttons during processing.
-- [ ] Improve UI/UX based on testing feedback (e.g., clearer instructions, better error handling).
-- [ ] Review and refactor code for clarity and performance.
+- [x] Add loading spinners and disabled states to buttons during processing.
+- [x] Improve UI/UX based on testing feedback (e.g., clearer instructions, better error handling).
+- [x] Review and refactor code for clarity and performance.
 
 ### 5.3. Deployment
 
-- [ ] Run a final build (`juno deploy`).
+- [x] Run a final build (`juno deploy`).
 - [ ] Test the live application on the `icp-api.io` domain provided by Juno.
 
 ## Phase 6: Post-MVP (v1.1 and Beyond)

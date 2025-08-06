@@ -2,15 +2,22 @@
 	import ProjectSettings from '$lib/components/ProjectSettings.svelte';
 	import LayerManager from '$lib/components/LayerManager.svelte';
 	import GenerationModal from '$lib/components/GenerationModal.svelte';
-	import { project } from '$lib/stores/project.store';
+	import Preview from '$lib/components/Preview.svelte';
 </script>
 
-<div class="py-6">
-	<ProjectSettings />
+<div class="container mx-auto py-8">
+	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+		<div class="lg:col-span-2">
+			<ProjectSettings />
+			<LayerManager />
+		</div>
 
-	<LayerManager />
+		<div class="lg:col-span-1">
+			<Preview />
+		</div>
+	</div>
 
-	<div class="mt-6 flex justify-center">
+	<div class="mt-8 flex justify-center">
 		<GenerationModal />
 	</div>
 </div>

@@ -22,65 +22,65 @@ import {
 
 export const onSetDoc = defineHook<OnSetDoc>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const onSetManyDocs = defineHook<OnSetManyDocs>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const onDeleteDoc = defineHook<OnDeleteDoc>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const onDeleteManyDocs = defineHook<OnDeleteManyDocs>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const onDeleteFilteredDocs = defineHook<OnDeleteFilteredDocs>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const onUploadAsset = defineHook<OnUploadAsset>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const onDeleteAsset = defineHook<OnDeleteAsset>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const onDeleteManyAssets = defineHook<OnDeleteManyAssets>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const onDeleteFilteredAssets = defineHook<OnDeleteFilteredAssets>({
 	collections: [],
-	run: async (context) => {}
+	run: async () => {}
 });
 
 export const assertSetDoc = defineAssert<AssertSetDoc>({
 	collections: [],
-	assert: (context) => {}
+	assert: () => {}
 });
 
 export const assertDeleteDoc = defineAssert<AssertDeleteDoc>({
 	collections: [],
-	assert: (context) => {}
+	assert: () => {}
 });
 
 export const assertUploadAsset = defineAssert<AssertUploadAsset>({
 	collections: [],
-	assert: (context) => {}
+	assert: () => {}
 });
 
 export const assertDeleteAsset = defineAssert<AssertDeleteAsset>({
 	collections: [],
-	assert: (context) => {}
+	assert: () => {}
 });

@@ -1,45 +1,25 @@
 <script lang="ts">
-	import {
-		project,
-		updateProjectName,
-		updateProjectDescription,
-		updateProjectDimensions
-	} from '$lib/stores/project.store';
+	import { project, updateProjectName, updateProjectDescription } from '$lib/stores/project.store';
 	import { untrack } from 'svelte';
 
-	let projectName = $state('');
-	let projectDescription = $state('');
-	let projectWidth = $state(1024);
-	let projectHeight = $state(1024);
+	let projectName = '';
+	let projectDescription = '';
 
-	// Subscribe to store changes
 	project.subscribe((p) => {
 		projectName = p.name;
 		projectDescription = p.description;
-		projectWidth = p.outputSize.width;
-		projectHeight = p.outputSize.height;
 	});
 
-	function handleNameInput(e: Event) {
-		const target = e.target as HTMLInputElement;
-		updateProjectName(target.value);
+	function handleNameChange() {
+		untrack(() => {
+			updateProjectName(projectName);
+		});
 	}
 
-	function handleDescriptionInput(e: Event) {
-		const target = e.target as HTMLTextAreaElement;
-		updateProjectDescription(target.value);
-	}
-
-	function handleWidthInput(e: Event) {
-		const target = e.target as HTMLInputElement;
-		const width = parseInt(target.value) || 1;
-		updateProjectDimensions(width, projectHeight);
-	}
-
-	function handleHeightInput(e: Event) {
-		const target = e.target as HTMLInputElement;
-		const height = parseInt(target.value) || 1;
-		updateProjectDimensions(projectWidth, height);
+	function handleDescriptionChange() {
+		untrack(() => {
+			updateProjectDescription(projectDescription);
+		});
 	}
 </script>
 
@@ -53,8 +33,8 @@
 				id="projectName"
 				type="text"
 				class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-				value={projectName}
-				oninput={handleNameInput}
+				bind:value={projectName}
+				onchange={handleNameChange}
 				placeholder="Enter project name"
 			/>
 		</div>
@@ -68,37 +48,16 @@
 				rows="3"
 				class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 				placeholder="Enter project description"
-				value={projectDescription}
-				oninput={handleDescriptionInput}
+				bind:value={projectDescription}
+				onchange={handleDescriptionChange}
 			></textarea>
 		</div>
 
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-			<div>
-				<label for="width" class="block text-sm font-medium text-gray-700">Width (px)</label>
-				<input
-					id="width"
-					type="number"
-					min="1"
-					class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-					value={projectWidth}
-					oninput={handleWidthInput}
-					placeholder="Width"
-				/>
-			</div>
-
-			<div>
-				<label for="height" class="block text-sm font-medium text-gray-700">Height (px)</label>
-				<input
-					id="height"
-					type="number"
-					min="1"
-					class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-					value={projectHeight}
-					oninput={handleHeightInput}
-					placeholder="Height"
-				/>
-			</div>
+		<div class="rounded-md bg-blue-50 p-4">
+			<p class="text-sm text-blue-800">
+				Dimensions are automatically set based on your uploaded image files. The first image
+				uploaded will determine the project output size.
+			</p>
 		</div>
 	</div>
 </div>

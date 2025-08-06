@@ -45,7 +45,7 @@ interface ProgressMessage {
 interface CompleteMessage {
 	type: 'complete';
 	payload: {
-		images: { name: string; blob: Blob }[];
+		images: { name: string; imageData: ArrayBuffer }[];
 		metadata: { name: string; data: object }[];
 	};
 }
@@ -117,11 +117,20 @@ function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
 }
 
 // Create an ImageBitmap from ArrayBuffer
-async function createImageBitmapFromBuffer(buffer: ArrayBuffer): Promise<ImageBitmap> {
-	// Create a Blob from the ArrayBuffer
-	const blob = new Blob([buffer]);
-	// Create an ImageBitmap from the Blob
-	return await createImageBitmap(blob);
+async function createImageBitmapFromBuffer(
+	buffer: ArrayBuffer,
+	traitName: string
+): Promise<ImageBitmap> {
+	try {
+		// Create a Blob from the ArrayBuffer
+		const blob = new Blob([buffer]);
+		// Create an ImageBitmap from the Blob
+		return await createImageBitmap(blob);
+	} catch (error) {
+		throw new Error(
+			`Failed to process image "${traitName}": ${error instanceof Error ? error.message : 'Unknown error'}`
+		);
+	}
 }
 
 // Generate the collection
@@ -144,6 +153,7 @@ async function generateCollection(
 			statusText: 'Starting generation...'
 		}
 	};
+
 	self.postMessage(initialProgress);
 
 	// Generate each NFT
@@ -178,7 +188,10 @@ async function generateCollection(
 					});
 
 					// Create ImageBitmap from the trait's image data
-					const imageBitmap = await createImageBitmapFromBuffer(selectedTrait.imageData);
+					const imageBitmap = await createImageBitmapFromBuffer(
+						selectedTrait.imageData,
+						selectedTrait.name
+					);
 
 					// Draw the image onto the OffscreenCanvas
 					ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
@@ -197,15 +210,20 @@ async function generateCollection(
 				blob
 			});
 
-			// Create metadata
+			// Create metadata - avoid closures to ensure cloneability
+			const attributes = [];
+			for (const trait of selectedTraits) {
+				attributes.push({
+					trait_type: trait.layerName,
+					value: trait.traitName
+				});
+			}
+
 			const metadataObj = {
 				name: `${projectName} #${i + 1}`,
 				description: projectDescription,
 				image: `${i + 1}.png`,
-				attributes: selectedTraits.map((trait) => ({
-					trait_type: trait.layerName,
-					value: trait.traitName
-				}))
+				attributes: attributes
 			};
 
 			// Store the metadata
@@ -238,14 +256,31 @@ async function generateCollection(
 		}
 	}
 
-	// Send completion message
+	// Convert Blobs to ArrayBuffers for transfer
+	const imagesForTransfer = await Promise.all(
+		images.map(async (image) => ({
+			name: image.name,
+			imageData: await image.blob.arrayBuffer()
+		}))
+	);
+
+	// Send completion message with transferable objects
 	const completeMessage: CompleteMessage = {
 		type: 'complete',
 		payload: {
-			images,
+			images: imagesForTransfer,
 			metadata
 		}
 	};
+
+	// Transfer ArrayBuffer objects for efficiency
+	const transferables: ArrayBuffer[] = [];
+	imagesForTransfer.forEach((img) => {
+		if (img.imageData instanceof ArrayBuffer) {
+			transferables.push(img.imageData);
+		}
+	});
+
 	self.postMessage(completeMessage);
 }
 

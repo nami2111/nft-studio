@@ -2,6 +2,7 @@
 	import { onMount, type Snippet } from 'svelte';
 	import { initSatellite } from '@junobuild/core';
 	import { Toaster } from '$lib/components/ui/sonner';
+	import Hero from '$lib/components/Hero.svelte';
 	import '../app.css';
 
 	interface Props {
@@ -21,12 +22,8 @@
 </script>
 
 <div class="min-h-screen bg-gray-50">
-	<header class="bg-white shadow">
-		<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-			<h1 class="text-3xl font-bold text-gray-900">NFT Generative Collection Studio</h1>
-		</div>
-	</header>
-	<main>
+	<Hero />
+	<main id="main-content">
 		<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 			{@render children?.()}
 		</div>

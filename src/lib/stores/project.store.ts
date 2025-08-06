@@ -15,39 +15,29 @@ export const project = writable<Project>({
 	layers: []
 });
 
-// Functions to update the store
+// --- Utility Functions ---
+function sortLayers(layers: Layer[]): Layer[] {
+	return layers.sort((a, b) => a.order - b.order);
+}
+
+// --- Project Level Functions ---
 export function updateProjectName(name: string) {
-	project.update((p) => ({
-		...p,
-		name
-	}));
+	project.update((p) => ({ ...p, name }));
 }
 
 export function updateProjectDescription(description: string) {
-	project.update((p) => ({
-		...p,
-		description
-	}));
+	project.update((p) => ({ ...p, description }));
 }
 
 export function updateProjectDimensions(width: number, height: number) {
-	project.update((p) => ({
-		...p,
-		outputSize: { width, height }
-	}));
+	project.update((p) => ({ ...p, outputSize: { width, height } }));
 }
 
+// --- Layer Level Functions ---
 export function addLayer(layer: Omit<Layer, 'id' | 'traits'>) {
 	project.update((p) => ({
 		...p,
-		layers: [
-			...p.layers,
-			{
-				...layer,
-				id: crypto.randomUUID(),
-				traits: []
-			}
-		]
+		layers: sortLayers([...p.layers, { ...layer, id: crypto.randomUUID(), traits: [] }])
 	}));
 }
 
@@ -65,24 +55,44 @@ export function updateLayerName(layerId: string, name: string) {
 	}));
 }
 
-export function addTrait(layerId: string, trait: Omit<Trait, 'id'>) {
+export function reorderLayers(reorderedLayers: Layer[]) {
 	project.update((p) => ({
 		...p,
-		layers: p.layers.map((layer) =>
-			layer.id === layerId
-				? {
-						...layer,
-						traits: [
-							...layer.traits,
-							{
-								...trait,
-								id: crypto.randomUUID()
-							}
-						]
-					}
-				: layer
-		)
+		layers: sortLayers(reorderedLayers)
 	}));
+}
+
+// --- Trait Level Functions ---
+export async function addTrait(
+	layerId: string,
+	trait: Omit<Trait, 'id' | 'imageData'> & { imageData: File }
+) {
+	const arrayBuffer = await fileToArrayBuffer(trait.imageData);
+
+	const newTrait: Trait = {
+		...trait,
+		id: crypto.randomUUID(),
+		imageUrl: trait.imageUrl || '',
+		imageData: arrayBuffer
+	};
+
+	project.update((p) => {
+		// Auto-set project output size based on first uploaded image
+		let newOutputSize = p.outputSize;
+		const isFirstImage = p.layers.every((layer) => layer.traits.length === 0);
+
+		if (isFirstImage && trait.width && trait.height) {
+			newOutputSize = { width: trait.width, height: trait.height };
+		}
+
+		const newLayers = p.layers.map((layer) => {
+			if (layer.id === layerId) {
+				return { ...layer, traits: [...layer.traits, newTrait] };
+			}
+			return layer;
+		});
+		return { ...p, outputSize: newOutputSize, layers: newLayers };
+	});
 }
 
 export function removeTrait(layerId: string, traitId: string) {
@@ -90,9 +100,20 @@ export function removeTrait(layerId: string, traitId: string) {
 		...p,
 		layers: p.layers.map((layer) =>
 			layer.id === layerId
+				? { ...layer, traits: layer.traits.filter((trait) => trait.id !== traitId) }
+				: layer
+		)
+	}));
+}
+
+export function updateTraitName(layerId: string, traitId: string, name: string) {
+	project.update((p) => ({
+		...p,
+		layers: p.layers.map((layer) =>
+			layer.id === layerId
 				? {
 						...layer,
-						traits: layer.traits.filter((trait) => trait.id !== traitId)
+						traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, name } : trait))
 					}
 				: layer
 		)
@@ -115,24 +136,11 @@ export function updateTraitRarity(layerId: string, traitId: string, rarityWeight
 	}));
 }
 
-export function reorderLayers(reorderedLayers: Layer[]) {
-	project.update((p) => ({
-		...p,
-		layers: reorderedLayers
-	}));
+// --- Worker Preparation ---
+async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
+	return await file.arrayBuffer();
 }
 
-// Helper function to convert File to ArrayBuffer
-export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
-	return new Promise((resolve, reject) => {
-		const reader = new FileReader();
-		reader.onload = () => resolve(reader.result as ArrayBuffer);
-		reader.onerror = reject;
-		reader.readAsArrayBuffer(file);
-	});
-}
-
-// Interface for transferrable layer format
 interface TransferrableTrait {
 	id: string;
 	name: string;
@@ -148,33 +156,25 @@ interface TransferrableLayer {
 	traits: TransferrableTrait[];
 }
 
-// Helper function to prepare layers for transfer to worker
 export async function prepareLayersForWorker(layers: Layer[]): Promise<TransferrableLayer[]> {
-	const transferrableLayers: TransferrableLayer[] = [];
-
-	for (const layer of layers) {
-		const transferrableTraits: TransferrableTrait[] = [];
-
-		for (const trait of layer.traits) {
-			// Convert File to ArrayBuffer for transfer
-			const arrayBuffer = await fileToArrayBuffer(trait.imageData);
-
-			transferrableTraits.push({
-				id: trait.id,
-				name: trait.name,
-				imageData: arrayBuffer,
-				rarityWeight: trait.rarityWeight
-			});
-		}
-
-		transferrableLayers.push({
-			id: layer.id,
-			name: layer.name,
-			order: layer.order,
-			isOptional: layer.isOptional,
-			traits: transferrableTraits
-		});
-	}
-
+	const transferrableLayers = await Promise.all(
+		layers.map(async (layer) => {
+			const transferrableTraits = await Promise.all(
+				layer.traits.map(async (trait) => ({
+					id: trait.id,
+					name: trait.name,
+					imageData: trait.imageData,
+					rarityWeight: trait.rarityWeight
+				}))
+			);
+			return {
+				id: layer.id,
+				name: layer.name,
+				order: layer.order,
+				isOptional: layer.isOptional,
+				traits: transferrableTraits
+			};
+		})
+	);
 	return transferrableLayers;
 }
