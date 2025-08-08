@@ -8,7 +8,13 @@
 		DialogTrigger
 	} from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
-	import { project, prepareLayersForWorker } from '$lib/stores/project.store';
+	import {
+		project,
+		prepareLayersForWorker,
+		hasMissingImageData,
+		getLayersWithMissingImages,
+		projectNeedsZipLoad
+	} from '$lib/stores/project.store';
 	import type { Project } from '$lib/types/project';
 	import { toast } from 'svelte-sonner';
 	import { Loader2 } from 'lucide-svelte';
@@ -99,11 +105,33 @@
 			return;
 		}
 
+		// Check for missing image data
+		if (hasMissingImageData()) {
+			const missingImages = getLayersWithMissingImages();
+			const traitList = missingImages
+				.slice(0, 3) // Show first 3 to avoid too many
+				.map(
+					(item: { layerName: string; traitName: string }) =>
+						`"${item.traitName}" in layer "${item.layerName}"`
+				)
+				.join(', ');
+			const moreText = missingImages.length > 3 ? ` and ${missingImages.length - 3} more` : '';
+
+			toast.error(
+				`Some images are missing or corrupted. Please re-upload: ${traitList}${moreText}.`
+			);
+			return;
+		}
+
 		isGenerating = true;
-		updateProgress(0, collectionSize, 'Initializing worker...');
+		updateProgress(0, collectionSize, 'Validating project data...');
 
 		try {
+			// Validate layers before starting generation
 			const transferrableLayers = await prepareLayersForWorker(projectData.layers);
+
+			updateProgress(0, collectionSize, 'Initializing worker...');
+
 			worker = new Worker(new URL('$lib/workers/generation.worker.ts', import.meta.url), {
 				type: 'module'
 			});
@@ -116,11 +144,24 @@
 						break;
 					case 'complete':
 						packageZip(payload.images, payload.metadata);
+						// Auto-refresh after successful generation
+						setTimeout(() => {
+							window.location.reload();
+						}, 2500); // Wait 2.5 seconds for download to start
 						break;
 					case 'error':
 						updateProgress(generatedCount, totalCount, `Error: ${payload.message}`);
 						toast.error(`Generation error: ${payload.message}`);
 						resetState();
+						break;
+					case 'cancelled':
+						updateProgress(generatedCount, totalCount, 'Generation cancelled by user.');
+						toast.info('Generation has been cancelled.');
+						resetState();
+						// Auto-refresh after cancellation
+						setTimeout(() => {
+							window.location.reload();
+						}, 1500); // Wait 1.5 seconds before refresh
 						break;
 				}
 			};
@@ -164,6 +205,8 @@
 
 	function handleCancel() {
 		if (worker) {
+			// Send cancellation message to worker
+			worker.postMessage({ type: 'cancel' });
 			worker.terminate();
 			worker = null;
 		}
@@ -218,7 +261,10 @@
 					Cancel
 				</Button>
 			{/if}
-			<Button onclick={handleGenerate} disabled={isGenerating || projectData.layers.length === 0}>
+			<Button
+				onclick={handleGenerate}
+				disabled={isGenerating || projectData.layers.length === 0 || projectNeedsZipLoad()}
+			>
 				{#if isGenerating}
 					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 					Generating...

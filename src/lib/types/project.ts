@@ -10,4 +10,5 @@ export interface Project {
 		height: number;
 	};
 	layers: Layer[];
+	_needsProperLoad?: boolean; // Optional flag to indicate if project needs proper loading
 }

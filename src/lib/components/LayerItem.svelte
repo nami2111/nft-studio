@@ -1,11 +1,13 @@
 <script lang="ts">
 	import type { Layer } from '$lib/types/layer';
 	import TraitCard from '$lib/components/TraitCard.svelte';
-	import { removeLayer, updateLayerName, addTrait } from '$lib/stores/project.store';
+	import { removeLayer, updateLayerName, addTrait, project, removeTrait, updateTraitRarity, updateTraitName } from '$lib/stores/project.store';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Loader2, Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
 	import { getImageDimensions } from '$lib/utils';
+	import { onMount, onDestroy } from 'svelte';
+	import { get } from 'svelte/store';
 
 	interface Props {
 		layer: Layer;
@@ -15,9 +17,98 @@
 
 	let layerName = $derived(layer.name);
 	let isUploading = $state(false);
+	let uploadProgress = $state(0); // Track upload progress
 	let isEditing = $state(false);
 	let isDragover = $state(false);
 	let isExpanded = $state(true);
+	let searchTerm = $state(''); // For trait search/filter
+
+	// Filter traits based on search term
+	let filteredTraits = $derived(
+		layer.traits.filter(trait => 
+			trait.name.toLowerCase().includes(searchTerm.toLowerCase())
+		)
+	);
+
+	// Bulk operation states
+	let isBulkMode = $state(false);
+	let selectedTraits = $state(new Set<string>());
+	let bulkRarityWeight = $state(3);
+	let bulkNewName = $state('');
+
+	// Toggle trait selection
+	function toggleTraitSelection(traitId: string) {
+		if (selectedTraits.has(traitId)) {
+			selectedTraits.delete(traitId);
+		} else {
+			selectedTraits.add(traitId);
+		}
+		selectedTraits = new Set(selectedTraits); // Trigger reactivity
+	}
+
+	// Select all filtered traits
+	function selectAllFiltered() {
+		filteredTraits.forEach(trait => selectedTraits.add(trait.id));
+		selectedTraits = new Set(selectedTraits); // Trigger reactivity
+	}
+
+	// Clear selection
+	function clearSelection() {
+		selectedTraits.clear();
+		selectedTraits = new Set(selectedTraits); // Trigger reactivity
+	}
+
+	// Bulk delete traits
+	function bulkDelete() {
+		if (selectedTraits.size === 0) return;
+		
+		// Show confirmation dialog
+		toast.warning(`Are you sure you want to delete ${selectedTraits.size} trait(s)?`, {
+			action: {
+				label: 'Delete',
+				onClick: () => {
+					// Delete all selected traits
+					selectedTraits.forEach(traitId => {
+						removeTrait(layer.id, traitId);
+					});
+					toast.success(`${selectedTraits.size} trait(s) deleted successfully.`);
+					clearSelection();
+				}
+			},
+			cancel: {
+				label: 'Cancel',
+				onClick: () => {}
+			}
+		});
+	}
+
+	// Bulk update rarity
+	function bulkUpdateRarity() {
+		if (selectedTraits.size === 0) return;
+		
+		// Update rarity for all selected traits
+		selectedTraits.forEach(traitId => {
+			updateTraitRarity(layer.id, traitId, bulkRarityWeight);
+		});
+		toast.success(`Rarity updated for ${selectedTraits.size} trait(s).`);
+	}
+
+	// Bulk rename traits
+	function bulkRename() {
+		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
+		
+		// Update name for all selected traits
+		let count = 0;
+		selectedTraits.forEach(traitId => {
+			const trait = layer.traits.find(t => t.id === traitId);
+			if (trait) {
+				updateTraitName(layer.id, traitId, `${bulkNewName}_${count + 1}`);
+				count++;
+			}
+		});
+		toast.success(`Renamed ${selectedTraits.size} trait(s).`);
+		bulkNewName = '';
+	}
 
 	function handleNameChange() {
 		if (layerName.trim() === '') {
@@ -50,12 +141,26 @@
 		if (!files || files.length === 0) return;
 
 		isUploading = true;
+		uploadProgress = 0;
 		isDragover = false;
 
 		try {
-			const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+			// Filter for valid image files
+			const imageFiles = Array.from(files).filter((file) => {
+				// Check file type
+				const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+				if (!validTypes.includes(file.type)) {
+					return false;
+				}
+				
+				// Check file extension
+				const validExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+				const fileName = file.name.toLowerCase();
+				return validExtensions.some(ext => fileName.endsWith(ext));
+			});
+			
 			if (imageFiles.length === 0) {
-				toast.warning('No valid image files were selected.');
+				toast.warning('No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.');
 				return;
 			}
 
@@ -63,22 +168,47 @@
 			const BATCH_SIZE = 10;
 			let successCount = 0;
 			let errorCount = 0;
+			const totalFiles = imageFiles.length;
 
 			for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
 				const batch = imageFiles.slice(i, i + BATCH_SIZE);
 
 				// Process batch in parallel
-				const batchPromises = batch.map(async (file) => {
+				const batchPromises = batch.map(async (file, index) => {
 					try {
 						// Validate file size (max 10MB)
 						if (file.size > 10 * 1024 * 1024) {
 							throw new Error(`File "${file.name}" is too large (max 10MB)`);
 						}
 
-						const imageUrl = URL.createObjectURL(file);
+						// Get image dimensions
 						const dimensions = await getImageDimensions(file);
+						
+						// Validate dimensions (must be positive)
+						if (dimensions.width <= 0 || dimensions.height <= 0) {
+							throw new Error(`File "${file.name}" has invalid dimensions`);
+						}
+						
+						// For subsequent uploads, validate dimensions match project output size
+						const projectData = get(project);
+						if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
+							// Allow some flexibility for rounding errors (±1 pixel)
+							if (Math.abs(dimensions.width - projectData.outputSize.width) > 1 || 
+								Math.abs(dimensions.height - projectData.outputSize.height) > 1) {
+								throw new Error(`File "${file.name}" dimensions (${dimensions.width}x${dimensions.height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height})`);
+							}
+						}
+
+						const imageUrl = URL.createObjectURL(file);
+						// Normalize base name (remove extension, sanitize)
+						const baseName = file.name.replace(/\.[^/.]+$/, '');
+						const safeName = baseName
+							.trim()
+							.slice(0, 100)
+							.replace(/[^a-zA-Z0-9._ -]/g, '_');
+
 						await addTrait(layer.id, {
-							name: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension
+							name: safeName,
 							imageUrl,
 							imageData: file,
 							width: dimensions.width,
@@ -95,6 +225,9 @@
 				const batchResults = await Promise.all(batchPromises);
 				successCount += batchResults.filter(Boolean).length;
 				errorCount += batchResults.filter((r) => !r).length;
+
+				// Update progress
+				uploadProgress = Math.min(100, Math.round(((i + batch.length) / totalFiles) * 100));
 
 				// Allow UI to update between batches
 				if (i + BATCH_SIZE < imageFiles.length) {
@@ -114,8 +247,156 @@
 			toast.error(`Error uploading files: ${message}`);
 		} finally {
 			isUploading = false;
+			uploadProgress = 0;
 		}
 	}
+
+	// Lazy loading for trait cards (secure; no innerHTML)
+	let observer: IntersectionObserver | null = null;
+
+	function createSafeLazyTraitCard(trait: typeof layer.traits[number]): HTMLElement {
+		const root = document.createElement('div');
+		root.className = 'lazy-trait-loaded';
+
+		const wrapper = document.createElement('div');
+		wrapper.className = 'overflow-hidden rounded-lg border border-gray-200';
+
+		const imgContainer = document.createElement('div');
+		imgContainer.className = 'flex aspect-square items-center justify-center bg-gray-100';
+
+		if (trait.imageUrl) {
+			const img = document.createElement('img');
+			img.className = 'h-full w-full object-contain';
+			// Only assign to src; do not inject HTML
+			img.src = trait.imageUrl;
+			img.alt = trait.name;
+			imgContainer.appendChild(img);
+		} else {
+			const span = document.createElement('span');
+			span.className = 'text-gray-500';
+			span.textContent = 'No image';
+			imgContainer.appendChild(span);
+		}
+
+		const body = document.createElement('div');
+		body.className = 'p-2';
+
+		const header = document.createElement('div');
+		header.className = 'flex items-center justify-between';
+
+		const title = document.createElement('p');
+		title.className = 'truncate text-sm font-medium text-gray-900';
+		title.title = trait.name;
+		title.textContent = trait.name;
+
+		header.appendChild(title);
+
+		const controls = document.createElement('div');
+		controls.className = 'flex';
+		// Decorative placeholders; no onclick handlers here in lazy card (real actions are in TraitCard)
+		const btnEdit = document.createElement('button');
+		btnEdit.className = 'rounded p-1 hover:bg-gray-100';
+		btnEdit.setAttribute('aria-label', 'Edit');
+		const btnTrash = document.createElement('button');
+		btnTrash.className = 'rounded p-1 hover:bg-gray-100';
+		btnTrash.setAttribute('aria-label', 'Delete');
+		controls.appendChild(btnEdit);
+		controls.appendChild(btnTrash);
+		header.appendChild(controls);
+
+		const rarityBlock = document.createElement('div');
+		rarityBlock.className = 'mt-2';
+
+		const label = document.createElement('label');
+		label.className = 'block text-xs font-medium text-gray-700';
+		label.textContent = 'Rarity: ';
+		const rarityValue = document.createElement('span');
+		rarityValue.className = 'font-bold text-indigo-600';
+		// Map weight to label (approximate)
+		const labels: Record<number, string> = { 1: 'Mythic', 2: 'Legendary', 3: 'Epic', 4: 'Rare', 5: 'Common' };
+		rarityValue.textContent = labels[trait.rarityWeight] ?? String(trait.rarityWeight);
+		label.appendChild(rarityValue);
+
+		const rangeWrap = document.createElement('div');
+		rangeWrap.className = 'mt-1 flex items-center';
+		const range = document.createElement('input');
+		range.type = 'range';
+		range.min = '1';
+		range.max = '5';
+		range.step = '1';
+		range.value = String(trait.rarityWeight);
+		range.className =
+			'thumb:bg-indigo-600 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200';
+		range.title = `Rarity: ${labels[trait.rarityWeight] ?? trait.rarityWeight} (${trait.rarityWeight})`;
+		range.disabled = true; // read-only in placeholder
+		rangeWrap.appendChild(range);
+
+		const hints = document.createElement('div');
+		hints.className = 'mt-1 flex justify-between text-xs text-gray-500';
+		const spanLeft = document.createElement('span');
+		spanLeft.textContent = 'Rare';
+		const spanRight = document.createElement('span');
+		spanRight.textContent = 'Common';
+		hints.appendChild(spanLeft);
+		hints.appendChild(spanRight);
+
+		rarityBlock.appendChild(label);
+		rarityBlock.appendChild(rangeWrap);
+		rarityBlock.appendChild(hints);
+
+		body.appendChild(header);
+		body.appendChild(rarityBlock);
+
+		wrapper.appendChild(imgContainer);
+		wrapper.appendChild(body);
+		root.appendChild(wrapper);
+
+		return root;
+	}
+
+	function initializeLazyLoading() {
+		if (layer.traits.length <= 50) return;
+
+		observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (!entry.isIntersecting) return;
+
+					const container = entry.target as HTMLElement;
+					const traitId = container.dataset.traitId;
+					const trait = layer.traits.find((t) => t.id === traitId);
+					if (!trait) return;
+
+					const placeholder = container.querySelector('.lazy-trait-placeholder');
+					if (!placeholder) return;
+
+					// Build safe DOM instead of innerHTML
+					const traitCard = createSafeLazyTraitCard(trait);
+					container.replaceChild(traitCard, placeholder);
+
+					observer?.unobserve(container);
+				});
+			},
+			{
+				root: null,
+				rootMargin: '50px',
+				threshold: 0.1
+			}
+		);
+
+		// Observe all lazy trait containers
+		const lazyContainers = document.querySelectorAll('.lazy-trait-container');
+		lazyContainers.forEach((container) => observer?.observe(container));
+	}
+
+	onMount(() => {
+		initializeLazyLoading();
+	});
+
+	onDestroy(() => {
+		if (observer) observer.disconnect();
+		observer = null;
+	});
 </script>
 
 <div class="rounded-lg border border-gray-200 p-4">
@@ -137,7 +418,12 @@
 					onkeydown={(e) => e.key === 'Enter' && handleNameChange()}
 				/>
 			{:else}
-				<h3 class="text-lg font-medium text-gray-900">{layer.name}</h3>
+				<div class="flex items-center">
+					<h3 class="text-lg font-medium text-gray-900">{layer.name}</h3>
+					{#if layer.isOptional}
+						<span class="ml-2 rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">Optional</span>
+					{/if}
+				</div>
 			{/if}
 		</div>
 		{#if !isEditing}
@@ -186,7 +472,13 @@
 				<div class="space-y-1 text-center">
 					{#if isUploading}
 						<Loader2 class="mx-auto h-12 w-12 animate-spin text-indigo-600" />
-						<p class="mt-2 text-sm text-gray-600">Uploading files...</p>
+						<p class="mt-2 text-sm text-gray-600">Uploading files... {uploadProgress}%</p>
+						<div class="mt-2 h-2 w-full rounded-full bg-gray-200">
+							<div
+								class="h-full rounded-full bg-indigo-600 transition-all duration-300"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
 					{:else}
 						<svg
 							class="mx-auto h-12 w-12 text-gray-400"
@@ -225,11 +517,114 @@
 			</div>
 		</div>
 		<div class="mt-4">
-			<h4 class="text-md mb-2 font-medium text-gray-700">Traits ({layer.traits.length})</h4>
+			<div class="mb-2 flex items-center justify-between">
+				<h4 class="text-md font-medium text-gray-700">Traits ({layer.traits.length})</h4>
+				{#if layer.traits.length > 5}
+					<input
+						type="text"
+						placeholder="Search traits..."
+						class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+						bind:value={searchTerm}
+					/>
+				{/if}
+			</div>
+			
+			<!-- Bulk operation controls -->
+			{#if filteredTraits.length > 1}
+				<div class="mb-2 flex items-center justify-between rounded bg-gray-100 p-2">
+					<div class="flex items-center space-x-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={selectAllFiltered}
+						>
+							Select All
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={clearSelection}
+							disabled={selectedTraits.size === 0}
+						>
+							Clear
+						</Button>
+						<span class="text-sm text-gray-600">
+							{selectedTraits.size} selected
+						</span>
+					</div>
+					{#if selectedTraits.size > 0}
+						<div class="flex space-x-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={bulkDelete}
+								class="text-red-600 hover:text-red-700"
+							>
+								<Trash2 class="h-4 w-4" />
+							</Button>
+						</div>
+					{/if}
+				</div>
+				
+				{#if selectedTraits.size > 0}
+					<div class="mb-4 rounded border border-gray-200 p-3">
+						<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
+						<div class="space-y-2">
+							<div class="flex items-center space-x-2">
+								<label class="text-sm">Rarity:</label>
+								<select
+									class="rounded border border-gray-300 px-2 py-1 text-sm"
+									bind:value={bulkRarityWeight}
+								>
+									<option value="1">Mythic (1)</option>
+									<option value="2">Legendary (2)</option>
+									<option value="3">Epic (3)</option>
+									<option value="4">Rare (4)</option>
+									<option value="5">Common (5)</option>
+								</select>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={bulkUpdateRarity}
+								>
+									Update
+								</Button>
+							</div>
+							<div class="flex items-center space-x-2">
+								<label class="text-sm">Rename:</label>
+								<input
+									type="text"
+									placeholder="New name prefix"
+									class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+									bind:value={bulkNewName}
+								/>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={bulkRename}
+									disabled={!bulkNewName.trim()}
+								>
+									Rename
+								</Button>
+							</div>
+						</div>
+					</div>
+				{/if}
+			{/if}
+			
 			{#if layer.traits.length > 0}
 				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-					{#each layer.traits as trait (trait.id)}
-						<TraitCard {trait} layerId={layer.id} />
+					{#each filteredTraits as trait (trait.id)}
+						{#if layer.traits.length > 50}
+							<!-- Lazy load trait cards when there are many traits -->
+							<div class="lazy-trait-container" data-trait-id={trait.id}>
+								<div class="lazy-trait-placeholder">
+									<div class="h-full w-full rounded-lg bg-gray-200"></div>
+								</div>
+							</div>
+						{:else}
+							<TraitCard {trait} layerId={layer.id} />
+						{/if}
 					{/each}
 				</div>
 			{:else}

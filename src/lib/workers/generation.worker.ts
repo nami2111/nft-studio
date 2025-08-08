@@ -1,11 +1,9 @@
 // generation.worker.ts
 
-// Since we can't directly transfer File objects to web workers,
-// we'll need to convert them to a transferrable format
+// Worker message interfaces
 interface TransferrableTrait {
 	id: string;
 	name: string;
-	// We'll transfer the image data as an ArrayBuffer
 	imageData: ArrayBuffer;
 	rarityWeight: number;
 }
@@ -18,7 +16,6 @@ interface TransferrableLayer {
 	traits: TransferrableTrait[];
 }
 
-// Message types
 interface StartMessage {
 	type: 'start';
 	payload: {
@@ -57,54 +54,23 @@ interface ErrorMessage {
 	};
 }
 
-// Type for messages sent from main thread to worker
-type IncomingMessage = StartMessage;
-
-// Add the export statement for the worker
-export {};
-
-// Listen for messages from the main thread
-self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
-	const { type, payload } = e.data;
-
-	switch (type) {
-		case 'start':
-			try {
-				await generateCollection(
-					payload.layers,
-					payload.collectionSize,
-					payload.outputSize,
-					payload.projectName,
-					payload.projectDescription
-				);
-			} catch (error) {
-				const errorMessage: ErrorMessage = {
-					type: 'error',
-					payload: {
-						message: error instanceof Error ? error.message : 'An unknown error occurred'
-					}
-				};
-				self.postMessage(errorMessage);
-			}
-			break;
-		default: {
-			const errorMessage: ErrorMessage = {
-				type: 'error',
-				payload: {
-					message: `Unknown message type: ${type}`
-				}
-			};
-			self.postMessage(errorMessage);
-		}
-	}
-};
+type IncomingMessage = StartMessage | { type: 'cancel' };
 
 // Rarity algorithm
 function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
-	// Handle optional layers first (v1.1)
-	// ...
+	// Handle optional layers first
+	if (layer.isOptional) {
+		const skipChance = 0.3; // 30% chance to skip optional layer
+		if (Math.random() < skipChance) {
+			return null;
+		}
+	}
 
 	const totalWeight = layer.traits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
+	if (totalWeight === 0) {
+		return null; // No traits available
+	}
+
 	let randomNum = Math.random() * totalWeight;
 
 	for (const trait of layer.traits) {
@@ -113,19 +79,23 @@ function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
 		}
 		randomNum -= trait.rarityWeight;
 	}
-	return null; // Should not happen if weights are valid
+	return null;
 }
 
-// Create an ImageBitmap from ArrayBuffer
+// Create an ImageBitmap from ArrayBuffer without intermediate Object URLs
 async function createImageBitmapFromBuffer(
 	buffer: ArrayBuffer,
 	traitName: string
 ): Promise<ImageBitmap> {
+	if (!buffer || buffer.byteLength === 0) {
+		throw new Error(`Image data is empty for trait "${traitName}"`);
+	}
+
 	try {
-		// Create a Blob from the ArrayBuffer
-		const blob = new Blob([buffer]);
-		// Create an ImageBitmap from the Blob
-		return await createImageBitmap(blob);
+		const blob = new Blob([buffer], { type: 'image/png' });
+		// Directly create an ImageBitmap from the Blob (no object URL needed)
+		const imageBitmap = await createImageBitmap(blob);
+		return imageBitmap;
 	} catch (error) {
 		throw new Error(
 			`Failed to process image "${traitName}": ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -133,7 +103,12 @@ async function createImageBitmapFromBuffer(
 	}
 }
 
-// Generate the collection
+// No-op to keep call sites intact; retained for backward compatibility
+function cleanupObjectUrls() {
+	// Intentionally empty: we no longer create object URLs in the worker
+}
+
+// Generate the collection with chunked processing
 async function generateCollection(
 	layers: TransferrableLayer[],
 	collectionSize: number,
@@ -143,6 +118,7 @@ async function generateCollection(
 ) {
 	const images: { name: string; blob: Blob }[] = [];
 	const metadata: { name: string; data: object }[] = [];
+	const CHUNK_SIZE = 50;
 
 	// Send initial progress
 	const initialProgress: ProgressMessage = {
@@ -156,105 +132,165 @@ async function generateCollection(
 
 	self.postMessage(initialProgress);
 
-	// Generate each NFT
-	for (let i = 0; i < collectionSize; i++) {
-		try {
-			// Create an OffscreenCanvas with the project's output dimensions
-			const canvas = new OffscreenCanvas(outputSize.width, outputSize.height);
-			const ctx = canvas.getContext('2d');
+	// Handle cancellation flag
+	let isCancelled = false;
+	const cancelHandler = (e: MessageEvent) => {
+		if ((e as MessageEvent).data?.type === 'cancel') {
+			isCancelled = true;
+			cleanupResources();
+			self.postMessage({ type: 'cancelled' });
+			self.removeEventListener('message', cancelHandler);
+		}
+	};
+	self.addEventListener('message', cancelHandler);
 
-			if (!ctx) {
-				throw new Error('Could not get 2d context from OffscreenCanvas');
-			}
+	// Prepare a reusable OffscreenCanvas and context once per generation to reduce GC churn
+	const reusableCanvas = new OffscreenCanvas(outputSize.width, outputSize.height);
+	const reusableCtx = reusableCanvas.getContext('2d');
+	if (!reusableCtx) {
+		throw new Error('Could not get 2d context from OffscreenCanvas');
+	}
 
-			// Clear the canvas
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
+	// Generate each NFT in chunks
+	for (let chunkStart = 0; chunkStart < collectionSize && !isCancelled; chunkStart += CHUNK_SIZE) {
+		const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, collectionSize);
 
-			// Selected traits for this NFT
-			const selectedTraits = [];
+		for (let i = chunkStart; i < chunkEnd && !isCancelled; i++) {
+			try {
+				// Clear the reusable canvas for this item
+				reusableCtx.clearRect(0, 0, reusableCanvas.width, reusableCanvas.height);
 
-			// Iterate through the layers in their specified order
-			for (const layer of layers) {
-				// Select a trait based on the rarity algorithm
-				const selectedTrait = selectTrait(layer);
+				// Selected traits for this NFT
+				const selectedTraits = [];
 
-				// If a trait is selected, draw it
-				if (selectedTrait) {
-					selectedTraits.push({
-						layerId: layer.id,
-						layerName: layer.name,
-						traitId: selectedTrait.id,
-						traitName: selectedTrait.name
-					});
+				// Iterate through the layers in their specified order
+				for (const layer of layers) {
+					// Validate layer has traits
+					if (!layer.traits || layer.traits.length === 0) {
+						continue;
+					}
 
-					// Create ImageBitmap from the trait's image data
-					const imageBitmap = await createImageBitmapFromBuffer(
-						selectedTrait.imageData,
-						selectedTrait.name
-					);
+					// Select a trait based on the rarity algorithm
+					const selectedTrait = selectTrait(layer);
 
-					// Draw the image onto the OffscreenCanvas
-					ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+					// If a trait is selected, draw it
+					if (selectedTrait) {
+						selectedTraits.push({
+							layerId: layer.id,
+							layerName: layer.name,
+							traitId: selectedTrait.id,
+							traitName: selectedTrait.name
+						});
 
-					// Clean up the ImageBitmap
-					imageBitmap.close();
+						// Create ImageBitmap from the trait's image data
+						const imageBitmap = await createImageBitmapFromBuffer(
+							selectedTrait.imageData,
+							selectedTrait.name
+						);
+
+						// Draw the image onto the OffscreenCanvas
+						reusableCtx.drawImage(imageBitmap, 0, 0, reusableCanvas.width, reusableCanvas.height);
+
+						// Clean up the ImageBitmap
+						imageBitmap.close();
+					}
 				}
-			}
 
-			// Convert the canvas to a Blob
-			const blob = await canvas.convertToBlob({ type: 'image/png' });
+				// Convert the canvas to a Blob
+				const blob = await reusableCanvas.convertToBlob({ type: 'image/png' });
 
-			// Store the blob
-			images.push({
-				name: `${i + 1}.png`,
-				blob
-			});
-
-			// Create metadata - avoid closures to ensure cloneability
-			const attributes = [];
-			for (const trait of selectedTraits) {
-				attributes.push({
-					trait_type: trait.layerName,
-					value: trait.traitName
+				// Store the blob
+				images.push({
+					name: `${i + 1}.png`,
+					blob
 				});
-			}
 
-			const metadataObj = {
-				name: `${projectName} #${i + 1}`,
-				description: projectDescription,
-				image: `${i + 1}.png`,
-				attributes: attributes
-			};
+				// Create metadata
+				const attributes = [];
+				for (const trait of selectedTraits) {
+					attributes.push({
+						trait_type: trait.layerName,
+						value: trait.traitName
+					});
+				}
 
-			// Store the metadata
-			metadata.push({
-				name: `${i + 1}.json`,
-				data: metadataObj
-			});
+				const metadataObj = {
+					name: `${projectName} #${i + 1}`,
+					description: projectDescription,
+					image: `${i + 1}.png`,
+					attributes: attributes
+				};
 
-			// Send progress update every 10 items or for the last item
-			if (i % 10 === 0 || i === collectionSize - 1) {
-				const progressMessage: ProgressMessage = {
-					type: 'progress',
+				// Store the metadata
+				metadata.push({
+					name: `${i + 1}.json`,
+					data: metadataObj
+				});
+
+				// Send progress update
+				if (i % 10 === 0 || i === collectionSize - 1 || i === chunkEnd - 1) {
+					// Cleanup Object URLs periodically to free memory
+					cleanupObjectUrls();
+					
+					const progressMessage: ProgressMessage = {
+						type: 'progress',
+						payload: {
+							generatedCount: i + 1,
+							totalCount: collectionSize,
+							statusText: `Generated ${i + 1} of ${collectionSize} items`
+						}
+					};
+					self.postMessage(progressMessage);
+				}
+			} catch (error) {
+				// Ensure we detach the cancel listener on error paths to avoid leaks across runs
+				try {
+					self.removeEventListener('message', cancelHandler);
+				} catch {
+					// ignore
+				}
+
+				const errorMessage: ErrorMessage = {
+					type: 'error',
 					payload: {
-						generatedCount: i + 1,
-						totalCount: collectionSize,
-						statusText: `Generated ${i + 1} of ${collectionSize} items`
+						message: `Error generating item ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`
 					}
 				};
-				self.postMessage(progressMessage);
+				self.postMessage(errorMessage);
+				throw error; // Stop generation on error
 			}
-		} catch (error) {
-			const errorMessage: ErrorMessage = {
-				type: 'error',
+		}
+
+		// Force garbage collection between chunks if available
+		if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
+			(globalThis as { gc?: () => void }).gc?.();
+		}
+
+		// Send intermediate progress for chunk completion
+		if (!isCancelled && chunkEnd < collectionSize) {
+			const chunkProgress: ProgressMessage = {
+				type: 'progress',
 				payload: {
-					message: `Error generating item ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`
+					generatedCount: chunkEnd,
+					totalCount: collectionSize,
+					statusText: `Completed chunk ${Math.floor(chunkEnd / CHUNK_SIZE)} of ${Math.ceil(collectionSize / CHUNK_SIZE)}`
 				}
 			};
-			self.postMessage(errorMessage);
-			// Continue with the next item
+			self.postMessage(chunkProgress);
 		}
 	}
+
+	// Remove cancel listener
+	self.removeEventListener('message', cancelHandler);
+
+	// Check if cancelled before final processing
+	if (isCancelled) {
+		self.postMessage({ type: 'cancelled' });
+		return;
+	}
+
+	// Final cleanup (no object URLs created anymore, left as no-op)
+	cleanupObjectUrls();
 
 	// Convert Blobs to ArrayBuffers for transfer
 	const imagesForTransfer = await Promise.all(
@@ -264,7 +300,7 @@ async function generateCollection(
 		}))
 	);
 
-	// Send completion message with transferable objects
+	// Send completion message with transferables to avoid copying
 	const completeMessage: CompleteMessage = {
 		type: 'complete',
 		payload: {
@@ -273,7 +309,6 @@ async function generateCollection(
 		}
 	};
 
-	// Transfer ArrayBuffer objects for efficiency
 	const transferables: ArrayBuffer[] = [];
 	imagesForTransfer.forEach((img) => {
 		if (img.imageData instanceof ArrayBuffer) {
@@ -281,7 +316,57 @@ async function generateCollection(
 		}
 	});
 
-	self.postMessage(completeMessage);
+	// Transfer the underlying ArrayBuffers
+	// @ts-expect-error - TS in worker env may not infer postMessage overload with transfer list
+	self.postMessage(completeMessage, transferables);
 }
 
-export {};
+// Cleanup function to free resources
+function cleanupResources() {
+	if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
+		(globalThis as { gc?: () => void }).gc?.();
+	}
+}
+
+// Main worker message handler
+self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
+	const { type, payload } = e.data as {
+		type: string;
+		payload?: unknown;
+	};
+
+	switch (type) {
+		case 'start':
+			try {
+				const startPayload = payload as StartMessage['payload'];
+				await generateCollection(
+					startPayload.layers,
+					startPayload.collectionSize,
+					startPayload.outputSize,
+					startPayload.projectName,
+					startPayload.projectDescription
+				);
+			} catch (error) {
+				const errorMessage: ErrorMessage = {
+					type: 'error',
+					payload: {
+						message: error instanceof Error ? error.message : 'An unknown error occurred'
+					}
+				};
+				self.postMessage(errorMessage);
+			}
+			break;
+		case 'cancel':
+			// Cancel is handled by event listener in generateCollection
+			break;
+		default: {
+			const errorMessage: ErrorMessage = {
+				type: 'error',
+				payload: {
+					message: `Unknown message type: ${type}`
+				}
+			};
+			self.postMessage(errorMessage);
+		}
+	}
+};

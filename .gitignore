@@ -35,7 +35,8 @@ target
 .svelte-kit/output/
 
 # AI Assistants
-
+.roo/
+.clinerules/
 .knowledge/
 .crush/
 .crushignore

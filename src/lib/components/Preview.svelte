@@ -9,6 +9,26 @@
 	let displayWidth = 0;
 	let displayHeight = 0;
 
+	// Image cache to avoid reloading the same images repeatedly
+	const imageCache = new Map<string, HTMLImageElement>();
+
+	// Helper to purge stale cache entries when traits change
+	function purgeStaleCache() {
+		const urlsInUse = new Set<string>();
+		const { layers } = $project;
+		for (const layer of layers) {
+			for (const trait of layer.traits) {
+				if (trait.imageUrl) urlsInUse.add(trait.imageUrl);
+			}
+		}
+		// Remove any cached images that are no longer referenced by current project traits
+		for (const cachedUrl of imageCache.keys()) {
+			if (!urlsInUse.has(cachedUrl)) {
+				imageCache.delete(cachedUrl);
+			}
+		}
+	}
+
 	// Store currently selected trait IDs for randomization
 	let selectedTraitIds: string[] = [];
 
@@ -52,6 +72,8 @@
 		canvas.height = displayHeight * devicePixelRatio;
 
 		if (ctx) {
+			// Reset any previous transform before applying DPR scale to avoid compounding
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.scale(devicePixelRatio, devicePixelRatio);
 		}
 
@@ -66,8 +88,43 @@
 
 	// Redraw when project changes
 	$: if ($project) {
+		// Purge cache entries that are no longer used to avoid holding stale images
+		purgeStaleCache();
 		resizeCanvas();
 	}
+
+	// Load image with caching
+	async function loadImage(src: string): Promise<HTMLImageElement> {
+		// Check if image is already in cache
+		if (imageCache.has(src)) {
+			return imageCache.get(src)!;
+		}
+
+		// Create new image and add to cache
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			img.crossOrigin = 'anonymous';
+			img.onload = () => {
+				imageCache.set(src, img);
+				resolve(img);
+			};
+			img.onerror = () => {
+				reject(new Error(`Failed to load image: ${src}`));
+			};
+			img.src = src;
+		});
+	}
+
+	// Clear image cache when component is destroyed
+	function clearImageCache() {
+		imageCache.clear();
+	}
+
+	// Cleanup on component destroy
+	import { onMount, onDestroy } from 'svelte';
+	onDestroy(() => {
+		clearImageCache();
+	});
 
 	async function drawPreview() {
 		if (!ctx || !canvas) return;
@@ -86,13 +143,7 @@
 				const selectedTrait = layer.traits.find((trait) => trait.id === selectedTraitId);
 				if (selectedTrait && selectedTrait.imageUrl) {
 					try {
-						const img = new Image();
-						img.crossOrigin = 'anonymous';
-						img.src = selectedTrait.imageUrl;
-						await new Promise((resolve, reject) => {
-							img.onload = resolve;
-							img.onerror = reject;
-						});
+						const img = await loadImage(selectedTrait.imageUrl);
 
 						// Draw image to fit canvas display dimensions
 						ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
