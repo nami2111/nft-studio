@@ -1,277 +1,387 @@
+// ... (unchanged parts of the component)
+
 <script lang="ts">
-	import {
-		Dialog,
-		DialogContent,
-		DialogDescription,
-		DialogHeader,
-		DialogTitle,
-		DialogTrigger
-	} from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
-	import {
-		project,
-		prepareLayersForWorker,
-		hasMissingImageData,
-		getLayersWithMissingImages,
-		projectNeedsZipLoad
-	} from '$lib/stores/project.store';
-	import type { Project } from '$lib/types/project';
-	import { toast } from 'svelte-sonner';
-	import { Loader2 } from 'lucide-svelte';
+  import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger
+  } from '$lib/components/ui/dialog';
+  import { Button } from '$lib/components/ui/button';
+  import { projectStore, traitsStore } from '$lib/stores';
+  import type { Project } from '$lib/types/project';
+  import type { Layer } from '$lib/types/layer';
+  import type { Trait } from '$lib/types/trait';
+  import type { PreparedLayer, PreparedTrait } from '$lib/stores/traits';
+  import {
+    showError,
+    showSuccess,
+    showWarning,
+    showInfo,
+    AppError,
+    WorkerError,
+    StorageError
+  } from '$lib/utils/error-handling';
+  import { logError, logWarning } from '$lib/utils/error-logger';
+  import type { ErrorContext } from '$lib/utils/error-logger';
+  import { retryWithErrorHandling, RetryConfigs } from '$lib/utils/retry';
+  import { toast } from 'svelte-sonner';
+  import { Loader2 } from 'lucide-svelte';
 
-	let open = $state(false);
-	let collectionSize = $state(100);
-	let isGenerating = $state(false);
-	let generatedCount = $state(0);
-	let totalCount = $state(0);
-	let statusText = $state('Ready to generate.');
-	let worker: Worker | null = $state(null);
+ // Lazy-loaded worker client APIs
+  import { getGenerationWorker, postWorkerMessage, terminateGenerationWorker } from '$lib/workers/generation.worker.loader';
+  import { cancelGeneration } from '$lib/workers/generation.worker.client';
 
-	let projectData: Project = $state({
-		id: '',
-		name: '',
-		description: '',
-		outputSize: { width: 1024, height: 1024 },
-		layers: []
-	});
+  // UI state
+  let open = $state(false);
+  let collectionSize = $state(100);
+  let isGenerating = $state(false);
+  let generatedCount = $state(0);
+  let totalCount = $state(0);
+  let statusText = $state('Ready to generate.');
 
-	project.subscribe((p) => {
-		projectData = p;
-	});
+  let projectData: Project = $state({
+    id: '',
+    name: '',
+    description: '',
+    outputSize: { width: 1024, height: 1024 },
+    layers: []
+  });
 
-	function updateProgress(generated: number, total: number, text: string) {
-		generatedCount = generated;
-		totalCount = total;
-		statusText = text;
-	}
+  // Subscribe to project changes
+  projectStore.project.subscribe((p) => {
+    projectData = p;
+  });
 
-	function resetState() {
-		isGenerating = false;
-		updateProgress(0, 0, 'Ready to generate.');
-		if (worker) {
-			worker.terminate();
-			worker = null;
-		}
-	}
+  function updateProgress(generated: number, total: number, text: string) {
+    generatedCount = generated;
+    totalCount = total;
+    statusText = text;
+  }
 
-	async function packageZip(
-		images: { name: string; imageData: ArrayBuffer }[],
-		metadata: { name: string; data: Record<string, unknown> }[]
-	) {
-		updateProgress(images.length, images.length, 'Packaging files into a .zip...');
-		try {
-			const { default: JSZip } = await import('jszip');
-			const zip = new JSZip();
-			const imagesFolder = zip.folder('images');
-			const metadataFolder = zip.folder('metadata');
+  function resetState() {
+    isGenerating = false;
+    updateProgress(0, 0, 'Ready to generate.');
+    // Ensure any running worker is terminated
+    terminateGenerationWorker();
+  }
 
-			for (const file of images) {
-				imagesFolder?.file(file.name, file.imageData);
-			}
-			for (const meta of metadata) {
-				metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
-			}
+  async function packageZip(
+    images: { name: string; imageData: ArrayBuffer }[],
+    metadata: { name: string; data: Record<string, unknown> }[]
+  ) {
+    const errorContext: ErrorContext = {
+      component: 'GenerationModal',
+      action: 'packageZip',
+      userAction: 'Package Collection',
+      additionalData: {
+        imageCount: images.length,
+        metadataCount: metadata.length,
+        projectName: projectData.name
+      }
+    };
 
-			const content = await zip.generateAsync({ type: 'blob' });
-			const url = URL.createObjectURL(content);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `${projectData.name || 'collection'}.zip`;
-			a.click();
-			URL.revokeObjectURL(url);
+    updateProgress(images.length, images.length, 'Packaging files into a .zip...');
 
-			statusText = 'Download started.';
-			toast.success('Generation complete. Your download has started.');
-		} catch (err) {
-			statusText = 'Error: Failed to create .zip file.';
-			toast.error('Packaging failed. Please try again.');
-			console.error(err);
-		} finally {
-			resetState();
-		}
-	}
+    try {
+      await retryWithErrorHandling(
+        async () => {
+          const { default: JSZip } = await import('jszip');
+          const zip = new JSZip();
+          const imagesFolder = zip.folder('images');
+          const metadataFolder = zip.folder('metadata');
 
-	async function handleGenerate() {
-		if (projectData.layers.length === 0) {
-			toast.error('Please add at least one layer before generating.');
-			return;
-		}
-		if (collectionSize < 1) {
-			toast.error('Collection size must be at least 1.');
-			return;
-		}
-		if (collectionSize > 10000) {
-			toast.error('Collection size is limited to 10,000 items for performance.');
-			return;
-		}
+          for (const file of images) {
+            imagesFolder?.file(file.name, file.imageData);
+          }
+          for (const meta of metadata) {
+            metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
+          }
 
-		// Check for missing image data
-		if (hasMissingImageData()) {
-			const missingImages = getLayersWithMissingImages();
-			const traitList = missingImages
-				.slice(0, 3) // Show first 3 to avoid too many
-				.map(
-					(item: { layerName: string; traitName: string }) =>
-						`"${item.traitName}" in layer "${item.layerName}"`
-				)
-				.join(', ');
-			const moreText = missingImages.length > 3 ? ` and ${missingImages.length - 3} more` : '';
+          const content = await zip.generateAsync({ type: 'blob' });
+          const url = URL.createObjectURL(content);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${projectData.name || 'collection'}.zip`;
+          a.click;
+          URL.revokeObjectURL(url);
 
-			toast.error(
-				`Some images are missing or corrupted. Please re-upload: ${traitList}${moreText}.`
-			);
-			return;
-		}
+          statusText = 'Download started.';
+          showSuccess('Generation complete. Your download has started.');
+        },
+        RetryConfigs.default,
+        errorContext,
+        'Failed to package collection after multiple attempts'
+      );
+    } catch (error) {
+      if (error instanceof AppError) {
+        showError(error);
+      } else {
+        const storageError = new StorageError(
+          error instanceof Error ? error.message : 'Failed to create .zip file.',
+          errorContext
+        );
+        showError(storageError);
+      }
 
-		isGenerating = true;
-		updateProgress(0, collectionSize, 'Validating project data...');
+      statusText = 'Error: Failed to create .zip file.';
+    } finally {
+      resetState();
+    }
+  }
 
-		try {
-			// Validate layers before starting generation
-			const transferrableLayers = await prepareLayersForWorker(projectData.layers);
+  async function handleGenerate(event?: MouseEvent) {
+    const errorContext: ErrorContext = {
+      component: 'GenerationModal',
+      action: 'handleGenerate',
+      userAction: 'Generate Collection',
+      additionalData: {
+        collectionSize,
+        layerCount: projectData.layers.length,
+        projectName: projectData.name
+      }
+    };
 
-			updateProgress(0, collectionSize, 'Initializing worker...');
+    try {
+      // Input validation
+      if (projectData.layers.length === 0) {
+        showError(
+          new AppError(
+            'Please add at least one layer before generating.',
+            'VALIDATION_ERROR',
+            errorContext
+          )
+        );
+        return;
+      }
+      if (collectionSize < 1) {
+        showError(new AppError('Collection size must be at least 1.', 'VALIDATION_ERROR', errorContext));
+        return;
+      }
+      if (collectionSize > 10000) {
+        showError(
+          new AppError(
+            'Collection size is limited to 10,000 items for performance.',
+            'VALIDATION_ERROR',
+            errorContext
+          )
+        );
+        return;
+      }
 
-			worker = new Worker(new URL('$lib/workers/generation.worker.ts', import.meta.url), {
-				type: 'module'
-			});
+      // Check for missing image data
+      if (traitsStore.hasMissingImageData()) {
+        const missingImages = traitsStore.getLayersWithMissingImages();
+        const traitList = missingImages
+          .slice(0, 3)
+          .map(
+            (item: { layerName: string; traitName: string }) =>
+              `"${item.traitName}" in layer "${item.layerName}"`
+          )
+          .join(', ');
+        const moreText = missingImages.length > 3 ? ` and ${missingImages.length - 3} more` : '';
 
-			worker.onmessage = (e) => {
-				const { type, payload } = e.data;
-				switch (type) {
-					case 'progress':
-						updateProgress(payload.generatedCount, payload.totalCount, payload.statusText);
-						break;
-					case 'complete':
-						packageZip(payload.images, payload.metadata);
-						// Auto-refresh after successful generation
-						setTimeout(() => {
-							window.location.reload();
-						}, 2500); // Wait 2.5 seconds for download to start
-						break;
-					case 'error':
-						updateProgress(generatedCount, totalCount, `Error: ${payload.message}`);
-						toast.error(`Generation error: ${payload.message}`);
-						resetState();
-						break;
-					case 'cancelled':
-						updateProgress(generatedCount, totalCount, 'Generation cancelled by user.');
-						toast.info('Generation has been cancelled.');
-						resetState();
-						// Auto-refresh after cancellation
-						setTimeout(() => {
-							window.location.reload();
-						}, 1500); // Wait 1.5 seconds before refresh
-						break;
-				}
-			};
+        const errorContextMissing: ErrorContext = {
+          component: 'GenerationModal',
+          action: 'startGeneration',
+          userAction: 'generateNFTs',
+          additionalData: {
+            missingImageCount: missingImages.length,
+            firstFewMissing: traitList
+          }
+        };
 
-			const transfers = transferrableLayers.flatMap((layer) =>
-				layer.traits
-					.map((trait) => trait.imageData)
-					.filter((d): d is ArrayBuffer => d instanceof ArrayBuffer)
-			);
+        const workerError = new WorkerError(
+          `Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`,
+          errorContextMissing
+        );
+        showError(workerError);
+        return;
+      }
 
-			const messageData = {
-				type: 'start',
-				payload: {
-					layers: transferrableLayers,
-					collectionSize,
-					outputSize: {
-						width: projectData.outputSize.width,
-						height: projectData.outputSize.height
-					},
-					projectName: String(projectData.name || ''),
-					projectDescription: String(projectData.description || '')
-				}
-			};
+      isGenerating = true;
+      updateProgress(0, collectionSize, 'Validating project data...');
 
-			worker.postMessage(messageData, transfers);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-			updateProgress(generatedCount, totalCount, `Error: ${message}`);
-			toast.error(message);
-			resetState();
-		}
-	}
+      // Use lazy-loaded worker for generation
+      await retryWithErrorHandling(
+        async () => {
+          // Validate layers before starting generation
+          const transferrableLayers = await traitsStore.prepareLayersForWorker(projectData.layers);
 
-	function handleModalInteraction(newOpenState: boolean) {
-		open = newOpenState;
-		// If closing the modal during generation, cancel it
-		if (!newOpenState && isGenerating) {
-			handleCancel();
-		}
-	}
+          updateProgress(0, collectionSize, 'Initializing worker...');
 
-	function handleCancel() {
-		if (worker) {
-			// Send cancellation message to worker
-			worker.postMessage({ type: 'cancel' });
-			worker.terminate();
-			worker = null;
-		}
-		isGenerating = false;
-		updateProgress(generatedCount, totalCount, 'Generation cancelled by user.');
-		toast.info('Generation has been cancelled.');
-	}
+          // Initialize worker lazily and set up message handling
+          const worker = await getGenerationWorker();
+          worker.onmessage = async (e: MessageEvent) => {
+            const { type, payload } = e.data as { type: string; payload?: any };
+
+            switch (type) {
+              case 'progress':
+                updateProgress(payload.generatedCount, payload.totalCount, payload.statusText);
+                break;
+              case 'complete':
+                await packageZip(payload.images, payload.metadata);
+                // Auto-refresh after successful generation
+                setTimeout(() => {
+                  window.location.reload();
+                }, 2500);
+                break;
+              case 'cancelled':
+                updateProgress(payload.generatedCount ?? 0, payload.totalCount ?? collectionSize, 'Generation cancelled by user.');
+                showInfo('Generation has been cancelled.');
+                resetState();
+                // Auto-refresh after cancellation
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+                break;
+              case 'error':
+                {
+                  const workerErrorCtx: ErrorContext = {
+                    component: 'GenerationModal',
+                    action: 'handleWorkerMessage',
+                    userAction: 'generateNFTs',
+                    additionalData: {
+                      workerError: payload?.message,
+                      generatedCount: payload?.generatedCount ?? 0
+                    }
+                  };
+                  const workerError = new WorkerError(payload?.message ?? 'Worker error', workerErrorCtx);
+                  updateProgress(generatedCount, collectionSize, `Error: ${payload?.message ?? 'Worker error'}`);
+                  showError(workerError);
+                  resetState();
+                }
+                break;
+              default:
+                // Unknown message types
+                break;
+            }
+          };
+
+          const transfers = transferrableLayers.flatMap((layer: PreparedLayer) =>
+            layer.traits
+              .map((trait: PreparedTrait) => trait.imageData)
+              .filter((d: ArrayBuffer): d is ArrayBuffer => d instanceof ArrayBuffer)
+          );
+
+          const messageData = {
+            type: 'start',
+            payload: {
+              layers: transferrableLayers,
+              collectionSize,
+              outputSize: {
+                width: projectData.outputSize.width,
+                height: projectData.outputSize.height
+              },
+              projectName: String(projectData.name || ''),
+              projectDescription: String(projectData.description || '')
+            }
+          };
+
+          worker.postMessage(messageData, transfers);
+        },
+        RetryConfigs.default,
+        errorContext,
+        'Failed to start generation after multiple attempts'
+      );
+    } catch (error) {
+      if (error instanceof AppError) {
+        showError(error);
+      } else {
+        const genericError = new AppError(
+          error instanceof Error ? error.message : 'An unknown error occurred.',
+          'GENERATION_ERROR',
+          errorContext,
+          true
+        );
+        showError(genericError);
+      }
+
+      const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+      updateProgress(generatedCount, totalCount, `Error: ${message}`);
+      resetState();
+    }
+  }
+
+  function handleModalInteraction(newOpenState: boolean) {
+    open = newOpenState;
+    // If closing the modal during generation, cancel it
+    if (!newOpenState && isGenerating) {
+      handleCancel();
+    }
+  }
+
+  function handleCancel() {
+    // Use the public cancel API to terminate the worker
+    cancelGeneration();
+    isGenerating = false;
+    updateProgress(generatedCount, totalCount, 'Generation cancelled by user.');
+    toast.info('Generation has been cancelled.');
+  }
 </script>
 
 <Dialog bind:open onOpenChange={handleModalInteraction}>
-	<DialogTrigger>
-		<Button class="mt-6">Generate Collection</Button>
-	</DialogTrigger>
-	<DialogContent>
-		<DialogHeader>
-			<DialogTitle>Generate Collection</DialogTitle>
-			<DialogDescription>Configure your collection generation settings.</DialogDescription>
-		</DialogHeader>
+  <DialogTrigger>
+    <Button class="mt-6">Generate Collection</Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Generate Collection</DialogTitle>
+      <DialogDescription>Configure your collection generation settings.</DialogDescription>
+    </DialogHeader>
 
-		<div class="grid gap-4 py-4">
-			<div class="grid grid-cols-4 items-center gap-4">
-				<label for="collectionSize" class="text-right">Collection Size</label>
-				<input
-					id="collectionSize"
-					type="number"
-					min="1"
-					max="10000"
-					class="col-span-3 rounded border p-2"
-					bind:value={collectionSize}
-					disabled={isGenerating}
-				/>
-			</div>
+    <div class="grid gap-4 py-4">
+      <div class="grid grid-cols-4 items-center gap-4">
+        <label for="collectionSize" class="text-right">Collection Size</label>
+        <input
+          id="collectionSize"
+          type="number"
+          min="1"
+          max="10000"
+          class="col-span-3 rounded border p-2"
+          bind:value={collectionSize}
+          disabled={isGenerating}
+        />
+      </div>
 
-			<div class="grid grid-cols-4 items-center gap-4">
-				<label class="text-right" for="gen-progress">Progress</label>
-				<div class="col-span-3">
-					<progress
-						id="gen-progress"
-						class="h-2.5 w-full [&::-moz-progress-bar]:bg-blue-600 [&::-webkit-progress-bar]:rounded-lg [&::-webkit-progress-bar]:bg-slate-200 [&::-webkit-progress-value]:rounded-lg [&::-webkit-progress-value]:bg-blue-600"
-						value={generatedCount}
-						max={totalCount}
-					></progress>
-					<p class="mt-1 text-sm text-gray-500">{statusText}</p>
-				</div>
-			</div>
-		</div>
+      <div class="grid grid-cols-4 items-center gap-4">
+        <label class="text-right" for="gen-progress">Progress</label>
+        <div class="col-span-3">
+          <progress
+            id="gen-progress"
+            class="h-2.5 w-full [&::-moz-progress-bar]:bg-blue-600 [&::-webkit-progress-bar]:rounded-lg [&::-webkit-progress-bar]:bg-slate-200 [&::-webkit-progress-value]:rounded-lg [&::-webkit-progress-value]:bg-blue-600"
+            value={generatedCount}
+            max={totalCount}
+          ></progress>
+          <p class="mt-1 text-sm text-gray-500">{statusText}</p>
+        </div>
+      </div>
+    </div>
 
-		<div class="flex justify-end space-x-2">
-			{#if isGenerating}
-				<Button variant="outline" onclick={handleCancel}>
-					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-					Cancel
-				</Button>
-			{/if}
-			<Button
-				onclick={handleGenerate}
-				disabled={isGenerating || projectData.layers.length === 0 || projectNeedsZipLoad()}
-			>
-				{#if isGenerating}
-					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-					Generating...
-				{:else}
-					Generate
-				{/if}
-			</Button>
-		</div>
-	</DialogContent>
+    <div class="flex justify-end space-x-2">
+      {#if isGenerating}
+        <Button variant="outline" onclick={handleCancel}>
+          <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+          Cancel
+        </Button>
+      {/if}
+      <Button
+        onclick={handleGenerate}
+        disabled={isGenerating ||
+          projectData.layers.length === 0 ||
+          projectStore.projectNeedsZipLoad()}
+      >
+        {#if isGenerating}
+          <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+          Generating...
+        {:else}
+          Generate
+        {/if}
+      </Button>
+    </div>
+  </DialogContent>
 </Dialog>
+
+// ... (unchanged parts of the component)

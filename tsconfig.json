@@ -10,7 +10,7 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
-		"lib": ["dom","ES2024"],
+		"lib": ["dom", "ES2024"],
 		"module": "esnext"
 	}
 	// Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias

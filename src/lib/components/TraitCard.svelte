@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Trait } from '$lib/types/trait';
 	import RaritySlider from '$lib/components/RaritySlider.svelte';
-	import { removeTrait, updateTraitName } from '$lib/stores/project.store';
+	import { traitsStore } from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Edit, Trash2, Check, X } from 'lucide-svelte';
@@ -21,7 +21,7 @@
 			action: {
 				label: 'Delete',
 				onClick: () => {
-					removeTrait(layerId, trait.id);
+					traitsStore.removeTrait(layerId, trait.id);
 					toast.success(`Trait "${trait.name}" has been deleted.`);
 				}
 			},
@@ -37,7 +37,7 @@
 			toast.error('Trait name cannot be empty.');
 			traitName = trait.name; // Revert
 		} else {
-			updateTraitName(layerId, trait.id, traitName);
+			traitsStore.updateTraitName(layerId, trait.id, traitName);
 			toast.success('Trait name updated.');
 		}
 		isEditing = false;

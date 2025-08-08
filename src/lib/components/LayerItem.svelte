@@ -1,7 +1,15 @@
 <script lang="ts">
 	import type { Layer } from '$lib/types/layer';
 	import TraitCard from '$lib/components/TraitCard.svelte';
-	import { removeLayer, updateLayerName, addTrait, project, removeTrait, updateTraitRarity, updateTraitName } from '$lib/stores/project.store';
+	import {
+		removeLayer,
+		updateLayerName,
+		addTrait,
+		project,
+		removeTrait,
+		updateTraitRarity,
+		updateTraitName
+	} from '$lib/stores/project.store';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Loader2, Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
@@ -25,9 +33,7 @@
 
 	// Filter traits based on search term
 	let filteredTraits = $derived(
-		layer.traits.filter(trait => 
-			trait.name.toLowerCase().includes(searchTerm.toLowerCase())
-		)
+		layer.traits.filter((trait) => trait.name.toLowerCase().includes(searchTerm.toLowerCase()))
 	);
 
 	// Bulk operation states
@@ -48,7 +54,7 @@
 
 	// Select all filtered traits
 	function selectAllFiltered() {
-		filteredTraits.forEach(trait => selectedTraits.add(trait.id));
+		filteredTraits.forEach((trait) => selectedTraits.add(trait.id));
 		selectedTraits = new Set(selectedTraits); // Trigger reactivity
 	}
 
@@ -61,14 +67,14 @@
 	// Bulk delete traits
 	function bulkDelete() {
 		if (selectedTraits.size === 0) return;
-		
+
 		// Show confirmation dialog
 		toast.warning(`Are you sure you want to delete ${selectedTraits.size} trait(s)?`, {
 			action: {
 				label: 'Delete',
 				onClick: () => {
 					// Delete all selected traits
-					selectedTraits.forEach(traitId => {
+					selectedTraits.forEach((traitId) => {
 						removeTrait(layer.id, traitId);
 					});
 					toast.success(`${selectedTraits.size} trait(s) deleted successfully.`);
@@ -85,9 +91,9 @@
 	// Bulk update rarity
 	function bulkUpdateRarity() {
 		if (selectedTraits.size === 0) return;
-		
+
 		// Update rarity for all selected traits
-		selectedTraits.forEach(traitId => {
+		selectedTraits.forEach((traitId) => {
 			updateTraitRarity(layer.id, traitId, bulkRarityWeight);
 		});
 		toast.success(`Rarity updated for ${selectedTraits.size} trait(s).`);
@@ -96,11 +102,11 @@
 	// Bulk rename traits
 	function bulkRename() {
 		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
-		
+
 		// Update name for all selected traits
 		let count = 0;
-		selectedTraits.forEach(traitId => {
-			const trait = layer.traits.find(t => t.id === traitId);
+		selectedTraits.forEach((traitId) => {
+			const trait = layer.traits.find((t) => t.id === traitId);
 			if (trait) {
 				updateTraitName(layer.id, traitId, `${bulkNewName}_${count + 1}`);
 				count++;
@@ -152,15 +158,17 @@
 				if (!validTypes.includes(file.type)) {
 					return false;
 				}
-				
+
 				// Check file extension
 				const validExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
 				const fileName = file.name.toLowerCase();
-				return validExtensions.some(ext => fileName.endsWith(ext));
+				return validExtensions.some((ext) => fileName.endsWith(ext));
 			});
-			
+
 			if (imageFiles.length === 0) {
-				toast.warning('No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.');
+				toast.warning(
+					'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
+				);
 				return;
 			}
 
@@ -175,6 +183,7 @@
 
 				// Process batch in parallel
 				const batchPromises = batch.map(async (file, index) => {
+					let tempImageUrl: string | null = null;
 					try {
 						// Validate file size (max 10MB)
 						if (file.size > 10 * 1024 * 1024) {
@@ -183,23 +192,27 @@
 
 						// Get image dimensions
 						const dimensions = await getImageDimensions(file);
-						
+
 						// Validate dimensions (must be positive)
 						if (dimensions.width <= 0 || dimensions.height <= 0) {
 							throw new Error(`File "${file.name}" has invalid dimensions`);
 						}
-						
+
 						// For subsequent uploads, validate dimensions match project output size
 						const projectData = get(project);
 						if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
 							// Allow some flexibility for rounding errors (±1 pixel)
-							if (Math.abs(dimensions.width - projectData.outputSize.width) > 1 || 
-								Math.abs(dimensions.height - projectData.outputSize.height) > 1) {
-								throw new Error(`File "${file.name}" dimensions (${dimensions.width}x${dimensions.height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height})`);
+							if (
+								Math.abs(dimensions.width - projectData.outputSize.width) > 1 ||
+								Math.abs(dimensions.height - projectData.outputSize.height) > 1
+							) {
+								throw new Error(
+									`File "${file.name}" dimensions (${dimensions.width}x${dimensions.height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height})`
+								);
 							}
 						}
 
-						const imageUrl = URL.createObjectURL(file);
+						tempImageUrl = URL.createObjectURL(file);
 						// Normalize base name (remove extension, sanitize)
 						const baseName = file.name.replace(/\.[^/.]+$/, '');
 						const safeName = baseName
@@ -209,7 +222,7 @@
 
 						await addTrait(layer.id, {
 							name: safeName,
-							imageUrl,
+							imageUrl: tempImageUrl,
 							imageData: file,
 							width: dimensions.width,
 							height: dimensions.height,
@@ -217,6 +230,14 @@
 						});
 						return true;
 					} catch (error) {
+						// Clean up temporary object URL on error
+						if (tempImageUrl) {
+							try {
+								URL.revokeObjectURL(tempImageUrl);
+							} catch {
+								// Ignore cleanup errors
+							}
+						}
 						console.error(`Error processing file ${file.name}:`, error);
 						return false;
 					}
@@ -254,7 +275,7 @@
 	// Lazy loading for trait cards (secure; no innerHTML)
 	let observer: IntersectionObserver | null = null;
 
-	function createSafeLazyTraitCard(trait: typeof layer.traits[number]): HTMLElement {
+	function createSafeLazyTraitCard(trait: (typeof layer.traits)[number]): HTMLElement {
 		const root = document.createElement('div');
 		root.className = 'lazy-trait-loaded';
 
@@ -313,7 +334,13 @@
 		const rarityValue = document.createElement('span');
 		rarityValue.className = 'font-bold text-indigo-600';
 		// Map weight to label (approximate)
-		const labels: Record<number, string> = { 1: 'Mythic', 2: 'Legendary', 3: 'Epic', 4: 'Rare', 5: 'Common' };
+		const labels: Record<number, string> = {
+			1: 'Mythic',
+			2: 'Legendary',
+			3: 'Epic',
+			4: 'Rare',
+			5: 'Common'
+		};
 		rarityValue.textContent = labels[trait.rarityWeight] ?? String(trait.rarityWeight);
 		label.appendChild(rarityValue);
 
@@ -528,18 +555,12 @@
 					/>
 				{/if}
 			</div>
-			
+
 			<!-- Bulk operation controls -->
 			{#if filteredTraits.length > 1}
 				<div class="mb-2 flex items-center justify-between rounded bg-gray-100 p-2">
 					<div class="flex items-center space-x-2">
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={selectAllFiltered}
-						>
-							Select All
-						</Button>
+						<Button variant="outline" size="sm" onclick={selectAllFiltered}>Select All</Button>
 						<Button
 							variant="outline"
 							size="sm"
@@ -565,7 +586,7 @@
 						</div>
 					{/if}
 				</div>
-				
+
 				{#if selectedTraits.size > 0}
 					<div class="mb-4 rounded border border-gray-200 p-3">
 						<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
@@ -582,13 +603,7 @@
 									<option value="4">Rare (4)</option>
 									<option value="5">Common (5)</option>
 								</select>
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={bulkUpdateRarity}
-								>
-									Update
-								</Button>
+								<Button variant="outline" size="sm" onclick={bulkUpdateRarity}>Update</Button>
 							</div>
 							<div class="flex items-center space-x-2">
 								<label class="text-sm">Rename:</label>
@@ -611,7 +626,7 @@
 					</div>
 				{/if}
 			{/if}
-			
+
 			{#if layer.traits.length > 0}
 				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
 					{#each filteredTraits as trait (trait.id)}

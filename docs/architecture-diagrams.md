@@ -16,4 +16,5 @@ Overview of NFT Studio architecture (high level)
   - generation.worker.ts
 
 Notes:
+
 - Diagrams are placeholders; replace with real diagrams as you evolve.

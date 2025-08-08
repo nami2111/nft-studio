@@ -2,6 +2,7 @@
 	import { onMount, type Snippet } from 'svelte';
 	import { initSatellite } from '@junobuild/core';
 	import { Toaster } from '$lib/components/ui/sonner';
+	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import Hero from '$lib/components/Hero.svelte';
 	import '../app.css';
 
@@ -25,7 +26,9 @@
 	<Hero />
 	<main id="main-content">
 		<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-			{@render children?.()}
+			<ErrorBoundary>
+				{@render children?.()}
+			</ErrorBoundary>
 		</div>
 	</main>
 	<Toaster position="top-right" />

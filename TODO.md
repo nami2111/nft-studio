@@ -1,21 +1,26 @@
-## Improvements backlog (Auto-driven plan)
+# NFT Studio - TODO List
 
-- [x] Architecture refactor: split project store into domain, persistence, and UI layers.
-  - Rationale: reduces coupling, easier testing, easier to maintain.
-  - Steps:
-    - [x] Create src/lib/persistence/storage.ts with a generic PersistentStore interface and adapters for localStorage and IndexedDB.
-    - [x] Move localStorage usage in src/lib/stores/project.store.ts to persistence.ts.
-    - [x] Create src/lib/domain/models.ts to centralize interfaces (Project, Layer, Trait). Update imports across codebase.
-    - [x] Break large project.store.ts into modules:
-      - [x] persistence.ts for persistence helpers
-      - [x] domain.ts for domain logic
-      - [x] store-core.ts for the Svelte store glue
-- [x] Remove merge-conflict residues and duplicate comments in project.store.ts and other modules (cleanup).
-- [ ] Testing: Add unit tests for project.store.ts using Vitest.
-- [ ] CI/CD: Add test gates and static analysis in GitHub workflows.
-- [ ] Documentation upgrades: architecture diagrams, onboarding guide, and in-code docs.
-- [x] Dependency hygiene: ensure environment parity and lockfile integrity.
-- [x] Coding standards: enforce consistency across codebase.
-- [x] Security hardening: review for potential vectors.
-- [x] Data import/export hardening: strengthen validation.
-- [ ] Performance instrumentation: measure and optimize runtime.
+
+
+---
+
+## 📈 Progress Tracking
+
+- **Total Items**: 0
+- **Completed**: 0
+- **In Progress**: 0
+- **Blocked**: 0
+
+### Last Updated
+
+- **Date**: 2025-08-09
+- **Version**: 1.0.0
+- **Next Review**: 2025-08-16
+
+### Notes
+
+- This TODO list should be reviewed and updated continuously
+- Priority items should be addressed first
+- New items should be added as they are identified
+- Completed items should be moved to a changelog
+- Test suite not needed at this time

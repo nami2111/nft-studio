@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { updateTraitRarity } from '$lib/stores/project.store';
+	import { traitsStore } from '$lib/stores';
 
 	interface Props {
 		rarityWeight: number;
@@ -22,7 +22,7 @@
 		const target = e.target as HTMLInputElement;
 		const newRarity = parseInt(target.value);
 		sliderValue = newRarity;
-		updateTraitRarity(layerId, traitId, newRarity);
+		traitsStore.updateTraitRarity(layerId, traitId, newRarity);
 	}
 </script>
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { project } from '$lib/stores/project.store';
+	import { projectStore } from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { RefreshCw, Shuffle } from 'lucide-svelte';
 
@@ -15,7 +15,7 @@
 	// Helper to purge stale cache entries when traits change
 	function purgeStaleCache() {
 		const urlsInUse = new Set<string>();
-		const { layers } = $project;
+		const { layers } = $projectStore.project;
 		for (const layer of layers) {
 			for (const trait of layer.traits) {
 				if (trait.imageUrl) urlsInUse.add(trait.imageUrl);
@@ -34,7 +34,7 @@
 
 	// Initialize selected traits when component mounts
 	$: {
-		const { layers } = $project;
+		const { layers } = $projectStore.project;
 		selectedTraitIds = layers.map((layer) => (layer.traits.length > 0 ? layer.traits[0].id : ''));
 		drawPreview();
 	}
@@ -43,7 +43,7 @@
 	function resizeCanvas() {
 		if (!canvas || !container) return;
 
-		const { outputSize } = $project;
+		const { outputSize } = $projectStore.project;
 		const containerRect = container.getBoundingClientRect();
 
 		// Calculate display size based on container and project aspect ratio
@@ -87,7 +87,7 @@
 	}
 
 	// Redraw when project changes
-	$: if ($project) {
+	$: if ($projectStore.project) {
 		// Purge cache entries that are no longer used to avoid holding stale images
 		purgeStaleCache();
 		resizeCanvas();
@@ -129,7 +129,7 @@
 	async function drawPreview() {
 		if (!ctx || !canvas) return;
 
-		const { layers } = $project;
+		const { layers } = $projectStore.project;
 
 		// Clear canvas
 		ctx.clearRect(0, 0, displayWidth, displayHeight);
@@ -156,7 +156,7 @@
 	}
 
 	function randomize() {
-		const { layers } = $project;
+		const { layers } = $projectStore.project;
 		const newSelectedTraits: string[] = [];
 
 		for (const layer of layers) {

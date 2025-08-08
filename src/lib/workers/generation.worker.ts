@@ -36,6 +36,11 @@ interface ProgressMessage {
 		generatedCount: number;
 		totalCount: number;
 		statusText: string;
+		memoryUsage?: {
+			used: number;
+			available: number;
+			units: string;
+		};
 	};
 }
 
@@ -108,6 +113,57 @@ function cleanupObjectUrls() {
 	// Intentionally empty: we no longer create object URLs in the worker
 }
 
+// Detect device capabilities for optimal performance
+function getDeviceCapabilities() {
+	// Get available cores
+	const coreCount = navigator.hardwareConcurrency || 4;
+
+	// Get memory information if available
+	let memoryGB = 8; // Default assumption
+	if ('deviceMemory' in navigator) {
+		// @ts-ignore - deviceMemory not in all browsers
+		memoryGB = navigator.deviceMemory || 8;
+	}
+
+	// Adjust based on device type
+	const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+	return {
+		coreCount,
+		memoryGB,
+		isMobile
+	};
+}
+
+// Calculate optimal chunk size based on device capabilities
+function calculateOptimalChunkSize(
+	deviceCapabilities: ReturnType<typeof getDeviceCapabilities>,
+	collectionSize: number
+): number {
+	const { coreCount, memoryGB, isMobile } = deviceCapabilities;
+
+	// Base calculation considering memory and cores
+	let chunkSize = Math.min(
+		Math.floor((memoryGB * 1024) / 64), // ~64MB per item rough estimate
+		coreCount * 10 // 10 items per core
+	);
+
+	// Adjust for mobile devices
+	if (isMobile) {
+		chunkSize = Math.floor(chunkSize * 0.5); // Reduce by half for mobile
+	}
+
+	// Ensure reasonable bounds
+	chunkSize = Math.max(10, Math.min(chunkSize, 200));
+
+	// For very small collections, adjust chunk size
+	if (collectionSize < 50) {
+		chunkSize = Math.min(chunkSize, collectionSize);
+	}
+
+	return chunkSize;
+}
+
 // Generate the collection with chunked processing
 async function generateCollection(
 	layers: TransferrableLayer[],
@@ -118,15 +174,20 @@ async function generateCollection(
 ) {
 	const images: { name: string; blob: Blob }[] = [];
 	const metadata: { name: string; data: object }[] = [];
-	const CHUNK_SIZE = 50;
+
+	// Detect device capabilities and set optimal chunk size
+	const deviceCapabilities = getDeviceCapabilities();
+	let CHUNK_SIZE = calculateOptimalChunkSize(deviceCapabilities, collectionSize);
 
 	// Send initial progress
+	const memoryUsage = getMemoryUsage();
 	const initialProgress: ProgressMessage = {
 		type: 'progress',
 		payload: {
 			generatedCount: 0,
 			totalCount: collectionSize,
-			statusText: 'Starting generation...'
+			statusText: 'Starting generation...',
+			memoryUsage: memoryUsage || undefined
 		}
 	};
 
@@ -231,13 +292,17 @@ async function generateCollection(
 				if (i % 10 === 0 || i === collectionSize - 1 || i === chunkEnd - 1) {
 					// Cleanup Object URLs periodically to free memory
 					cleanupObjectUrls();
-					
+
+					// Get current memory usage
+					const currentMemoryUsage = getMemoryUsage();
+
 					const progressMessage: ProgressMessage = {
 						type: 'progress',
 						payload: {
 							generatedCount: i + 1,
 							totalCount: collectionSize,
-							statusText: `Generated ${i + 1} of ${collectionSize} items`
+							statusText: `Generated ${i + 1} of ${collectionSize} items`,
+							memoryUsage: currentMemoryUsage || undefined
 						}
 					};
 					self.postMessage(progressMessage);
@@ -247,7 +312,7 @@ async function generateCollection(
 				try {
 					self.removeEventListener('message', cancelHandler);
 				} catch {
-					// ignore
+					// We ignore errors when removing event listeners
 				}
 
 				const errorMessage: ErrorMessage = {
@@ -266,14 +331,48 @@ async function generateCollection(
 			(globalThis as { gc?: () => void }).gc?.();
 		}
 
+		// Adaptive chunking based on memory usage
+		const memoryUsage = getMemoryUsage();
+		if (memoryUsage) {
+			const memoryUsageRatio = memoryUsage.used / memoryUsage.available;
+
+			// More granular chunk size adjustments
+			if (memoryUsageRatio > 0.9) {
+				// Critical memory pressure
+				CHUNK_SIZE = Math.max(5, Math.floor(CHUNK_SIZE * 0.3));
+			} else if (memoryUsageRatio > 0.8) {
+				// High memory pressure
+				CHUNK_SIZE = Math.max(10, Math.floor(CHUNK_SIZE * 0.5));
+			} else if (memoryUsageRatio > 0.7) {
+				// Medium memory pressure
+				CHUNK_SIZE = Math.max(15, Math.floor(CHUNK_SIZE * 0.7));
+			} else if (memoryUsageRatio < 0.5 && CHUNK_SIZE < 200) {
+				// Low memory usage, can increase chunk size
+				CHUNK_SIZE = Math.min(200, Math.floor(CHUNK_SIZE * 1.2));
+			}
+
+			// Send memory warning if usage is critical
+			if (memoryUsageRatio > 0.9) {
+				const warningMessage: ErrorMessage = {
+					type: 'error',
+					payload: {
+						message: `Memory usage critical: ${Math.round(memoryUsageRatio * 100)}%. Reducing chunk size to ${CHUNK_SIZE}.`
+					}
+				};
+				self.postMessage(warningMessage);
+			}
+		}
+
 		// Send intermediate progress for chunk completion
 		if (!isCancelled && chunkEnd < collectionSize) {
+			const chunkMemoryUsage = getMemoryUsage();
 			const chunkProgress: ProgressMessage = {
 				type: 'progress',
 				payload: {
 					generatedCount: chunkEnd,
 					totalCount: collectionSize,
-					statusText: `Completed chunk ${Math.floor(chunkEnd / CHUNK_SIZE)} of ${Math.ceil(collectionSize / CHUNK_SIZE)}`
+					statusText: `Completed chunk ${Math.floor(chunkEnd / CHUNK_SIZE)} of ${Math.ceil(collectionSize / CHUNK_SIZE)}`,
+					memoryUsage: chunkMemoryUsage || undefined
 				}
 			};
 			self.postMessage(chunkProgress);
@@ -289,7 +388,7 @@ async function generateCollection(
 		return;
 	}
 
-	// Final cleanup (no object URLs created anymore, left as no-op)
+	// Final cleanup (no object URL created anymore, left as no-op)
 	cleanupObjectUrls();
 
 	// Convert Blobs to ArrayBuffers for transfer
@@ -317,8 +416,46 @@ async function generateCollection(
 	});
 
 	// Transfer the underlying ArrayBuffers
-	// @ts-expect-error - TS in worker env may not infer postMessage overload with transfer list
+	// @ts-ignore - TS in worker env may not infer postMessage overload with transfer list
 	self.postMessage(completeMessage, transferables);
+}
+
+// Memory information interface
+interface MemoryInfo {
+	usedJSHeapSize: number;
+	jsHeapSizeLimit: number;
+	totalJSHeapSize: number;
+}
+
+// Memory monitoring function with enhanced detection
+function getMemoryUsage() {
+	try {
+		// Standard performance.memory API (Chrome)
+		if (typeof performance !== 'undefined' && 'memory' in performance) {
+			const memory = (performance as { memory: MemoryInfo }).memory;
+			return {
+				used: memory.usedJSHeapSize,
+				available: memory.jsHeapSizeLimit,
+				total: memory.totalJSHeapSize,
+				units: 'bytes'
+			};
+		}
+
+		// Firefox and other browsers might have different APIs
+		if (typeof performance !== 'undefined' && 'mozMemory' in performance) {
+			const memory = (performance as { mozMemory: MemoryInfo }).mozMemory;
+			return {
+				used: memory.usedJSHeapSize,
+				available: memory.jsHeapSizeLimit,
+				total: memory.totalJSHeapSize,
+				units: 'bytes'
+			};
+		}
+	} catch {
+		// Fallback: return estimated memory based on environment
+		return null;
+	}
+	return null;
 }
 
 // Cleanup function to free resources

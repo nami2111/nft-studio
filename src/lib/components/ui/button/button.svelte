@@ -34,7 +34,7 @@
 		size?: Variant['size'];
 		class?: string;
 		children: Snippet;
-		onclick?: (event: MouseEvent) => void;
+		onclick?: (event?: MouseEvent) => void;
 		disabled?: boolean;
 	}
 

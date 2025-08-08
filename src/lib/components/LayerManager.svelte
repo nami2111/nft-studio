@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { project, addLayer, reorderLayers } from '$lib/stores/project.store';
+	import { projectStore, layersStore } from '$lib/stores';
 	import LayerItem from '$lib/components/LayerItem.svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
@@ -11,7 +11,7 @@
 	let isAddingLayer = $state(false);
 
 	// Subscribe to store changes
-	project.subscribe((p) => {
+	projectStore.project.subscribe((p) => {
 		layers = p.layers;
 	});
 
@@ -21,7 +21,7 @@
 
 		try {
 			const newLayerName = `Layer ${layers.length + 1}`;
-			await addLayer({
+			layersStore.addLayer({
 				name: newLayerName,
 				order: layers.length
 			});
@@ -42,7 +42,7 @@
 			...layer,
 			order: index
 		}));
-		reorderLayers(reorderedLayers);
+		layersStore.reorderLayers(reorderedLayers);
 	}
 </script>
 

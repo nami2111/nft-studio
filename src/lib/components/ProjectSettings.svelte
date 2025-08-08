@@ -1,24 +1,24 @@
 <script lang="ts">
-	import { project, updateProjectName, updateProjectDescription } from '$lib/stores/project.store';
+	import { projectStore } from '$lib/stores';
 	import { untrack } from 'svelte';
 
 	let projectName = '';
 	let projectDescription = '';
 
-	project.subscribe((p) => {
+	projectStore.project.subscribe((p) => {
 		projectName = p.name;
 		projectDescription = p.description;
 	});
 
 	function handleNameChange() {
 		untrack(() => {
-			updateProjectName(projectName);
+			projectStore.updateProjectName(projectName);
 		});
 	}
 
 	function handleDescriptionChange() {
 		untrack(() => {
-			updateProjectDescription(projectDescription);
+			projectStore.updateProjectDescription(projectDescription);
 		});
 	}
 </script>
@@ -52,8 +52,8 @@
 
 	<div class="rounded-md bg-blue-50 p-4">
 		<p class="text-sm text-blue-800">
-			Dimensions are automatically set based on your uploaded image files. The first image
-			uploaded will determine the project output size.
+			Dimensions are automatically set based on your uploaded image files. The first image uploaded
+			will determine the project output size.
 		</p>
 	</div>
 </div>

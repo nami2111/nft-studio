@@ -40,10 +40,11 @@ target
 .knowledge/
 .crush/
 .crushignore
-GEMINI.md
-QWEN.md
 CRUSH.md
 
 target
 .crush
+AGENTS.md
+CLAUDE.md
 GEMINI.md
+QWEN.md

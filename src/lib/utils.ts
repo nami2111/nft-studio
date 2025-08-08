@@ -14,7 +14,7 @@ import { twMerge } from 'tailwind-merge';
  * @returns A merged class string safe for Tailwind.
  */
 export function cn(...inputs: ClassValue[]): string {
-  return twMerge(clsx(inputs));
+	return twMerge(clsx(inputs));
 }
 
 /**
@@ -51,17 +51,50 @@ export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?:
  * @returns A promise that resolves with the image's width and height.
  * @throws Will reject if the image cannot be loaded.
  */
-export async function getImageDimensions(
-  file: File
-): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    };
-    img.onerror = () => {
-      reject(new Error('Failed to load image'));
-    };
-    img.src = URL.createObjectURL(file);
-  });
+export async function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+	return new Promise((resolve, reject) => {
+		const img = new Image();
+		const objectUrl = URL.createObjectURL(file);
+		img.onload = () => {
+			try {
+				resolve({ width: img.naturalWidth, height: img.naturalHeight });
+			} finally {
+				URL.revokeObjectURL(objectUrl);
+			}
+		};
+		img.onerror = () => {
+			try {
+				URL.revokeObjectURL(objectUrl);
+			} finally {
+				reject(new Error('Failed to load image'));
+			}
+		};
+		img.src = objectUrl;
+	});
 }
+
+/**
+ * Convert a File object to an ArrayBuffer.
+ *
+ * @param file - The File object to convert.
+ * @returns A promise that resolves with the ArrayBuffer representation of the file.
+ */
+export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
+	return await file.arrayBuffer();
+}
+
+/**
+ * Normalize a filename by removing path separators, trimming, limiting length,
+ * and allowing common safe characters.
+ *
+ * @param name - The filename to normalize.
+ * @returns A normalized filename safe for file operations.
+ */
+export function normalizeFilename(name: string): string {
+	// Remove path separators, trim, limit length, and allow common safe chars
+	const trimmed = name.trim().slice(0, 100);
+	return trimmed.replace(/[^a-zA-Z0-9._ -]/g, '_').replace(/[\\/]+/g, '_');
+}
+
+// Utility type to drop either 'children' or 'child' prop from generic props
+export type WithoutChildrenOrChild<T> = T extends { children?: unknown } ? Omit<T, 'children'> : T extends { child?: unknown } ? Omit<T, 'child'> : T;

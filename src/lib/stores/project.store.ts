@@ -1,13 +1,45 @@
 import { writable, get } from 'svelte/store';
 import { LocalStorageStore } from '$lib/persistence/storage';
+import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
+import { isValidImportedProject, isValidDimensions } from '$lib/utils/validation';
+import {
+	handleError,
+	handleStorageError,
+	handleFileError,
+	handleValidationError
+} from '$lib/utils/error-handler';
 import type { Project } from '$lib/types/project';
 import type { Layer } from '$lib/types/layer';
 import type { Trait } from '$lib/types/trait';
 
-function normalizeFilename(name: string): string {
-	// Remove path separators, trim, limit length, and allow common safe chars
-	const trimmed = name.trim().slice(0, 100);
-	return trimmed.replace(/[^a-zA-Z0-9._ -]/g, '_').replace(/[\\/]+/g, '_');
+// Prepared layer/trait types for worker transfer
+export interface PreparedTrait {
+	id: string;
+	name: string;
+	rarityWeight: number;
+	imageData: ArrayBuffer;
+}
+
+export interface PreparedLayer {
+	id: string;
+	name: string;
+	order: number;
+	traits: PreparedTrait[];
+}
+
+// Prepare layers for transfer to worker
+export function prepareLayersForWorker(layers: Layer[]): PreparedLayer[] {
+	return layers.map((layer) => ({
+		id: layer.id,
+		name: layer.name,
+		order: layer.order,
+		traits: layer.traits.map((trait) => ({
+			id: trait.id,
+			name: trait.name,
+			rarityWeight: trait.rarityWeight,
+			imageData: trait.imageData
+		}))
+	}));
 }
 
 // Local storage key
@@ -65,6 +97,15 @@ export function updateProjectDescription(description: string): void {
 }
 
 export function updateProjectDimensions(width: number, height: number): void {
+	if (!isValidDimensions(width, height)) {
+		handleValidationError<void>(
+			new Error('Invalid dimensions: width and height must be positive numbers'),
+			{
+				context: { component: 'ProjectStore', action: 'updateProjectDimensions' }
+			}
+		);
+		return;
+	}
 	project.update((p) => ({ ...p, outputSize: { width, height } }));
 }
 
@@ -161,9 +202,9 @@ export function updateTraitName(layerId: string, traitId: string, name: string):
 		layers: p.layers.map((layer) =>
 			layer.id === layerId
 				? {
-					...layer,
-					traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, name } : trait))
-			}
+						...layer,
+						traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, name } : trait))
+					}
 				: layer
 		)
 	}));
@@ -175,18 +216,17 @@ export function updateTraitRarity(layerId: string, traitId: string, rarityWeight
 		layers: p.layers.map((layer) =>
 			layer.id === layerId
 				? {
-					...layer,
-					traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, rarityWeight } : trait))
-			}
+						...layer,
+						traits: layer.traits.map((trait) =>
+							trait.id === traitId ? { ...trait, rarityWeight } : trait
+						)
+					}
 				: layer
 		)
 	}));
 }
 
 // --- Worker Preparation ---
-async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
-	return await file.arrayBuffer();
-}
 
 // Revoke all object URLs stored on traits. Intended for use before full project resets.
 function revokeAllTraitObjectUrls(p: Project): void {
@@ -208,14 +248,28 @@ export function clearStoredProject(): void {
 	try {
 		const current = get(project);
 		revokeAllTraitObjectUrls(current);
-	} catch {
-		// ignore
+	} catch (error) {
+		handleError(error, {
+			context: {
+				component: 'ProjectStore',
+				action: 'clearStoredProject',
+				userAction: 'revokeAllTraitObjectUrls'
+			},
+			silent: true
+		});
 	}
 
 	try {
 		LOCAL_STORE.clear();
 	} catch (error) {
-		console.warn('Failed to clear project from storage:', error);
+		handleStorageError(error, {
+			context: {
+				component: 'ProjectStore',
+				action: 'clearStoredProject',
+				userAction: 'clearLocalStorage'
+			},
+			description: 'Failed to clear project from storage. Please try again.'
+		});
 	}
 }
 
@@ -235,46 +289,35 @@ export function exportProjectData(): string {
 		};
 		return JSON.stringify(exportData, null, 2);
 	} catch (error) {
-		console.error('Failed to export project data:', error);
+		handleError(error, {
+			context: { component: 'ProjectStore', action: 'exportProjectData' },
+			title: 'Export Failed',
+			description: 'Failed to export project data. Please try again.'
+		});
 		return '';
 	}
-}
-
-/**
- * Validates the shape of a project object imported from JSON.
- * Accepts well-formed projects or projects that have missing image data (as images are stripped during export).
- */
-export function isValidImportedProject(data: any): boolean {
-	if (!data || typeof data !== 'object') return false;
-	if (typeof data.id !== 'string' || typeof data.name !== 'string') return false;
-	if (!Array.isArray(data.layers)) return false;
-	for (const layer of data.layers) {
-		if (typeof layer.id !== 'string' || typeof layer.name !== 'string') return false;
-		if (layer.order !== undefined && typeof layer.order !== 'number') return false;
-		if (!Array.isArray(layer.traits)) return false;
-		for (const trait of layer.traits) {
-			if (typeof trait.id !== 'string' || typeof trait.name !== 'string') return false;
-			// imageData may be missing (export strips image data)
-		}
-	}
-	// outputSize may be present; if present ensure width/height are numbers
-	if (data.outputSize) {
-		const o = data.outputSize;
-		if (typeof o.width !== 'number' || typeof o.height !== 'number') return false;
-	}
-	return true;
 }
 
 export function importProjectData(projectJson: string): boolean {
 	try {
 		const importedData = JSON.parse(projectJson);
 		if (!isValidImportedProject(importedData)) {
-			throw new Error('Invalid project format');
+			handleValidationError(new Error('Invalid project format'), {
+				context: { component: 'ProjectStore', action: 'importProjectData' },
+				title: 'Import Failed',
+				description: 'The project file format is invalid. Please check the file and try again.'
+			});
+			return false;
 		}
-		project.set(importedData);
+		// Type assertion since we've validated the structure
+		project.set(importedData as unknown as Project);
 		return true;
 	} catch (error) {
-		console.error('Failed to import project data:', error);
+		handleError(error, {
+			context: { component: 'ProjectStore', action: 'importProjectData' },
+			title: 'Import Failed',
+			description: 'Failed to import project data. Please check the file and try again.'
+		});
 		return false;
 	}
 }
@@ -288,7 +331,8 @@ export function projectNeedsZipLoad(): boolean {
 // Mark project as properly loaded
 export function markProjectAsLoaded(): void {
 	project.update((p) => {
-		const { _needsProperLoad: _unused, ...projectWithoutFlag } = p;
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const { _needsProperLoad: _, ...projectWithoutFlag } = p;
 		return projectWithoutFlag as Project;
 	});
 }
@@ -355,13 +399,21 @@ export async function saveProjectToZip(): Promise<void> {
 		}
 	}
 
-	const content = await zip.generateAsync({ type: 'blob' });
-	const url = URL.createObjectURL(content);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = `${currentProject.name || 'project'}.zip`;
-	a.click();
-	URL.revokeObjectURL(url);
+	try {
+		const content = await zip.generateAsync({ type: 'blob' });
+		const url = URL.createObjectURL(content);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${currentProject.name || 'project'}.zip`;
+		a.click();
+		URL.revokeObjectURL(url);
+	} catch (error) {
+		handleFileError(error, {
+			context: { component: 'ProjectStore', action: 'saveProjectToZip' },
+			title: 'Save Failed',
+			description: 'Failed to save project to ZIP file. Please try again.'
+		});
+	}
 }
 
 // Load project from ZIP
@@ -373,7 +425,12 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 
 		const configFile = zip.file('project.json');
 		if (!configFile) {
-			throw new Error('Invalid project file: missing project.json');
+			handleFileError(new Error('Invalid project file: missing project.json'), {
+				context: { component: 'ProjectStore', action: 'loadProjectFromZip' },
+				title: 'Load Failed',
+				description: 'Invalid project file: missing project.json'
+			});
+			return false;
 		}
 
 		const configContent = await configFile.async('text');
@@ -397,19 +454,25 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 		try {
 			const current = get(project);
 			revokeAllTraitObjectUrls(current);
-		} catch {
-			// ignore
+		} catch (error) {
+			handleError(error, {
+				context: {
+					component: 'ProjectStore',
+					action: 'loadProjectFromZip',
+					userAction: 'revokeAllTraitObjectUrls'
+				},
+				silent: true
+			});
 		}
 
 		project.set(projectConfig);
 		return true;
 	} catch (error) {
-		console.error('Failed to load project from ZIP:', error);
+		handleFileError(error, {
+			context: { component: 'ProjectStore', action: 'loadProjectFromZip' },
+			title: 'Load Failed',
+			description: 'Failed to load project from ZIP file. Please check the file and try again.'
+		});
 		return false;
 	}
-}
-
-// Helper declarations
-async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
-	return await file.arrayBuffer();
 }
