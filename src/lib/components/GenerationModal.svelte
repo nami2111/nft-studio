@@ -1,68 +1,49 @@
 // ... (unchanged parts of the component)
 
 <script lang="ts">
-  import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger
-  } from '$lib/components/ui/dialog';
-  import { Button } from '$lib/components/ui/button';
-  import { projectStore, traitsStore } from '$lib/stores';
-  import type { Project } from '$lib/types/project';
-  import type { Layer } from '$lib/types/layer';
-  import type { Trait } from '$lib/types/trait';
-  import type { PreparedLayer, PreparedTrait } from '$lib/stores/traits';
-  import {
-    showError,
-    showSuccess,
-    showWarning,
-    showInfo,
-    AppError,
-    WorkerError,
-    StorageError
-  } from '$lib/utils/error-handling';
-  import { logError, logWarning } from '$lib/utils/error-logger';
-  import type { ErrorContext } from '$lib/utils/error-logger';
-  import { retryWithErrorHandling, RetryConfigs } from '$lib/utils/retry';
-  import { toast } from 'svelte-sonner';
-  import { Loader2 } from 'lucide-svelte';
+	import { get } from 'svelte/store';
+	import { toast } from 'svelte-sonner';
+	import JSZip from 'jszip';
+	import { project, traitsStore } from '$lib/stores/project.store';
+	import { Button } from '$lib/components/ui/button';
+	import { getGenerationWorker } from '$lib/workers/generation.worker.loader';
+	import type { Layer } from '$lib/types/layer';
+	import { prepareLayersForWorker } from '$lib/domain/project.domain';
+	import { WorkerError } from '$lib/utils/error-handling';
+	import { retryWithErrorHandling } from '$lib/utils/retry';
+	import { loadingStore } from '$lib/stores/loading.store';
+	import {
+		X,
+		AlertCircle,
+		CheckCircle,
+		Info,
+		Package,
+		Play,
+		AlertTriangle
+	} from 'lucide-svelte';
+	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 
- // Lazy-loaded worker client APIs
-  import { getGenerationWorker, postWorkerMessage, terminateGenerationWorker } from '$lib/workers/generation.worker.loader';
-  import { cancelGeneration } from '$lib/workers/generation.worker.client';
+	// State
+	let collectionSize = $state(100);
+	let isGenerating = $derived($loadingStore.isLoading('generation'));
+	let progress = $state(0);
+	let statusText = $state('Ready to generate');
+	let showSuccess = $state(false);
+	let showError = $state(false);
+	let errorDetails = $state<{ message: string; context?: any } | null>(null);
+	let showInfo = $state(false);
+	let infoMessage = $state('');
+	let worker: Worker | null = null;
+	let isCancelled = $state(false);
 
-  // UI state
-  let open = $state(false);
-  let collectionSize = $state(100);
-  let isGenerating = $state(false);
-  let generatedCount = $state(0);
-  let totalCount = $state(0);
-  let statusText = $state('Ready to generate.');
-
-  let projectData: Project = $state({
-    id: '',
-    name: '',
-    description: '',
-    outputSize: { width: 1024, height: 1024 },
-    layers: []
-  });
-
-  // Subscribe to project changes
-  projectStore.project.subscribe((p) => {
-    projectData = p;
-  });
-
-  function updateProgress(generated: number, total: number, text: string) {
-    generatedCount = generated;
-    totalCount = total;
-    statusText = text;
-  }
+	// Progress update function
+	function updateProgress(generated: number, total: number, text: string) {
+		progress = Math.round((generated / total) * 100);
+		statusText = text;
+	}
 
   function resetState() {
-    isGenerating = false;
+    loadingStore.stop('generation');
     updateProgress(0, 0, 'Ready to generate.');
     // Ensure any running worker is terminated
     terminateGenerationWorker();
@@ -133,177 +114,150 @@
   }
 
   async function handleGenerate(event?: MouseEvent) {
-    const errorContext: ErrorContext = {
-      component: 'GenerationModal',
-      action: 'handleGenerate',
-      userAction: 'Generate Collection',
-      additionalData: {
-        collectionSize,
-        layerCount: projectData.layers.length,
-        projectName: projectData.name
-      }
-    };
+		// Prevent accidental closing during generation
+		if (event) {
+			event.preventDefault();
+		}
 
-    try {
-      // Input validation
-      if (projectData.layers.length === 0) {
-        showError(
-          new AppError(
-            'Please add at least one layer before generating.',
-            'VALIDATION_ERROR',
-            errorContext
-          )
-        );
-        return;
-      }
-      if (collectionSize < 1) {
-        showError(new AppError('Collection size must be at least 1.', 'VALIDATION_ERROR', errorContext));
-        return;
-      }
-      if (collectionSize > 10000) {
-        showError(
-          new AppError(
-            'Collection size is limited to 10,000 items for performance.',
-            'VALIDATION_ERROR',
-            errorContext
-          )
-        );
-        return;
-      }
+		// Reset state
+		resetState();
+		showError = false;
+		errorDetails = null;
+		isCancelled = false;
 
-      // Check for missing image data
-      if (traitsStore.hasMissingImageData()) {
-        const missingImages = traitsStore.getLayersWithMissingImages();
-        const traitList = missingImages
-          .slice(0, 3)
-          .map(
-            (item: { layerName: string; traitName: string }) =>
-              `"${item.traitName}" in layer "${item.layerName}"`
-          )
-          .join(', ');
-        const moreText = missingImages.length > 3 ? ` and ${missingImages.length - 3} more` : '';
+		try {
+			const projectData = get(project);
 
-        const errorContextMissing: ErrorContext = {
-          component: 'GenerationModal',
-          action: 'startGeneration',
-          userAction: 'generateNFTs',
-          additionalData: {
-            missingImageCount: missingImages.length,
-            firstFewMissing: traitList
-          }
-        };
+			// Validate project has layers
+			if (projectData.layers.length === 0) {
+				const workerError = new WorkerError('Project must have at least one layer.', {
+					context: { component: 'GenerationModal', action: 'handleGenerate' },
+					missingLayers: true
+				});
+				showError = true;
+				errorDetails = { message: workerError.message, context: workerError.context };
+				return;
+			}
 
-        const workerError = new WorkerError(
-          `Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`,
-          errorContextMissing
-        );
-        showError(workerError);
-        return;
-      }
+			// Validate layers have traits
+			const emptyLayers = projectData.layers.filter((layer) => layer.traits.length === 0);
+			if (emptyLayers.length > 0) {
+				const workerError = new WorkerError(
+					`The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`,
+					{
+						context: { component: 'GenerationModal', action: 'handleGenerate' },
+						emptyLayers: emptyLayers.map((l) => l.name)
+					}
+				);
+				showError = true;
+				errorDetails = { message: workerError.message, context: workerError.context };
+				return;
+			}
 
-      isGenerating = true;
-      updateProgress(0, collectionSize, 'Validating project data...');
+			// Check for missing image data
+			const traitList = projectData.layers.flatMap((layer) =>
+				layer.traits.map((trait) => ({ layer: layer.name, trait: trait.name, imageData: trait.imageData }))
+			);
+			const missingImages = traitList.filter((t) => !t.imageData || t.imageData.byteLength === 0);
 
-      // Use lazy-loaded worker for generation
-      await retryWithErrorHandling(
-        async () => {
-          // Validate layers before starting generation
-          const transferrableLayers = await traitsStore.prepareLayersForWorker(projectData.layers);
+			if (missingImages.length > 0) {
+				const errorContextMissing = {
+					context: {
+						component: 'GenerationModal',
+						action: 'handleGenerate',
+						missingImageCount: missingImages.length,
+						firstFewMissing: traitList
+					}
+				};
 
-          updateProgress(0, collectionSize, 'Initializing worker...');
+				const workerError = new WorkerError(
+					`Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`,
+					errorContextMissing
+				);
+				showError(workerError);
+				return;
+			}
 
-          // Initialize worker lazily and set up message handling
-          const worker = await getGenerationWorker();
-          worker.onmessage = async (e: MessageEvent) => {
-            const { type, payload } = e.data as { type: string; payload?: any };
+			// Start loading state
+			loadingStore.start('generation');
+			updateProgress(0, collectionSize, 'Validating project data...');
 
-            switch (type) {
-              case 'progress':
-                updateProgress(payload.generatedCount, payload.totalCount, payload.statusText);
-                break;
-              case 'complete':
-                await packageZip(payload.images, payload.metadata);
-                // Auto-refresh after successful generation
-                setTimeout(() => {
-                  window.location.reload();
-                }, 2500);
-                break;
-              case 'cancelled':
-                updateProgress(payload.generatedCount ?? 0, payload.totalCount ?? collectionSize, 'Generation cancelled by user.');
-                showInfo('Generation has been cancelled.');
-                resetState();
-                // Auto-refresh after cancellation
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1500);
-                break;
-              case 'error':
-                {
-                  const workerErrorCtx: ErrorContext = {
-                    component: 'GenerationModal',
-                    action: 'handleWorkerMessage',
-                    userAction: 'generateNFTs',
-                    additionalData: {
-                      workerError: payload?.message,
-                      generatedCount: payload?.generatedCount ?? 0
-                    }
-                  };
-                  const workerError = new WorkerError(payload?.message ?? 'Worker error', workerErrorCtx);
-                  updateProgress(generatedCount, collectionSize, `Error: ${payload?.message ?? 'Worker error'}`);
-                  showError(workerError);
-                  resetState();
-                }
-                break;
-              default:
-                // Unknown message types
-                break;
-            }
-          };
+			// Use lazy-loaded worker for generation
+			await retryWithErrorHandling(
+				async () => {
+					// Validate layers before starting generation
+					const transferrableLayers = await traitsStore.prepareLayersForWorker(projectData.layers);
 
-          const transfers = transferrableLayers.flatMap((layer: PreparedLayer) =>
-            layer.traits
-              .map((trait: PreparedTrait) => trait.imageData)
-              .filter((d: ArrayBuffer): d is ArrayBuffer => d instanceof ArrayBuffer)
-          );
+					updateProgress(0, collectionSize, 'Initializing worker...');
 
-          const messageData = {
-            type: 'start',
-            payload: {
-              layers: transferrableLayers,
-              collectionSize,
-              outputSize: {
-                width: projectData.outputSize.width,
-                height: projectData.outputSize.height
-              },
-              projectName: String(projectData.name || ''),
-              projectDescription: String(projectData.description || '')
-            }
-          };
+					// Initialize worker lazily and set up message handling
+					const worker = await getGenerationWorker();
+					worker.onmessage = async (e: MessageEvent) => {
+						const { type, payload } = e.data as { type: string; payload?: any };
 
-          worker.postMessage(messageData, transfers);
-        },
-        RetryConfigs.default,
-        errorContext,
-        'Failed to start generation after multiple attempts'
-      );
-    } catch (error) {
-      if (error instanceof AppError) {
-        showError(error);
-      } else {
-        const genericError = new AppError(
-          error instanceof Error ? error.message : 'An unknown error occurred.',
-          'GENERATION_ERROR',
-          errorContext,
-          true
-        );
-        showError(genericError);
-      }
+						switch (type) {
+							case 'progress':
+								updateProgress(payload.generatedCount, payload.totalCount, payload.statusText);
+								break;
+							case 'complete':
+								await packageZip(payload.images, payload.metadata);
+								// Auto-refresh after successful generation
+								setTimeout(() => {
+									window.location.reload();
+								}, 2500);
+								break;
+							case 'cancelled':
+								updateProgress(payload.generatedCount ?? 0, payload.totalCount ?? collectionSize, 'Generation cancelled by user.');
+								showInfo('Generation has been cancelled.');
+								resetState();
+								// Auto-refresh after cancellation
+								setTimeout(() => {
+									window.location.reload();
+								}, 1500);
+								break;
+							case 'error':
+								const error = new WorkerError(payload.message, payload.context);
+								showError(error);
+								resetState();
+								break;
+							default:
+								console.warn('Unknown message type from worker:', type);
+						}
+					};
 
-      const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-      updateProgress(generatedCount, totalCount, `Error: ${message}`);
-      resetState();
-    }
-  }
+					// Start generation in worker
+					worker.postMessage({
+						type: 'generate',
+						payload: {
+							layers: transferrableLayers,
+							collectionSize,
+							projectName: projectData.name
+						}
+					});
+				},
+				{
+					maxRetries: 3,
+					baseDelay: 1000,
+					onError: (error, attempt) => {
+						console.error(`Generation attempt ${attempt} failed:`, error);
+						toast.error(`Generation attempt ${attempt} failed. Retrying...`, {
+							description: error instanceof Error ? error.message : 'Unknown error'
+						});
+					}
+				}
+			);
+		} catch (error) {
+			const workerError = new WorkerError(
+				error instanceof Error ? error.message : 'An unknown error occurred during generation',
+				{
+					context: { component: 'GenerationModal', action: 'handleGenerate' },
+					originalError: error
+				}
+			);
+			showError(workerError);
+			resetState();
+		}
+	}
 
   function handleModalInteraction(newOpenState: boolean) {
     open = newOpenState;
@@ -316,7 +270,7 @@
   function handleCancel() {
     // Use the public cancel API to terminate the worker
     cancelGeneration();
-    isGenerating = false;
+    loadingStore.stop('generation');
     updateProgress(generatedCount, totalCount, 'Generation cancelled by user.');
     toast.info('Generation has been cancelled.');
   }
@@ -363,23 +317,20 @@
     <div class="flex justify-end space-x-2">
       {#if isGenerating}
         <Button variant="outline" onclick={handleCancel}>
-          <Loader2 class="mr-2 h-4 w-4 animate-spin" />
-          Cancel
+          <LoadingIndicator operation="generation" message="Canceling..." />
         </Button>
       {/if}
       <Button
-        onclick={handleGenerate}
-        disabled={isGenerating ||
-          projectData.layers.length === 0 ||
-          projectStore.projectNeedsZipLoad()}
-      >
-        {#if isGenerating}
-          <Loader2 class="mr-2 h-4 w-4 animate-spin" />
-          Generating...
-        {:else}
-          Generate
-        {/if}
-      </Button>
+							onclick={handleGenerate}
+							disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
+						>
+							{#if isGenerating}
+								<LoadingIndicator operation="generation" message="Generating..." />
+							{:else}
+								<Play class="mr-2 h-4 w-4" />
+								Generate
+							{/if}
+						</Button>
     </div>
   </DialogContent>
 </Dialog>

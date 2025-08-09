@@ -1,28 +1,33 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import {
-		Dialog,
-		DialogContent,
-		DialogDescription,
-		DialogHeader,
-		DialogTitle,
-		DialogTrigger
-	} from '$lib/components/ui/dialog';
-	import {
-		saveProjectToZip,
-		loadProjectFromZip,
-		markProjectAsLoaded,
-		projectNeedsZipLoad
-	} from '$lib/stores/project.store';
 	import { toast } from 'svelte-sonner';
-	import { Download, Upload, FolderOpen, AlertTriangle } from 'lucide-svelte';
+	import { loadProjectFromZip, saveProjectToZip, project } from '$lib/stores/project.store';
+	import { projectStore } from '$lib/stores';
+	import { get } from 'svelte/store';
+	import { loadingStore } from '$lib/stores/loading.store';
+	import { FolderOpen, Save, X, AlertTriangle } from 'lucide-svelte';
+	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 
-	let saveDialogOpen = $state(false);
 	let loadDialogOpen = $state(false);
-	let loadFileInputElement: HTMLInputElement | undefined;
-	let isLoading = $state(false);
+	let saveDialogOpen = $state(false);
+	let loadFileInputElement: HTMLInputElement | null = null;
+	let saveFileInputElement: HTMLInputElement | null = null;
+	let isLoading = $derived($loadingStore.isLoading('project-load'));
+	let isSaving = $derived($loadingStore.isLoading('project-save'));
+
+	// Check if project needs to be loaded from ZIP (indicated by the special flag)
+	function projectNeedsZipLoad(): boolean {
+		const currentProject = get(project);
+		return !!currentProject._needsProperLoad;
+	}
+
+	// Mark project as properly loaded (remove the special flag)
+	function markProjectAsLoaded(): void {
+		projectStore.clearNeedsLoadFlag();
+	}
 
 	async function handleSaveProject() {
+		loadingStore.start('project-save');
 		try {
 			await saveProjectToZip();
 			toast.success('Project saved successfully!');
@@ -30,11 +35,20 @@
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to save project';
 			toast.error(message);
+		} finally {
+			loadingStore.stop('project-save');
+			// Reset file input
+			if (saveFileInputElement) {
+				saveFileInputElement.value = '';
+			}
 		}
 	}
 
 	async function handleLoadProject(files: FileList | null) {
-		if (!files || files.length === 0) return;
+		if (!files || files.length === 0) {
+			toast.error('Please select a valid .zip project file');
+			return;
+		}
 
 		const file = files[0];
 		if (!file.name.endsWith('.zip')) {
@@ -42,7 +56,7 @@
 			return;
 		}
 
-		isLoading = true;
+		loadingStore.start('project-load');
 		try {
 			const success = await loadProjectFromZip(file);
 			if (success) {
@@ -61,20 +75,13 @@
 			const message = error instanceof Error ? error.message : 'Failed to load project';
 			toast.error(message);
 		} finally {
-			isLoading = false;
+			loadingStore.stop('project-load');
 			// Reset file input
 			if (loadFileInputElement) {
 				loadFileInputElement.value = '';
 			}
 		}
 	}
-
-	function triggerFileInput() {
-		if (loadFileInputElement) {
-			loadFileInputElement.click();
-		}
-	}
-</script>
 
 {#if projectNeedsZipLoad()}
 	<div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
@@ -106,10 +113,14 @@
 			</DialogHeader>
 			<div class="flex justify-end space-x-2">
 				<Button variant="outline" onclick={() => (saveDialogOpen = false)}>Cancel</Button>
-				<Button onclick={handleSaveProject}>
-					<Download class="mr-2 h-4 w-4" />
-					Download Project
-				</Button>
+										<Button onclick={handleSaveProject} disabled={isSaving}>
+							{#if isSaving}
+								<LoadingIndicator operation="project-save" message="Saving project..." />
+							{:else}
+								<Save class="mr-2 h-4 w-4" />
+								Save Project
+							{/if}
+						</Button>
 			</div>
 		</DialogContent>
 	</Dialog>
@@ -142,9 +153,7 @@
 					<p class="mb-4 text-sm text-gray-600">Select a .zip project file to upload</p>
 					<Button onclick={triggerFileInput} disabled={isLoading}>
 						{#if isLoading}
-							<div
-								class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-							/>
+							<LoadingIndicator operation="project-load" message="Loading project..." />
 						{:else}
 							<Upload class="mr-2 h-4 w-4" />
 							Choose File

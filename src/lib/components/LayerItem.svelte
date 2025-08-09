@@ -12,10 +12,12 @@
 	} from '$lib/stores/project.store';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
-	import { Loader2, Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
+	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
+	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { getImageDimensions } from '$lib/utils';
 	import { onMount, onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
+	import { loadingStore } from '$lib/stores/loading.store';
 
 	interface Props {
 		layer: Layer;
@@ -24,7 +26,7 @@
 	const { layer }: Props = $props();
 
 	let layerName = $derived(layer.name);
-	let isUploading = $state(false);
+	let isUploading = $derived($loadingStore.isLoading(`layer-upload-${layer.id}`));
 	let uploadProgress = $state(0); // Track upload progress
 	let isEditing = $state(false);
 	let isDragover = $state(false);
@@ -165,7 +167,8 @@
 	async function handleFileUpload(files: FileList | null) {
 		if (!files || files.length === 0) return;
 
-		isUploading = true;
+		// Start loading state
+		loadingStore.start(`layer-upload-${layer.id}`);
 		uploadProgress = 0;
 		isDragover = false;
 
@@ -307,8 +310,12 @@
 				toast.error(`Error uploading files: ${message}`);
 			});
 		} finally {
-			isUploading = false;
-			uploadProgress = 0;
+			// Stop loading state
+			loadingStore.stop(`layer-upload-${layer.id}`);
+			// Reset file input
+			if (fileInputElement) {
+				fileInputElement.value = '';
+			}
 		}
 	}
 
@@ -538,8 +545,11 @@
 			>
 				<div class="space-y-1 text-center">
 					{#if isUploading}
-						<Loader2 class="mx-auto h-12 w-12 animate-spin text-indigo-600" />
-						<p class="mt-2 text-sm text-gray-600">Uploading files... {uploadProgress}%</p>
+						<div class="flex items-center justify-center">
+							<div class="flex items-center justify-center">
+								<LoadingIndicator operation={`layer-upload-${layer.id}`} message="Uploading files..." />
+							</div>
+						</div>
 						<div class="mt-2 h-2 w-full rounded-full bg-gray-200">
 							<div
 								class="h-full rounded-full bg-indigo-600 transition-all duration-300"

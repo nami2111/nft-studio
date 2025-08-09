@@ -394,39 +394,43 @@ export function getLayersWithMissingImages(): Array<{ layerName: string; traitNa
 
 // Save project to ZIP
 export async function saveProjectToZip(): Promise<void> {
-	const { default: JSZip } = await import('jszip');
-	const currentProject = get(project);
+	// Import loading store dynamically to avoid circular dependencies
+	const { loadingStore } = await import('$lib/stores/loading.store');
+	loadingStore.start('project-save');
+	
+	try {
+		const { default: JSZip } = await import('jszip');
+		const currentProject = get(project);
 
-	const zip = new JSZip();
+		const zip = new JSZip();
 
-	const projectConfig = {
-		...currentProject,
-		layers: currentProject.layers.map((layer) => ({
-			...layer,
-			traits: layer.traits.map((trait) => ({
-				...trait,
-				imageData: undefined
-			}))
-		})),
-		exportedAt: new Date().toISOString()
-	};
+		const projectConfig = {
+			...currentProject,
+			layers: currentProject.layers.map((layer) => ({
+				...layer,
+				traits: layer.traits.map((trait) => ({
+					...trait,
+					imageData: undefined
+				}))
+			})),
+			exportedAt: new Date().toISOString()
+		};
 
-	zip.file('project.json', JSON.stringify(projectConfig, null, 2));
+		zip.file('project.json', JSON.stringify(projectConfig, null, 2));
 
-	for (const layer of currentProject.layers) {
-		const layerFolder = zip.folder(normalizeFilename(layer.name));
-		if (layerFolder) {
-			for (const trait of layer.traits) {
-				if (trait.imageData && trait.imageData.byteLength > 0) {
-					const safeTraitName = normalizeFilename(trait.name);
-					const blob = new Blob([trait.imageData], { type: 'image/png' });
-					layerFolder.file(`${safeTraitName}.png`, blob);
+		for (const layer of currentProject.layers) {
+			const layerFolder = zip.folder(normalizeFilename(layer.name));
+			if (layerFolder) {
+				for (const trait of layer.traits) {
+					if (trait.imageData && trait.imageData.byteLength > 0) {
+						const safeTraitName = normalizeFilename(trait.name);
+						const blob = new Blob([trait.imageData], { type: 'image/png' });
+						layerFolder.file(`${safeTraitName}.png`, blob);
+					}
 				}
 			}
 		}
-	}
 
-	try {
 		const content = await zip.generateAsync({ type: 'blob' });
 		const url = URL.createObjectURL(content);
 		const a = document.createElement('a');
@@ -440,59 +444,64 @@ export async function saveProjectToZip(): Promise<void> {
 			title: 'Save Failed',
 			description: 'Failed to save project to ZIP file. Please try again.'
 		});
+	} finally {
+		loadingStore.stop('project-save');
 	}
 }
 
 // Load project from ZIP
 export async function loadProjectFromZip(file: File): Promise<boolean> {
-	const { default: JSZip } = await import('jszip');
-
+	// Import loading store dynamically to avoid circular dependencies
+	const { loadingStore } = await import('$lib/stores/loading.store');
+	loadingStore.start('project-load');
+	
 	try {
-		const zip = await JSZip.loadAsync(file);
+		const { default: JSZip } = await import('jszip');
 
-		const configFile = zip.file('project.json');
-		if (!configFile) {
-			handleFileError(new Error('Invalid project file: missing project.json'), {
-				context: { component: 'ProjectStore', action: 'loadProjectFromZip' },
-				title: 'Load Failed',
-				description: 'Invalid project file: missing project.json'
-			});
-			return false;
+		const zip = new JSZip();
+		const contents = await zip.loadAsync(file);
+
+		const projectFile = contents.file('project.json');
+		if (!projectFile) {
+			throw new Error('Invalid project file: missing project.json');
 		}
 
-		const configContent = await configFile.async('text');
-		const projectConfig = JSON.parse(configContent);
+		const projectJson = await projectFile.async('text');
+		const projectData = JSON.parse(projectJson);
 
-		for (const layer of projectConfig.layers) {
-			const layerFolder = zip.folder(layer.name);
+		if (!isValidImportedProject(projectData)) {
+			throw new Error('Invalid project file format');
+		}
+
+		// Load images for each trait
+		for (const layer of projectData.layers) {
+			const layerFolder = contents.folder(layer.name);
 			if (layerFolder) {
 				for (const trait of layer.traits) {
-					const imageFile = layerFolder.file(`${trait.name}.png`);
-					if (imageFile) {
-						const imageData = await imageFile.async('arraybuffer');
-						trait.imageData = imageData;
-					} else {
-						trait.imageData = new ArrayBuffer(0);
+					const traitFile = layerFolder.file(`${trait.name}.png`);
+					if (traitFile) {
+						const blob = await traitFile.async('blob');
+						trait.imageData = await fileToArrayBuffer(blob as unknown as File);
+						trait.imageUrl = URL.createObjectURL(blob);
 					}
 				}
 			}
 		}
 
-		try {
-			const current = get(project);
-			revokeAllTraitObjectUrls(current);
-		} catch (error) {
-			handleError(error, {
-				context: {
-					component: 'ProjectStore',
-					action: 'loadProjectFromZip',
-					userAction: 'revokeAllTraitObjectUrls'
-				},
-				silent: true
-			});
-		}
+		// Update the project store with the loaded data
+		setProject({
+			...projectData,
+			// Ensure we have proper IDs for all entities
+			layers: projectData.layers.map((layer: any) => ({
+				...layer,
+				id: layer.id || crypto.randomUUID(),
+				traits: layer.traits.map((trait: any) => ({
+					...trait,
+					id: trait.id || crypto.randomUUID()
+				}))
+			}))
+		});
 
-		project.set(projectConfig);
 		return true;
 	} catch (error) {
 		handleFileError(error, {
@@ -501,5 +510,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 			description: 'Failed to load project from ZIP file. Please check the file and try again.'
 		});
 		return false;
+	} finally {
+		loadingStore.stop('project-load');
 	}
 }
