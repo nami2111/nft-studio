@@ -27,9 +27,11 @@
 			});
 		} catch (error) {
 			console.error('Failed to add layer:', error);
-			// Optionally, show a toast notification for the error
+			// Show user-friendly error message
 			import('svelte-sonner').then(({ toast }) => {
-				toast.error('Failed to add layer. Please try again.');
+				toast.error('Failed to add layer', {
+					description: error instanceof Error ? error.message : 'Unknown error'
+				});
 			});
 		} finally {
 			isAddingLayer = false;

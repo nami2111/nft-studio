@@ -149,6 +149,12 @@
 						ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
 					} catch (error) {
 						console.error('Error drawing image:', error);
+						// Show user-friendly error message
+						import('svelte-sonner').then(({ toast }) => {
+							toast.error('Failed to draw image in preview', {
+								description: error instanceof Error ? error.message : 'Unknown error'
+							});
+						});
 					}
 				}
 			}

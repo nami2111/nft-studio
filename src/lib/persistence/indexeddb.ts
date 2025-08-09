@@ -29,6 +29,10 @@ export function saveProjectToIndexedDB(projectData: any): Promise<void> {
 			req.onsuccess = () => resolve();
 			req.onerror = () => reject(req.error);
 		});
+	}).catch((error) => {
+		console.error('Failed to save project to IndexedDB:', error);
+		// Re-throw the error so it can be handled by the caller
+		throw new Error(`Failed to save project to IndexedDB: ${error instanceof Error ? error.message : 'Unknown error'}`);
 	});
 }
 
@@ -46,7 +50,11 @@ export function loadProjectFromIndexedDB(): Promise<any | null> {
 				req.onerror = () => reject(req.error);
 			});
 		})
-		.catch(() => null);
+		.catch((error) => {
+			console.error('Failed to load project from IndexedDB:', error);
+			// Return null to indicate no project was loaded, but don't throw
+			return null;
+		});
 }
 
 export function deleteIndexedProject(): Promise<void> {
@@ -60,5 +68,9 @@ export function deleteIndexedProject(): Promise<void> {
 				req.onerror = () => reject(req.error);
 			});
 		})
-		.catch(() => Promise.resolve());
+		.catch((error) => {
+			console.error('Failed to delete project from IndexedDB:', error);
+			// Resolve the promise to indicate the operation is complete, even if it failed
+			return Promise.resolve();
+		});
 }

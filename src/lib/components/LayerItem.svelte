@@ -166,9 +166,11 @@
 			});
 
 			if (imageFiles.length === 0) {
-				toast.warning(
-					'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
-				);
+				import('svelte-sonner').then(({ toast }) => {
+					toast.warning(
+						'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
+					);
+				});
 				return;
 			}
 
@@ -239,6 +241,12 @@
 							}
 						}
 						console.error(`Error processing file ${file.name}:`, error);
+						// Show user-friendly error message
+						import('svelte-sonner').then(({ toast }) => {
+							toast.error(`Error processing file "${file.name}"`, {
+								description: error instanceof Error ? error.message : 'Unknown error'
+							});
+						});
 						return false;
 					}
 				});
@@ -257,15 +265,23 @@
 			}
 
 			if (errorCount === 0) {
-				toast.success(`${successCount} trait(s) added successfully.`);
+				import('svelte-sonner').then(({ toast }) => {
+					toast.success(`${successCount} trait(s) added successfully.`);
+				});
 			} else if (successCount > 0) {
-				toast.warning(`${successCount} trait(s) added, ${errorCount} failed.`);
+				import('svelte-sonner').then(({ toast }) => {
+					toast.warning(`${successCount} trait(s) added, ${errorCount} failed.`);
+				});
 			} else {
-				toast.error('All files failed to upload. Please check the files and try again.');
+				import('svelte-sonner').then(({ toast }) => {
+					toast.error('All files failed to upload. Please check the files and try again.');
+				});
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-			toast.error(`Error uploading files: ${message}`);
+			import('svelte-sonner').then(({ toast }) => {
+				toast.error(`Error uploading files: ${message}`);
+			});
 		} finally {
 			isUploading = false;
 			uploadProgress = 0;

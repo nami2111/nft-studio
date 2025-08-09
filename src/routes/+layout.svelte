@@ -12,14 +12,23 @@
 
 	let { children }: Props = $props();
 
-	onMount(
-		async () =>
+	onMount(async () => {
+		try {
 			await initSatellite({
 				workers: {
 					auth: true
 				}
-			})
-	);
+			});
+		} catch (error) {
+			console.error('Failed to initialize satellite:', error);
+			// Show user-friendly error message
+			import('svelte-sonner').then(({ toast }) => {
+				toast.error('Failed to initialize application', {
+					description: error instanceof Error ? error.message : 'Unknown error'
+				});
+			});
+		}
+	});
 </script>
 
 <div class="min-h-screen bg-gray-50">

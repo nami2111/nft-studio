@@ -73,15 +73,7 @@ export async function getImageDimensions(file: File): Promise<{ width: number; h
 	});
 }
 
-/**
- * Convert a File object to an ArrayBuffer.
- *
- * @param file - The File object to convert.
- * @returns A promise that resolves with the ArrayBuffer representation of the file.
- */
-export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
-	return await file.arrayBuffer();
-}
+/**\n * Convert a File object to an ArrayBuffer.\n *\n * @param file - The File object to convert.\n * @returns A promise that resolves with the ArrayBuffer representation of the file.\n */\nexport async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {\n\ttry {\n\t\treturn await file.arrayBuffer();\n\t} catch (error) {\n\t\tthrow new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);\n\t}\n}
 
 /**
  * Normalize a filename by removing path separators, trimming, limiting length,
