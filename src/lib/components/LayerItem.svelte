@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Layer } from '$lib/types/layer';
 	import TraitCard from '$lib/components/TraitCard.svelte';
+	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
 	import {
 		removeLayer,
 		updateLayerName,
@@ -678,20 +679,27 @@
 			{/if}
 
 			{#if layer.traits.length > 0}
-				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-					{#each filteredTraits as trait (trait.id)}
-						{#if layer.traits.length > 50}
-							<!-- Lazy load trait cards when there are many traits -->
-							<div class="lazy-trait-container" data-trait-id={trait.id}>
-								<div class="lazy-trait-placeholder">
-									<div class="h-full w-full rounded-lg bg-gray-200"></div>
+				{#if layer.traits.length > 100}
+					<!-- Use virtual scrolling for large trait lists -->
+					<div class="h-96">
+						<VirtualTraitList traits={filteredTraits} layerId={layer.id} {searchTerm} />
+					</div>
+				{:else}
+					<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+						{#each filteredTraits as trait (trait.id)}
+							{#if layer.traits.length > 50}
+								<!-- Lazy load trait cards when there are many traits -->
+								<div class="lazy-trait-container" data-trait-id={trait.id}>
+									<div class="lazy-trait-placeholder">
+										<div class="h-full w-full rounded-lg bg-gray-200"></div>
+									</div>
 								</div>
-							</div>
-						{:else}
-							<TraitCard {trait} layerId={layer.id} />
-						{/if}
-					{/each}
-				</div>
+							{:else}
+								<TraitCard {trait} layerId={layer.id} />
+							{/if}
+						{/each}
+					</div>
+				{/if}
 			{:else}
 				<p class="text-sm text-gray-500">No traits added yet. Upload or drag images above.</p>
 			{/if}
