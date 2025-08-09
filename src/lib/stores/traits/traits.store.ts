@@ -3,6 +3,7 @@ import { project } from '../project/project.store';
 import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
 import type { Trait } from '$lib/types/trait';
 import type { Layer } from '$lib/types/layer';
+import type { Project } from '$lib/types/project';
 import { handleError, handleFileError, handleValidationError } from '$lib/utils/error-handler';
 import { isValidImportedProject, isValidTraitName } from '$lib/utils/validation';
 import { defaultProject } from '../project/project.model';

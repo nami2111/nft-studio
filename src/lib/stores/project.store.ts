@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { LocalStorageStore } from '$lib/persistence/storage';
 import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
-import { isValidImportedProject, isValidDimensions } from '$lib/utils/validation';
+import { isValidImportedProject, isValidDimensions, isValidProjectName, isValidLayerName, isValidTraitName } from '$lib/utils/validation';
 import {
 	handleError,
 	handleStorageError,
@@ -489,7 +489,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 		}
 
 		// Update the project store with the loaded data
-		setProject({
+		project.set({
 			...projectData,
 			// Ensure we have proper IDs for all entities
 			layers: projectData.layers.map((layer: any) => ({

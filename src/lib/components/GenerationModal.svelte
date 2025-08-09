@@ -25,7 +25,7 @@
 
 	// State
 	let collectionSize = $state(100);
-	let isGenerating = $derived($loadingStore.isLoading('generation'));
+	let isGenerating = $derived(loadingStore.isLoading('generation'));
 	let progress = $state(0);
 	let statusText = $state('Ready to generate');
 	let showSuccess = $state(false);
@@ -35,6 +35,9 @@
 	let infoMessage = $state('');
 	let worker: Worker | null = null;
 	let isCancelled = $state(false);
+	// Accumulators for chunked data
+	let allImages: { name: string; imageData: ArrayBuffer }[] = [];
+	let allMetadata: { name: string; data: Record<string, unknown> }[] = [];
 
 	// Progress update function
 	function updateProgress(generated: number, total: number, text: string) {
@@ -47,6 +50,9 @@
     updateProgress(0, 0, 'Ready to generate.');
     // Ensure any running worker is terminated
     terminateGenerationWorker();
+    // Clear accumulators
+    allImages = [];
+    allMetadata = [];
   }
 
   async function packageZip(
@@ -200,11 +206,23 @@
 								updateProgress(payload.generatedCount, payload.totalCount, payload.statusText);
 								break;
 							case 'complete':
-								await packageZip(payload.images, payload.metadata);
-								// Auto-refresh after successful generation
-								setTimeout(() => {
-									window.location.reload();
-								}, 2500);
+								// Handle chunked image data
+								if (payload.images && payload.images.length > 0) {
+									// This is a chunk of images, accumulate them
+									allImages.push(...payload.images);
+								}
+								if (payload.metadata && payload.metadata.length > 0) {
+									// This is a chunk of metadata, accumulate them
+									allMetadata.push(...payload.metadata);
+								}
+								// If this is the final message (no more chunks expected)
+								if (!payload.isChunk) {
+									await packageZip(allImages, allMetadata);
+									// Auto-refresh after successful generation
+									setTimeout(() => {
+										window.location.reload();
+									}, 2500);
+								}
 								break;
 							case 'cancelled':
 								updateProgress(payload.generatedCount ?? 0, payload.totalCount ?? collectionSize, 'Generation cancelled by user.');

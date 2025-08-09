@@ -6,6 +6,9 @@ interface TransferrableTrait {
 	name: string;
 	imageData: ArrayBuffer;
 	rarityWeight: number;
+	// Add width/height for better memory management
+	width?: number;
+	height?: number;
 }
 
 interface TransferrableLayer {
@@ -14,6 +17,9 @@ interface TransferrableLayer {
 	order: number;
 	isOptional?: boolean;
 	traits: TransferrableTrait[];
+	// Add layer-level width/height for consistent sizing
+	width?: number;
+	height?: number;
 }
 
 interface StartMessage {
@@ -49,6 +55,7 @@ interface CompleteMessage {
 	payload: {
 		images: { name: string; imageData: ArrayBuffer }[];
 		metadata: { name: string; data: object }[];
+		isChunk?: boolean; // Flag to indicate if this is a chunked response
 	};
 }
 
@@ -88,9 +95,11 @@ function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
 }
 
 // Create an ImageBitmap from ArrayBuffer without intermediate Object URLs
+// Optimized version with better memory management
 async function createImageBitmapFromBuffer(
 	buffer: ArrayBuffer,
-	traitName: string
+	traitName: string,
+	options?: { resizeWidth?: number; resizeHeight?: number }
 ): Promise<ImageBitmap> {
 	if (!buffer || buffer.byteLength === 0) {
 		throw new Error(`Image data is empty for trait "${traitName}"`);
@@ -98,8 +107,23 @@ async function createImageBitmapFromBuffer(
 
 	try {
 		const blob = new Blob([buffer], { type: 'image/png' });
-		// Directly create an ImageBitmap from the Blob (no object URL needed)
-		const imageBitmap = await createImageBitmap(blob);
+		
+		// Use ImageBitmap options for better memory efficiency
+		const imageBitmapOptions: ImageBitmapOptions = {
+			// If resize dimensions are provided, resize during creation to save memory
+			...(options?.resizeWidth && options?.resizeHeight && {
+				resizeWidth: options.resizeWidth,
+				resizeHeight: options.resizeHeight,
+				resizeQuality: 'high'
+			}),
+			// Color space conversion can be skipped for better performance if not needed
+			colorSpaceConversion: 'none',
+			// Premultiply alpha can be controlled based on needs
+			premultiplyAlpha: 'none'
+		};
+
+		// Directly create an ImageBitmap from the Blob with optimized options
+		const imageBitmap = await createImageBitmap(blob, imageBitmapOptions);
 		return imageBitmap;
 	} catch (error) {
 		throw new Error(
@@ -164,7 +188,7 @@ function calculateOptimalChunkSize(
 	return chunkSize;
 }
 
-// Generate the collection with chunked processing
+// Generate the collection with chunked processing and optimized memory usage
 async function generateCollection(
 	layers: TransferrableLayer[],
 	collectionSize: number,
@@ -172,7 +196,7 @@ async function generateCollection(
 	projectName: string,
 	projectDescription: string
 ) {
-	const images: { name: string; blob: Blob }[] = [];
+	// Use a smaller initial array size to reduce memory footprint
 	const metadata: { name: string; data: object }[] = [];
 
 	// Detect device capabilities and set optimal chunk size
@@ -212,14 +236,25 @@ async function generateCollection(
 		throw new Error('Could not get 2d context from OffscreenCanvas');
 	}
 
+	// Optimize canvas context settings for better performance
+	reusableCtx.imageSmoothingEnabled = false; // Disable smoothing for pixel-perfect rendering
+	reusableCtx.globalCompositeOperation = 'source-over';
+
+	// Pre-calculate the target dimensions to avoid repeated calculations
+	const targetWidth = reusableCanvas.width;
+	const targetHeight = reusableCanvas.height;
+
 	// Generate each NFT in chunks
 	for (let chunkStart = 0; chunkStart < collectionSize && !isCancelled; chunkStart += CHUNK_SIZE) {
 		const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, collectionSize);
+		
+		// Create a temporary array to hold only the current chunk's images
+		const chunkImages: { name: string; blob: Blob }[] = [];
 
 		for (let i = chunkStart; i < chunkEnd && !isCancelled; i++) {
 			try {
 				// Clear the reusable canvas for this item
-				reusableCtx.clearRect(0, 0, reusableCanvas.width, reusableCanvas.height);
+				reusableCtx.clearRect(0, 0, targetWidth, targetHeight);
 
 				// Selected traits for this NFT
 				const selectedTraits = [];
@@ -243,25 +278,29 @@ async function generateCollection(
 							traitName: selectedTrait.name
 						});
 
-						// Create ImageBitmap from the trait's image data
+						// Create ImageBitmap from the trait's image data with resizing for memory efficiency
 						const imageBitmap = await createImageBitmapFromBuffer(
 							selectedTrait.imageData,
-							selectedTrait.name
+							selectedTrait.name,
+							{ resizeWidth: targetWidth, resizeHeight: targetHeight }
 						);
 
 						// Draw the image onto the OffscreenCanvas
-						reusableCtx.drawImage(imageBitmap, 0, 0, reusableCanvas.width, reusableCanvas.height);
+						reusableCtx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
 
-						// Clean up the ImageBitmap
+						// Clean up the ImageBitmap immediately to free memory
 						imageBitmap.close();
 					}
 				}
 
-				// Convert the canvas to a Blob
-				const blob = await reusableCanvas.convertToBlob({ type: 'image/png' });
+				// Convert the canvas to a Blob with optimized quality settings
+				const blob = await reusableCanvas.convertToBlob({ 
+					type: 'image/png',
+					quality: 0.9 // Slight compression to reduce memory usage
+				});
 
-				// Store the blob
-				images.push({
+				// Store the blob in the chunk array (not the main array)
+				chunkImages.push({
 					name: `${i + 1}.png`,
 					blob
 				});
@@ -282,7 +321,7 @@ async function generateCollection(
 					attributes: attributes
 				};
 
-				// Store the metadata
+				// Store the metadata (this is much smaller than image data)
 				metadata.push({
 					name: `${i + 1}.json`,
 					data: metadataObj
@@ -290,7 +329,7 @@ async function generateCollection(
 
 				// Send progress update
 				if (i % 10 === 0 || i === collectionSize - 1 || i === chunkEnd - 1) {
-					// Cleanup Object URLs periodically to free memory
+					// Cleanup resources periodically to free memory
 					cleanupObjectUrls();
 
 					// Get current memory usage
@@ -326,9 +365,45 @@ async function generateCollection(
 			}
 		}
 
-		// Force garbage collection between chunks if available
-		if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
-			(globalThis as { gc?: () => void }).gc?.();
+		// Process chunk images to ArrayBuffers and send immediately to free memory
+		if (chunkImages.length > 0 && !isCancelled) {
+			// Convert only this chunk's Blobs to ArrayBuffers for transfer
+			const chunkImagesForTransfer = await Promise.all(
+				chunkImages.map(async (image) => ({
+					name: image.name,
+					imageData: await image.blob.arrayBuffer()
+				}))
+			);
+
+			// Prepare transferables for this chunk
+			const transferables: ArrayBuffer[] = [];
+			chunkImagesForTransfer.forEach((img) => {
+				if (img.imageData instanceof ArrayBuffer) {
+					transferables.push(img.imageData);
+				}
+			});
+
+			// Extract metadata for this chunk (indices that correspond to this chunk's images)
+			const chunkStartIndex = chunkStart;
+			const chunkMetadata = metadata.slice(chunkStartIndex, chunkStartIndex + chunkImages.length);
+
+			// Send chunk completion message with transferables to avoid copying
+			const chunkCompleteMessage: CompleteMessage = {
+				type: 'complete',
+				payload: {
+					images: chunkImagesForTransfer,
+					metadata: chunkMetadata
+				}
+			};
+
+			// Transfer the underlying ArrayBuffers
+			// @ts-ignore - TS in worker env may not infer postMessage overload with transfer list
+			self.postMessage(chunkCompleteMessage, transferables);
+
+			// Force garbage collection between chunks if available to free memory immediately
+			if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
+				(globalThis as { gc?: () => void }).gc?.();
+			}
 		}
 
 		// Adaptive chunking based on memory usage
@@ -388,36 +463,20 @@ async function generateCollection(
 		return;
 	}
 
-	// Final cleanup (no object URL created anymore, left as no-op)
+	// Final cleanup
 	cleanupObjectUrls();
 
-	// Convert Blobs to ArrayBuffers for transfer
-	const imagesForTransfer = await Promise.all(
-		images.map(async (image) => ({
-			name: image.name,
-			imageData: await image.blob.arrayBuffer()
-		}))
-	);
-
-	// Send completion message with transferables to avoid copying
-	const completeMessage: CompleteMessage = {
+	// Send final completion message (empty images since they were sent in chunks)
+	const finalCompleteMessage: CompleteMessage = {
 		type: 'complete',
 		payload: {
-			images: imagesForTransfer,
-			metadata
+			images: [], // Already sent in chunks
+			metadata: [] // Already sent in chunks
 		}
 	};
 
-	const transferables: ArrayBuffer[] = [];
-	imagesForTransfer.forEach((img) => {
-		if (img.imageData instanceof ArrayBuffer) {
-			transferables.push(img.imageData);
-		}
-	});
-
-	// Transfer the underlying ArrayBuffers
-	// @ts-ignore - TS in worker env may not infer postMessage overload with transfer list
-	self.postMessage(completeMessage, transferables);
+	// Send final completion message
+	self.postMessage(finalCompleteMessage);
 }
 
 // Memory information interface

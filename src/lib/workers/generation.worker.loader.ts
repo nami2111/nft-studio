@@ -1,5 +1,3 @@
-// src/lib/workers/generation.worker.loader.ts
-
 import type { TransferrableLayer } from '../domain/project.domain';
 
 export type GenerationWorkerMessage = {

@@ -9,6 +9,9 @@ export interface TransferrableTrait {
 	name: string;
 	imageData: ArrayBuffer;
 	rarityWeight: number;
+	// Add width/height for better memory management
+	width?: number;
+	height?: number;
 }
 
 export interface TransferrableLayer {
@@ -17,6 +20,9 @@ export interface TransferrableLayer {
 	order: number;
 	isOptional?: boolean;
 	traits: TransferrableTrait[];
+	// Add layer-level width/height for consistent sizing
+	width?: number;
+	height?: number;
 }
 
 /**
@@ -48,16 +54,20 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 					id: trait.id,
 					name: trait.name,
 					imageData: trait.imageData,
-					rarityWeight: trait.rarityWeight
+					rarityWeight: trait.rarityWeight,
+					// Include width/height for better memory management
+					width: trait.width,
+					height: trait.height
 				}))
 			);
 			return {
-				id: layer.id,
-				name: layer.name,
-				order: layer.order,
-				isOptional: layer.isOptional,
-				traits: transferrableTraits
-			};
+					id: layer.id,
+					name: layer.name,
+					order: layer.order,
+					isOptional: layer.isOptional,
+					traits: transferrableTraits
+					// Note: Layer doesn't have width/height properties in the base type
+				};
 		})
 	);
 	return transferrableLayers;

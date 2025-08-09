@@ -9,7 +9,8 @@
 	
 	const { operation, message = 'Loading...' }: Props = $props();
 	
-	let isLoading = $derived($loadingStore.isLoading(operation));
+	// Create a reactive variable that updates when the loading state changes
+	let isLoading = $derived(loadingStore.isLoading(operation));
 </script>
 
 {#if isLoading}

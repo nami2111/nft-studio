@@ -6,5 +6,5 @@ export interface Trait {
 	imageData: ArrayBuffer; // The raw file object
 	width: number; // Image width in pixels
 	height: number; // Image height in pixels
-	rarityWeight: number; // Integer from 1 (rarest) to 5 (most common)
+	rarityWeight: number; // Integer from 1 (rare) to 5 (common)
 }
