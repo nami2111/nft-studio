@@ -4,7 +4,7 @@ import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
 import type { Trait } from '$lib/types/trait';
 import type { Layer } from '$lib/types/layer';
 import { handleError, handleFileError, handleValidationError } from '$lib/utils/error-handler';
-import { isValidImportedProject } from '$lib/utils/validation';
+import { isValidImportedProject, isValidTraitName } from '$lib/utils/validation';
 import { defaultProject } from '../project/project.model';
 
 // --- Trait Level Functions ---
@@ -12,6 +12,16 @@ export async function addTrait(
 	layerId: string,
 	trait: Omit<Trait, 'id' | 'imageData'> & { imageData: File }
 ): Promise<void> {
+	if (!isValidTraitName(trait.name)) {
+		handleValidationError<void>(
+			new Error('Invalid trait name: must be a non-empty string with maximum 100 characters'),
+			{
+				context: { component: 'TraitsStore', action: 'addTrait' }
+			}
+		);
+		return;
+	}
+	
 	const arrayBuffer = await fileToArrayBuffer(trait.imageData);
 
 	const newTrait: Trait = {

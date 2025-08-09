@@ -102,17 +102,29 @@
 	// Bulk rename traits
 	function bulkRename() {
 		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
+		
+		if (bulkNewName.length > 100) {
+			toast.error('Base name for bulk rename cannot exceed 100 characters.');
+			return;
+		}
 
 		// Update name for all selected traits
 		let count = 0;
+		let successCount = 0;
 		selectedTraits.forEach((traitId) => {
 			const trait = layer.traits.find((t) => t.id === traitId);
 			if (trait) {
-				updateTraitName(layer.id, traitId, `${bulkNewName}_${count + 1}`);
-				count++;
+				const newName = `${bulkNewName}_${count + 1}`;
+				if (newName.length <= 100) {
+					updateTraitName(layer.id, traitId, newName);
+					successCount++;
+				}
 			}
+			count++;
 		});
-		toast.success(`Renamed ${selectedTraits.size} trait(s).`);
+		if (successCount > 0) {
+			toast.success(`Renamed ${successCount} trait(s).`);
+		}
 		bulkNewName = '';
 	}
 
@@ -120,9 +132,16 @@
 		if (layerName.trim() === '') {
 			toast.error('Layer name cannot be empty.');
 			layerName = layer.name; // Revert to original name
-		} else {
-			updateLayerName(layer.id, layerName);
+			return;
 		}
+		
+		if (layerName.length > 100) {
+			toast.error('Layer name cannot exceed 100 characters.');
+			layerName = layer.name; // Revert to original name
+			return;
+		}
+		
+		projectStore.updateLayerName(layer.id, layerName);
 		isEditing = false;
 	}
 
@@ -221,6 +240,11 @@
 							.trim()
 							.slice(0, 100)
 							.replace(/[^a-zA-Z0-9._ -]/g, '_');
+						
+						// Ensure the name is not empty
+						if (safeName.trim() === '') {
+							throw new Error(`File "${file.name}" has an invalid name`);
+						}
 
 						await addTrait(layer.id, {
 							name: safeName,

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { projectStore } from '$lib/stores';
 	import { untrack } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	let projectName = '';
 	let projectDescription = '';
@@ -11,6 +12,22 @@
 	});
 
 	function handleNameChange() {
+		if (projectName.trim() === '') {
+			toast.error('Project name cannot be empty.');
+			// Revert to the current project name
+			const currentProject = $projectStore.project;
+			projectName = currentProject.name;
+			return;
+		}
+		
+		if (projectName.length > 100) {
+			toast.error('Project name cannot exceed 100 characters.');
+			// Revert to the current project name
+			const currentProject = $projectStore.project;
+			projectName = currentProject.name;
+			return;
+		}
+		
 		untrack(() => {
 			projectStore.updateProjectName(projectName);
 		});

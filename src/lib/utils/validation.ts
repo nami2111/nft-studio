@@ -5,6 +5,36 @@
  */
 
 /**
+ * Validates a project name.
+ *
+ * @param name - The project name to validate.
+ * @returns True if the project name is valid, false otherwise.
+ */
+export function isValidProjectName(name: unknown): boolean {
+	return typeof name === 'string' && name.trim().length > 0 && name.length <= 100;
+}
+
+/**
+ * Validates a layer name.
+ *
+ * @param name - The layer name to validate.
+ * @returns True if the layer name is valid, false otherwise.
+ */
+export function isValidLayerName(name: unknown): boolean {
+	return typeof name === 'string' && name.trim().length > 0 && name.length <= 100;
+}
+
+/**
+ * Validates a trait name.
+ *
+ * @param name - The trait name to validate.
+ * @returns True if the trait name is valid, false otherwise.
+ */
+export function isValidTraitName(name: unknown): boolean {
+	return typeof name === 'string' && name.trim().length > 0 && name.length <= 100;
+}
+
+/**
  * Validates the shape of a project object imported from JSON.
  * Accepts well-formed projects or projects that have missing image data (as images are stripped during export).
  *

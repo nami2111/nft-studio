@@ -89,6 +89,15 @@ function sortLayers(layers: Layer[]): Layer[] {
 
 // --- Project Level Functions ---
 export function updateProjectName(name: string): void {
+	if (!isValidProjectName(name)) {
+		handleValidationError<void>(
+			new Error('Invalid project name: must be a non-empty string with maximum 100 characters'),
+			{
+				context: { component: 'ProjectStore', action: 'updateProjectName' }
+			}
+		);
+		return;
+	}
 	project.update((p) => ({ ...p, name }));
 }
 
@@ -125,6 +134,15 @@ export function removeLayer(layerId: string): void {
 }
 
 export function updateLayerName(layerId: string, name: string): void {
+	if (!isValidLayerName(name)) {
+		handleValidationError<void>(
+			new Error('Invalid layer name: must be a non-empty string with maximum 100 characters'),
+			{
+				context: { component: 'ProjectStore', action: 'updateLayerName' }
+			}
+		);
+		return;
+	}
 	project.update((p) => ({
 		...p,
 		layers: p.layers.map((layer) => (layer.id === layerId ? { ...layer, name } : layer))
@@ -197,6 +215,15 @@ export function removeTrait(layerId: string, traitId: string): void {
 }
 
 export function updateTraitName(layerId: string, traitId: string, name: string): void {
+	if (!isValidTraitName(name)) {
+		handleValidationError<void>(
+			new Error('Invalid trait name: must be a non-empty string with maximum 100 characters'),
+			{
+				context: { component: 'ProjectStore', action: 'updateTraitName' }
+			}
+		);
+		return;
+	}
 	project.update((p) => ({
 		...p,
 		layers: p.layers.map((layer) =>

@@ -36,10 +36,17 @@
 		if (traitName.trim() === '') {
 			toast.error('Trait name cannot be empty.');
 			traitName = trait.name; // Revert
-		} else {
-			traitsStore.updateTraitName(layerId, trait.id, traitName);
-			toast.success('Trait name updated.');
+			return;
 		}
+		
+		if (traitName.length > 100) {
+			toast.error('Trait name cannot exceed 100 characters.');
+			traitName = trait.name; // Revert
+			return;
+		}
+		
+		traitsStore.updateTraitName(layerId, trait.id, traitName);
+		toast.success('Trait name updated.');
 		isEditing = false;
 	}
 
