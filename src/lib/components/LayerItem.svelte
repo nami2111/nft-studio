@@ -19,6 +19,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
 	import { loadingStore } from '$lib/stores/loading.store';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
 		layer: Layer;
@@ -31,7 +32,6 @@
 	let uploadProgress = $state(0); // Track upload progress
 
 	let isEditing = $state(false);
-	let expanded = $state(true);
 	let fileInputElement: HTMLInputElement | null = $state(null); // Reference to file input element
 	let isDragover = $state(false);
 	let isExpanded = $state(true);
@@ -43,8 +43,7 @@
 	);
 
 	// Bulk operation states
-	let isBulkMode = $state(false);
-	let selectedTraits = $state(new Set<string>());
+	let selectedTraits = new SvelteSet<string>();
 	let bulkRarityWeight = $state(3);
 	let bulkNewName = $state('');
 
@@ -55,19 +54,16 @@
 		} else {
 			selectedTraits.add(traitId);
 		}
-		selectedTraits = new Set(selectedTraits); // Trigger reactivity
 	}
 
 	// Select all filtered traits
 	function selectAllFiltered() {
 		filteredTraits.forEach((trait) => selectedTraits.add(trait.id));
-		selectedTraits = new Set(selectedTraits); // Trigger reactivity
 	}
 
 	// Clear selection
 	function clearSelection() {
 		selectedTraits.clear();
-		selectedTraits = new Set(selectedTraits); // Trigger reactivity
 	}
 
 	// Bulk delete traits

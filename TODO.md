@@ -3,18 +3,21 @@
 ## 🚀 High Priority Improvements
 
 ### Core Functionality
+
 - [x] Implement proper error handling for all async operations with user-friendly messages
 - [x] Add comprehensive validation for all user inputs (project name, layer names, trait names)
 - [x] Implement proper loading states for all async operations (file uploads, generation, etc.)
 - [ ] Add undo/redo functionality for user actions
 
 ### Performance Optimizations
+
 - [x] Implement virtual scrolling for layers/trait lists when they exceed 100 items
 - [x] Optimize image processing pipeline to reduce memory usage during generation
 - [x] Add Web Worker pooling to prevent browser tab crashes during large batch operations
 - [ ] Implement image compression options for trait uploads
 
 ### User Experience
+
 - [ ] Add keyboard shortcuts for common actions (add layer, add trait, generate)
 - [ ] Implement drag and drop for trait image uploads
 - [ ] Add preview thumbnails for all traits in layer manager
@@ -23,12 +26,14 @@
 ## 🎨 UI/UX Improvements
 
 ### Component Library
+
 - [ ] Replace custom UI components with shadcn-svelte components for consistency
 - [ ] Implement a proper design system with consistent spacing and typography
 - [ ] Add responsive design improvements for mobile devices
 - [ ] Implement accessible ARIA labels and keyboard navigation
 
 ### Visual Feedback
+
 - [ ] Add progress indicators for all long-running operations
 - [ ] Implement toast notifications for user actions and errors
 - [ ] Add visual indicators for optional layers and rarity weights
@@ -37,18 +42,21 @@
 ## 🔧 Technical Improvements
 
 ### Architecture
+
 - [ ] Refactor stores to use Svelte 5 runes for better reactivity
 - [ ] Implement proper TypeScript interfaces for all domain models
 - [ ] Add proper unit tests for critical domain functions
 - [ ] Implement proper error boundaries for worker failures
 
 ### Data Management
+
 - [ ] Add proper data migration system for project format changes
 - [] Implement project versioning to handle backward compatibility
 - [ ] Add proper data validation for imported projects
 - [ ] Implement auto-save with debounce to prevent data loss
 
 ### Worker Improvements
+
 - [ ] Add cancellation support for generation process
 - [ ] Implement progress reporting with estimated time remaining
 - [ ] Add memory usage monitoring and warnings
@@ -57,12 +65,14 @@
 ## 📁 Project Organization
 
 ### File Structure
+
 - [ ] Organize components into logical folders (project, layers, traits, generation)
 - [ ] Create shared types directory for consistent interfaces
 - [ ] Implement barrel exports for cleaner imports
 - [ ] Add proper documentation for all utility functions
 
 ### Documentation
+
 - [ ] Create comprehensive README with project overview and setup instructions
 - [ ] Add inline documentation for complex algorithms (rarity distribution)
 - [ ] Create user guide for all features
@@ -71,12 +81,14 @@
 ## 🛡️ Security & Validation
 
 ### Input Validation
+
 - [ ] Add file type validation for image uploads
 - [ ] Implement file size limits for uploads
 - [ ] Add sanitization for all user-provided text inputs
 - [ ] Validate project JSON structure on import
 
 ### Data Integrity
+
 - [ ] Add checksums for exported projects
 - [ ] Implement proper cleanup of object URLs to prevent memory leaks
 - [ ] Add validation for worker message formats
@@ -85,12 +97,14 @@
 ## 🌐 Deployment & Build
 
 ### Performance
+
 - [ ] Optimize bundle size by code splitting non-critical components
 - [ ] Implement lazy loading for heavy dependencies (JSZip)
 - [ ] Add proper caching headers for static assets
 - [ ] Optimize image assets and fonts loading
 
 ### Configuration
+
 - [ ] Add environment-specific configuration files
 - [ ] Implement proper logging for production builds
 - [ ] Add build-time validation for required environment variables

@@ -3,19 +3,23 @@
 	import { Button } from '$lib/components/ui/button';
 	import { AlertCircle, RefreshCw, Home } from 'lucide-svelte';
 
+	interface ErrorInfo {
+		componentStack: string;
+	}
+
 	interface Props {
-		children: any;
-		fallback?: any;
-		onError?: (error: Error, errorInfo: any) => void;
+		children: () => void;
+		fallback?: (error: Error | null, errorInfo: ErrorInfo | null) => void;
+		onError?: (error: Error, errorInfo: ErrorInfo) => void;
 	}
 
 	let { children, fallback, onError }: Props = $props();
 
 	let error: Error | null = $state(null);
-	let errorInfo: any = $state(null);
+	let errorInfo: ErrorInfo | null = $state(null);
 	let hasError = $state(false);
 
-	function handleError(err: Error, info: any) {
+	function handleError(err: Error, info: ErrorInfo) {
 		error = err;
 		errorInfo = info;
 		hasError = true;
@@ -27,12 +31,6 @@
 		if (onError) {
 			onError(err, info);
 		}
-	}
-
-	function resetError() {
-		error = null;
-		errorInfo = null;
-		hasError = false;
 	}
 
 	// Error boundary implementation using Svelte 5 error handling

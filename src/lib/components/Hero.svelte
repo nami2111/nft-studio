@@ -8,7 +8,6 @@
 		DialogTitle,
 		DialogTrigger
 	} from '$lib/components/ui/dialog';
-	import { Moon, Sun } from 'lucide-svelte';
 </script>
 
 <section class="py-20 text-center">

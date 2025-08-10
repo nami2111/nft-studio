@@ -4,11 +4,7 @@ import juno from '@junobuild/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-	plugins: [
-		sveltekit(), 
-		juno(), 
-		tailwindcss()
-	],
+	plugins: [sveltekit(), juno(), tailwindcss()],
 	optimizeDeps: {
 		esbuildOptions: {
 			define: {

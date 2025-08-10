@@ -2,6 +2,8 @@
 	import { project } from '$lib/stores/project.store';
 	import { Button } from '$lib/components/ui/button';
 	import { RefreshCw, Shuffle } from 'lucide-svelte';
+	import { SvelteMap } from 'svelte/reactivity';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	let canvas: HTMLCanvasElement | null = null;
 	let ctx: CanvasRenderingContext2D | null = null;
@@ -10,7 +12,7 @@
 	let displayHeight = 0;
 
 	// Image cache to avoid reloading the same images repeatedly
-	const imageCache = new Map<string, HTMLImageElement>();
+	const imageCache = new SvelteMap<string, HTMLImageElement>();
 
 	// Helper to purge stale cache entries when traits change
 	function purgeStaleCache() {
@@ -121,7 +123,7 @@
 	}
 
 	// Cleanup on component destroy
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy } from 'svelte';
 	onDestroy(() => {
 		clearImageCache();
 	});

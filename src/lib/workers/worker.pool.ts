@@ -9,11 +9,11 @@ interface WorkerPoolConfig {
 }
 
 // Task interface
-interface WorkerTask {
+interface WorkerTask<T = unknown> {
 	id: string;
 	message: GenerationWorkerMessage;
-	resolve: (value: any) => void;
-	reject: (reason?: any) => void;
+	resolve: (value: T) => void;
+	reject: (reason?: unknown) => void;
 }
 
 // Worker pool interface
@@ -35,7 +35,7 @@ function getDeviceCapabilities() {
 	const coreCount = navigator.hardwareConcurrency || 4;
 	let memoryGB = 8;
 	if ('deviceMemory' in navigator) {
-		// @ts-ignore - deviceMemory not in all browsers
+		// @ts-expect-error - deviceMemory not in all browsers
 		memoryGB = navigator.deviceMemory || 8;
 	}
 	const isMobile = /Mobi|Android/i.test(navigator.userAgent);
@@ -179,11 +179,11 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 
 	return new Promise<T>((resolve, reject) => {
 		const taskId = `${Date.now()}-${Math.random()}`;
-		const task: WorkerTask = { id: taskId, message, resolve, reject };
+		const task: WorkerTask<T> = { id: taskId, message, resolve, reject };
 
 		// Add to queue
 		if (workerPool) {
-			workerPool.taskQueue.push(task);
+			workerPool.taskQueue.push(task as WorkerTask);
 		}
 
 		// Process immediately if possible

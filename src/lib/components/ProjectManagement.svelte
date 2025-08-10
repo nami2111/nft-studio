@@ -4,7 +4,7 @@
 	import { loadProjectFromZip, saveProjectToZip, project } from '$lib/stores/project.store';
 	import { get } from 'svelte/store';
 	import { loadingStore } from '$lib/stores/loading.store';
-	import { FolderOpen, Save, X, AlertTriangle, Upload, Download } from 'lucide-svelte';
+	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
 		Dialog,

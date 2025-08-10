@@ -154,7 +154,7 @@ function getDeviceCapabilities() {
 	// Get memory information if available
 	let memoryGB = 8; // Default assumption
 	if ('deviceMemory' in navigator) {
-		// @ts-ignore - deviceMemory not in all browsers
+		// @ts-expect-error - deviceMemory not in all browsers
 		memoryGB = navigator.deviceMemory || 8;
 	}
 
@@ -413,7 +413,7 @@ async function generateCollection(
 			};
 
 			// Transfer the underlying ArrayBuffers
-			// @ts-ignore - TS in worker env may not infer postMessage overload with transfer list
+			// @ts-expect-error - TS in worker env may not infer postMessage overload with transfer list
 			self.postMessage(chunkCompleteMessage, transferables);
 
 			// Force garbage collection between chunks if available to free memory immediately

@@ -5,7 +5,7 @@ import type { Project } from '$lib/types/project';
 export function normalizeFilename(name: string): string {
 	// Remove path separators, trim, limit length, and allow common safe chars
 	const trimmed = name.trim().slice(0, 100);
-	return trimmed.replace(/[^a-zA-Z0-9._ -]/g, '_').replace(/[\/]+/g, '_');
+	return trimmed.replace(/[^a-zA-Z0-9._ -]/g, '_').replace(/[/]+/g, '_');
 }
 
 // Centralized helper: stable layer sorting by 'order'
