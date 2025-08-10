@@ -22,7 +22,7 @@ export async function addTrait(
 		);
 		return;
 	}
-	
+
 	const arrayBuffer = await fileToArrayBuffer(trait.imageData);
 
 	const newTrait: Trait = {
@@ -186,7 +186,7 @@ export async function saveProjectToZip(): Promise<void> {
 	// Import loading store dynamically to avoid circular dependencies
 	const { loadingStore } = await import('$lib/stores/loading.store');
 	loadingStore.start('project-save');
-	
+
 	const { default: JSZip } = await import('jszip');
 	const currentProject = get(project);
 
@@ -243,7 +243,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 	// Import loading store dynamically to avoid circular dependencies
 	const { loadingStore } = await import('$lib/stores/loading.store');
 	loadingStore.start('project-load');
-	
+
 	const { default: JSZip } = await import('jszip');
 
 	try {
@@ -291,7 +291,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 				...layer,
 				traits: []
 			};
-			
+
 			const layerFolder = zip.folder(layer.name);
 			if (layerFolder) {
 				for (const trait of layer.traits) {
@@ -325,7 +325,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 				}))
 			}))
 		};
-		
+
 		project.set(projectToSet);
 
 		return true;

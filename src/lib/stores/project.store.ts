@@ -1,7 +1,13 @@
 import { writable, get } from 'svelte/store';
 import { LocalStorageStore } from '$lib/persistence/storage';
 import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
-import { isValidImportedProject, isValidDimensions, isValidProjectName, isValidLayerName, isValidTraitName } from '$lib/utils/validation';
+import {
+	isValidImportedProject,
+	isValidDimensions,
+	isValidProjectName,
+	isValidLayerName,
+	isValidTraitName
+} from '$lib/utils/validation';
 import {
 	handleError,
 	handleStorageError,
@@ -397,7 +403,7 @@ export async function saveProjectToZip(): Promise<void> {
 	// Import loading store dynamically to avoid circular dependencies
 	const { loadingStore } = await import('$lib/stores/loading.store');
 	loadingStore.start('project-save');
-	
+
 	try {
 		const { default: JSZip } = await import('jszip');
 		const currentProject = get(project);
@@ -454,7 +460,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 	// Import loading store dynamically to avoid circular dependencies
 	const { loadingStore } = await import('$lib/stores/loading.store');
 	loadingStore.start('project-load');
-	
+
 	try {
 		const { default: JSZip } = await import('jszip');
 
@@ -503,7 +509,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 				...layer,
 				traits: []
 			};
-			
+
 			const layerFolder = contents.folder(layer.name);
 			if (layerFolder) {
 				for (const trait of layer.traits) {
@@ -537,7 +543,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 				}))
 			}))
 		};
-		
+
 		project.set(projectToSet);
 
 		return true;

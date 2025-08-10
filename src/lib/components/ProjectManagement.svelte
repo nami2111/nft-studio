@@ -6,7 +6,14 @@
 	import { loadingStore } from '$lib/stores/loading.store';
 	import { FolderOpen, Save, X, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
-	import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '$lib/components/ui/dialog';
+	import {
+		Dialog,
+		DialogTrigger,
+		DialogContent,
+		DialogHeader,
+		DialogTitle,
+		DialogDescription
+	} from '$lib/components/ui/dialog';
 
 	let loadDialogOpen = $state(false);
 	let saveDialogOpen = $state(false);
@@ -26,7 +33,7 @@
 		// This function is not available in the project store
 		// We'll need to implement this functionality differently
 		// For now, we'll just update the project to remove the _needsProperLoad flag
-		project.update(currentProject => {
+		project.update((currentProject) => {
 			const updatedProject = { ...currentProject };
 			delete updatedProject._needsProperLoad;
 			return updatedProject;
@@ -95,7 +102,6 @@
 			}
 		}
 	}
-
 </script>
 
 {#if projectNeedsZipLoad()}

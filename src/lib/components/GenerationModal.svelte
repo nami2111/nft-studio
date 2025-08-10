@@ -7,15 +7,7 @@
 	import { startGeneration, cancelGeneration } from '$lib/workers/generation.worker.client';
 	import { prepareLayersForWorker } from '$lib/domain/project.domain';
 	import { loadingStore } from '$lib/stores/loading.store';
-	import {
-		X,
-		AlertCircle,
-		CheckCircle,
-		Info,
-		Package,
-		Play,
-		AlertTriangle
-	} from 'lucide-svelte';
+	import { X, AlertCircle, CheckCircle, Info, Package, Play, AlertTriangle } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
 		Dialog,
@@ -95,7 +87,9 @@
 			toast.success('Generation complete. Your download has started.');
 		} catch (error) {
 			showError = true;
-			errorDetails = { message: error instanceof Error ? error.message : 'Failed to create .zip file.' };
+			errorDetails = {
+				message: error instanceof Error ? error.message : 'Failed to create .zip file.'
+			};
 			statusText = 'Error: Failed to create .zip file.';
 		} finally {
 			resetState();
@@ -128,19 +122,27 @@
 			const emptyLayers = projectData.layers.filter((layer) => layer.traits.length === 0);
 			if (emptyLayers.length > 0) {
 				showError = true;
-				errorDetails = { message: `The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}` };
+				errorDetails = {
+					message: `The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`
+				};
 				return;
 			}
 
 			// Check for missing image data
 			const traitList = projectData.layers.flatMap((layer) =>
-				layer.traits.map((trait) => ({ layer: layer.name, trait: trait.name, imageData: trait.imageData }))
+				layer.traits.map((trait) => ({
+					layer: layer.name,
+					trait: trait.name,
+					imageData: trait.imageData
+				}))
 			);
 			const missingImages = traitList.filter((t) => !t.imageData || t.imageData.byteLength === 0);
 
 			if (missingImages.length > 0) {
 				showError = true;
-				errorDetails = { message: `Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.` };
+				errorDetails = {
+					message: `Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`
+				};
 				return;
 			}
 
@@ -182,7 +184,11 @@
 						}
 						break;
 					case 'cancelled':
-						updateProgress(payload.generatedCount ?? 0, payload.totalCount ?? collectionSize, 'Generation cancelled by user.');
+						updateProgress(
+							payload.generatedCount ?? 0,
+							payload.totalCount ?? collectionSize,
+							'Generation cancelled by user.'
+						);
 						showInfo = true;
 						infoMessage = 'Generation has been cancelled.';
 						resetState();
@@ -215,7 +221,10 @@
 			);
 		} catch (error) {
 			showError = true;
-			errorDetails = { message: error instanceof Error ? error.message : 'An unknown error occurred during generation' };
+			errorDetails = {
+				message:
+					error instanceof Error ? error.message : 'An unknown error occurred during generation'
+			};
 			resetState();
 		}
 	}
@@ -239,60 +248,60 @@
 </script>
 
 <Dialog bind:open onOpenChange={handleModalInteraction}>
-  <DialogTrigger>
-    <Button class="mt-6">Generate Collection</Button>
-  </DialogTrigger>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Generate Collection</DialogTitle>
-      <DialogDescription>Configure your collection generation settings.</DialogDescription>
-    </DialogHeader>
+	<DialogTrigger>
+		<Button class="mt-6">Generate Collection</Button>
+	</DialogTrigger>
+	<DialogContent>
+		<DialogHeader>
+			<DialogTitle>Generate Collection</DialogTitle>
+			<DialogDescription>Configure your collection generation settings.</DialogDescription>
+		</DialogHeader>
 
-    <div class="grid gap-4 py-4">
-      <div class="grid grid-cols-4 items-center gap-4">
-        <label for="collectionSize" class="text-right">Collection Size</label>
-        <input
-          id="collectionSize"
-          type="number"
-          min="1"
-          max="10000"
-          class="col-span-3 rounded border p-2"
-          bind:value={collectionSize}
-          disabled={isGenerating}
-        />
-      </div>
+		<div class="grid gap-4 py-4">
+			<div class="grid grid-cols-4 items-center gap-4">
+				<label for="collectionSize" class="text-right">Collection Size</label>
+				<input
+					id="collectionSize"
+					type="number"
+					min="1"
+					max="10000"
+					class="col-span-3 rounded border p-2"
+					bind:value={collectionSize}
+					disabled={isGenerating}
+				/>
+			</div>
 
-      <div class="grid grid-cols-4 items-center gap-4">
-        <label class="text-right" for="gen-progress">Progress</label>
-        <div class="col-span-3">
-          <progress
-            id="gen-progress"
-            class="h-2.5 w-full [&::-moz-progress-bar]:bg-blue-600 [&::-webkit-progress-bar]:rounded-lg [&::-webkit-progress-bar]:bg-slate-200 [&::-webkit-progress-value]:rounded-lg [&::-webkit-progress-value]:bg-blue-600"
-            value={progress}
-            max="100"
-          ></progress>
-          <p class="mt-1 text-sm text-gray-500">{statusText}</p>
-        </div>
-      </div>
-    </div>
+			<div class="grid grid-cols-4 items-center gap-4">
+				<label class="text-right" for="gen-progress">Progress</label>
+				<div class="col-span-3">
+					<progress
+						id="gen-progress"
+						class="h-2.5 w-full [&::-moz-progress-bar]:bg-blue-600 [&::-webkit-progress-bar]:rounded-lg [&::-webkit-progress-bar]:bg-slate-200 [&::-webkit-progress-value]:rounded-lg [&::-webkit-progress-value]:bg-blue-600"
+						value={progress}
+						max="100"
+					></progress>
+					<p class="mt-1 text-sm text-gray-500">{statusText}</p>
+				</div>
+			</div>
+		</div>
 
-    <div class="flex justify-end space-x-2">
-      {#if isGenerating}
-        <Button variant="outline" onclick={handleCancel}>
-          <LoadingIndicator operation="generation" message="Canceling..." />
-        </Button>
-      {/if}
-      	      <Button
-					onclick={handleGenerate}
-					disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
-					>
-					{#if isGenerating}
-						<LoadingIndicator operation="generation" message="Generating..." />
-					{:else}
-						<Play class="mr-2 h-4 w-4" />
-						Generate
-					{/if}
+		<div class="flex justify-end space-x-2">
+			{#if isGenerating}
+				<Button variant="outline" onclick={handleCancel}>
+					<LoadingIndicator operation="generation" message="Canceling..." />
 				</Button>
-    </div>
-  </DialogContent>
+			{/if}
+			<Button
+				onclick={handleGenerate}
+				disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
+			>
+				{#if isGenerating}
+					<LoadingIndicator operation="generation" message="Generating..." />
+				{:else}
+					<Play class="mr-2 h-4 w-4" />
+					Generate
+				{/if}
+			</Button>
+		</div>
+	</DialogContent>
 </Dialog>

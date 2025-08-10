@@ -19,7 +19,7 @@
 			projectName = currentProject.name;
 			return;
 		}
-		
+
 		if (projectName.length > 100) {
 			toast.error('Project name cannot exceed 100 characters.');
 			// Revert to the current project name
@@ -27,10 +27,10 @@
 			projectName = currentProject.name;
 			return;
 		}
-		
+
 		untrack(() => {
 			// Update project name using the store's update method
-			project.update(currentProject => ({
+			project.update((currentProject) => ({
 				...currentProject,
 				name: projectName
 			}));
@@ -40,7 +40,7 @@
 	function handleDescriptionChange() {
 		untrack(() => {
 			// Update project description using the store's update method
-			project.update(currentProject => ({
+			project.update((currentProject) => ({
 				...currentProject,
 				description: projectDescription
 			}));

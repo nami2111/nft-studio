@@ -38,13 +38,13 @@
 			traitName = trait.name; // Revert
 			return;
 		}
-		
+
 		if (traitName.length > 100) {
 			toast.error('Trait name cannot exceed 100 characters.');
 			traitName = trait.name; // Revert
 			return;
 		}
-		
+
 		traitsStore.updateTraitName(layerId, trait.id, traitName);
 		toast.success('Trait name updated.');
 		isEditing = false;

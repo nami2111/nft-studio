@@ -108,7 +108,7 @@
 	// Bulk rename traits
 	function bulkRename() {
 		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
-		
+
 		if (bulkNewName.length > 100) {
 			toast.error('Base name for bulk rename cannot exceed 100 characters.');
 			return;
@@ -140,13 +140,13 @@
 			layerName = layer.name; // Revert to original name
 			return;
 		}
-		
+
 		if (layerName.length > 100) {
 			toast.error('Layer name cannot exceed 100 characters.');
 			layerName = layer.name; // Revert to original name
 			return;
 		}
-		
+
 		updateLayerName(layer.id, layerName);
 		isEditing = false;
 	}
@@ -247,7 +247,7 @@
 							.trim()
 							.slice(0, 100)
 							.replace(/[^a-zA-Z0-9._ -]/g, '_');
-						
+
 						// Ensure the name is not empty
 						if (safeName.trim() === '') {
 							throw new Error(`File "${file.name}" has an invalid name`);
@@ -551,7 +551,10 @@
 					{#if isUploading}
 						<div class="flex items-center justify-center">
 							<div class="flex items-center justify-center">
-								<LoadingIndicator operation={`layer-upload-${layer.id}`} message="Uploading files..." />
+								<LoadingIndicator
+									operation={`layer-upload-${layer.id}`}
+									message="Uploading files..."
+								/>
 							</div>
 						</div>
 						<div class="mt-2 h-2 w-full rounded-full bg-gray-200">
@@ -661,14 +664,14 @@
 								<Button variant="outline" size="sm" onclick={bulkUpdateRarity}>Update</Button>
 							</div>
 							<div class="flex items-center space-x-2">
-							<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
-							<input
-								id="bulk-rename-{layer.id}"
-								type="text"
-								placeholder="New name prefix"
-								class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
-								bind:value={bulkNewName}
-							/>
+								<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
+								<input
+									id="bulk-rename-{layer.id}"
+									type="text"
+									placeholder="New name prefix"
+									class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+									bind:value={bulkNewName}
+								/>
 								<Button
 									variant="outline"
 									size="sm"

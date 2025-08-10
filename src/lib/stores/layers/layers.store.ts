@@ -16,7 +16,7 @@ export function addLayer(layer: Omit<Layer, 'id' | 'traits'>): void {
 		);
 		return;
 	}
-	
+
 	project.update((p) => ({
 		...p,
 		layers: sortLayers([...p.layers, { ...layer, id: crypto.randomUUID(), traits: [] }])

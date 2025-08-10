@@ -83,7 +83,9 @@ export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
 	try {
 		return await file.arrayBuffer();
 	} catch (error) {
-		throw new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		throw new Error(
+			`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`
+		);
 	}
 }
 
@@ -101,4 +103,8 @@ export function normalizeFilename(name: string): string {
 }
 
 // Utility type to drop either 'children' or 'child' prop from generic props
-export type WithoutChildrenOrChild<T> = T extends { children?: unknown } ? Omit<T, 'children'> : T extends { child?: unknown } ? Omit<T, 'child'> : T;
+export type WithoutChildrenOrChild<T> = T extends { children?: unknown }
+	? Omit<T, 'children'>
+	: T extends { child?: unknown }
+		? Omit<T, 'child'>
+		: T;

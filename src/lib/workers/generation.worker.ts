@@ -115,15 +115,16 @@ async function createImageBitmapFromBuffer(
 
 	try {
 		const blob = new Blob([buffer], { type: 'image/png' });
-		
+
 		// Use ImageBitmap options for better memory efficiency
 		const imageBitmapOptions: ImageBitmapOptions = {
 			// If resize dimensions are provided, resize during creation to save memory
-			...(options?.resizeWidth && options?.resizeHeight && {
-				resizeWidth: options.resizeWidth,
-				resizeHeight: options.resizeHeight,
-				resizeQuality: 'high'
-			}),
+			...(options?.resizeWidth &&
+				options?.resizeHeight && {
+					resizeWidth: options.resizeWidth,
+					resizeHeight: options.resizeHeight,
+					resizeQuality: 'high'
+				}),
 			// Color space conversion can be skipped for better performance if not needed
 			colorSpaceConversion: 'none',
 			// Premultiply alpha can be controlled based on needs
@@ -262,7 +263,7 @@ async function generateCollection(
 	// Generate each NFT in chunks
 	for (let chunkStart = 0; chunkStart < collectionSize && !isCancelled; chunkStart += CHUNK_SIZE) {
 		const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, collectionSize);
-		
+
 		// Create a temporary array to hold only the current chunk's images
 		const chunkImages: { name: string; blob: Blob }[] = [];
 
@@ -309,7 +310,7 @@ async function generateCollection(
 				}
 
 				// Convert the canvas to a Blob with optimized quality settings
-				const blob = await reusableCanvas.convertToBlob({ 
+				const blob = await reusableCanvas.convertToBlob({
 					type: 'image/png',
 					quality: 0.9 // Slight compression to reduce memory usage
 				});

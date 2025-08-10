@@ -39,10 +39,7 @@
 		totalHeight = filteredTraits.length * ITEM_HEIGHT;
 
 		// Calculate visible range
-		const startIndex = Math.max(
-			0,
-			Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE
-		);
+		const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
 		const endIndex = Math.min(
 			filteredTraits.length,
 			Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
@@ -74,7 +71,7 @@
 			setTimeout(() => {
 				updateContainerHeight();
 			}, 0);
-			
+
 			// Also update on resize
 			window.addEventListener('resize', updateContainerHeight);
 		}
@@ -88,13 +85,10 @@
 	});
 </script>
 
-<div
-	class="relative h-full overflow-auto"
-	bind:this={container}
->
+<div class="relative h-full overflow-auto" bind:this={container}>
 	<div style="height: {totalHeight}px;">
 		<div
-			class="absolute left-0 top-0 w-full grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"
+			class="absolute top-0 left-0 grid w-full grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"
 			style="transform: translateY({offsetY}px);"
 		>
 			{#each visibleTraits as trait (trait.id)}

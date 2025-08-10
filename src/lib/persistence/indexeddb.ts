@@ -20,20 +20,24 @@ export async function openDatabase(): Promise<IDBDatabase> {
 }
 
 export function saveProjectToIndexedDB(projectData: any): Promise<void> {
-	return openDatabase().then((db) => {
-		return new Promise<void>((resolve, reject) => {
-			const tx = db.transaction('projects', 'readwrite');
-			const store = tx.objectStore('projects');
-			const payload = { id: 'current', data: projectData, timestamp: Date.now() };
-			const req = store.put(payload);
-			req.onsuccess = () => resolve();
-			req.onerror = () => reject(req.error);
+	return openDatabase()
+		.then((db) => {
+			return new Promise<void>((resolve, reject) => {
+				const tx = db.transaction('projects', 'readwrite');
+				const store = tx.objectStore('projects');
+				const payload = { id: 'current', data: projectData, timestamp: Date.now() };
+				const req = store.put(payload);
+				req.onsuccess = () => resolve();
+				req.onerror = () => reject(req.error);
+			});
+		})
+		.catch((error) => {
+			console.error('Failed to save project to IndexedDB:', error);
+			// Re-throw the error so it can be handled by the caller
+			throw new Error(
+				`Failed to save project to IndexedDB: ${error instanceof Error ? error.message : 'Unknown error'}`
+			);
 		});
-	}).catch((error) => {
-		console.error('Failed to save project to IndexedDB:', error);
-		// Re-throw the error so it can be handled by the caller
-		throw new Error(`Failed to save project to IndexedDB: ${error instanceof Error ? error.message : 'Unknown error'}`);
-	});
 }
 
 export function loadProjectFromIndexedDB(): Promise<any | null> {

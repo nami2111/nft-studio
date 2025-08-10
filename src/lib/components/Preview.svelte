@@ -160,24 +160,24 @@
 			}
 		}
 	}
-function randomize() {
-	const { layers } = $project;
-	const newSelectedTraits: string[] = [];
+	function randomize() {
+		const { layers } = $project;
+		const newSelectedTraits: string[] = [];
 
-	for (const layer of layers) {
-		if (layer.traits.length > 0) {
-			// Select a random trait from this layer
-			const randomIndex = Math.floor(Math.random() * layer.traits.length);
-			newSelectedTraits.push(layer.traits[randomIndex].id);
-		} else {
-			newSelectedTraits.push('');
+		for (const layer of layers) {
+			if (layer.traits.length > 0) {
+				// Select a random trait from this layer
+				const randomIndex = Math.floor(Math.random() * layer.traits.length);
+				newSelectedTraits.push(layer.traits[randomIndex].id);
+			} else {
+				newSelectedTraits.push('');
+			}
 		}
-	}
 
-	// Update selected traits and redraw
-	selectedTraitIds = newSelectedTraits;
-	drawPreview();
-}
+		// Update selected traits and redraw
+		selectedTraitIds = newSelectedTraits;
+		drawPreview();
+	}
 </script>
 
 <div class="sticky top-8 rounded-lg bg-white p-6 shadow">

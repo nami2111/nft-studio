@@ -61,13 +61,13 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 				}))
 			);
 			return {
-					id: layer.id,
-					name: layer.name,
-					order: layer.order,
-					isOptional: layer.isOptional,
-					traits: transferrableTraits
-					// Note: Layer doesn't have width/height properties in the base type
-				};
+				id: layer.id,
+				name: layer.name,
+				order: layer.order,
+				isOptional: layer.isOptional,
+				traits: transferrableTraits
+				// Note: Layer doesn't have width/height properties in the base type
+			};
 		})
 	);
 	return transferrableLayers;
