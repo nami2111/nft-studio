@@ -39,11 +39,13 @@ We've successfully improved the consistency of inline comments and formatting in
 ## Usage
 
 To standardize comments in the future, run:
+
 ```
 pnpm standardize-comments
 ```
 
 To format the entire codebase according to project standards:
+
 ```
 pnpm format
 ```
