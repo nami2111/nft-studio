@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { projectStore } from '$lib/stores';
+	import { project } from '$lib/stores/project.store';
 	import { Button } from '$lib/components/ui/button';
 	import { RefreshCw, Shuffle } from 'lucide-svelte';
 
-	let canvas: HTMLCanvasElement;
-	let ctx: CanvasRenderingContext2D | null;
-	let container: HTMLDivElement;
+	let canvas: HTMLCanvasElement | null = null;
+	let ctx: CanvasRenderingContext2D | null = null;
+	let container: HTMLDivElement | null = null;
 	let displayWidth = 0;
 	let displayHeight = 0;
 
@@ -15,7 +15,7 @@
 	// Helper to purge stale cache entries when traits change
 	function purgeStaleCache() {
 		const urlsInUse = new Set<string>();
-		const { layers } = $projectStore.project;
+		const { layers } = $project;
 		for (const layer of layers) {
 			for (const trait of layer.traits) {
 				if (trait.imageUrl) urlsInUse.add(trait.imageUrl);
@@ -34,7 +34,7 @@
 
 	// Initialize selected traits when component mounts
 	$: {
-		const { layers } = $projectStore.project;
+		const { layers } = $project;
 		selectedTraitIds = layers.map((layer) => (layer.traits.length > 0 ? layer.traits[0].id : ''));
 		drawPreview();
 	}
@@ -43,7 +43,7 @@
 	function resizeCanvas() {
 		if (!canvas || !container) return;
 
-		const { outputSize } = $projectStore.project;
+		const { outputSize } = $project;
 		const containerRect = container.getBoundingClientRect();
 
 		// Calculate display size based on container and project aspect ratio
@@ -87,7 +87,7 @@
 	}
 
 	// Redraw when project changes
-	$: if ($projectStore.project) {
+	$: if ($project) {
 		// Purge cache entries that are no longer used to avoid holding stale images
 		purgeStaleCache();
 		resizeCanvas();
@@ -129,7 +129,7 @@
 	async function drawPreview() {
 		if (!ctx || !canvas) return;
 
-		const { layers } = $projectStore.project;
+		const { layers } = $project;
 
 		// Clear canvas
 		ctx.clearRect(0, 0, displayWidth, displayHeight);
@@ -160,25 +160,24 @@
 			}
 		}
 	}
+function randomize() {
+	const { layers } = $project;
+	const newSelectedTraits: string[] = [];
 
-	function randomize() {
-		const { layers } = $projectStore.project;
-		const newSelectedTraits: string[] = [];
-
-		for (const layer of layers) {
-			if (layer.traits.length > 0) {
-				// Select a random trait from this layer
-				const randomIndex = Math.floor(Math.random() * layer.traits.length);
-				newSelectedTraits.push(layer.traits[randomIndex].id);
-			} else {
-				newSelectedTraits.push('');
-			}
+	for (const layer of layers) {
+		if (layer.traits.length > 0) {
+			// Select a random trait from this layer
+			const randomIndex = Math.floor(Math.random() * layer.traits.length);
+			newSelectedTraits.push(layer.traits[randomIndex].id);
+		} else {
+			newSelectedTraits.push('');
 		}
-
-		// Update selected traits and redraw
-		selectedTraitIds = newSelectedTraits;
-		drawPreview();
 	}
+
+	// Update selected traits and redraw
+	selectedTraitIds = newSelectedTraits;
+	drawPreview();
+}
 </script>
 
 <div class="sticky top-8 rounded-lg bg-white p-6 shadow">

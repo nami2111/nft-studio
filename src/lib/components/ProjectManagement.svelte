@@ -2,18 +2,18 @@
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { loadProjectFromZip, saveProjectToZip, project } from '$lib/stores/project.store';
-	import { projectStore } from '$lib/stores';
 	import { get } from 'svelte/store';
 	import { loadingStore } from '$lib/stores/loading.store';
 	import { FolderOpen, Save, X, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
+	import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '$lib/components/ui/dialog';
 
 	let loadDialogOpen = $state(false);
 	let saveDialogOpen = $state(false);
 	let loadFileInputElement: HTMLInputElement | null = null;
 	let saveFileInputElement: HTMLInputElement | null = null;
-	let isLoading = $derived($loadingStore.isLoading('project-load'));
-	let isSaving = $derived($loadingStore.isLoading('project-save'));
+	let isLoading = $derived(loadingStore.isLoading('project-load'));
+	let isSaving = $derived(loadingStore.isLoading('project-save'));
 
 	// Check if project needs to be loaded from ZIP (indicated by the special flag)
 	function projectNeedsZipLoad(): boolean {
@@ -23,7 +23,14 @@
 
 	// Mark project as properly loaded (remove the special flag)
 	function markProjectAsLoaded(): void {
-		projectStore.markProjectAsLoaded();
+		// This function is not available in the project store
+		// We'll need to implement this functionality differently
+		// For now, we'll just update the project to remove the _needsProperLoad flag
+		project.update(currentProject => {
+			const updatedProject = { ...currentProject };
+			delete updatedProject._needsProperLoad;
+			return updatedProject;
+		});
 	}
 
 	function triggerFileInput() {

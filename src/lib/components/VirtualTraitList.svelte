@@ -9,7 +9,7 @@
 		searchTerm?: string;
 	}
 
-	const { traits = [], layerId, searchTerm = '' } = $props<Props>();
+	const { traits = [], layerId, searchTerm = '' } = $props();
 
 	// Virtual scrolling parameters
 	const ITEM_HEIGHT = 200; // Approximate height of each trait card in pixels
@@ -32,7 +32,7 @@
 	function updateVisibleTraits() {
 		// First filter by search term if provided
 		const filteredTraits = searchTerm
-			? traits.filter((trait) => trait.name.toLowerCase().includes(searchTerm.toLowerCase()))
+			? traits.filter((trait: Trait) => trait.name.toLowerCase().includes(searchTerm.toLowerCase()))
 			: traits;
 
 		// Update total height

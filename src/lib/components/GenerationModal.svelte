@@ -1,5 +1,3 @@
-// ... (unchanged parts of the component)
-
 <script lang="ts">
 	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
@@ -280,21 +278,21 @@
 
     <div class="flex justify-end space-x-2">
       {#if isGenerating}
-        <Button variant="outline" on:click={handleCancel}>
+        <Button variant="outline" onclick={handleCancel}>
           <LoadingIndicator operation="generation" message="Canceling..." />
         </Button>
       {/if}
-      <Button
-						on:click={handleGenerate}
-						disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
+      	      <Button
+					onclick={handleGenerate}
+					disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
 					>
-						{#if isGenerating}
-							<LoadingIndicator operation="generation" message="Generating..." />
-						{:else}
-							<Play class="mr-2 h-4 w-4" />
-							Generate
-						{/if}
-					</Button>
+					{#if isGenerating}
+						<LoadingIndicator operation="generation" message="Generating..." />
+					{:else}
+						<Play class="mr-2 h-4 w-4" />
+						Generate
+					{/if}
+				</Button>
     </div>
   </DialogContent>
 </Dialog>

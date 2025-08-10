@@ -27,9 +27,12 @@
 	const { layer }: Props = $props();
 
 	let layerName = $derived(layer.name);
-	let isUploading = $derived($loadingStore.isLoading(`layer-upload-${layer.id}`));
+	let isUploading = $derived(loadingStore.isLoading(`layer-upload-${layer.id}`));
 	let uploadProgress = $state(0); // Track upload progress
+
 	let isEditing = $state(false);
+	let expanded = $state(true);
+	let fileInputElement: HTMLInputElement | null = $state(null); // Reference to file input element
 	let isDragover = $state(false);
 	let isExpanded = $state(true);
 	let searchTerm = $state(''); // For trait search/filter
@@ -144,7 +147,7 @@
 			return;
 		}
 		
-		projectStore.updateLayerName(layer.id, layerName);
+		updateLayerName(layer.id, layerName);
 		isEditing = false;
 	}
 

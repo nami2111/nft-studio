@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { projectStore } from '$lib/stores';
+	import { project } from '$lib/stores/project.store';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	let projectName = '';
 	let projectDescription = '';
 
-	projectStore.project.subscribe((p) => {
+	project.subscribe((p: any) => {
 		projectName = p.name;
 		projectDescription = p.description;
 	});
@@ -15,7 +15,7 @@
 		if (projectName.trim() === '') {
 			toast.error('Project name cannot be empty.');
 			// Revert to the current project name
-			const currentProject = $projectStore.project;
+			const currentProject = $project;
 			projectName = currentProject.name;
 			return;
 		}
@@ -23,19 +23,27 @@
 		if (projectName.length > 100) {
 			toast.error('Project name cannot exceed 100 characters.');
 			// Revert to the current project name
-			const currentProject = $projectStore.project;
+			const currentProject = $project;
 			projectName = currentProject.name;
 			return;
 		}
 		
 		untrack(() => {
-			projectStore.updateProjectName(projectName);
+			// Update project name using the store's update method
+			project.update(currentProject => ({
+				...currentProject,
+				name: projectName
+			}));
 		});
 	}
 
 	function handleDescriptionChange() {
 		untrack(() => {
-			projectStore.updateProjectDescription(projectDescription);
+			// Update project description using the store's update method
+			project.update(currentProject => ({
+				...currentProject,
+				description: projectDescription
+			}));
 		});
 	}
 </script>
