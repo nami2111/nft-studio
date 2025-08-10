@@ -5,7 +5,7 @@
 	import { projectStore } from '$lib/stores';
 	import { get } from 'svelte/store';
 	import { loadingStore } from '$lib/stores/loading.store';
-	import { FolderOpen, Save, X, AlertTriangle } from 'lucide-svelte';
+	import { FolderOpen, Save, X, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 
 	let loadDialogOpen = $state(false);
@@ -23,7 +23,13 @@
 
 	// Mark project as properly loaded (remove the special flag)
 	function markProjectAsLoaded(): void {
-		projectStore.clearNeedsLoadFlag();
+		projectStore.markProjectAsLoaded();
+	}
+
+	function triggerFileInput() {
+		if (loadFileInputElement) {
+			loadFileInputElement.click();
+		}
 	}
 
 	async function handleSaveProject() {
@@ -83,6 +89,8 @@
 		}
 	}
 
+</script>
+
 {#if projectNeedsZipLoad()}
 	<div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
 		<div class="flex items-center">
@@ -113,14 +121,14 @@
 			</DialogHeader>
 			<div class="flex justify-end space-x-2">
 				<Button variant="outline" onclick={() => (saveDialogOpen = false)}>Cancel</Button>
-										<Button onclick={handleSaveProject} disabled={isSaving}>
-							{#if isSaving}
-								<LoadingIndicator operation="project-save" message="Saving project..." />
-							{:else}
-								<Save class="mr-2 h-4 w-4" />
-								Save Project
-							{/if}
-						</Button>
+				<Button onclick={handleSaveProject} disabled={isSaving}>
+					{#if isSaving}
+						<LoadingIndicator operation="project-save" message="Saving project..." />
+					{:else}
+						<Save class="mr-2 h-4 w-4" />
+						Save Project
+					{/if}
+				</Button>
 			</div>
 		</DialogContent>
 	</Dialog>

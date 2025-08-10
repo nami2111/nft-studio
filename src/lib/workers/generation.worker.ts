@@ -66,6 +66,14 @@ interface ErrorMessage {
 	};
 }
 
+interface CancelledMessage {
+	type: 'cancelled';
+	payload: {
+		generatedCount?: number;
+		totalCount?: number;
+	};
+}
+
 type IncomingMessage = StartMessage | { type: 'cancel' };
 
 // Rarity algorithm
@@ -223,7 +231,14 @@ async function generateCollection(
 		if ((e as MessageEvent).data?.type === 'cancel') {
 			isCancelled = true;
 			cleanupResources();
-			self.postMessage({ type: 'cancelled' });
+			const cancelledMessage: CancelledMessage = {
+				type: 'cancelled',
+				payload: {
+					generatedCount: 0,
+					totalCount: collectionSize
+				}
+			};
+			self.postMessage(cancelledMessage);
 			self.removeEventListener('message', cancelHandler);
 		}
 	};
@@ -459,7 +474,14 @@ async function generateCollection(
 
 	// Check if cancelled before final processing
 	if (isCancelled) {
-		self.postMessage({ type: 'cancelled' });
+		const cancelledMessage: CancelledMessage = {
+			type: 'cancelled',
+			payload: {
+				generatedCount: collectionSize,
+				totalCount: collectionSize
+			}
+		};
+		self.postMessage(cancelledMessage);
 		return;
 	}
 

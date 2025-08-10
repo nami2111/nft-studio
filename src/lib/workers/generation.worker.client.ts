@@ -2,7 +2,10 @@
 
 import type { TransferrableLayer } from '../domain/project.domain';
 import type { GenerationWorkerMessage } from './generation.worker.loader';
-import { getGenerationWorker, postWorkerMessage, terminateGenerationWorker } from './generation.worker.loader';
+import { postMessageToPool, initializeWorkerPool, terminateWorkerPool } from './worker.pool';
+
+// Initialize worker pool on first import
+initializeWorkerPool();
 
 export async function startGeneration(
   layers: TransferrableLayer[],
@@ -11,7 +14,6 @@ export async function startGeneration(
   projectName: string,
   projectDescription: string
 ): Promise<void> {
-  const worker = await getGenerationWorker();
   const message: GenerationWorkerMessage = {
     type: 'start',
     payload: {
@@ -22,9 +24,15 @@ export async function startGeneration(
       projectDescription
     }
   };
-  postWorkerMessage(worker, message);
+  
+  // Post message to worker pool instead of single worker
+  return postMessageToPool(message);
 }
 
 export function cancelGeneration(): void {
-  terminateGenerationWorker();
+  // Terminate all workers in the pool
+  terminateWorkerPool();
+  
+  // Re-initialize for future use
+  initializeWorkerPool();
 }

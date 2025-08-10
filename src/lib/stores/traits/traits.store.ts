@@ -261,26 +261,62 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 			throw new Error('Invalid project file format');
 		}
 
+		// Type assertion after validation
+		const validatedProjectData = projectData as {
+			id?: string;
+			name: string;
+			description?: string;
+			outputSize?: { width: number; height: number };
+			layers: Array<{
+				id?: string;
+				name: string;
+				order?: number;
+				traits: Array<{
+					id?: string;
+					name: string;
+					rarityWeight?: number;
+					imageData?: ArrayBuffer;
+					imageUrl?: string;
+					[key: string]: unknown;
+				}>;
+				[key: string]: unknown;
+			}>;
+			[key: string]: unknown;
+		};
+
 		// Load images for each trait
-		for (const layer of projectData.layers) {
+		const layersWithImages = [];
+		for (const layer of validatedProjectData.layers) {
+			const layerWithTraits: any = {
+				...layer,
+				traits: []
+			};
+			
 			const layerFolder = zip.folder(layer.name);
 			if (layerFolder) {
 				for (const trait of layer.traits) {
 					const traitFile = layerFolder.file(`${trait.name}.png`);
 					if (traitFile) {
 						const blob = await traitFile.async('blob');
-						trait.imageData = await fileToArrayBuffer(blob as unknown as File);
-						trait.imageUrl = URL.createObjectURL(blob);
+						const imageData = await fileToArrayBuffer(blob as unknown as File);
+						layerWithTraits.traits.push({
+							...trait,
+							imageData,
+							imageUrl: URL.createObjectURL(blob)
+						});
 					}
 				}
 			}
+			layersWithImages.push(layerWithTraits);
 		}
 
 		// Update the project store with the loaded data
-		project.set({
-			...projectData,
-			// Ensure we have proper IDs for all entities
-			layers: projectData.layers.map((layer: any) => ({
+		const projectToSet: Project = {
+			id: validatedProjectData.id || crypto.randomUUID(),
+			name: validatedProjectData.name,
+			description: validatedProjectData.description || '',
+			outputSize: validatedProjectData.outputSize || { width: 1024, height: 1024 },
+			layers: layersWithImages.map((layer: any) => ({
 				...layer,
 				id: layer.id || crypto.randomUUID(),
 				traits: layer.traits.map((trait: any) => ({
@@ -288,7 +324,9 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 					id: trait.id || crypto.randomUUID()
 				}))
 			}))
-		});
+		};
+		
+		project.set(projectToSet);
 
 		return true;
 	} catch (error) {

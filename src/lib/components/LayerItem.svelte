@@ -643,8 +643,9 @@
 						<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
 						<div class="space-y-2">
 							<div class="flex items-center space-x-2">
-								<label class="text-sm">Rarity:</label>
+								<label for="bulk-rarity-{layer.id}" class="text-sm">Rarity:</label>
 								<select
+									id="bulk-rarity-{layer.id}"
 									class="rounded border border-gray-300 px-2 py-1 text-sm"
 									bind:value={bulkRarityWeight}
 								>
@@ -657,13 +658,14 @@
 								<Button variant="outline" size="sm" onclick={bulkUpdateRarity}>Update</Button>
 							</div>
 							<div class="flex items-center space-x-2">
-								<label class="text-sm">Rename:</label>
-								<input
-									type="text"
-									placeholder="New name prefix"
-									class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
-									bind:value={bulkNewName}
-								/>
+							<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
+							<input
+								id="bulk-rename-{layer.id}"
+								type="text"
+								placeholder="New name prefix"
+								class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+								bind:value={bulkNewName}
+							/>
 								<Button
 									variant="outline"
 									size="sm"

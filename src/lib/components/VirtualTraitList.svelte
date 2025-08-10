@@ -3,9 +3,13 @@
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import { onMount, onDestroy } from 'svelte';
 
-	export let traits: Trait[] = [];
-	export let layerId: string;
-	export let searchTerm: string = '';
+	interface Props {
+		traits?: Trait[];
+		layerId: string;
+		searchTerm?: string;
+	}
+
+	const { traits = [], layerId, searchTerm = '' } = $props<Props>();
 
 	// Virtual scrolling parameters
 	const ITEM_HEIGHT = 200; // Approximate height of each trait card in pixels
