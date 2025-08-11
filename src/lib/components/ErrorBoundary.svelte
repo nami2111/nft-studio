@@ -7,9 +7,11 @@
 		componentStack: string;
 	}
 
+	import type { Snippet } from 'svelte';
+
 	interface Props {
-		children: () => void;
-		fallback?: (error: Error | null, errorInfo: ErrorInfo | null) => void;
+		children: Snippet;
+		fallback?: Snippet<[{ error: Error | null; errorInfo: ErrorInfo | null }]>;
 		onError?: (error: Error, errorInfo: ErrorInfo) => void;
 	}
 
@@ -43,7 +45,7 @@
 
 {#if hasError}
 	{#if fallback}
-		{@render fallback(error, errorInfo)}
+		{@render fallback({ error, errorInfo })}
 	{:else}
 		<div class="flex min-h-[400px] items-center justify-center p-6">
 			<div class="max-w-md text-center">
