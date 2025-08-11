@@ -2,18 +2,37 @@
 
 import type { TransferrableLayer } from '../domain/project.domain';
 import type { GenerationWorkerMessage } from './generation.worker.loader';
-import { postMessageToPool, initializeWorkerPool, terminateWorkerPool } from './worker.pool';
+import {
+	postMessageToPool,
+	initializeWorkerPool,
+	terminateWorkerPool,
+	setMessageCallback
+} from './worker.pool';
 
 // Initialize worker pool on first import
 initializeWorkerPool();
 
-export async function startGeneration(
+// Callback for handling messages from workers
+let messageHandler: ((data: any) => void) | null = null;
+
+// Set up message callback
+setMessageCallback((data) => {
+	if (messageHandler) {
+		messageHandler(data);
+	}
+});
+
+export function startGeneration(
 	layers: TransferrableLayer[],
 	collectionSize: number,
 	outputSize: { width: number; height: number },
 	projectName: string,
-	projectDescription: string
-): Promise<void> {
+	projectDescription: string,
+	onMessage?: (data: any) => void
+): void {
+	// Set message handler for this generation session
+	messageHandler = onMessage || null;
+
 	const message: GenerationWorkerMessage = {
 		type: 'start',
 		payload: {
@@ -26,7 +45,17 @@ export async function startGeneration(
 	};
 
 	// Post message to worker pool instead of single worker
-	return postMessageToPool(message);
+	postMessageToPool(message).catch((error) => {
+		// Handle any errors that might occur during message posting
+		if (messageHandler) {
+			messageHandler({
+				type: 'error',
+				payload: {
+					message: error instanceof Error ? error.message : 'Failed to start generation'
+				}
+			});
+		}
+	});
 }
 
 export function cancelGeneration(): void {

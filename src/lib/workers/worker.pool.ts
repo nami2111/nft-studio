@@ -14,6 +14,7 @@ interface WorkerTask<T = unknown> {
 	message: GenerationWorkerMessage;
 	resolve: (value: T) => void;
 	reject: (reason?: unknown) => void;
+	assignedWorker?: number; // Track which worker is handling this task
 }
 
 // Worker pool interface
@@ -27,6 +28,14 @@ interface WorkerPool {
 
 // Global worker pool instance
 let workerPool: WorkerPool | null = null;
+
+// Callback for forwarding messages to clients
+let messageCallback: ((data: any) => void) | null = null;
+
+// Set message callback for client components to receive worker messages
+export function setMessageCallback(callback: (data: any) => void): void {
+	messageCallback = callback;
+}
 
 /**
  * Get device capabilities to determine optimal worker count
@@ -116,21 +125,53 @@ export function initializeWorkerPool(config?: WorkerPoolConfig): void {
 function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	if (!workerPool) return;
 
-	const { type } = event.data;
+	const data = event.data;
+	const { type } = data;
 
-	// For progress and other non-terminal messages, just forward them
-	if (type !== 'complete' && type !== 'error' && type !== 'cancelled') {
-		// Forward to any listeners (we might need a better event system for this)
-		return;
+	// Forward all messages to client components
+	if (messageCallback) {
+		messageCallback(data);
 	}
 
-	// Mark worker as available when task completes
-	if (workerPool) {
-		workerPool.workerStatus[workerIndex] = true;
-	}
+	// For terminal messages, resolve/reject promises and clean up
+	if (type === 'complete' || type === 'error' || type === 'cancelled') {
+		// Find and resolve/reject the corresponding task
+		let foundTask = false;
+		for (const [taskId, task] of workerPool.activeTasks.entries()) {
+			if (task.assignedWorker === workerIndex) {
+				if (type === 'complete') {
+					task.resolve(data);
+				} else if (type === 'error') {
+					task.reject(new Error(data.payload?.message || 'Worker error'));
+				} else if (type === 'cancelled') {
+					task.reject(new Error('Generation cancelled'));
+				}
 
-	// Process next task if available
-	processNextTask();
+				// Remove the task from active tasks
+				workerPool.activeTasks.delete(taskId);
+				foundTask = true;
+				break;
+			}
+		}
+
+		// If we couldn't find the task, it might be a chunked message
+		// Just mark worker as available and continue
+		if (!foundTask) {
+			if (workerPool) {
+				workerPool.workerStatus[workerIndex] = true;
+			}
+			processNextTask();
+			return;
+		}
+
+		// Mark worker as available when task completes
+		if (workerPool) {
+			workerPool.workerStatus[workerIndex] = true;
+		}
+
+		// Process next task if available
+		processNextTask();
+	}
 }
 
 /**
@@ -160,6 +201,7 @@ function processNextTask(): void {
 	if (!task) return;
 
 	// Assign task to worker
+	task.assignedWorker = workerIndex;
 	workerPool.activeTasks.set(task.id, task);
 	workerPool.workerStatus[workerIndex] = false; // Mark as busy
 

@@ -2,7 +2,7 @@
 	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
 	import JSZip from 'jszip';
-	import { project } from '$lib/stores/project.store';
+	import { project } from '$lib/stores/project/project.store';
 	import { Button } from '$lib/components/ui/button';
 	import { startGeneration, cancelGeneration } from '$lib/workers/generation.worker.client';
 	import { prepareLayersForWorker } from '$lib/domain/project.domain';
@@ -38,7 +38,18 @@
 
 	// Progress update function
 	function updateProgress(generated: number, total: number, text: string) {
-		progress = Math.round((generated / total) * 100);
+		// Prevent division by zero which would result in non-finite values
+		if (total <= 0) {
+			progress = 0;
+		} else {
+			// Ensure the ratio is finite before calculating percentage
+			const ratio = generated / total;
+			if (isFinite(ratio)) {
+				progress = Math.round(ratio * 100);
+			} else {
+				progress = 0;
+			}
+		}
 		statusText = text;
 	}
 
@@ -115,6 +126,16 @@
 			if (projectData.layers.length === 0) {
 				showError = true;
 				errorDetails = { message: 'Project must have at least one layer.' };
+				return;
+			}
+
+			// Validate project has valid output size
+			if (projectData.outputSize.width <= 0 || projectData.outputSize.height <= 0) {
+				showError = true;
+				errorDetails = {
+					message:
+						'Project output size not set. Please upload an image to set the project dimensions.'
+				};
 				return;
 			}
 
@@ -212,12 +233,13 @@
 			// For now, we'll use a simplified approach
 
 			// Start generation using the worker pool
-			await startGeneration(
+			startGeneration(
 				transferrableLayers,
 				collectionSize,
 				projectData.outputSize, // Use project's output size
 				projectData.name,
-				projectData.description || ''
+				projectData.description || '',
+				workerMessageHandler
 			);
 		} catch (error) {
 			showError = true;

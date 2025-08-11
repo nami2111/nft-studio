@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { projectStore, layersStore } from '$lib/stores';
+	import { layersStore } from '$lib/stores';
+	import { project } from '$lib/stores/project/project.store';
 	import LayerItem from '$lib/components/LayerItem.svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
@@ -11,7 +12,7 @@
 	let isAddingLayer = $state(false);
 
 	// Subscribe to store changes
-	projectStore.project.subscribe((p) => {
+	project.subscribe((p) => {
 		layers = p.layers;
 	});
 

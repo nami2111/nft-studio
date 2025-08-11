@@ -6,7 +6,6 @@ import type { Layer } from '$lib/types/layer';
 import type { Project } from '$lib/types/project';
 import { handleError, handleFileError, handleValidationError } from '$lib/utils/error-handler';
 import { isValidImportedProject, isValidTraitName } from '$lib/utils/validation';
-import { defaultProject } from '../project/project.model';
 
 // --- Trait Level Functions ---
 export async function addTrait(
@@ -28,7 +27,7 @@ export async function addTrait(
 	const newTrait: Trait = {
 		...trait,
 		id: crypto.randomUUID(),
-		imageUrl: trait.imageUrl || '',
+		imageUrl: trait.imageUrl || URL.createObjectURL(trait.imageData),
 		imageData: arrayBuffer
 	};
 

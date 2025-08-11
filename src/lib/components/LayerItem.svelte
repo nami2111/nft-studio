@@ -2,15 +2,8 @@
 	import type { Layer } from '$lib/types/layer';
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
-	import {
-		removeLayer,
-		updateLayerName,
-		addTrait,
-		project,
-		removeTrait,
-		updateTraitRarity,
-		updateTraitName
-	} from '$lib/stores/project.store';
+	import { layersStore, traitsStore } from '$lib/stores';
+	import { project } from '$lib/stores/project/project.store';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
@@ -28,7 +21,22 @@
 	const { layer }: Props = $props();
 
 	let layerName = $derived(layer.name);
-	let isUploading = $derived(loadingStore.isLoading(`layer-upload-${layer.id}`));
+	let isUploading = $state(loadingStore.isLoading(`layer-upload-${layer.id}`));
+	let unsubscribe: (() => void) | null = null;
+
+	// Keep isUploading in sync with the loading store
+	unsubscribe = loadingStore.subscribe((state) => {
+		isUploading = state[`layer-upload-${layer.id}`] || false;
+	});
+
+	// Clean up subscription on destroy
+	onDestroy(() => {
+		if (unsubscribe) {
+			unsubscribe();
+			unsubscribe = null;
+		}
+	});
+
 	let uploadProgress = $state(0); // Track upload progress
 
 	let isEditing = $state(false);
@@ -77,7 +85,7 @@
 				onClick: () => {
 					// Delete all selected traits
 					selectedTraits.forEach((traitId) => {
-						removeTrait(layer.id, traitId);
+						traitsStore.removeTrait(layer.id, traitId);
 					});
 					toast.success(`${selectedTraits.size} trait(s) deleted successfully.`);
 					clearSelection();
@@ -96,7 +104,7 @@
 
 		// Update rarity for all selected traits
 		selectedTraits.forEach((traitId) => {
-			updateTraitRarity(layer.id, traitId, bulkRarityWeight);
+			traitsStore.updateTraitRarity(layer.id, traitId, bulkRarityWeight);
 		});
 		toast.success(`Rarity updated for ${selectedTraits.size} trait(s).`);
 	}
@@ -118,7 +126,7 @@
 			if (trait) {
 				const newName = `${bulkNewName}_${count + 1}`;
 				if (newName.length <= 100) {
-					updateTraitName(layer.id, traitId, newName);
+					traitsStore.updateTraitName(layer.id, traitId, newName);
 					successCount++;
 				}
 			}
@@ -143,7 +151,7 @@
 			return;
 		}
 
-		updateLayerName(layer.id, layerName);
+		layersStore.updateLayerName(layer.id, layerName);
 		isEditing = false;
 	}
 
@@ -161,7 +169,7 @@
 				}
 			}
 		});
-		removeLayer(layer.id);
+		layersStore.removeLayer(layer.id);
 	}
 
 	async function handleFileUpload(files: FileList | null) {
@@ -249,7 +257,7 @@
 							throw new Error(`File "${file.name}" has an invalid name`);
 						}
 
-						await addTrait(layer.id, {
+						await traitsStore.addTrait(layer.id, {
 							name: safeName,
 							imageUrl: tempImageUrl,
 							imageData: file,
@@ -283,7 +291,11 @@
 				errorCount += batchResults.filter((r) => !r).length;
 
 				// Update progress
-				uploadProgress = Math.min(100, Math.round(((i + batch.length) / totalFiles) * 100));
+				if (totalFiles > 0) {
+					uploadProgress = Math.min(100, Math.round(((i + batch.length) / totalFiles) * 100));
+				} else {
+					uploadProgress = 0;
+				}
 
 				// Allow UI to update between batches
 				if (i + BATCH_SIZE < imageFiles.length) {
@@ -316,6 +328,10 @@
 			if (fileInputElement) {
 				fileInputElement.value = '';
 			}
+			// Force UI update by resetting progress after a short delay
+			setTimeout(() => {
+				uploadProgress = 0;
+			}, 100);
 		}
 	}
 

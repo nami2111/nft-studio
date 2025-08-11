@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { project } from '$lib/stores/project.store';
+	import { project } from '$lib/stores/project/project.store';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 

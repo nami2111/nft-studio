@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
-	import { loadProjectFromZip, saveProjectToZip, project } from '$lib/stores/project.store';
+	import { loadProjectFromZip, saveProjectToZip, project } from '$lib/stores/project/project.store';
 	import { get } from 'svelte/store';
 	import { loadingStore } from '$lib/stores/loading.store';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
