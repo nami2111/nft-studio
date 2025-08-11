@@ -7,8 +7,8 @@ export function defaultProject(): Project {
 		name: 'My NFT Collection',
 		description: 'A collection of unique NFTs',
 		outputSize: {
-			width: 1024,
-			height: 1024
+			width: 0, // Will be set by first uploaded image
+			height: 0 // Will be set by first uploaded image
 		},
 		layers: []
 	};

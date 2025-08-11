@@ -3,8 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { RefreshCw, Shuffle } from 'lucide-svelte';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { SvelteMap } from 'svelte/reactivity';
-
+		
 	let canvas: HTMLCanvasElement | null = null;
 	let ctx: CanvasRenderingContext2D | null = null;
 	let container: HTMLDivElement | null = null;

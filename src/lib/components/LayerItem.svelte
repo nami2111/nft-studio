@@ -231,7 +231,7 @@
 								Math.abs(dimensions.height - projectData.outputSize.height) > 1
 							) {
 								throw new Error(
-									`File "${file.name}" dimensions (${dimensions.width}x${dimensions.height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height})`
+									`File "${file.name}" dimensions (${dimensions.width}x${dimensions.height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
 								);
 							}
 						}

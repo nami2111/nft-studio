@@ -60,8 +60,8 @@ function defaultProject(): Project {
 		name: 'My NFT Collection',
 		description: 'A collection of unique NFTs',
 		outputSize: {
-			width: 1024,
-			height: 1024
+			width: 0, // Will be set by first uploaded image
+			height: 0 // Will be set by first uploaded image
 		},
 		layers: []
 	};
@@ -529,11 +529,13 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 		}
 
 		// Update the project store with the loaded data
+		// If outputSize is not provided, it will be set by the first uploaded image
+		const outputSize = validatedProjectData.outputSize || { width: 0, height: 0 };
 		const projectToSet: Project = {
 			id: validatedProjectData.id || crypto.randomUUID(),
 			name: validatedProjectData.name,
 			description: validatedProjectData.description || '',
-			outputSize: validatedProjectData.outputSize || { width: 1024, height: 1024 },
+			outputSize,
 			layers: layersWithImages.map((layer: any) => ({
 				...layer,
 				id: layer.id || crypto.randomUUID(),

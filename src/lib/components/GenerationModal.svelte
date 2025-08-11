@@ -215,7 +215,7 @@
 			await startGeneration(
 				transferrableLayers,
 				collectionSize,
-				{ width: 1024, height: 1024 }, // Default size, should be configurable
+				projectData.outputSize, // Use project's output size
 				projectData.name,
 				projectData.description || ''
 			);
