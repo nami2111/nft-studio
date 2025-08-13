@@ -2,7 +2,7 @@
  * Retry mechanisms and utilities for failed operations
  */
 
-import { showError, AppError } from './error-handling';
+import { showError } from './error-handling';
 import { logError, logWarning } from './error-logger';
 import type { ErrorContext } from './error-logger';
 
@@ -178,8 +178,8 @@ export const RetryConditions = {
 	// Retry on server errors (5xx status codes)
 	isServerError: (error: unknown): boolean => {
 		if (error && typeof error === 'object' && 'status' in error) {
-			const status = (error as any).status;
-			return status >= 500 && status < 600;
+			const status = (error as { status?: number }).status;
+			return typeof status === 'number' && status >= 500 && status < 600;
 		}
 		return false;
 	},
@@ -187,8 +187,8 @@ export const RetryConditions = {
 	// Retry on rate limiting errors (429 status code)
 	isRateLimitError: (error: unknown): boolean => {
 		if (error && typeof error === 'object' && 'status' in error) {
-			const status = (error as any).status;
-			return status === 429;
+			const status = (error as { status?: number }).status;
+			return typeof status === 'number' && status === 429;
 		}
 		return false;
 	},

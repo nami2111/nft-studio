@@ -7,7 +7,7 @@
 	import { startGeneration, cancelGeneration } from '$lib/workers/generation.worker.client';
 	import { prepareLayersForWorker } from '$lib/domain/project.domain';
 	import { loadingStore } from '$lib/stores/loading.store';
-	import { X, AlertCircle, CheckCircle, Info, Package, Play, AlertTriangle } from 'lucide-svelte';
+	import { Play } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
 		Dialog,
@@ -23,12 +23,7 @@
 	let isGenerating = $derived(loadingStore.isLoading('generation'));
 	let progress = $state(0);
 	let statusText = $state('Ready to generate');
-	let showSuccess = $state(false);
-	let showError = $state(false);
-	let errorDetails = $state<{ message: string; context?: any } | null>(null);
-	let showInfo = $state(false);
-	let infoMessage = $state('');
-	let isCancelled = $state(false);
+	// let errorDetails = $state<{ message: string; context?: unknown } | null>(null);
 	let open = $state(false);
 	// Accumulators for chunked data
 	let allImages: { name: string; imageData: ArrayBuffer }[] = [];
@@ -94,13 +89,9 @@
 			URL.revokeObjectURL(url);
 
 			statusText = 'Download started.';
-			showSuccess = true;
 			toast.success('Generation complete. Your download has started.');
 		} catch (error) {
-			showError = true;
-			errorDetails = {
-				message: error instanceof Error ? error.message : 'Failed to create .zip file.'
-			};
+			toast.error(error instanceof Error ? error.message : 'Failed to create .zip file.');
 			statusText = 'Error: Failed to create .zip file.';
 		} finally {
 			resetState();
@@ -115,37 +106,41 @@
 
 		// Reset state
 		resetState();
-		showError = false;
-		errorDetails = null;
-		isCancelled = false;
+		// showError = false;
+		// errorDetails = null;
+		// isCancelled = false;
 
 		try {
 			const projectData = get(project);
 
 			// Validate project has layers
 			if (projectData.layers.length === 0) {
-				showError = true;
-				errorDetails = { message: 'Project must have at least one layer.' };
+				// errorDetails = { message: 'Project must have at least one layer.' };
+				toast.error('Project must have at least one layer.');
 				return;
 			}
 
 			// Validate project has valid output size
 			if (projectData.outputSize.width <= 0 || projectData.outputSize.height <= 0) {
-				showError = true;
-				errorDetails = {
-					message:
-						'Project output size not set. Please upload an image to set the project dimensions.'
-				};
+				// errorDetails = {
+				// 	message:
+				// 		'Project output size not set. Please upload an image to set the project dimensions.'
+				// };
+				toast.error(
+					'Project output size not set. Please upload an image to set the project dimensions.'
+				);
 				return;
 			}
 
 			// Validate layers have traits
 			const emptyLayers = projectData.layers.filter((layer) => layer.traits.length === 0);
 			if (emptyLayers.length > 0) {
-				showError = true;
-				errorDetails = {
-					message: `The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`
-				};
+				// errorDetails = {
+				// 	message: `The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`
+				// };
+				toast.error(
+					`The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`
+				);
 				return;
 			}
 
@@ -160,10 +155,12 @@
 			const missingImages = traitList.filter((t) => !t.imageData || t.imageData.byteLength === 0);
 
 			if (missingImages.length > 0) {
-				showError = true;
-				errorDetails = {
-					message: `Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`
-				};
+				// errorDetails = {
+				// 	message: `Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`
+				// };
+				toast.error(
+					`Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`
+				);
 				return;
 			}
 
@@ -177,8 +174,21 @@
 			updateProgress(0, collectionSize, 'Initializing generation...');
 
 			// Set up a simple event system to handle messages from workers
-			const workerMessageHandler = async (event: MessageEvent) => {
-				const { type, payload } = event.data;
+			const workerMessageHandler = async (data: unknown) => {
+				const { type, payload } = data as
+					| {
+							type: 'progress';
+							payload: { generatedCount: number; totalCount: number; statusText: string };
+					  }
+					| {
+							type: 'complete';
+							payload: {
+								images: { name: string; imageData: ArrayBuffer }[];
+								metadata: { name: string; data: Record<string, unknown> }[];
+							};
+					  }
+					| { type: 'error'; payload: { message: string } }
+					| { type: 'cancelled'; payload: { generatedCount?: number; totalCount?: number } };
 
 				switch (type) {
 					case 'progress':
@@ -210,8 +220,8 @@
 							payload.totalCount ?? collectionSize,
 							'Generation cancelled by user.'
 						);
-						showInfo = true;
-						infoMessage = 'Generation has been cancelled.';
+						// Show info message for cancellation
+						toast.info('Generation has been cancelled.');
 						resetState();
 						// Auto-refresh after cancellation
 						setTimeout(() => {
@@ -219,8 +229,7 @@
 						}, 1500);
 						break;
 					case 'error':
-						showError = true;
-						errorDetails = { message: payload.message };
+						toast.error(payload.message);
 						resetState();
 						break;
 					default:
@@ -242,11 +251,13 @@
 				workerMessageHandler
 			);
 		} catch (error) {
-			showError = true;
-			errorDetails = {
-				message:
-					error instanceof Error ? error.message : 'An unknown error occurred during generation'
-			};
+			// errorDetails = {
+			// 	message:
+			// 		error instanceof Error ? error.message : 'An unknown error occurred during generation'
+			// };
+			toast.error(
+				error instanceof Error ? error.message : 'An unknown error occurred during generation'
+			);
 			resetState();
 		}
 	}

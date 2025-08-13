@@ -127,8 +127,10 @@
 
 	// Load image with caching
 	async function loadImage(src: string): Promise<HTMLImageElement> {
+		console.log('Attempting to load image:', src);
 		// Check if image is already in cache
 		if (imageCache.has(src)) {
+			console.log('Image found in cache:', src);
 			return imageCache.get(src)!;
 		}
 
@@ -137,10 +139,12 @@
 			const img = new Image();
 			img.crossOrigin = 'anonymous';
 			img.onload = () => {
+				console.log('Image loaded successfully:', src);
 				imageCache.set(src, img);
 				resolve(img);
 			};
 			img.onerror = () => {
+				console.error('Failed to load image:', src);
 				reject(new Error(`Failed to load image: ${src}`));
 			};
 			img.src = src;
@@ -161,6 +165,7 @@
 	async function drawPreview() {
 		if (!ctx || !canvas) return;
 
+		console.log('drawPreview called with project:', $project);
 		const { layers, outputSize } = $project;
 
 		// Clear canvas
@@ -202,7 +207,9 @@
 
 			if (effectiveTraitId) {
 				const selectedTrait = layer.traits.find((trait) => trait.id === effectiveTraitId);
+				console.log('Trying to load trait:', selectedTrait);
 				if (selectedTrait && selectedTrait.imageUrl) {
+					console.log('Trait has imageUrl:', selectedTrait.imageUrl);
 					try {
 						const img = await loadImage(selectedTrait.imageUrl);
 

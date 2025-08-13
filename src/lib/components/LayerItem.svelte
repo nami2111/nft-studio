@@ -56,13 +56,13 @@
 	let bulkNewName = $state('');
 
 	// Toggle trait selection
-	function toggleTraitSelection(traitId: string) {
-		if (selectedTraits.has(traitId)) {
-			selectedTraits.delete(traitId);
-		} else {
-			selectedTraits.add(traitId);
-		}
-	}
+	// function toggleTraitSelection(traitId: string) {
+	// 	if (selectedTraits.has(traitId)) {
+	// 		selectedTraits.delete(traitId);
+	// 	} else {
+	// 		selectedTraits.add(traitId);
+	// 	}
+	// }
 
 	// Select all filtered traits
 	function selectAllFiltered() {
@@ -214,7 +214,7 @@
 				const batch = imageFiles.slice(i, i + BATCH_SIZE);
 
 				// Process batch in parallel
-				const batchPromises = batch.map(async (file, index) => {
+				const batchPromises = batch.map(async (file) => {
 					let tempImageUrl: string | null = null;
 					try {
 						// Validate file size (max 10MB)

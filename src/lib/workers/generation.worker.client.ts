@@ -13,7 +13,7 @@ import {
 initializeWorkerPool();
 
 // Callback for handling messages from workers
-let messageHandler: ((data: any) => void) | null = null;
+let messageHandler: ((data: unknown) => void) | null = null;
 
 // Set up message callback
 setMessageCallback((data) => {
@@ -28,7 +28,7 @@ export function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
-	onMessage?: (data: any) => void
+	onMessage?: (data: unknown) => void
 ): void {
 	// Set message handler for this generation session
 	messageHandler = onMessage || null;

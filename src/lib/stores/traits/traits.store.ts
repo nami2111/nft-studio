@@ -4,7 +4,7 @@ import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
 import type { Trait } from '$lib/types/trait';
 import type { Layer } from '$lib/types/layer';
 import type { Project } from '$lib/types/project';
-import { handleError, handleFileError, handleValidationError } from '$lib/utils/error-handler';
+import { handleFileError, handleValidationError } from '$lib/utils/error-handler';
 import { isValidImportedProject, isValidTraitName } from '$lib/utils/validation';
 
 // --- Trait Level Functions ---
@@ -284,10 +284,13 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 		};
 
 		// Load images for each trait
-		const layersWithImages = [];
+		const layersWithImages: Layer[] = [];
 		for (const layer of validatedProjectData.layers) {
-			const layerWithTraits: any = {
-				...layer,
+			const layerWithTraits: Layer = {
+				id: layer.id || crypto.randomUUID(),
+				name: layer.name,
+				order: layer.order ?? 0,
+				isOptional: layer.isOptional ? true : undefined,
 				traits: []
 			};
 
@@ -299,9 +302,13 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 						const blob = await traitFile.async('blob');
 						const imageData = await fileToArrayBuffer(blob as unknown as File);
 						layerWithTraits.traits.push({
-							...trait,
+							id: trait.id || crypto.randomUUID(),
+							name: trait.name,
 							imageData,
-							imageUrl: URL.createObjectURL(blob)
+							imageUrl: URL.createObjectURL(blob),
+							width: (trait.width as number) || 0,
+							height: (trait.height as number) || 0,
+							rarityWeight: (trait.rarityWeight as number) || 1
 						});
 					}
 				}
@@ -317,10 +324,10 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 			name: validatedProjectData.name,
 			description: validatedProjectData.description || '',
 			outputSize,
-			layers: layersWithImages.map((layer: any) => ({
+			layers: layersWithImages.map((layer: Layer) => ({
 				...layer,
 				id: layer.id || crypto.randomUUID(),
-				traits: layer.traits.map((trait: any) => ({
+				traits: layer.traits.map((trait: Trait) => ({
 					...trait,
 					id: trait.id || crypto.randomUUID()
 				}))

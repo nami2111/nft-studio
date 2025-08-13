@@ -30,10 +30,10 @@ interface WorkerPool {
 let workerPool: WorkerPool | null = null;
 
 // Callback for forwarding messages to clients
-let messageCallback: ((data: any) => void) | null = null;
+let messageCallback: ((data: unknown) => void) | null = null;
 
 // Set message callback for client components to receive worker messages
-export function setMessageCallback(callback: (data: any) => void): void {
+export function setMessageCallback(callback: (data: unknown) => void): void {
 	messageCallback = callback;
 }
 

@@ -6,7 +6,7 @@
 	let projectName = '';
 	let projectDescription = '';
 
-	project.subscribe((p: any) => {
+	project.subscribe((p: { name: string; description: string }) => {
 		projectName = p.name;
 		projectDescription = p.description;
 	});

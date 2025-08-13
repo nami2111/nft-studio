@@ -1,5 +1,6 @@
 // Lightweight IndexedDB persistence wrapper for NFT Studio
 // Provides a simple CRUD interface around a single "current" project entry.
+import type { Project } from '$lib/types/project';
 
 export async function openDatabase(): Promise<IDBDatabase> {
 	if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
@@ -19,7 +20,7 @@ export async function openDatabase(): Promise<IDBDatabase> {
 	});
 }
 
-export function saveProjectToIndexedDB(projectData: any): Promise<void> {
+export function saveProjectToIndexedDB(projectData: Project): Promise<void> {
 	return openDatabase()
 		.then((db) => {
 			return new Promise<void>((resolve, reject) => {
@@ -40,10 +41,10 @@ export function saveProjectToIndexedDB(projectData: any): Promise<void> {
 		});
 }
 
-export function loadProjectFromIndexedDB(): Promise<any | null> {
+export function loadProjectFromIndexedDB(): Promise<Project | null> {
 	return openDatabase()
 		.then((db) => {
-			return new Promise<any | null>((resolve, reject) => {
+			return new Promise<Project | null>((resolve, reject) => {
 				const tx = db.transaction('projects', 'readonly');
 				const store = tx.objectStore('projects');
 				const req = store.get('current');

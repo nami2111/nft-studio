@@ -15,25 +15,25 @@
 		onError?: (error: Error, errorInfo: ErrorInfo) => void;
 	}
 
-	let { children, fallback, onError }: Props = $props();
+	let { children, fallback }: Props = $props();
 
 	let error: Error | null = $state(null);
 	let errorInfo: ErrorInfo | null = $state(null);
 	let hasError = $state(false);
 
-	function handleError(err: Error, info: ErrorInfo) {
-		error = err;
-		errorInfo = info;
-		hasError = true;
+	// function handleError(err: Error, info: ErrorInfo) {
+	// 	error = err;
+	// 	errorInfo = info;
+	// 	hasError = true;
 
-		// Log error for debugging
-		console.error('Error Boundary caught an error:', err, info);
+	// 	// Log error for debugging
+	// 	console.error('Error Boundary caught an error:', err, info);
 
-		// Call custom error handler if provided
-		if (onError) {
-			onError(err, info);
-		}
-	}
+	// 	// Call custom error handler if provided
+	// 	if (onError) {
+	// 		onError(err, info);
+	// 	}
+	// }
 
 	// Error boundary implementation using Svelte 5 error handling
 	onMount(() => {
@@ -54,7 +54,7 @@
 				</div>
 				<h2 class="mb-2 text-xl font-semibold text-gray-900">Something went wrong</h2>
 				<p class="mb-6 text-gray-600">
-					{error?.message || 'An unexpected error occurred. Please try again.'}
+					{error ? (error as Error).message : 'An unexpected error occurred. Please try again.'}
 				</p>
 				<div class="flex justify-center gap-3">
 					<Button onclick={() => window.location.reload()} variant="outline">

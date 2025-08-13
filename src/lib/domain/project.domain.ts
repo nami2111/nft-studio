@@ -2,7 +2,7 @@
  * Domain payload abstractions used for worker communication.
  */
 import type { Layer } from '$lib/types/layer';
-import type { Trait } from '$lib/types/trait';
+// import type { Trait } from '$lib/types/trait';
 
 export interface TransferrableTrait {
 	id: string;

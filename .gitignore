@@ -41,6 +41,7 @@ target
 .knowledge/
 .crush/
 .crushignore
+.geminiignore
 CRUSH.md
 
 target

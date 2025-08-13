@@ -115,7 +115,7 @@ class ErrorLogger {
 			const stored = localStorage.getItem('nft-studio-error-logs');
 			if (stored) {
 				const parsedLogs = JSON.parse(stored);
-				this.logs = parsedLogs.map((log: any) => ({
+				this.logs = parsedLogs.map((log: { timestamp: string | number | Date }) => ({
 					...log,
 					timestamp: new Date(log.timestamp)
 				}));

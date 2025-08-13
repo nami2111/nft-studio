@@ -4,6 +4,7 @@
  */
 
 import { handleStorageError } from '$lib/utils/error-handler';
+import { arrayBufferToBase64, base64ToArrayBuffer } from '$lib/utils';
 
 export interface PersistenceStore<T> {
 	key: string;
@@ -17,7 +18,8 @@ export function loadFromLocalStorageSync<T>(key: string): T | null {
 	try {
 		const s = localStorage.getItem(key);
 		if (!s) return null;
-		return JSON.parse(s) as T;
+		const parsed = JSON.parse(s);
+		return restoreArrayBuffers(parsed) as T;
 	} catch (error) {
 		handleStorageError(error, {
 			context: { component: 'LocalStorage', action: 'loadFromLocalStorageSync' },
@@ -29,7 +31,8 @@ export function loadFromLocalStorageSync<T>(key: string): T | null {
 
 export function saveToLocalStorageSync<T>(key: string, value: T): void {
 	try {
-		localStorage.setItem(key, JSON.stringify(value));
+		const serialized = serializeArrayBuffers(value);
+		localStorage.setItem(key, JSON.stringify(serialized));
 	} catch (error) {
 		handleStorageError(error, {
 			context: { component: 'LocalStorage', action: 'saveToLocalStorageSync' },
@@ -87,7 +90,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 				req.onerror = () => reject(req.error);
 			} catch (e) {
 				// IndexedDB not available
-				reject(e as any);
+				reject(e as Error);
 			}
 		});
 	}
@@ -151,4 +154,61 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			removeFromLocalStorageSync(this.key);
 		}
 	}
+}
+
+// Helper functions for serializing/deserializing ArrayBuffer objects
+function serializeArrayBuffers(obj: unknown): unknown {
+	if (obj === null || obj === undefined) {
+		return obj;
+	}
+
+	if (obj instanceof ArrayBuffer) {
+		return {
+			__type: 'ArrayBuffer',
+			data: arrayBufferToBase64(obj)
+		};
+	}
+
+	if (Array.isArray(obj)) {
+		return obj.map((item) => serializeArrayBuffers(item));
+	}
+
+	if (typeof obj === 'object') {
+		const result: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(obj)) {
+			result[key] = serializeArrayBuffers(value);
+		}
+		return result;
+	}
+
+	return obj;
+}
+
+function restoreArrayBuffers(obj: unknown): unknown {
+	if (obj === null || obj === undefined) {
+		return obj;
+	}
+
+	if (typeof obj === 'object' && !Array.isArray(obj)) {
+		// Check if this is a serialized ArrayBuffer
+		if ((obj as { __type?: string }).__type === 'ArrayBuffer') {
+			const base64Data = (obj as { data?: string }).data;
+			if (base64Data) {
+				return base64ToArrayBuffer(base64Data);
+			}
+		}
+
+		// Recursively process object properties
+		const result: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(obj)) {
+			result[key] = restoreArrayBuffers(value);
+		}
+		return result;
+	}
+
+	if (Array.isArray(obj)) {
+		return obj.map((item) => restoreArrayBuffers(item));
+	}
+
+	return obj;
 }

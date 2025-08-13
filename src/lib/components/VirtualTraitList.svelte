@@ -3,11 +3,11 @@
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import { onMount, onDestroy } from 'svelte';
 
-	interface Props {
-		traits?: Trait[];
-		layerId: string;
-		searchTerm?: string;
-	}
+	// interface Props {
+	// 	traits?: Trait[];
+	// 	layerId: string;
+	// 	searchTerm?: string;
+	// // }
 
 	const { traits = [], layerId, searchTerm = '' } = $props();
 

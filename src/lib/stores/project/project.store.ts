@@ -1,6 +1,8 @@
 import { writable, get } from 'svelte/store';
 import { LocalStorageStore } from '$lib/persistence/storage';
 import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
+import type { Layer } from '$lib/types/layer';
+import type { Trait } from '$lib/types/trait';
 import {
 	isValidImportedProject,
 	isValidDimensions,
@@ -15,8 +17,6 @@ import {
 	handleValidationError
 } from '$lib/utils/error-handler';
 import type { Project } from '$lib/types/project';
-import type { Layer } from '$lib/types/layer';
-import type { Trait } from '$lib/types/trait';
 
 // Prepared layer/trait types for worker transfer
 export interface PreparedTrait {
@@ -71,10 +71,41 @@ function defaultProject(): Project {
 const initial = defaultProject();
 export const project = writable<Project>(initial);
 
+// Restore blob URLs for traits that have imageData but missing or invalid imageUrl
+function restoreBlobUrls(p: Project): Project {
+	const restoredProject = { ...p };
+
+	for (const layer of restoredProject.layers) {
+		for (const trait of layer.traits) {
+			// If trait has imageData but missing or invalid imageUrl, restore the blob URL
+			if (trait.imageData && trait.imageData.byteLength > 0) {
+				// Revoke any existing invalid blob URL
+				if (trait.imageUrl) {
+					try {
+						URL.revokeObjectURL(trait.imageUrl);
+					} catch {
+						// Ignore errors when revoking URLs
+					}
+				}
+				// Create new blob URL from imageData
+				const blob = new Blob([trait.imageData], { type: 'image/png' });
+				trait.imageUrl = URL.createObjectURL(blob);
+			}
+		}
+	}
+
+	return restoredProject;
+}
+
 // Hydrate from storage if available
 LOCAL_STORE.load().then((stored) => {
 	if (stored) {
-		project.set(stored);
+		console.log('Project loaded from localStorage:', stored);
+		const restoredProject = restoreBlobUrls(stored);
+		console.log('Project after blob URL restoration:', restoredProject);
+		project.set(restoredProject);
+	} else {
+		console.log('No project found in localStorage');
 	}
 });
 
@@ -169,10 +200,13 @@ export async function addTrait(
 ): Promise<void> {
 	const arrayBuffer = await fileToArrayBuffer(trait.imageData);
 
+	// Create blob URL from the file
+	const imageUrl = URL.createObjectURL(trait.imageData);
+
 	const newTrait: Trait = {
 		...trait,
 		id: crypto.randomUUID(),
-		imageUrl: trait.imageUrl || '',
+		imageUrl,
 		imageData: arrayBuffer
 	};
 
@@ -343,7 +377,8 @@ export function importProjectData(projectJson: string): boolean {
 			return false;
 		}
 		// Type assertion since we've validated the structure
-		project.set(importedData as unknown as Project);
+		const projectWithRestoredUrls = restoreBlobUrls(importedData as unknown as Project);
+		project.set(projectWithRestoredUrls);
 		return true;
 	} catch (error) {
 		handleError(error, {
@@ -503,10 +538,13 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 		};
 
 		// Load images for each trait
-		const layersWithImages = [];
+		const layersWithImages: Layer[] = [];
 		for (const layer of validatedProjectData.layers) {
-			const layerWithTraits: any = {
-				...layer,
+			const layerWithTraits: Layer = {
+				id: layer.id || crypto.randomUUID(),
+				name: layer.name,
+				order: layer.order ?? 0,
+				isOptional: layer.isOptional ? true : undefined,
 				traits: []
 			};
 
@@ -518,9 +556,13 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 						const blob = await traitFile.async('blob');
 						const imageData = await fileToArrayBuffer(blob as unknown as File);
 						layerWithTraits.traits.push({
-							...trait,
+							id: trait.id || crypto.randomUUID(),
+							name: trait.name,
 							imageData,
-							imageUrl: URL.createObjectURL(blob)
+							imageUrl: URL.createObjectURL(blob),
+							width: (trait.width as number) || 0,
+							height: (trait.height as number) || 0,
+							rarityWeight: (trait.rarityWeight as number) || 1
 						});
 					}
 				}
@@ -536,10 +578,10 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 			name: validatedProjectData.name,
 			description: validatedProjectData.description || '',
 			outputSize,
-			layers: layersWithImages.map((layer: any) => ({
+			layers: layersWithImages.map((layer: Layer) => ({
 				...layer,
 				id: layer.id || crypto.randomUUID(),
-				traits: layer.traits.map((trait: any) => ({
+				traits: layer.traits.map((trait: Trait) => ({
 					...trait,
 					id: trait.id || crypto.randomUUID()
 				}))

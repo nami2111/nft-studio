@@ -196,7 +196,7 @@ export async function withErrorHandling<T>(
 /**
  * Wrap a function with automatic error handling
  */
-export function wrapWithErrorHandling<T extends (...args: any[]) => any>(
+export function wrapWithErrorHandling<T extends (...args: unknown[]) => unknown>(
 	fn: T,
 	context?: ErrorContext,
 	options?: ErrorOptions & { fallback?: (...args: Parameters<T>) => ReturnType<T> }
