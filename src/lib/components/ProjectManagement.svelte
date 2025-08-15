@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent } from '$lib/components/ui/card';
 	import { toast } from 'svelte-sonner';
 	import { loadProjectFromZip, saveProjectToZip, project } from '$lib/stores/project/project.store';
 	import { get } from 'svelte/store';
@@ -105,14 +106,16 @@
 </script>
 
 {#if projectNeedsZipLoad()}
-	<div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-		<div class="flex items-center">
-			<AlertTriangle class="mr-2 h-5 w-5 text-yellow-600" />
-			<p class="text-yellow-800">
-				Please load a project file to start generating, or create a new project and save it first.
-			</p>
-		</div>
-	</div>
+	<Card class="mb-4 border border-yellow-200 bg-yellow-50">
+		<CardContent class="p-4">
+			<div class="flex items-center">
+				<AlertTriangle class="mr-2 h-5 w-5 text-yellow-600" />
+				<p class="text-yellow-800">
+					Please load a project file to start generating, or create a new project and save it first.
+				</p>
+			</div>
+		</CardContent>
+	</Card>
 {/if}
 
 <div class="flex space-x-2">
