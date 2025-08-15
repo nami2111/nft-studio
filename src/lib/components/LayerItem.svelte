@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Layer } from '$lib/types/layer';
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
@@ -489,240 +490,242 @@
 	});
 </script>
 
-<div class="rounded-lg border border-gray-200 p-4">
-	<div class="mb-3 flex items-center justify-between">
-		<div class="flex items-center space-x-2">
-			<Button variant="ghost" size="icon" onclick={() => (isExpanded = !isExpanded)}>
-				{#if isExpanded}
-					<ChevronDown class="h-4 w-4" />
-				{:else}
-					<ChevronRight class="h-4 w-4" />
-				{/if}
-			</Button>
-			{#if isEditing}
-				<input
-					type="text"
-					class="border-b border-indigo-500 bg-transparent text-lg font-medium text-gray-900 focus:outline-none"
-					bind:value={layerName}
-					onchange={handleNameChange}
-					onkeydown={(e) => e.key === 'Enter' && handleNameChange()}
-				/>
-			{:else}
-				<div class="flex items-center">
-					<h3 class="text-lg font-medium text-gray-900">{layer.name}</h3>
-					{#if layer.isOptional}
-						<span class="ml-2 rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">Optional</span>
+<Card class="w-full">
+	<CardContent class="p-4">
+		<div class="mb-3 flex items-center justify-between">
+			<div class="flex items-center space-x-2">
+				<Button variant="ghost" size="icon" onclick={() => (isExpanded = !isExpanded)}>
+					{#if isExpanded}
+						<ChevronDown class="h-4 w-4" />
+					{:else}
+						<ChevronRight class="h-4 w-4" />
 					{/if}
+				</Button>
+				{#if isEditing}
+					<input
+						type="text"
+						class="border-b border-indigo-500 bg-transparent text-lg font-medium text-gray-900 focus:outline-none"
+						bind:value={layerName}
+						onchange={handleNameChange}
+						onkeydown={(e) => e.key === 'Enter' && handleNameChange()}
+					/>
+				{:else}
+					<div class="flex items-center">
+						<h3 class="text-lg font-medium text-gray-900">{layer.name}</h3>
+						{#if layer.isOptional}
+							<span class="ml-2 rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">Optional</span>
+						{/if}
+					</div>
+				{/if}
+			</div>
+			{#if !isEditing}
+				<div class="flex space-x-1">
+					<Button variant="ghost" size="icon" onclick={() => (isEditing = true)}
+						><Edit class="h-4 w-4" /></Button
+					>
+					<Button variant="ghost" size="icon" onclick={handleDeleteLayer}
+						><Trash2 class="h-4 w-4 text-red-500" /></Button
+					>
+				</div>
+			{:else}
+				<div class="flex space-x-1">
+					<Button variant="ghost" size="icon" onclick={handleNameChange}
+						><Check class="h-4 w-4" /></Button
+					>
+					<Button variant="ghost" size="icon" onclick={cancelEdit}><X class="h-4 w-4" /></Button>
 				</div>
 			{/if}
 		</div>
-		{#if !isEditing}
-			<div class="flex space-x-1">
-				<Button variant="ghost" size="icon" onclick={() => (isEditing = true)}
-					><Edit class="h-4 w-4" /></Button
-				>
-				<Button variant="ghost" size="icon" onclick={handleDeleteLayer}
-					><Trash2 class="h-4 w-4 text-red-500" /></Button
-				>
-			</div>
-		{:else}
-			<div class="flex space-x-1">
-				<Button variant="ghost" size="icon" onclick={handleNameChange}
-					><Check class="h-4 w-4" /></Button
-				>
-				<Button variant="ghost" size="icon" onclick={cancelEdit}><X class="h-4 w-4" /></Button>
-			</div>
-		{/if}
-	</div>
 
-	{#if isExpanded}
-		<div class="mb-4">
-			<label class="mb-1 block text-sm font-medium text-gray-700" for="file-upload-{layer.id}"
-				>Upload Traits</label
-			>
-			<div
-				class="flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors {isDragover
-					? 'border-indigo-600 bg-indigo-50'
-					: 'border-gray-300'}"
-				ondragover={(e) => {
-					e.preventDefault();
-					isDragover = true;
-				}}
-				ondragleave={(e) => {
-					e.preventDefault();
-					isDragover = false;
-				}}
-				ondrop={(e) => {
-					e.preventDefault();
-					handleFileUpload(e.dataTransfer?.files ?? null);
-				}}
-				role="button"
-				tabindex="0"
-			>
-				<div class="space-y-1 text-center">
-					{#if isUploading}
-						<div class="flex items-center justify-center">
+		{#if isExpanded}
+			<div class="mb-4">
+				<label class="mb-1 block text-sm font-medium text-gray-700" for="file-upload-{layer.id}"
+					>Upload Traits</label
+				>
+				<div
+					class="flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors {isDragover
+						? 'border-indigo-600 bg-indigo-50'
+						: 'border-gray-300'}"
+					ondragover={(e) => {
+						e.preventDefault();
+						isDragover = true;
+					}}
+					ondragleave={(e) => {
+						e.preventDefault();
+						isDragover = false;
+					}}
+					ondrop={(e) => {
+						e.preventDefault();
+						handleFileUpload(e.dataTransfer?.files ?? null);
+					}}
+					role="button"
+					tabindex="0"
+				>
+					<div class="space-y-1 text-center">
+						{#if isUploading}
 							<div class="flex items-center justify-center">
-								<LoadingIndicator
-									operation={`layer-upload-${layer.id}`}
-									message="Uploading files..."
-								/>
+								<div class="flex items-center justify-center">
+									<LoadingIndicator
+										operation={`layer-upload-${layer.id}`}
+										message="Uploading files..."
+									/>
+								</div>
 							</div>
-						</div>
-						<div class="mt-2 h-2 w-full rounded-full bg-gray-200">
-							<div
-								class="h-full rounded-full bg-indigo-600 transition-all duration-300"
-								style="width: {uploadProgress}%"
-							></div>
-						</div>
-					{:else}
-						<svg
-							class="mx-auto h-12 w-12 text-gray-400"
-							stroke="currentColor"
-							fill="none"
-							viewBox="0 0 48 48"
-							aria-hidden="true"
-						>
-							<path
-								d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							/>
-						</svg>
-						<div class="flex text-sm text-gray-600">
-							<label
-								for="file-upload-{layer.id}"
-								class="relative cursor-pointer rounded-md bg-white font-medium text-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:text-indigo-500"
+							<div class="mt-2 h-2 w-full rounded-full bg-gray-200">
+								<div
+									class="h-full rounded-full bg-indigo-600 transition-all duration-300"
+									style="width: {uploadProgress}%"
+								></div>
+							</div>
+						{:else}
+							<svg
+								class="mx-auto h-12 w-12 text-gray-400"
+								stroke="currentColor"
+								fill="none"
+								viewBox="0 0 48 48"
+								aria-hidden="true"
 							>
-								<span>Upload files</span>
-								<input
-									id="file-upload-{layer.id}"
-									type="file"
-									class="sr-only"
-									multiple
-									accept="image/*"
-									onchange={(e) => handleFileUpload(e.currentTarget.files)}
+								<path
+									d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
 								/>
-							</label>
-							<p class="pl-1">or drag and drop</p>
-						</div>
-						<p class="text-xs text-gray-500">PNG, JPG, GIF, etc.</p>
-					{/if}
+							</svg>
+							<div class="flex text-sm text-gray-600">
+								<label
+									for="file-upload-{layer.id}"
+									class="relative cursor-pointer rounded-md bg-white font-medium text-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:text-indigo-500"
+								>
+									<span>Upload files</span>
+									<input
+										id="file-upload-{layer.id}"
+										type="file"
+										class="sr-only"
+										multiple
+										accept="image/*"
+										onchange={(e) => handleFileUpload(e.currentTarget.files)}
+									/>
+								</label>
+								<p class="pl-1">or drag and drop</p>
+							</div>
+							<p class="text-xs text-gray-500">PNG, JPG, GIF, etc.</p>
+						{/if}
+					</div>
 				</div>
 			</div>
-		</div>
-		<div class="mt-4">
-			<div class="mb-2 flex items-center justify-between">
-				<h4 class="text-md font-medium text-gray-700">Traits ({layer.traits.length})</h4>
-				{#if layer.traits.length > 5}
-					<input
-						type="text"
-						placeholder="Search traits..."
-						class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
-						bind:value={searchTerm}
-					/>
-				{/if}
-			</div>
+			<div class="mt-4">
+				<div class="mb-2 flex items-center justify-between">
+					<h4 class="text-md font-medium text-gray-700">Traits ({layer.traits.length})</h4>
+					{#if layer.traits.length > 5}
+						<input
+							type="text"
+							placeholder="Search traits..."
+							class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+							bind:value={searchTerm}
+						/>
+					{/if}
+				</div>
 
-			<!-- Bulk operation controls -->
-			{#if filteredTraits.length > 1}
-				<div class="mb-2 flex items-center justify-between rounded bg-gray-100 p-2">
-					<div class="flex items-center space-x-2">
-						<Button variant="outline" size="sm" onclick={selectAllFiltered}>Select All</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={clearSelection}
-							disabled={selectedTraits.size === 0}
-						>
-							Clear
-						</Button>
-						<span class="text-sm text-gray-600">
-							{selectedTraits.size} selected
-						</span>
-					</div>
-					{#if selectedTraits.size > 0}
-						<div class="flex space-x-2">
+				<!-- Bulk operation controls -->
+				{#if filteredTraits.length > 1}
+					<div class="mb-2 flex items-center justify-between rounded bg-gray-100 p-2">
+						<div class="flex items-center space-x-2">
+							<Button variant="outline" size="sm" onclick={selectAllFiltered}>Select All</Button>
 							<Button
 								variant="outline"
 								size="sm"
-								onclick={bulkDelete}
-								class="text-red-600 hover:text-red-700"
+								onclick={clearSelection}
+								disabled={selectedTraits.size === 0}
 							>
-								<Trash2 class="h-4 w-4" />
+								Clear
 							</Button>
+							<span class="text-sm text-gray-600">
+								{selectedTraits.size} selected
+							</span>
 						</div>
-					{/if}
-				</div>
-
-				{#if selectedTraits.size > 0}
-					<div class="mb-4 rounded border border-gray-200 p-3">
-						<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
-						<div class="space-y-2">
-							<div class="flex items-center space-x-2">
-								<label for="bulk-rarity-{layer.id}" class="text-sm">Rarity:</label>
-								<select
-									id="bulk-rarity-{layer.id}"
-									class="rounded border border-gray-300 px-2 py-1 text-sm"
-									bind:value={bulkRarityWeight}
-								>
-									<option value="1">Mythic (1)</option>
-									<option value="2">Legendary (2)</option>
-									<option value="3">Epic (3)</option>
-									<option value="4">Rare (4)</option>
-									<option value="5">Common (5)</option>
-								</select>
-								<Button variant="outline" size="sm" onclick={bulkUpdateRarity}>Update</Button>
-							</div>
-							<div class="flex items-center space-x-2">
-								<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
-								<input
-									id="bulk-rename-{layer.id}"
-									type="text"
-									placeholder="New name prefix"
-									class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
-									bind:value={bulkNewName}
-								/>
+						{#if selectedTraits.size > 0}
+							<div class="flex space-x-2">
 								<Button
 									variant="outline"
 									size="sm"
-									onclick={bulkRename}
-									disabled={!bulkNewName.trim()}
+									onclick={bulkDelete}
+									class="text-red-600 hover:text-red-700"
 								>
-									Rename
+									<Trash2 class="h-4 w-4" />
 								</Button>
 							</div>
-						</div>
+						{/if}
 					</div>
-				{/if}
-			{/if}
 
-			{#if layer.traits.length > 0}
-				{#if layer.traits.length > 100}
-					<!-- Use virtual scrolling for large trait lists -->
-					<div class="h-96">
-						<VirtualTraitList traits={filteredTraits} layerId={layer.id} {searchTerm} />
-					</div>
-				{:else}
-					<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-						{#each filteredTraits as trait (trait.id)}
-							{#if layer.traits.length > 50}
-								<!-- Lazy load trait cards when there are many traits -->
-								<div class="lazy-trait-container" data-trait-id={trait.id}>
-									<div class="lazy-trait-placeholder">
-										<div class="h-full w-full rounded-lg bg-gray-200"></div>
-									</div>
+					{#if selectedTraits.size > 0}
+						<div class="mb-4 rounded border border-gray-200 p-3">
+							<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
+							<div class="space-y-2">
+								<div class="flex items-center space-x-2">
+									<label for="bulk-rarity-{layer.id}" class="text-sm">Rarity:</label>
+									<select
+										id="bulk-rarity-{layer.id}"
+										class="rounded border border-gray-300 px-2 py-1 text-sm"
+										bind:value={bulkRarityWeight}
+									>
+										<option value="1">Mythic (1)</option>
+										<option value="2">Legendary (2)</option>
+										<option value="3">Epic (3)</option>
+										<option value="4">Rare (4)</option>
+										<option value="5">Common (5)</option>
+									</select>
+									<Button variant="outline" size="sm" onclick={bulkUpdateRarity}>Update</Button>
 								</div>
-							{:else}
-								<TraitCard {trait} layerId={layer.id} />
-							{/if}
-						{/each}
-					</div>
+								<div class="flex items-center space-x-2">
+									<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
+									<input
+										id="bulk-rename-{layer.id}"
+										type="text"
+										placeholder="New name prefix"
+										class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+										bind:value={bulkNewName}
+									/>
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={bulkRename}
+										disabled={!bulkNewName.trim()}
+									>
+										Rename
+									</Button>
+								</div>
+							</div>
+						</div>
+					{/if}
 				{/if}
-			{:else}
-				<p class="text-sm text-gray-500">No traits added yet. Upload or drag images above.</p>
-			{/if}
-		</div>
-	{/if}
-</div>
+
+				{#if layer.traits.length > 0}
+					{#if layer.traits.length > 100}
+						<!-- Use virtual scrolling for large trait lists -->
+						<div class="h-96">
+							<VirtualTraitList traits={filteredTraits} layerId={layer.id} {searchTerm} />
+						</div>
+					{:else}
+						<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+							{#each filteredTraits as trait (trait.id)}
+								{#if layer.traits.length > 50}
+									<!-- Lazy load trait cards when there are many traits -->
+									<div class="lazy-trait-container" data-trait-id={trait.id}>
+										<div class="lazy-trait-placeholder">
+											<div class="h-full w-full rounded-lg bg-gray-200"></div>
+										</div>
+									</div>
+								{:else}
+									<TraitCard {trait} layerId={layer.id} />
+								{/if}
+							{/each}
+						</div>
+					{/if}
+				{:else}
+					<p class="text-sm text-gray-500">No traits added yet. Upload or drag images above.</p>
+				{/if}
+			</div>
+		{/if}
+	</CardContent>
+</Card>
