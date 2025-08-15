@@ -35,6 +35,7 @@ target
 .svelte-kit/output/
 
 # AI Assistants
+.claude
 .kilocode/
 .roo/
 .clinerules/
