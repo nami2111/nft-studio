@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { traitsStore } from '$lib/stores';
+	import { Slider } from '$lib/components/ui/slider';
 
 	interface Props {
 		rarityWeight: number;
@@ -18,28 +19,26 @@
 		5: 'Common'
 	};
 
-	function handleRarityChange(e: Event) {
-		const target = e.target as HTMLInputElement;
-		const newRarity = parseInt(target.value);
-		sliderValue = newRarity;
-		traitsStore.updateTraitRarity(layerId, traitId, newRarity);
+	function handleRarityChange(value: number) {
+		sliderValue = value;
+		traitsStore.updateTraitRarity(layerId, traitId, value);
 	}
 </script>
 
 <div class="mt-2">
-	<label class="block text-xs font-medium text-gray-700" for="rarity-{traitId}"
+	<label for="rarity-slider-{traitId}" class="block text-xs font-medium text-gray-700"
 		>Rarity: <span class="font-bold text-indigo-600">{rarityLabels[sliderValue]}</span></label
 	>
 	<div class="mt-1 flex items-center">
-		<input
-			id="rarity-{traitId}"
-			type="range"
-			min="1"
-			max="5"
-			step="1"
-			class="thumb:bg-indigo-600 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200"
-			bind:value={sliderValue}
-			oninput={handleRarityChange}
+		<Slider
+			id="rarity-slider-{traitId}"
+			type="single"
+			min={1}
+			max={5}
+			step={1}
+			value={sliderValue}
+			onValueChange={handleRarityChange}
+			class="w-full"
 			title={`Rarity: ${rarityLabels[sliderValue]} (${sliderValue})`}
 		/>
 	</div>
