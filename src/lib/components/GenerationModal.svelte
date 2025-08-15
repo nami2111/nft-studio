@@ -17,6 +17,7 @@
 		DialogTitle,
 		DialogDescription
 	} from '$lib/components/ui/dialog';
+	import { Progress } from '$lib/components/ui/progress';
 
 	// State
 	let collectionSize = $state(100);
@@ -307,12 +308,7 @@
 			<div class="grid grid-cols-4 items-center gap-4">
 				<label class="text-right" for="gen-progress">Progress</label>
 				<div class="col-span-3">
-					<progress
-						id="gen-progress"
-						class="h-2.5 w-full [&::-moz-progress-bar]:bg-blue-600 [&::-webkit-progress-bar]:rounded-lg [&::-webkit-progress-bar]:bg-slate-200 [&::-webkit-progress-value]:rounded-lg [&::-webkit-progress-value]:bg-blue-600"
-						value={progress}
-						max="100"
-					></progress>
+					<Progress value={progress} max={100} class="w-full" />
 					<p class="mt-1 text-sm text-gray-500">{statusText}</p>
 				</div>
 			</div>
