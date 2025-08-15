@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { project } from '$lib/stores/project/project.store';
 	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent } from '$lib/components/ui/card';
 	import { RefreshCw, Shuffle } from 'lucide-svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
@@ -252,22 +253,24 @@
 	}
 </script>
 
-<div class="sticky top-8 rounded-lg bg-white p-6 shadow">
-	<h2 class="mb-4 text-xl font-bold text-gray-800">Preview</h2>
-	<div
-		bind:this={container}
-		class="flex h-96 w-full items-center justify-center overflow-hidden rounded-lg bg-gray-100"
-	>
-		<canvas bind:this={canvas} class="block"></canvas>
-	</div>
-	<div class="mt-4 flex justify-center space-x-2">
-		<Button onclick={randomize}>
-			<Shuffle class="mr-2 h-4 w-4" />
-			Randomize
-		</Button>
-		<Button variant="outline" onclick={drawPreview}>
-			<RefreshCw class="mr-2 h-4 w-4" />
-			Refresh
-		</Button>
-	</div>
-</div>
+<Card class="sticky top-8">
+	<CardContent class="p-6">
+		<h2 class="mb-4 text-xl font-bold text-gray-800">Preview</h2>
+		<div
+			bind:this={container}
+			class="flex h-96 w-full items-center justify-center overflow-hidden rounded-lg bg-gray-100"
+		>
+			<canvas bind:this={canvas} class="block"></canvas>
+		</div>
+		<div class="mt-4 flex justify-center space-x-2">
+			<Button onclick={randomize}>
+				<Shuffle class="mr-2 h-4 w-4" />
+				Randomize
+			</Button>
+			<Button variant="outline" onclick={drawPreview}>
+				<RefreshCw class="mr-2 h-4 w-4" />
+				Refresh
+			</Button>
+		</div>
+	</CardContent>
+</Card>
