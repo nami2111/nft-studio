@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Trait } from '$lib/types/trait';
 	import RaritySlider from '$lib/components/RaritySlider.svelte';
 	import { traitsStore } from '$lib/stores';
@@ -56,7 +57,7 @@
 	}
 </script>
 
-<div class="overflow-hidden rounded-lg border border-gray-200">
+<Card class="overflow-hidden">
 	<div class="flex aspect-square items-center justify-center bg-gray-100">
 		{#if trait.imageUrl}
 			<img src={trait.imageUrl} alt={trait.name} class="h-full w-full object-contain" />
@@ -64,7 +65,7 @@
 			<span class="text-gray-500">No image</span>
 		{/if}
 	</div>
-	<div class="p-2">
+	<CardContent class="p-2">
 		<div class="flex items-center justify-between">
 			{#if isEditing}
 				<input
@@ -91,5 +92,5 @@
 			{/if}
 		</div>
 		<RaritySlider rarityWeight={trait.rarityWeight} traitId={trait.id} {layerId} />
-	</div>
-</div>
+	</CardContent>
+</Card>
