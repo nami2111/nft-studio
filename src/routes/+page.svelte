@@ -22,13 +22,12 @@
 		</div>
 
 		<div class="lg:col-span-1">
-			<div class="sticky top-8">
+			<div class="sticky top-8 space-y-4">
 				<Preview />
+				<div class="flex justify-center">
+					<GenerationModal />
+				</div>
 			</div>
 		</div>
-	</div>
-
-	<div class="mt-8 flex justify-center">
-		<GenerationModal />
 	</div>
 </div>

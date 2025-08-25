@@ -283,7 +283,7 @@
 
 <Dialog bind:open onOpenChange={handleModalInteraction}>
 	<DialogTrigger>
-		<Button class="mt-6">Generate Collection</Button>
+		<Button class="h-auto px-8 py-4 text-lg">Generate Collection</Button>
 	</DialogTrigger>
 	<DialogContent>
 		<DialogHeader>
