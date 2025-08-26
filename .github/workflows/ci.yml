@@ -17,19 +17,36 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: |
+          echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
       - name: Ensure lockfile is up to date
-        run: npm run verify-lockfile-ci
+        run: pnpm run verify-lockfile-ci
 
       - name: Run lint
-        run: npm run lint-ci
+        run: pnpm run lint-ci
 
       - name: Type check
-        run: npm run check
+        run: pnpm run check
 
       - name: Run tests
-        run: npm run test:ci
+        run: pnpm run test:ci

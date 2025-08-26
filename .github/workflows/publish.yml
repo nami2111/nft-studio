@@ -17,16 +17,45 @@ jobs:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-      - name: Build
-        uses: junobuild/juno-action@full
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: |
+          echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Check for Functions
+        id: check-functions
+        run: |
+          if [ -d "src/satellite" ] && [ "$(ls -A src/satellite)" ]; then
+            echo "functions_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "functions_exist=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Functions
+        if: steps.check-functions.outputs.functions_exist == 'true'
+        uses: junobuild/juno-action@main
         with:
           args: functions build
 
-      - name: Publish
-        uses: junobuild/juno-action@full
+      - name: Publish Functions
+        if: steps.check-functions.outputs.functions_exist == 'true'
+        uses: junobuild/juno-action@main
         with:
           args: functions publish
         env:
