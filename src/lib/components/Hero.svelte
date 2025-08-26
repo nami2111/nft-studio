@@ -74,7 +74,7 @@
 								<Button
 									variant="outline"
 									size="lg"
-									class="border-gray-600 px-8 py-6 font-['JetBrains_Mono'] text-lg text-gray-200 hover:bg-gray-700/50"
+									class="border-gray-400 px-8 py-6 font-['JetBrains_Mono'] text-lg text-gray-500 hover:border-gray-300 hover:bg-gray-700 hover:text-white"
 								>
 									Learn More
 								</Button>
