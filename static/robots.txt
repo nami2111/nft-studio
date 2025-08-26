@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://dpl4s-kqaaa-aaaal-asg3a-cai.icp0.io/sitemap.xml

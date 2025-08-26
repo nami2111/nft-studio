@@ -1,0 +1,8 @@
+# Security.txt for NFT Studio
+# Contact information for security issues
+
+Contact: aimsomnia@proton.me
+Expires: 2026-12-31T23:59:59z
+Preferred-Languages: en
+Canonical: https://dpl4s-kqaaa-aaaal-asg3a-cai.icp0.io/.well-known/security.txt
+Policy: https://github.com/nami2111/nft-studio/security/policy
