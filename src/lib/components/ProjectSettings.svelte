@@ -57,7 +57,7 @@
 			bind:value={projectName}
 			onchange={handleNameChange}
 			placeholder="Enter project name"
-			class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none sm:text-sm"
+			class="mt-1 block w-full rounded-md border border-gray-400 bg-white px-3 py-2 text-gray-900 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none sm:text-sm"
 		/>
 	</div>
 
@@ -71,7 +71,7 @@
 			placeholder="Enter project description"
 			bind:value={projectDescription}
 			onchange={handleDescriptionChange}
-			class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none sm:text-sm"
+			class="mt-1 block w-full rounded-md border border-gray-400 bg-white px-3 py-2 text-gray-900 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none sm:text-sm"
 		></textarea>
 	</div>
 

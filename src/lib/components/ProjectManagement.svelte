@@ -118,41 +118,14 @@
 	</Card>
 {/if}
 
-<div class="flex space-x-2">
-	<!-- Save Project Dialog -->
-	<Dialog bind:open={saveDialogOpen}>
-		<DialogTrigger>
-			<Button variant="outline">
-				<Download class="mr-2 h-4 w-4" />
-				Save Project
-			</Button>
-		</DialogTrigger>
-		<DialogContent>
-			<DialogHeader>
-				<DialogTitle>Save Project</DialogTitle>
-				<DialogDescription>
-					Download your project configuration and images as a ZIP file. You can load this file later
-					to continue working.
-				</DialogDescription>
-			</DialogHeader>
-			<div class="flex justify-end space-x-2">
-				<Button variant="outline" onclick={() => (saveDialogOpen = false)}>Cancel</Button>
-				<Button onclick={handleSaveProject} disabled={isSaving}>
-					{#if isSaving}
-						<LoadingIndicator operation="project-save" message="Saving project..." />
-					{:else}
-						<Save class="mr-2 h-4 w-4" />
-						Save Project
-					{/if}
-				</Button>
-			</div>
-		</DialogContent>
-	</Dialog>
-
+<div class="flex space-x-3">
 	<!-- Load Project Dialog -->
 	<Dialog bind:open={loadDialogOpen}>
 		<DialogTrigger>
-			<Button variant="outline">
+			<Button
+				variant="outline"
+				class="border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+			>
 				<Upload class="mr-2 h-4 w-4" />
 				Load Project
 			</Button>
@@ -175,7 +148,11 @@
 					/>
 					<FolderOpen class="mx-auto mb-4 h-12 w-12 text-gray-400" />
 					<p class="mb-4 text-sm text-gray-600">Select a .zip project file to upload</p>
-					<Button onclick={triggerFileInput} disabled={isLoading}>
+					<Button
+						onclick={triggerFileInput}
+						disabled={isLoading}
+						class="bg-blue-600 text-white hover:bg-blue-700"
+					>
 						{#if isLoading}
 							<LoadingIndicator operation="project-load" message="Loading project..." />
 						{:else}
@@ -187,6 +164,47 @@
 				<p class="text-center text-xs text-gray-500">
 					Note: Loading a project will refresh the page and start fresh.
 				</p>
+			</div>
+		</DialogContent>
+	</Dialog>
+
+	<!-- Save Project Dialog -->
+	<Dialog bind:open={saveDialogOpen}>
+		<DialogTrigger>
+			<Button
+				variant="outline"
+				class="border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+			>
+				<Download class="mr-2 h-4 w-4" />
+				Save Project
+			</Button>
+		</DialogTrigger>
+		<DialogContent>
+			<DialogHeader>
+				<DialogTitle>Save Project</DialogTitle>
+				<DialogDescription>
+					Download your project configuration and images as a ZIP file. You can load this file later
+					to continue working.
+				</DialogDescription>
+			</DialogHeader>
+			<div class="flex justify-end space-x-2">
+				<Button
+					variant="outline"
+					onclick={() => (saveDialogOpen = false)}
+					class="border-gray-300 text-gray-700 hover:bg-gray-100">Cancel</Button
+				>
+				<Button
+					onclick={handleSaveProject}
+					disabled={isSaving}
+					class="bg-blue-600 text-white hover:bg-blue-700"
+				>
+					{#if isSaving}
+						<LoadingIndicator operation="project-save" message="Saving project..." />
+					{:else}
+						<Save class="mr-2 h-4 w-4" />
+						Save Project
+					{/if}
+				</Button>
 			</div>
 		</DialogContent>
 	</Dialog>

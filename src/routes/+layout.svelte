@@ -1,9 +1,5 @@
 <script lang="ts">
-	import { onMount, type Snippet } from 'svelte';
-	import { initSatellite } from '@junobuild/core';
-	import { Toaster } from '$lib/components/ui/sonner';
-	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
-	import Hero from '$lib/components/Hero.svelte';
+	import { type Snippet } from 'svelte';
 	import '../app.css';
 
 	interface Props {
@@ -11,34 +7,10 @@
 	}
 
 	let { children }: Props = $props();
-
-	onMount(async () => {
-		try {
-			await initSatellite({
-				workers: {
-					auth: true
-				}
-			});
-		} catch (error) {
-			console.error('Failed to initialize satellite:', error);
-			// Show user-friendly error message
-			import('svelte-sonner').then(({ toast }) => {
-				toast.error('Failed to initialize application', {
-					description: error instanceof Error ? error.message : 'Unknown error'
-				});
-			});
-		}
-	});
 </script>
 
-<div class="min-h-screen bg-gray-50">
-	<Hero />
+<div class="min-h-screen bg-gray-900 text-gray-100">
 	<main id="main-content">
-		<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-			<ErrorBoundary>
-				{@render children?.()}
-			</ErrorBoundary>
-		</div>
+		{@render children?.()}
 	</main>
-	<Toaster position="top-right" />
 </div>

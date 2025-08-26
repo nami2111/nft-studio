@@ -4,6 +4,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* JetBrains Mono font faces */
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 400;
+	src: url('/fonts/jetbrainsmono-regular.woff2') format('woff2');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 700;
+	src: url('/fonts/jetbrainsmono-bold.woff2') format('woff2');
+	font-display: swap;
+}
+
 :root {
 	--radius: 0.625rem;
 	--background: oklch(1 0 0);
