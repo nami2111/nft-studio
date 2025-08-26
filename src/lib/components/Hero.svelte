@@ -13,26 +13,24 @@
 <section class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16">
 	<!-- Decorative background elements -->
 	<div class="absolute inset-0 overflow-hidden">
-		<!-- Grid pattern -->
+		<!-- Custom gradient with transparent center -->
 		<div
-			class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.1)_0%,rgba(0,0,0,0)_70%)]"
+			class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.1)_0%,rgba(59,130,246,0.05)_40%,rgba(0,0,0,0)_70%)]"
 		></div>
 
-		<!-- Floating windows -->
-		<div
-			class="absolute top-1/4 left-1/4 h-32 w-32 rounded-lg border border-gray-700 bg-gray-800/50 shadow-lg"
-		></div>
-		<div
-			class="absolute top-1/3 right-1/4 h-24 w-48 rounded-lg border border-gray-700 bg-gray-800/50 shadow-lg"
-		></div>
-		<div
-			class="absolute bottom-1/4 left-1/3 h-40 w-36 rounded-lg border border-gray-700 bg-gray-800/50 shadow-lg"
-		></div>
-
-		<!-- Floating lines -->
-		<div class="absolute top-1/2 left-1/6 h-px w-24 bg-blue-500/30"></div>
-		<div class="absolute top-1/3 right-1/6 h-px w-32 bg-purple-500/30"></div>
-		<div class="absolute bottom-1/3 left-1/5 h-px w-20 bg-cyan-500/30"></div>
+		<!-- Blockchain element centered -->
+		<div class="absolute inset-0 flex items-center justify-center">
+			<img
+				src="/blockchain-element.webp"
+				alt="Blockchain element"
+				class="z-0 opacity-80"
+				style="max-width: 2000px; width: 250%; height: auto;"
+			/>
+			<!-- Inverse circle gradient overlay -->
+			<div
+				class="absolute inset-0 z-1 bg-[radial-gradient(ellipse_at_center,rgba(6,17,43,0)_0%,rgba(6,17,43,0.5)_40%,rgba(6,17,43,1)_70%)]"
+			></div>
+		</div>
 	</div>
 
 	<div class="relative z-10 mx-auto w-full max-w-4xl">
