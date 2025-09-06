@@ -1,19 +1,19 @@
+// Legacy loading store for backward compatibility
+// New implementation uses runes in stores.svelte
 import { writable } from 'svelte/store';
 
 interface LoadingState {
 	[key: string]: boolean;
 }
 
-const initialState: LoadingState = {};
-
 function createLoadingStore() {
-	const { subscribe, set, update } = writable<LoadingState>(initialState);
+	const { subscribe, set, update } = writable<LoadingState>({});
 
 	return {
 		subscribe,
 		start: (key: string) => update((state) => ({ ...state, [key]: true })),
 		stop: (key: string) => update((state) => ({ ...state, [key]: false })),
-		reset: () => set(initialState),
+		reset: () => set({}),
 		isLoading: (key: string) => {
 			let loading = false;
 			const unsubscribe = subscribe((state) => {
@@ -22,7 +22,6 @@ function createLoadingStore() {
 			unsubscribe();
 			return loading;
 		},
-		// Get all loading states
 		getAll: () => {
 			let allStates: LoadingState = {};
 			const unsubscribe = subscribe((state) => {

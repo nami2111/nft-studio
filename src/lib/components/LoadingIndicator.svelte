@@ -5,12 +5,13 @@
 	interface Props {
 		operation: string;
 		message?: string;
+		isLoading?: boolean;
 	}
 
-	const { operation, message = 'Loading...' }: Props = $props();
+	const { operation, message = 'Loading...', isLoading: externalIsLoading }: Props = $props();
 
 	// Create a reactive variable that updates when the loading state changes
-	let isLoading = $derived(loadingStore.isLoading(operation));
+	let isLoading = $derived(externalIsLoading ?? loadingStore.isLoading(operation));
 </script>
 
 {#if isLoading}

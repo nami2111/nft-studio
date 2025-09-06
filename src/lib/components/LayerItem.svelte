@@ -4,7 +4,7 @@
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
 	import { layersStore, traitsStore } from '$lib/stores';
-	import { project } from '$lib/stores/project/project.store';
+	import { project, startLoading, stopLoading, isLoading } from '$lib/stores/runes-store';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
@@ -12,7 +12,6 @@
 	import { getImageDimensions } from '$lib/utils';
 	import { onMount, onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
-	import { loadingStore } from '$lib/stores/loading.store';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
@@ -22,21 +21,7 @@
 	const { layer }: Props = $props();
 
 	let layerName = $derived(layer.name);
-	let isUploading = $state(loadingStore.isLoading(`layer-upload-${layer.id}`));
-	let unsubscribe: (() => void) | null = null;
-
-	// Keep isUploading in sync with the loading store
-	unsubscribe = loadingStore.subscribe((state) => {
-		isUploading = state[`layer-upload-${layer.id}`] || false;
-	});
-
-	// Clean up subscription on destroy
-	onDestroy(() => {
-		if (unsubscribe) {
-			unsubscribe();
-			unsubscribe = null;
-		}
-	});
+	let isUploading = $derived(isLoading(`layer-upload-${layer.id}`));
 
 	let uploadProgress = $state(0); // Track upload progress
 
@@ -177,7 +162,7 @@
 		if (!files || files.length === 0) return;
 
 		// Start loading state
-		loadingStore.start(`layer-upload-${layer.id}`);
+		startLoading(`layer-upload-${layer.id}`);
 		uploadProgress = 0;
 		isDragover = false;
 
@@ -324,7 +309,7 @@
 			});
 		} finally {
 			// Stop loading state
-			loadingStore.stop(`layer-upload-${layer.id}`);
+			stopLoading(`layer-upload-${layer.id}`);
 			// Reset file input
 			if (fileInputElement) {
 				fileInputElement.value = '';
@@ -568,6 +553,7 @@
 									<LoadingIndicator
 										operation={`layer-upload-${layer.id}`}
 										message="Uploading files..."
+										isLoading={isUploading}
 									/>
 								</div>
 							</div>

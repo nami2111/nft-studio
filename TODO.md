@@ -43,7 +43,7 @@
 
 ### Architecture
 
-- [ ] Refactor stores to use Svelte 5 runes for better reactivity
+- [x] Refactor stores to use Svelte 5 runes for better reactivity
 - [x] Implement proper TypeScript interfaces for all domain models
 - [ ] Add proper unit tests for critical domain functions
 - [ ] Implement proper error boundaries for worker failures
@@ -151,7 +151,7 @@
 ## 📈 Progress Tracking
 
 - **Total Items**: 50
-- **Completed**: 7
+- **Completed**: 8
 - **In Progress**: 0
 - **Blocked**: 0
 
