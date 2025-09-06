@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Dialog,
@@ -61,14 +63,13 @@
 						Perfect for artists, creators, and collectors.
 					</p>
 					<div class="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
-						<a href="/app">
-							<Button
-								size="lg"
-								class="bg-blue-600 px-8 py-6 font-['JetBrains_Mono'] text-lg text-white hover:bg-blue-700"
-							>
-								Get Started
-							</Button>
-						</a>
+						<Button
+							size="lg"
+							class="bg-blue-600 px-8 py-6 font-['JetBrains_Mono'] text-lg text-white hover:bg-blue-700"
+							onclick={() => goto(resolve('/app'))}
+						>
+							Get Started
+						</Button>
 						<Dialog>
 							<DialogTrigger>
 								<Button
