@@ -12,7 +12,10 @@
 	let { children }: Props = $props();
 
 	onMount(async () => {
-		if (import.meta.env.VITE_APP_SATELLITE_ID && import.meta.env.VITE_APP_SATELLITE_ID !== '<DEV_SATELLITE_ID>') {
+		if (
+			import.meta.env.VITE_APP_SATELLITE_ID &&
+			import.meta.env.VITE_APP_SATELLITE_ID !== '<DEV_SATELLITE_ID>'
+		) {
 			try {
 				await initSatellite({
 					workers: {
@@ -29,7 +32,9 @@
 				});
 			}
 		} else {
-			console.warn('Satellite initialization skipped: VITE_APP_SATELLITE_ID is not set or is a placeholder.');
+			console.warn(
+				'Satellite initialization skipped: VITE_APP_SATELLITE_ID is not set or is a placeholder.'
+			);
 		}
 	});
 </script>

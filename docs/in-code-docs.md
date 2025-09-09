@@ -72,6 +72,7 @@ for (let i = traits.length - 1; i > 0; i--) {
 3. **Configuration Options**: Environment variables, settings, and parameters
 4. **Data Structures**: Purpose and usage of complex objects
 5. **Side Effects**: Functions that modify state or have external dependencies
+6. **Utility Usage**: Integration with project utilities like error-handler.ts for error management and logger.ts for logging
 
 ### What Not to Document
 

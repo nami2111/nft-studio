@@ -11,8 +11,7 @@
 
 ### Performance Optimizations
 
-- [x] Fix inefficient isLoading function in stores that subscribes/unsubscribes on each call
--[x] Implement proper reactive loading state using Svelte 5 runes
+- [x] Fix inefficient isLoading function in stores that subscribes/unsubscribes on each call -[x] Implement proper reactive loading state using Svelte 5 runes
 - [x] Optimize LayerManager re-renders by using proper reactive patterns
 - [x] Add lazy loading for large trait lists in VirtualTraitList component
 

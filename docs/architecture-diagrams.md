@@ -6,17 +6,15 @@ NFT Studio follows a layered architecture pattern with clear separation of conce
 
 ### UI Layer (SvelteKit)
 
-- **Components**: Reusable UI components built with Svelte 5
+- **Components**: Reusable UI components built with Svelte 5 using runes for reactivity ($state, $derived, $effect)
   - Layer management (LayerManager, LayerItem)
   - Trait management (TraitCard, VirtualTraitList)
   - Project management (ProjectManagement, ProjectSettings)
   - Generation workflow (GenerationModal, Preview)
   - UI utilities (LoadingIndicator, ErrorBoundary)
-- **Stores**: Reactive state management using Svelte stores
-  - Project state (project.store)
-  - Layer state (layers.store)
-  - Trait state (traits.store)
-  - Application state (loading.store)
+- **Stores**: Reactive state management using Svelte runes stores in src/lib/stores/
+  - Project state (runes-store.ts)
+  - Layer state via project model
 
 ### Domain Layer
 

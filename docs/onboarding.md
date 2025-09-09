@@ -46,7 +46,6 @@ nft-studio/
 │   ├── routes/        # SvelteKit page routes
 │   └── app.css        # Global styles
 ├── static/            # Static assets
-├── tests/             # Test files
 ├── package.json       # Project configuration
 └── README.md          # Project overview
 ```
@@ -60,7 +59,7 @@ nft-studio/
 pnpm test
 
 # Run tests in watch mode
-pnpm test:watch
+vitest
 
 # Run tests with coverage
 pnpm test:coverage

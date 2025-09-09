@@ -274,8 +274,6 @@ export function resetLoading(): void {
 	loadingStore.set({});
 }
 
-
-
 // Save project to ZIP
 export async function saveProjectToZip(): Promise<void> {
 	startLoading('project-save');
