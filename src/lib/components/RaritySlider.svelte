@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { traitsStore } from '$lib/stores';
+	import { updateTraitRarity } from '$lib/stores/runes-store';
 	import { Slider } from '$lib/components/ui/slider';
 
 	interface Props {
@@ -21,7 +21,7 @@
 
 	function handleRarityChange(value: number) {
 		sliderValue = value;
-		traitsStore.updateTraitRarity(layerId, traitId, value);
+		updateTraitRarity(layerId, traitId, value);
 	}
 </script>
 

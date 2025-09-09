@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { loadingStore } from '$lib/stores/loading.store';
+	import { loadingStates } from '$lib/stores/runes-store';
 	import { Loader2 } from 'lucide-svelte';
 
 	interface Props {
@@ -11,7 +11,7 @@
 	const { operation, message = 'Loading...', isLoading: externalIsLoading }: Props = $props();
 
 	// Create a reactive variable that updates when the loading state changes
-	let isLoading = $derived(externalIsLoading ?? loadingStore.isLoading(operation));
+	let isLoading = $derived(externalIsLoading ?? loadingStates[operation]);
 </script>
 
 {#if isLoading}

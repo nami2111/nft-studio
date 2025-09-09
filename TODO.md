@@ -4,17 +4,17 @@
 
 ### Core Functionality
 
-- [ ] Fix ProjectSettings component to use proper store update functions instead of direct store manipulation
-- [ ] Remove window.location.reload() calls in GenerationModal and implement proper state management
-- [ ] Clean up commented code in GenerationModal component
-- [ ] Migrate all components to use the new runes-based stores (runes-store.ts) instead of legacy stores
+- [x] Fix ProjectSettings component to use proper store update functions instead of direct store manipulation
+- [x] Remove window.location.reload() calls in GenerationModal and implement proper state management
+- [x] Clean up commented code in GenerationModal component
+- [x] Migrate all components to use the new runes-based stores (runes-store.ts) instead of legacy stores
 
 ### Performance Optimizations
 
-- [ ] Fix inefficient isLoading function in stores that subscribes/unsubscribes on each call
-- [ ] Implement proper reactive loading state using Svelte 5 runes
-- [ ] Optimize LayerManager re-renders by using proper reactive patterns
-- [ ] Add lazy loading for large trait lists in VirtualTraitList component
+- [x] Fix inefficient isLoading function in stores that subscribes/unsubscribes on each call
+-[x] Implement proper reactive loading state using Svelte 5 runes
+- [x] Optimize LayerManager re-renders by using proper reactive patterns
+- [x] Add lazy loading for large trait lists in VirtualTraitList component
 
 ### User Experience
 

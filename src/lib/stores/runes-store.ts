@@ -3,14 +3,16 @@ import type { Project } from '$lib/types/project';
 import type { Layer } from '$lib/types/layer';
 import type { Trait } from '$lib/types/trait';
 import { LocalStorageStore } from '$lib/persistence/storage';
-import { fileToArrayBuffer } from '$lib/utils';
+import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
 import {
 	isValidDimensions,
 	isValidProjectName,
 	isValidLayerName,
-	isValidTraitName
+	isValidTraitName,
+	isValidImportedProject
 } from '$lib/utils/validation';
-import { handleValidationError } from '$lib/utils/error-handler';
+import { handleValidationError, handleFileError } from '$lib/utils/error-handler';
+import JSZip from 'jszip';
 
 // Local storage key
 const PROJECT_STORAGE_KEY = 'nft-studio-project';
@@ -26,7 +28,8 @@ function defaultProject(): Project {
 			width: 0,
 			height: 0
 		},
-		layers: []
+		layers: [],
+		_needsProperLoad: true
 	};
 }
 
@@ -271,13 +274,179 @@ export function resetLoading(): void {
 	loadingStore.set({});
 }
 
-export function isLoading(key: string): boolean {
-	let loading = false;
-	const unsubscribe = loadingStore.subscribe((state) => {
-		loading = state[key] || false;
+
+
+// Save project to ZIP
+export async function saveProjectToZip(): Promise<void> {
+	startLoading('project-save');
+
+	try {
+		const zip = new JSZip();
+		const currentProject = get(projectStore);
+
+		const projectConfig = {
+			...currentProject,
+			layers: currentProject.layers.map((layer) => ({
+				...layer,
+				traits: layer.traits.map((trait) => ({
+					...trait,
+					imageData: undefined
+				}))
+			})),
+			exportedAt: new Date().toISOString()
+		};
+
+		zip.file('project.json', JSON.stringify(projectConfig, null, 2));
+
+		for (const layer of currentProject.layers) {
+			const layerFolder = zip.folder(normalizeFilename(layer.name));
+			if (layerFolder) {
+				for (const trait of layer.traits) {
+					if (trait.imageData && trait.imageData.byteLength > 0) {
+						const safeTraitName = normalizeFilename(trait.name);
+						const blob = new Blob([trait.imageData], { type: 'image/png' });
+						layerFolder.file(`${safeTraitName}.png`, blob);
+					}
+				}
+			}
+		}
+
+		const content = await zip.generateAsync({ type: 'blob' });
+		const url = URL.createObjectURL(content);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${currentProject.name || 'project'}.zip`;
+		a.click();
+		URL.revokeObjectURL(url);
+	} catch (error) {
+		handleFileError(error, {
+			context: { component: 'ProjectStore', action: 'saveProjectToZip' },
+			title: 'Save Failed',
+			description: 'Failed to save project to ZIP file. Please try again.'
+		});
+	} finally {
+		stopLoading('project-save');
+	}
+}
+
+// Load project from ZIP
+export async function loadProjectFromZip(file: File): Promise<boolean> {
+	startLoading('project-load');
+
+	try {
+		const zip = new JSZip();
+		const contents = await zip.loadAsync(file);
+
+		const projectFile = contents.file('project.json');
+		if (!projectFile) {
+			throw new Error('Invalid project file: missing project.json');
+		}
+
+		const projectJson = await projectFile.async('text');
+		const projectData = JSON.parse(projectJson);
+
+		if (!isValidImportedProject(projectData)) {
+			throw new Error('Invalid project file format');
+		}
+
+		const validatedProjectData = projectData as {
+			id?: string;
+			name: string;
+			description?: string;
+			outputSize?: { width: number; height: number };
+			layers: Array<{
+				id?: string;
+				name: string;
+				order?: number;
+				traits: Array<{
+					id?: string;
+					name: string;
+					rarityWeight?: number;
+					imageData?: ArrayBuffer;
+					imageUrl?: string;
+					[key: string]: unknown;
+				}>;
+				[key: string]: unknown;
+			}>;
+			[key: string]: unknown;
+		};
+
+		const layersWithImages: Layer[] = [];
+		for (const layer of validatedProjectData.layers) {
+			const layerWithTraits: Layer = {
+				id: layer.id || crypto.randomUUID(),
+				name: layer.name,
+				order: layer.order ?? 0,
+				isOptional: layer.isOptional ? true : undefined,
+				traits: []
+			};
+
+			const layerFolder = contents.folder(layer.name);
+			if (layerFolder) {
+				for (const trait of layer.traits) {
+					const traitFile = layerFolder.file(`${trait.name}.png`);
+					if (traitFile) {
+						const blob = await traitFile.async('blob');
+						const imageData = await fileToArrayBuffer(blob as unknown as File);
+						layerWithTraits.traits.push({
+							id: trait.id || crypto.randomUUID(),
+							name: trait.name,
+							imageData,
+							imageUrl: URL.createObjectURL(blob),
+							width: (trait.width as number) || 0,
+							height: (trait.height as number) || 0,
+							rarityWeight: (trait.rarityWeight as number) || 1
+						});
+					}
+				}
+			}
+			layersWithImages.push(layerWithTraits);
+		}
+
+		const outputSize = validatedProjectData.outputSize || { width: 0, height: 0 };
+		const projectToSet: Project = {
+			id: validatedProjectData.id || crypto.randomUUID(),
+			name: validatedProjectData.name,
+			description: validatedProjectData.description || '',
+			outputSize,
+			layers: layersWithImages.map((layer: Layer) => ({
+				...layer,
+				id: layer.id || crypto.randomUUID(),
+				traits: layer.traits.map((trait: Trait) => ({
+					...trait,
+					id: trait.id || crypto.randomUUID()
+				}))
+			}))
+		};
+
+		projectStore.set(projectToSet);
+
+		return true;
+	} catch (error) {
+		handleFileError(error, {
+			context: { component: 'ProjectStore', action: 'loadProjectFromZip' },
+			title: 'Load Failed',
+			description: 'Failed to load project from ZIP file. Please check the file and try again.'
+		});
+		return false;
+	} finally {
+		stopLoading('project-load');
+	}
+}
+
+// Check if project needs proper loading from ZIP
+export function projectNeedsZipLoad(): boolean {
+	const currentProject = get(projectStore);
+	return currentProject._needsProperLoad === true;
+}
+
+// Mark project as properly loaded
+export function markProjectAsLoaded(): void {
+	projectStore.update((p) => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const { _needsProperLoad: _, ...projectWithoutFlag } = p;
+		return projectWithoutFlag as Project;
 	});
-	unsubscribe();
-	return loading;
 }
 
 // Export stores for direct access

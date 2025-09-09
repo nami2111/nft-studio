@@ -2,11 +2,10 @@
 	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
 	import JSZip from 'jszip';
-	import { project } from '$lib/stores/project/project.store';
+	import { project, loadingStates, startLoading, stopLoading } from '$lib/stores/runes-store';
 	import { Button } from '$lib/components/ui/button';
 	import { startGeneration, cancelGeneration } from '$lib/workers/generation.worker.client';
 	import { prepareLayersForWorker } from '$lib/domain/project.domain';
-	import { loadingStore } from '$lib/stores/loading.store';
 	import { Play } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
@@ -21,10 +20,9 @@
 
 	// State
 	let collectionSize = $state(100);
-	let isGenerating = $derived(loadingStore.isLoading('generation'));
+	let isGenerating = $derived(loadingStates['generation']);
 	let progress = $state(0);
 	let statusText = $state('Ready to generate');
-	// let errorDetails = $state<{ message: string; context?: unknown } | null>(null);
 	let open = $state(false);
 	// Accumulators for chunked data
 	let allImages: { name: string; imageData: ArrayBuffer }[] = [];
@@ -50,7 +48,7 @@
 	}
 
 	function resetState() {
-		loadingStore.stop('generation');
+		stopLoading('generation');
 		updateProgress(0, 0, 'Ready to generate.');
 		// Clear accumulators
 		allImages = [];
@@ -107,26 +105,18 @@
 
 		// Reset state
 		resetState();
-		// showError = false;
-		// errorDetails = null;
-		// isCancelled = false;
 
 		try {
 			const projectData = get(project);
 
 			// Validate project has layers
 			if (projectData.layers.length === 0) {
-				// errorDetails = { message: 'Project must have at least one layer.' };
 				toast.error('Project must have at least one layer.');
 				return;
 			}
 
 			// Validate project has valid output size
 			if (projectData.outputSize.width <= 0 || projectData.outputSize.height <= 0) {
-				// errorDetails = {
-				// 	message:
-				// 		'Project output size not set. Please upload an image to set the project dimensions.'
-				// };
 				toast.error(
 					'Project output size not set. Please upload an image to set the project dimensions.'
 				);
@@ -136,9 +126,6 @@
 			// Validate layers have traits
 			const emptyLayers = projectData.layers.filter((layer) => layer.traits.length === 0);
 			if (emptyLayers.length > 0) {
-				// errorDetails = {
-				// 	message: `The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`
-				// };
 				toast.error(
 					`The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`
 				);
@@ -156,9 +143,6 @@
 			const missingImages = traitList.filter((t) => !t.imageData || t.imageData.byteLength === 0);
 
 			if (missingImages.length > 0) {
-				// errorDetails = {
-				// 	message: `Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`
-				// };
 				toast.error(
 					`Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`
 				);
@@ -166,7 +150,7 @@
 			}
 
 			// Start loading state
-			loadingStore.start('generation');
+			startLoading('generation');
 			updateProgress(0, collectionSize, 'Validating project data...');
 
 			// Validate layers before starting generation
@@ -209,10 +193,7 @@
 						// In our new system, we'll know it's done when we've received all expected items
 						if (allImages.length >= collectionSize || payload.images.length === 0) {
 							await packageZip(allImages, allMetadata);
-							// Auto-refresh after successful generation
-							setTimeout(() => {
-								window.location.reload();
-							}, 2500);
+							open = false;
 						}
 						break;
 					case 'cancelled':
@@ -224,10 +205,7 @@
 						// Show info message for cancellation
 						toast.info('Generation has been cancelled.');
 						resetState();
-						// Auto-refresh after cancellation
-						setTimeout(() => {
-							window.location.reload();
-						}, 1500);
+						open = false;
 						break;
 					case 'error':
 						toast.error(payload.message);
@@ -252,10 +230,6 @@
 				workerMessageHandler
 			);
 		} catch (error) {
-			// errorDetails = {
-			// 	message:
-			// 		error instanceof Error ? error.message : 'An unknown error occurred during generation'
-			// };
 			toast.error(
 				error instanceof Error ? error.message : 'An unknown error occurred during generation'
 			);
@@ -274,7 +248,7 @@
 	function handleCancel() {
 		// Use the public cancel API to terminate all workers
 		cancelGeneration();
-		loadingStore.stop('generation');
+		stopLoading('generation');
 		updateProgress(0, collectionSize, 'Generation cancelled by user.');
 		toast.info('Generation has been cancelled.');
 		resetState();

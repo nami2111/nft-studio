@@ -8,10 +8,8 @@
 
 <div class="container mx-auto py-6">
 	<!-- Project Management Section -->
-	<div class="mb-6 flex justify-start">
-		<div class="w-full max-w-4xl">
-			<ProjectManagement />
-		</div>
+	<div class="mb-6 flex justify-start lg:col-span-2">
+		<ProjectManagement />
 	</div>
 
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">

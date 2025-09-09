@@ -12,20 +12,24 @@
 	let { children }: Props = $props();
 
 	onMount(async () => {
-		try {
-			await initSatellite({
-				workers: {
-					auth: true
-				}
-			});
-		} catch (error) {
-			console.error('Failed to initialize satellite:', error);
-			// Show user-friendly error message
-			import('svelte-sonner').then(({ toast }) => {
-				toast.error('Failed to initialize application', {
-					description: error instanceof Error ? error.message : 'Unknown error'
+		if (import.meta.env.VITE_APP_SATELLITE_ID && import.meta.env.VITE_APP_SATELLITE_ID !== '<DEV_SATELLITE_ID>') {
+			try {
+				await initSatellite({
+					workers: {
+						auth: true
+					}
 				});
-			});
+			} catch (error) {
+				console.error('Failed to initialize satellite:', error);
+				// Show user-friendly error message
+				import('svelte-sonner').then(({ toast }) => {
+					toast.error('Failed to initialize application', {
+						description: error instanceof Error ? error.message : 'Unknown error'
+					});
+				});
+			}
+		} else {
+			console.warn('Satellite initialization skipped: VITE_APP_SATELLITE_ID is not set or is a placeholder.');
 		}
 	});
 </script>

@@ -2,7 +2,7 @@
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Trait } from '$lib/types/trait';
 	import RaritySlider from '$lib/components/RaritySlider.svelte';
-	import { traitsStore } from '$lib/stores';
+	import { removeTrait, updateTraitName } from '$lib/stores/runes-store';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Edit, Trash2, Check, X } from 'lucide-svelte';
@@ -22,7 +22,7 @@
 			action: {
 				label: 'Delete',
 				onClick: () => {
-					traitsStore.removeTrait(layerId, trait.id);
+					removeTrait(layerId, trait.id);
 					toast.success(`Trait "${trait.name}" has been deleted.`);
 				}
 			},
@@ -46,7 +46,7 @@
 			return;
 		}
 
-		traitsStore.updateTraitName(layerId, trait.id, traitName);
+		updateTraitName(layerId, trait.id, traitName);
 		toast.success('Trait name updated.');
 		isEditing = false;
 	}

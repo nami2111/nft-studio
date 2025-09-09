@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { layersStore } from '$lib/stores';
-	import { project } from '$lib/stores/project/project.store';
+	import { project, addLayer, reorderLayers } from '$lib/stores/runes-store';
 	import LayerItem from '$lib/components/LayerItem.svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
@@ -9,13 +8,8 @@
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Loader2 } from 'lucide-svelte';
 
-	let layers = $state<Layer[]>([]);
+	let layers = $derived($project.layers);
 	let isAddingLayer = $state(false);
-
-	// Subscribe to store changes
-	project.subscribe((p) => {
-		layers = p.layers;
-	});
 
 	async function handleAddLayer() {
 		if (isAddingLayer) return;
@@ -23,7 +17,7 @@
 
 		try {
 			const newLayerName = `Layer ${layers.length + 1}`;
-			layersStore.addLayer({
+			addLayer({
 				name: newLayerName,
 				order: layers.length
 			});
@@ -42,18 +36,18 @@
 
 	function handleDndFinalize(e: CustomEvent) {
 		const { items: newItems } = e.detail;
-		const reorderedLayers = newItems.map((layer: Layer, index: number) => ({
+		const reordered = newItems.map((layer: Layer, index: number) => ({
 			...layer,
 			order: index
 		}));
-		layersStore.reorderLayers(reorderedLayers);
+		reorderLayers(reordered);
 	}
 </script>
 
 <Card class="mt-6">
 	<CardContent class="p-6">
 		<div class="mb-4 flex items-center justify-between">
-			<h2 class="text-xl font-bold text-gray-800">Layers</h2>
+			<h2 class="text-xl font-bold text-gray-800">Layers ({layers.length})</h2>
 			<Button onclick={handleAddLayer} disabled={isAddingLayer}>
 				{#if isAddingLayer}
 					<Loader2 class="mr-2 h-4 w-4 animate-spin" />

@@ -3,8 +3,18 @@
 	import type { Layer } from '$lib/types/layer';
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
-	import { layersStore, traitsStore } from '$lib/stores';
-	import { project, startLoading, stopLoading, isLoading } from '$lib/stores/runes-store';
+	import {
+		project,
+		startLoading,
+		stopLoading,
+		loadingStates,
+		removeTrait,
+		updateTraitRarity,
+		updateTraitName,
+		addTrait,
+		updateLayerName,
+		removeLayer
+	} from '$lib/stores/runes-store';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
@@ -21,7 +31,7 @@
 	const { layer }: Props = $props();
 
 	let layerName = $derived(layer.name);
-	let isUploading = $derived(isLoading(`layer-upload-${layer.id}`));
+	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`]);
 
 	let uploadProgress = $state(0); // Track upload progress
 
@@ -71,7 +81,7 @@
 				onClick: () => {
 					// Delete all selected traits
 					selectedTraits.forEach((traitId) => {
-						traitsStore.removeTrait(layer.id, traitId);
+						removeTrait(layer.id, traitId);
 					});
 					toast.success(`${selectedTraits.size} trait(s) deleted successfully.`);
 					clearSelection();
@@ -90,7 +100,7 @@
 
 		// Update rarity for all selected traits
 		selectedTraits.forEach((traitId) => {
-			traitsStore.updateTraitRarity(layer.id, traitId, bulkRarityWeight);
+			updateTraitRarity(layer.id, traitId, bulkRarityWeight);
 		});
 		toast.success(`Rarity updated for ${selectedTraits.size} trait(s).`);
 	}
@@ -112,7 +122,7 @@
 			if (trait) {
 				const newName = `${bulkNewName}_${count + 1}`;
 				if (newName.length <= 100) {
-					traitsStore.updateTraitName(layer.id, traitId, newName);
+					updateTraitName(layer.id, traitId, newName);
 					successCount++;
 				}
 			}
@@ -137,7 +147,7 @@
 			return;
 		}
 
-		layersStore.updateLayerName(layer.id, layerName);
+		updateLayerName(layer.id, layerName);
 		isEditing = false;
 	}
 
@@ -155,7 +165,7 @@
 				}
 			}
 		});
-		layersStore.removeLayer(layer.id);
+		removeLayer(layer.id);
 	}
 
 	async function handleFileUpload(files: FileList | null) {
@@ -243,7 +253,7 @@
 							throw new Error(`File "${file.name}" has an invalid name`);
 						}
 
-						await traitsStore.addTrait(layer.id, {
+						await addTrait(layer.id, {
 							name: safeName,
 							imageUrl: tempImageUrl,
 							imageData: file,
@@ -530,7 +540,7 @@
 				<div
 					class="flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors {isDragover
 						? 'border-indigo-600 bg-indigo-50'
-						: 'border-gray-300'}"
+						: 'gray-300'}"
 					ondragover={(e) => {
 						e.preventDefault();
 						isDragover = true;
@@ -695,16 +705,7 @@
 					{:else}
 						<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
 							{#each filteredTraits as trait (trait.id)}
-								{#if layer.traits.length > 50}
-									<!-- Lazy load trait cards when there are many traits -->
-									<div class="lazy-trait-container" data-trait-id={trait.id}>
-										<div class="lazy-trait-placeholder">
-											<div class="h-full w-full rounded-lg bg-gray-200"></div>
-										</div>
-									</div>
-								{:else}
-									<TraitCard {trait} layerId={layer.id} />
-								{/if}
+								<TraitCard {trait} layerId={layer.id} />
 							{/each}
 						</div>
 					{/if}
