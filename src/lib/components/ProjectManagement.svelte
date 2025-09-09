@@ -8,7 +8,8 @@
 		project,
 		loadingStates,
 		projectNeedsZipLoad,
-		markProjectAsLoaded
+		markProjectAsLoaded,
+		getLoadingState
 	} from '$lib/stores/runes-store';
 	import { get } from 'svelte/store';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
@@ -26,8 +27,8 @@
 	let saveDialogOpen = $state(false);
 	let loadFileInputElement: HTMLInputElement | null = null;
 	let saveFileInputElement: HTMLInputElement | null = null;
-	let isProjectLoading = $derived(loadingStates['project-load']);
-	let isProjectSaving = $derived(loadingStates['project-save']);
+	let isProjectLoading = $derived(getLoadingState('project-load'));
+	let isProjectSaving = $derived(getLoadingState('project-save'));
 
 	// Track unsaved changes
 	let hasUnsavedChanges = $derived(
@@ -142,19 +143,23 @@
 			</DialogHeader>
 			<div class="space-y-4">
 				<div
-					class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-blue-500 hover:border-gray-400"
+					class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-blue-500 hover:border-gray-400 {isProjectLoading ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500' : ''}"
 					role="button"
 					tabindex="0"
 					ondragover={(e) => {
 						e.preventDefault();
-						e.dataTransfer.dropEffect = 'copy';
+						if (e.dataTransfer) {
+							e.dataTransfer.dropEffect = 'copy';
+						}
 					}}
 					ondragenter={(e) => e.preventDefault()}
 					ondragleave={(e) => e.preventDefault()}
 					ondrop={(e) => {
 						e.preventDefault();
-						const files = e.dataTransfer.files;
-						handleLoadProject(files);
+						if (e.dataTransfer) {
+							const files = e.dataTransfer.files;
+							handleLoadProject(files);
+						}
 					}}
 				>
 					<input

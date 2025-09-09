@@ -17,10 +17,11 @@
 
 ### User Experience
 
-- [ ] Add loading states for file uploads and processing
-- [ ] Implement proper error boundaries for better error handling UX
-- [ ] Add undo/redo functionality for project changes
-- [ ] Improve drag and drop feedback with better visual indicators
+// Added enhanced visual feedback (highlighting, icons) to drag and drop areas in ProjectManagement and LayerItem
+- [x] Add loading states for file uploads and processing
+- [x] Implement proper error boundaries for better error handling UX
+- [x] Add undo/redo functionality for project changes
+- [x] Improve drag and drop feedback with better visual indicators
 
 ## 🎨 UI/UX Improvements
 

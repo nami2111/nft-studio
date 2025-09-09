@@ -20,7 +20,7 @@
 
 	// State
 	let collectionSize = $state(100);
-	let isGenerating = $derived(loadingStates['generation']);
+	let isGenerating = $derived($loadingStates['generation'] as boolean);
 	let progress = $state(0);
 	let statusText = $state('Ready to generate');
 	let open = $state(false);

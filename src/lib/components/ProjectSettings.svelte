@@ -1,18 +1,15 @@
 <script lang="ts">
-	import {
-		projectStore as project,
-		updateProjectName,
-		updateProjectDescription
-	} from '$lib/stores/runes-store';
+	import { project, updateProjectName, updateProjectDescription } from '$lib/stores/runes-store';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import type { Project } from '$lib/types/project';
 
 	let projectName = $state('');
 	let projectDescription = $state('');
-	let nameTimeout: NodeJS.Timeout;
-	let descTimeout: NodeJS.Timeout;
+	let nameTimeout: ReturnType<typeof setTimeout>;
+	let descTimeout: ReturnType<typeof setTimeout>;
 	const MAX_NAME_LENGTH = 100;
 	const MAX_DESC_LENGTH = 500;
 
@@ -70,9 +67,8 @@
 			id="projectName"
 			type="text"
 			value={projectName}
-			on:input={(e) => debounceNameSave(e.currentTarget.value)}
+			oninput={(e: Event) => debounceNameSave((e.target as HTMLInputElement).value)}
 			placeholder="Enter project name"
-			maxLength={MAX_NAME_LENGTH}
 		/>
 		<p class="mt-1 text-xs text-gray-500">{projectName.length}/{MAX_NAME_LENGTH}</p>
 	</div>
@@ -83,11 +79,10 @@
 		>
 		<Textarea
 			id="projectDescription"
-			rows="3"
+			rows={3}
 			value={projectDescription}
-			on:input={(e) => debounceDescSave(e.currentTarget.value)}
+			oninput={(e: Event) => debounceDescSave((e.target as HTMLInputElement).value)}
 			placeholder="Enter project description"
-			maxLength={MAX_DESC_LENGTH}
 		/>
 		<p class="mt-1 text-xs text-gray-500">{projectDescription.length}/{MAX_DESC_LENGTH}</p>
 	</div>

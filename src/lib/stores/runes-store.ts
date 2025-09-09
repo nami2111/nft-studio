@@ -1,4 +1,5 @@
 import { writable, get } from 'svelte/store';
+import type { Writable } from 'svelte/store';
 import type { Project } from '$lib/types/project';
 import type { Layer } from '$lib/types/layer';
 import type { Trait } from '$lib/types/trait';
@@ -87,11 +88,11 @@ export function updateProjectName(name: string): void {
 		);
 		return;
 	}
-	projectStore.update((p) => ({ ...p, name }));
+	projectStore.update((p: Project) => ({ ...p, name }));
 }
 
 export function updateProjectDescription(description: string): void {
-	projectStore.update((p) => ({ ...p, description }));
+	projectStore.update((p: Project) => ({ ...p, description }));
 }
 
 export function updateProjectDimensions(width: number, height: number): void {
@@ -104,7 +105,7 @@ export function updateProjectDimensions(width: number, height: number): void {
 		);
 		return;
 	}
-	projectStore.update((p) => ({ ...p, outputSize: { width, height } }));
+	projectStore.update((p: Project) => ({ ...p, outputSize: { width, height } }));
 }
 
 export function addLayer(layer: Omit<Layer, 'id' | 'traits'>): void {
@@ -284,9 +285,9 @@ export async function saveProjectToZip(): Promise<void> {
 
 		const projectConfig = {
 			...currentProject,
-			layers: currentProject.layers.map((layer) => ({
+			layers: currentProject.layers.map((layer: Layer) => ({
 				...layer,
-				traits: layer.traits.map((trait) => ({
+				traits: layer.traits.map((trait: Trait) => ({
 					...trait,
 					imageData: undefined
 				}))
@@ -417,7 +418,17 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 			}))
 		};
 
-		projectStore.set(projectToSet);
+		projectStore.update((p: Project) => ({
+	...p,
+	layers: layersWithImages.map((layer: Layer) => ({
+		...layer,
+		id: layer.id || crypto.randomUUID(),
+		traits: layer.traits.map((trait: Trait) => ({
+			...trait,
+			id: trait.id || crypto.randomUUID()
+		}))
+	}))
+}));
 
 		return true;
 	} catch (error) {
@@ -447,5 +458,11 @@ export function markProjectAsLoaded(): void {
 	});
 }
 
+// Helper function to get loading state
+export function getLoadingState(key: string): boolean {
+	return get(loadingStore)[key] ?? false;
+}
+
 // Export stores for direct access
-export { projectStore as project, loadingStore as loadingStates };
+export const project: Writable<Project> = projectStore;
+export const loadingStates: Writable<Record<string, boolean>> = loadingStore;

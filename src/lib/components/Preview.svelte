@@ -24,6 +24,7 @@
 				if (trait.imageUrl) urlsInUse.add(trait.imageUrl);
 			}
 		}
+	
 		// Remove any cached images that are no longer referenced by current project traits
 		for (const cachedUrl of imageCache.keys()) {
 			if (!urlsInUse.has(cachedUrl)) {
@@ -33,7 +34,7 @@
 	}
 
 	// Derived selected trait IDs with memoization
-	let selectedTraitIds = $derived($project.layers.map(layer => layer.traits.length > 0 ? layer.traits[0].id : ''));
+	let selectedTraitIds = $derived($project.layers.map((layer: any) => layer.traits.length > 0 ? layer.traits[0].id : ''));
 
 	// Derived preview data for memoization
 	let previewData = $derived({
@@ -68,7 +69,7 @@
 			const id = crypto.randomUUID();
 			const handleMessage = (e: MessageEvent) => {
 				if (e.data.id === id) {
-					imageWorker!.removeEventListener('message', handleMessage);
+					imageWorker?.removeEventListener('message', handleMessage);
 					if (e.data.error) {
 						reject(new Error(e.data.error));
 					} else {
@@ -84,8 +85,8 @@
 					}
 				}
 			};
-			imageWorker.addEventListener('message', handleMessage);
-			imageWorker.postMessage({ id, src });
+			imageWorker?.addEventListener('message', handleMessage);
+			imageWorker?.postMessage({ id, src });
 		});
 	}
 
@@ -182,7 +183,7 @@
 		}
 	});
 
-// Function to resize canvas to fit container while maintaining aspect ratio
+	// Function to resize canvas to fit container while maintaining aspect ratio
 	function resizeCanvas() {
 		if (!canvas || !container) return;
 
@@ -222,18 +223,24 @@
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.scale(devicePixelRatio, devicePixelRatio);
 		}
-
-		// Handle canvas initialization and resize
-	$: if (canvas && container) {
-		ctx = canvas.getContext('2d');
-		resizeCanvas();
 	}
+
+	// Handle canvas initialization and resize
+	$effect(() => {
+		if (canvas && container) {
+			ctx = canvas.getContext('2d');
+			resizeCanvas();
+		}
+	});
 
 	// Redraw when project changes - now handled by $derived and $effect
-	$: if ($project) {
-		purgeStaleCache();
-		resizeCanvas();
-	}
+	$effect(() => {
+		if ($project) {
+			purgeStaleCache();
+			resizeCanvas();
+		}
+	});
+
 	function randomize() {
 		const { layers } = $project;
 		const newSelectedTraits: string[] = [];

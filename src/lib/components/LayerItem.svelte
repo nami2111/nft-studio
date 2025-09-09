@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Layer } from '$lib/types/layer';
+	import type { Project } from '$lib/types/project';
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
 	import {
@@ -31,7 +32,7 @@
 	const { layer }: Props = $props();
 
 	let layerName = $derived(layer.name);
-	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`]);
+	let isUploading = $derived($loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
 
@@ -227,7 +228,7 @@
 						}
 
 						// For subsequent uploads, validate dimensions match project output size
-						const projectData = get(project);
+						const projectData = get(project) as Project;
 						if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
 							// Allow some flexibility for rounding errors (±1 pixel)
 							if (
