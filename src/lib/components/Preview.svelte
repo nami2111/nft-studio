@@ -12,8 +12,10 @@
 	let displayWidth = 0;
 	let displayHeight = 0;
 
-	// Image cache to avoid reloading the same images repeatedly
-	const imageCache = new SvelteMap<string, HTMLImageElement>();
+	// Image cache using $state.raw since we don't need deep reactivity
+	const imageCache = $state.raw(new SvelteMap<string, HTMLImageElement>());
+	const cacheAccessTimes = $state.raw(new SvelteMap<string, number>());
+	const MAX_CACHE_SIZE = 20; // Maximum number of images to cache
 
 	// Helper to purge stale cache entries when traits change
 	function purgeStaleCache() {
@@ -24,52 +26,154 @@
 				if (trait.imageUrl) urlsInUse.add(trait.imageUrl);
 			}
 		}
-	
+
 		// Remove any cached images that are no longer referenced by current project traits
 		for (const cachedUrl of imageCache.keys()) {
 			if (!urlsInUse.has(cachedUrl)) {
 				imageCache.delete(cachedUrl);
+				cacheAccessTimes.delete(cachedUrl);
+			}
+		}
+
+		// Enforce cache size limit using LRU strategy
+		if (imageCache.size > MAX_CACHE_SIZE) {
+			const entries = Array.from(cacheAccessTimes.entries());
+			entries.sort((a, b) => a[1] - b[1]);
+
+			// Remove oldest entries until we're under the limit
+			for (let i = 0; i < entries.length - MAX_CACHE_SIZE; i++) {
+				imageCache.delete(entries[i][0]);
+				cacheAccessTimes.delete(entries[i][0]);
 			}
 		}
 	}
 
-	// Derived selected trait IDs with memoization
-	let selectedTraitIds = $derived($project.layers.map((layer: any) => layer.traits.length > 0 ? layer.traits[0].id : ''));
+	// Selected trait IDs state - starts with first trait of each layer
+	// Using $state.raw since we only need reactivity on array reassignment
+	let selectedTraitIds = $state.raw(
+		$project.layers.map((layer) => (layer.traits.length > 0 ? layer.traits[0].id : ''))
+	);
+
+	// Reset selected traits when project layers change
+	$effect(() => {
+		const { layers } = $project;
+		const newSelectedTraits: string[] = [];
+
+		for (let i = 0; i < layers.length; i++) {
+			const layer = layers[i];
+			const currentSelectedId = selectedTraitIds[i];
+
+			// If current selection exists in new layer, keep it, otherwise use first trait
+			if (layer.traits.length > 0) {
+				const traitExists = layer.traits.some((trait) => trait.id === currentSelectedId);
+				if (traitExists) {
+					newSelectedTraits.push(currentSelectedId);
+				} else {
+					newSelectedTraits.push(layer.traits[0].id);
+				}
+			} else {
+				newSelectedTraits.push('');
+			}
+		}
+
+		selectedTraitIds = newSelectedTraits;
+	});
 
 	// Derived preview data for memoization
-	let previewData = $derived({
+	const previewData = $derived({
 		layers: $project.layers,
 		outputSize: $project.outputSize,
 		selectedTraitIds
 	});
 
-	// Image worker for lazy loading
+	// Image worker for lazy loading with proper cleanup
 	let imageWorker: Worker | null = null;
+	const messageHandlers = new SvelteMap<string, (e: MessageEvent) => void>();
 
 	$effect(() => {
 		imageWorker = new Worker(new URL('../workers/image-loader.worker.ts', import.meta.url));
+
 		return () => {
+			// Clean up all message listeners
+			for (const handler of messageHandlers.values()) {
+				imageWorker?.removeEventListener('message', handler);
+			}
+			messageHandlers.clear();
+
 			imageWorker?.terminate();
 			imageWorker = null;
 		};
 	});
 
+	// Component cleanup
+	onDestroy(() => {
+		// Clear image cache to free memory
+		imageCache.clear();
+		cacheAccessTimes.clear();
+
+		// Clean up canvas context
+		if (ctx) {
+			// Clear canvas to free GPU memory
+			if (canvas) {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+			}
+			// Release canvas context
+			ctx = null;
+		}
+
+		// Clean up worker
+		if (imageWorker) {
+			for (const handler of messageHandlers.values()) {
+				imageWorker.removeEventListener('message', handler);
+			}
+			messageHandlers.clear();
+			imageWorker.terminate();
+			imageWorker = null;
+		}
+	});
+
 	// Load image with caching using worker
 	async function loadImage(src: string): Promise<HTMLImageElement> {
-		console.log('Attempting to load image via worker:', src);
-		if (!imageWorker) throw new Error('Image worker not initialized');
+		console.log('Attempting to load image:', src);
 
 		// Check if image is already in cache
 		if (imageCache.has(src)) {
 			console.log('Image found in cache:', src);
+			cacheAccessTimes.set(src, Date.now());
 			return imageCache.get(src)!;
 		}
+
+		// Check if this is a blob URL (starts with blob:)
+		if (src.startsWith('blob:')) {
+			// For blob URLs, load directly without using the worker
+			return new Promise((resolve, reject) => {
+				const img = new Image();
+				img.crossOrigin = 'anonymous';
+				img.onload = () => {
+					console.log('Blob image loaded successfully:', src);
+					imageCache.set(src, img);
+					cacheAccessTimes.set(src, Date.now());
+					resolve(img);
+				};
+				img.onerror = () => {
+					console.error('Failed to load blob image:', src);
+					reject(new Error('Failed to load blob image'));
+				};
+				img.src = src;
+			});
+		}
+
+		// For regular URLs, use the worker
+		if (!imageWorker) throw new Error('Image worker not initialized');
 
 		return new Promise((resolve, reject) => {
 			const id = crypto.randomUUID();
 			const handleMessage = (e: MessageEvent) => {
 				if (e.data.id === id) {
+					// Remove this specific handler
 					imageWorker?.removeEventListener('message', handleMessage);
+					messageHandlers.delete(id);
+
 					if (e.data.error) {
 						reject(new Error(e.data.error));
 					} else {
@@ -78,6 +182,7 @@
 						img.onload = () => {
 							console.log('Image loaded successfully from worker:', src);
 							imageCache.set(src, img);
+							cacheAccessTimes.set(src, Date.now());
 							resolve(img);
 						};
 						img.onerror = () => reject(new Error('Failed to load image from data URL'));
@@ -85,32 +190,23 @@
 					}
 				}
 			};
+
+			// Store the handler for proper cleanup
+			messageHandlers.set(id, handleMessage);
 			imageWorker?.addEventListener('message', handleMessage);
 			imageWorker?.postMessage({ id, src });
 		});
 	}
 
-	// Clear image cache when component is destroyed
-	function clearImageCache() {
-		imageCache.clear();
-	}
-
-	// Cleanup on component destroy
-	onDestroy(() => {
-		clearImageCache();
-		imageWorker?.terminate();
-	});
-
-	// Memoized drawPreview using derived data
-	async function drawPreview(data: { layers: any[], outputSize: {width: number, height: number}, selectedTraitIds: string[] }) {
+	// Memoized drawPreview using current state
+	async function drawPreview() {
 		if (!ctx || !canvas) return;
-
-		console.log('drawPreview called with data:', data);
 
 		// Clear canvas
 		ctx.clearRect(0, 0, displayWidth, displayHeight);
 
-		const { layers, outputSize } = data;
+		const layers = $project.layers;
+		const outputSize = $project.outputSize;
 
 		// Check if project has valid output size
 		if (outputSize.width <= 0 || outputSize.height <= 0) {
@@ -127,7 +223,7 @@
 		}
 
 		// Check if there are any traits to display
-		const hasTraits = layers.some((layer: any) => layer.traits.length > 0);
+		const hasTraits = layers.some((layer) => layer.traits.length > 0);
 		if (!hasTraits) {
 			// Draw placeholder text when no traits are uploaded yet
 			ctx.fillStyle = '#9ca3af'; // gray-400
@@ -137,29 +233,25 @@
 			return;
 		}
 
-		// Draw each layer using selected traits
+		// Load and draw images in sequence to avoid memory spikes
 		for (let i = 0; i < layers.length; i++) {
 			const layer = layers[i];
-			const selectedTraitId = data.selectedTraitIds[i];
+			const selectedTraitId = selectedTraitIds[i];
 
 			// If no trait is selected for this layer, but the layer has traits, use the first one
 			const effectiveTraitId =
 				selectedTraitId || (layer.traits.length > 0 ? layer.traits[0].id : null);
 
 			if (effectiveTraitId) {
-				const selectedTrait = layer.traits.find((trait: any) => trait.id === effectiveTraitId);
-				console.log('Trying to load trait:', selectedTrait);
+				const selectedTrait = layer.traits.find((trait) => trait.id === effectiveTraitId);
 				if (selectedTrait && selectedTrait.imageUrl) {
-					console.log('Trait has imageUrl:', selectedTrait.imageUrl);
 					try {
 						const img = await loadImage(selectedTrait.imageUrl);
-
-						// Draw image to fit canvas display dimensions
 						ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
 					} catch (error) {
 						console.error('Error drawing image:', error);
 						// Only show error toast if we're not in the initial load state
-						const isInitialLoad = layers.every((l: any) => l.traits.length === 0);
+						const isInitialLoad = layers.every((l) => l.traits.length === 0);
 						if (!isInitialLoad) {
 							// Show user-friendly error message
 							import('svelte-sonner').then(({ toast }) => {
@@ -177,9 +269,18 @@
 	// Effect for drawing when preview data changes
 	$effect(() => {
 		if (ctx && canvas && previewData) {
-			drawPreview(previewData).catch(error => {
+			purgeStaleCache();
+			drawPreview().catch((error) => {
 				console.error('Error in drawPreview:', error);
 			});
+		}
+	});
+
+	// Handle canvas initialization and resize
+	$effect(() => {
+		if (canvas && container) {
+			ctx = canvas.getContext('2d');
+			resizeCanvas();
 		}
 	});
 
@@ -225,22 +326,6 @@
 		}
 	}
 
-	// Handle canvas initialization and resize
-	$effect(() => {
-		if (canvas && container) {
-			ctx = canvas.getContext('2d');
-			resizeCanvas();
-		}
-	});
-
-	// Redraw when project changes - now handled by $derived and $effect
-	$effect(() => {
-		if ($project) {
-			purgeStaleCache();
-			resizeCanvas();
-		}
-	});
-
 	function randomize() {
 		const { layers } = $project;
 		const newSelectedTraits: string[] = [];
@@ -261,7 +346,7 @@
 
 	function handleRefresh() {
 		if (ctx && canvas && previewData) {
-			drawPreview(previewData).catch(error => {
+			drawPreview().catch((error) => {
 				console.error('Error refreshing preview:', error);
 			});
 		}

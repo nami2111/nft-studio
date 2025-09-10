@@ -1,13 +1,27 @@
 <script lang="ts">
+	/**
+	 * Card title component with standardized props.
+	 *
+	 * @module CardTitle
+	 * @example
+	 * ```svelte
+	 * <CardTitle>Card Title</CardTitle>
+	 * ```
+	 */
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn, type WithElementRef } from '$lib/utils.js';
+
+	interface Props extends HTMLAttributes<HTMLDivElement> {
+		/** Additional CSS classes */
+		class?: string;
+	}
 
 	let {
 		ref = $bindable(null),
 		class: className,
 		children,
 		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+	}: Props & { ref?: HTMLElement | null; children?: any } = $props();
 </script>
 
 <div

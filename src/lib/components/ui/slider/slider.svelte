@@ -1,14 +1,63 @@
 <script lang="ts">
+	/**
+	 * Slider component with standardized props and accessibility features.
+	 *
+	 * @module Slider
+	 * @example
+	 * ```svelte
+	 * <Slider bind:value={sliderValue} min={0} max={100} step={1} />
+	 * <Slider bind:value={rangeValue} min={0} max={100} step={10} orientation="vertical" />
+	 * ```
+	 */
 	import { Slider as SliderPrimitive } from 'bits-ui';
 	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
+
+	interface Props {
+		/** Minimum value */
+		min?: number;
+		/** Maximum value */
+		max?: number;
+		/** Step increment */
+		step?: number;
+		/** Whether the slider is disabled */
+		disabled?: boolean;
+		/** Accessibility label for the slider */
+		'aria-label'?: string;
+		/** Accessibility description for the slider */
+		'aria-describedby'?: string;
+		/** Callback when value changes */
+		onValueChange?: (value: number[]) => void;
+		/** Callback when slider interaction ends */
+		onValueCommit?: (value: number[]) => void;
+		/** Additional CSS classes */
+		class?: string;
+		/** Slider orientation */
+		orientation?: 'horizontal' | 'vertical';
+		/** Slider value */
+		value?: number[];
+		/** Element reference */
+		ref?: HTMLElement | null;
+	}
 
 	let {
 		ref = $bindable(null),
 		value = $bindable(),
 		orientation = 'horizontal',
+		min = 0,
+		max = 100,
+		step = 1,
+		disabled = false,
 		class: className,
+		'aria-label': ariaLabel,
+		'aria-describedby': ariaDescribedBy,
+		onValueChange,
+		onValueCommit,
 		...restProps
-	}: WithoutChildrenOrChild<SliderPrimitive.RootProps> = $props();
+	}: Props = $props();
+
+	// Generate aria attributes for accessibility
+	let ariaOrientation = $derived(orientation);
+	let ariaDisabled = $derived(disabled ? true : undefined);
 </script>
 
 <!--
@@ -19,7 +68,16 @@ get along, so we shut typescript up by casting `value` to `never`.
 	bind:ref
 	bind:value={value as never}
 	data-slot="slider"
+	type="single"
 	{orientation}
+	{min}
+	{max}
+	{step}
+	{disabled}
+	aria-orientation={ariaOrientation}
+	aria-disabled={ariaDisabled}
+	aria-label={ariaLabel}
+	aria-describedby={ariaDescribedBy}
 	class={cn(
 		'relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
 		className

@@ -31,15 +31,12 @@
 	>
 	<div class="mt-1 flex items-center">
 		<Slider
-			id="rarity-slider-{traitId}"
-			type="single"
 			min={1}
 			max={5}
 			step={1}
-			value={sliderValue}
-			onValueChange={handleRarityChange}
+			value={[sliderValue]}
+			onValueChange={(value) => handleRarityChange(value[0])}
 			class="w-full"
-			title={`Rarity: ${rarityLabels[sliderValue]} (${sliderValue})`}
 		/>
 	</div>
 	<div class="mt-1 flex justify-between text-xs text-gray-500">

@@ -6,12 +6,10 @@
 		loadProjectFromZip,
 		saveProjectToZip,
 		project,
-		loadingStates,
 		projectNeedsZipLoad,
 		markProjectAsLoaded,
 		getLoadingState
 	} from '$lib/stores/runes-store';
-	import { get } from 'svelte/store';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
@@ -41,20 +39,20 @@
 		}
 	}
 
-	async function confirmAndSave() {
-		if (!hasUnsavedChanges) return true;
-		const confirmed = confirm('You have unsaved changes. Do you want to save before proceeding?');
-		if (confirmed) {
-			try {
-				await saveProjectToZip();
-				toast.success('Project saved successfully!');
-			} catch (error) {
-				toast.error(error instanceof Error ? error.message : 'Failed to save project');
-				return false;
-			}
-		}
-		return true;
-	}
+	// async function confirmAndSave() {
+	// 	if (!hasUnsavedChanges) return true;
+	// 	const confirmed = confirm('You have unsaved changes. Do you want to save before proceeding?');
+	// 	if (confirmed) {
+	// 		try {
+	// 			await saveProjectToZip();
+	// 			toast.success('Project saved successfully!');
+	// 		} catch (error) {
+	// 			toast.error(error instanceof Error ? error.message : 'Failed to save project');
+	// 			return false;
+	// 		}
+	// 	}
+	// 	return true;
+	// }
 
 	async function handleSaveProject() {
 		try {
@@ -143,7 +141,9 @@
 			</DialogHeader>
 			<div class="space-y-4">
 				<div
-					class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-blue-500 hover:border-gray-400 {isProjectLoading ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500' : ''}"
+					class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-blue-500 hover:border-gray-400 {isProjectLoading
+						? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500'
+						: ''}"
 					role="button"
 					tabindex="0"
 					ondragover={(e) => {

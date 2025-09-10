@@ -4,26 +4,27 @@
 	import { toast } from 'svelte-sonner';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import type { Project } from '$lib/types/project';
+	// import type { Project } from '$lib/types/project';
 
 	let projectName = $state('');
 	let projectDescription = $state('');
-	let nameTimeout: ReturnType<typeof setTimeout>;
-	let descTimeout: ReturnType<typeof setTimeout>;
 	const MAX_NAME_LENGTH = 100;
 	const MAX_DESC_LENGTH = 500;
 
-	// Subscribe to project changes using $effect
+	// Initialize from project store
 	$effect(() => {
 		const currentProject = $project;
-		if (currentProject.name !== projectName) projectName = currentProject.name;
-		if (currentProject.description !== projectDescription)
+		// Only set initial values if they haven't been set yet
+		if (projectName === '') {
+			projectName = currentProject.name;
+		}
+		if (projectDescription === '') {
 			projectDescription = currentProject.description;
+		}
 	});
 
-	// Debounced save for name
-	function debounceNameSave(value: string) {
-		clearTimeout(nameTimeout);
+	// Save project name
+	function saveProjectName(value: string) {
 		projectName = value;
 		if (projectName.trim() === '') {
 			toast.error('Project name cannot be empty.');
@@ -33,58 +34,47 @@
 			toast.error(`Project name cannot exceed ${MAX_NAME_LENGTH} characters.`);
 			return;
 		}
-		nameTimeout = setTimeout(() => {
-			untrack(() => updateProjectName(projectName));
-			toast.success('Project name saved.');
-		}, 500);
+		updateProjectName(projectName);
+		toast.success('Project name saved.');
 	}
 
-	// Debounced save for description
-	function debounceDescSave(value: string) {
-		clearTimeout(descTimeout);
+	// Save project description
+	function saveProjectDescription(value: string) {
 		projectDescription = value;
 		if (projectDescription.length > MAX_DESC_LENGTH) {
 			toast.error(`Description cannot exceed ${MAX_DESC_LENGTH} characters.`);
 			return;
 		}
-		descTimeout = setTimeout(() => {
-			untrack(() => updateProjectDescription(projectDescription));
-		}, 500);
+		updateProjectDescription(projectDescription);
 	}
-
-	// Cleanup timeouts on destroy
-	import { onDestroy } from 'svelte';
-	onDestroy(() => {
-		clearTimeout(nameTimeout);
-		clearTimeout(descTimeout);
-	});
 </script>
 
 <div class="space-y-4">
 	<div>
-		<label for="projectName" class="block text-sm font-medium text-gray-700">Project Name</label>
+		<label for="projectName" class="block text-sm font-medium text-gray-900">Project Name</label>
 		<Input
 			id="projectName"
 			type="text"
 			value={projectName}
-			oninput={(e: Event) => debounceNameSave((e.target as HTMLInputElement).value)}
+			onchange={(e: Event) => saveProjectName((e.target as HTMLInputElement).value)}
+			onkeydown={(e) => e.key === 'Enter' && saveProjectName(projectName)}
 			placeholder="Enter project name"
 		/>
-		<p class="mt-1 text-xs text-gray-500">{projectName.length}/{MAX_NAME_LENGTH}</p>
+		<p class="mt-1 text-xs text-gray-600">{projectName.length}/{MAX_NAME_LENGTH}</p>
 	</div>
 
 	<div>
-		<label for="projectDescription" class="block text-sm font-medium text-gray-700"
+		<label for="projectDescription" class="block text-sm font-medium text-gray-900"
 			>Description</label
 		>
 		<Textarea
 			id="projectDescription"
 			rows={3}
 			value={projectDescription}
-			oninput={(e: Event) => debounceDescSave((e.target as HTMLInputElement).value)}
+			onchange={(e: Event) => saveProjectDescription((e.target as HTMLTextAreaElement).value)}
 			placeholder="Enter project description"
 		/>
-		<p class="mt-1 text-xs text-gray-500">{projectDescription.length}/{MAX_DESC_LENGTH}</p>
+		<p class="mt-1 text-xs text-gray-600">{projectDescription.length}/{MAX_DESC_LENGTH}</p>
 	</div>
 
 	<div class="rounded-md bg-blue-50 p-4">

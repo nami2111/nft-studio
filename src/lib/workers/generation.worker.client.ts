@@ -9,8 +9,7 @@ import {
 	setMessageCallback
 } from './worker.pool';
 
-// Initialize worker pool on first import
-initializeWorkerPool();
+// Worker pool will be initialized on demand
 
 // Callback for handling messages from workers
 let messageHandler: ((data: unknown) => void) | null = null;
@@ -30,6 +29,9 @@ export function startGeneration(
 	projectDescription: string,
 	onMessage?: (data: unknown) => void
 ): void {
+	// Initialize worker pool on demand
+	initializeWorkerPool();
+
 	// Set message handler for this generation session
 	messageHandler = onMessage || null;
 

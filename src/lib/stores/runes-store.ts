@@ -402,12 +402,39 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 			layersWithImages.push(layerWithTraits);
 		}
 
-		const outputSize = validatedProjectData.outputSize || { width: 0, height: 0 };
-		const projectToSet: Project = {
-			id: validatedProjectData.id || crypto.randomUUID(),
+		// const _outputSize = validatedProjectData.outputSize || { width: 0, height: 0 };
+		// const projectToSet: Project = {
+		// 	id: validatedProjectData.id || crypto.randomUUID(),
+		// 	name: validatedProjectData.name,
+		// 	description: validatedProjectData.description || '',
+		// 	outputSize,
+		// 	layers: layersWithImages.map((layer: Layer) => ({
+		// 		...layer,
+		// 		id: layer.id || crypto.randomUUID(),
+		// 		traits: layer.traits.map((trait: Trait) => ({
+		// 			...trait,
+		// 			id: trait.id || crypto.randomUUID()
+		// 		}))
+		// 	}))
+		// };
+
+		// Calculate output size from the first trait with valid dimensions
+		let outputSize = { width: 0, height: 0 };
+		for (const layer of layersWithImages) {
+			for (const trait of layer.traits) {
+				if (trait.width > 0 && trait.height > 0) {
+					outputSize = { width: trait.width, height: trait.height };
+					break;
+				}
+			}
+			if (outputSize.width > 0 && outputSize.height > 0) break;
+		}
+
+		projectStore.update((p: Project) => ({
+			...p,
 			name: validatedProjectData.name,
 			description: validatedProjectData.description || '',
-			outputSize,
+			outputSize: outputSize,
 			layers: layersWithImages.map((layer: Layer) => ({
 				...layer,
 				id: layer.id || crypto.randomUUID(),
@@ -416,19 +443,7 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 					id: trait.id || crypto.randomUUID()
 				}))
 			}))
-		};
-
-		projectStore.update((p: Project) => ({
-	...p,
-	layers: layersWithImages.map((layer: Layer) => ({
-		...layer,
-		id: layer.id || crypto.randomUUID(),
-		traits: layer.traits.map((trait: Trait) => ({
-			...trait,
-			id: trait.id || crypto.randomUUID()
-		}))
-	}))
-}));
+		}));
 
 		return true;
 	} catch (error) {
@@ -453,7 +468,7 @@ export function projectNeedsZipLoad(): boolean {
 export function markProjectAsLoaded(): void {
 	projectStore.update((p) => {
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const { _needsProperLoad: _, ...projectWithoutFlag } = p;
+		const { _needsProperLoad: _unused, ...projectWithoutFlag } = p;
 		return projectWithoutFlag as Project;
 	});
 }
