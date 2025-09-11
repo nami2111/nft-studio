@@ -244,6 +244,16 @@ export function terminateWorkerPool(): void {
 		worker.terminate();
 	}
 
+	// Clear all pending tasks
+	for (const task of workerPool.taskQueue) {
+		task.reject(new Error('Worker pool terminated'));
+	}
+
+	// Clear active tasks
+	for (const task of workerPool.activeTasks.values()) {
+		task.reject(new Error('Worker pool terminated'));
+	}
+
 	// Clear the pool
 	workerPool = null;
 

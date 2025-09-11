@@ -76,7 +76,10 @@
 			}
 		}
 
-		selectedTraitIds = newSelectedTraits;
+		// Only update if there's actually a change to prevent infinite loops
+		if (JSON.stringify(newSelectedTraits) !== JSON.stringify(selectedTraitIds)) {
+			selectedTraitIds = newSelectedTraits;
+		}
 	});
 
 	// Derived preview data for memoization

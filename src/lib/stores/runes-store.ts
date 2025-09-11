@@ -45,32 +45,76 @@ LOCAL_STORE.load().then((stored) => {
 	}
 });
 
-// Auto-save to storage
+// Auto-save to storage (debounced and optimized to prevent excessive saves)
+let saveTimeout: number | null = null;
+let lastSavedProject: string | null = null;
+
 projectStore.subscribe((project) => {
-	LOCAL_STORE.save(project);
+	// Only save if the project has actually changed
+	const projectString = JSON.stringify(project, (key, value) => {
+		// Skip imageData from comparison to avoid unnecessary saves
+		if (key === 'imageData') return undefined;
+		return value;
+	});
+
+	if (projectString === lastSavedProject) {
+		return; // No actual changes, skip save
+	}
+
+	if (saveTimeout) {
+		clearTimeout(saveTimeout);
+	}
+
+	saveTimeout = setTimeout(() => {
+		LOCAL_STORE.save(project);
+		lastSavedProject = projectString;
+		saveTimeout = null;
+	}, 500); // Increased debounce time to prevent rapid consecutive saves
 });
+
+// Track object URLs to prevent memory leaks
+const activeObjectUrls = new Set<string>();
 
 // Helper functions
 function restoreBlobUrls(p: Project): Project {
 	const restoredProject = { ...p };
 
+	// Clean up any existing object URLs before creating new ones
+	cleanupObjectUrls();
+
 	for (const layer of restoredProject.layers) {
 		for (const trait of layer.traits) {
 			if (trait.imageData && trait.imageData.byteLength > 0) {
-				if (trait.imageUrl) {
-					try {
-						URL.revokeObjectURL(trait.imageUrl);
-					} catch {
-						// Ignore cleanup errors
+				// Only create new URL if we don't already have one for this data
+				if (!trait.imageUrl || !activeObjectUrls.has(trait.imageUrl)) {
+					if (trait.imageUrl) {
+						try {
+							URL.revokeObjectURL(trait.imageUrl);
+						} catch {
+							// Ignore cleanup errors
+						}
 					}
+					const blob = new Blob([trait.imageData], { type: 'image/png' });
+					const newUrl = URL.createObjectURL(blob);
+					trait.imageUrl = newUrl;
+					activeObjectUrls.add(newUrl);
 				}
-				const blob = new Blob([trait.imageData], { type: 'image/png' });
-				trait.imageUrl = URL.createObjectURL(blob);
 			}
 		}
 	}
 
 	return restoredProject;
+}
+
+function cleanupObjectUrls(): void {
+	for (const url of activeObjectUrls) {
+		try {
+			URL.revokeObjectURL(url);
+		} catch {
+			// Ignore cleanup errors
+		}
+	}
+	activeObjectUrls.clear();
 }
 
 function sortLayers(layers: Layer[]): Layer[] {
@@ -171,6 +215,7 @@ export async function addTrait(
 
 	const arrayBuffer = await fileToArrayBuffer(trait.imageData);
 	const imageUrl = URL.createObjectURL(trait.imageData);
+	activeObjectUrls.add(imageUrl);
 
 	const newTrait: Trait = {
 		...trait,
@@ -206,6 +251,7 @@ export function removeTrait(layerId: string, traitId: string): void {
 		const trait = layer?.traits.find((t) => t.id === traitId);
 		if (trait?.imageUrl) {
 			URL.revokeObjectURL(trait.imageUrl);
+			activeObjectUrls.delete(trait.imageUrl);
 		}
 	} catch {
 		// noop in non-browser contexts
@@ -387,11 +433,13 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 					if (traitFile) {
 						const blob = await traitFile.async('blob');
 						const imageData = await fileToArrayBuffer(blob as unknown as File);
+						const imageUrl = URL.createObjectURL(blob);
+						activeObjectUrls.add(imageUrl);
 						layerWithTraits.traits.push({
 							id: trait.id || crypto.randomUUID(),
 							name: trait.name,
 							imageData,
-							imageUrl: URL.createObjectURL(blob),
+							imageUrl,
 							width: (trait.width as number) || 0,
 							height: (trait.height as number) || 0,
 							rarityWeight: (trait.rarityWeight as number) || 1
@@ -476,6 +524,11 @@ export function markProjectAsLoaded(): void {
 // Helper function to get loading state
 export function getLoadingState(key: string): boolean {
 	return get(loadingStore)[key] ?? false;
+}
+
+// Cleanup function to revoke all object URLs
+export function cleanupAllObjectUrls(): void {
+	cleanupObjectUrls();
 }
 
 // Export stores for direct access

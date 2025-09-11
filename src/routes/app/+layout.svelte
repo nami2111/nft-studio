@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onMount, type Snippet } from 'svelte';
+	import { onMount, onDestroy, type Snippet } from 'svelte';
 	import { initSatellite } from '@junobuild/core';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
+	import { cleanupAllObjectUrls } from '$lib/stores/runes-store';
 	import '../../app.css';
 
 	interface Props {
@@ -36,6 +37,10 @@
 				'Satellite initialization skipped: VITE_APP_SATELLITE_ID is not set or is a placeholder.'
 			);
 		}
+	});
+
+	onDestroy(() => {
+		cleanupAllObjectUrls();
 	});
 </script>
 

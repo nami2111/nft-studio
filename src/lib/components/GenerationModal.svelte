@@ -64,7 +64,12 @@
 		if (isPackaging) return;
 		isPackaging = true;
 
-		const projectData = get(project);
+		const projectData = get(project) as {
+			name: string;
+			outputSize: { width: number; height: number };
+			description?: string;
+			layers: any[];
+		};
 		updateProgress(images.length, images.length, 'Packaging files into a .zip...');
 
 		try {
@@ -107,7 +112,12 @@
 		resetState();
 
 		try {
-			const projectData = get(project);
+			const projectData = get(project) as {
+				name: string;
+				outputSize: { width: number; height: number };
+				description?: string;
+				layers: any[];
+			};
 
 			// Validate project has layers
 			if (projectData.layers.length === 0) {
@@ -133,8 +143,8 @@
 			}
 
 			// Check for missing image data
-			const traitList = projectData.layers.flatMap((layer) =>
-				layer.traits.map((trait) => ({
+			const traitList = projectData.layers.flatMap((layer: any) =>
+				layer.traits.map((trait: any) => ({
 					layer: layer.name,
 					trait: trait.name,
 					imageData: trait.imageData
