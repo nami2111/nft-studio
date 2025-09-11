@@ -99,6 +99,12 @@
 	function bulkUpdateRarity() {
 		if (selectedTraits.size === 0) return;
 
+		// Validate bulkRarityWeight is a valid integer between 1 and 5
+		if (!Number.isInteger(bulkRarityWeight) || bulkRarityWeight < 1 || bulkRarityWeight > 5) {
+			toast.error('Invalid rarity weight: must be an integer between 1 and 5');
+			return;
+		}
+
 		// Update rarity for all selected traits
 		selectedTraits.forEach((traitId) => {
 			updateTraitRarity(layer.id, traitId, bulkRarityWeight);

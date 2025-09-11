@@ -11,7 +11,7 @@
 	 * </CardHeader>
 	 * ```
 	 */
-	import { cn, type WithElementRef } from '$lib/utils.js';
+	import { cn } from '$lib/utils.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
@@ -24,7 +24,7 @@
 		class: className,
 		children,
 		...restProps
-	}: Props & { ref?: HTMLElement | null; children?: any } = $props();
+	}: Props & { ref?: HTMLElement | null; children?: unknown } = $props();
 </script>
 
 <div

@@ -9,7 +9,7 @@
 	 * ```
 	 */
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { cn, type WithElementRef } from '$lib/utils.js';
+	import { cn } from '$lib/utils.js';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		/** Additional CSS classes */
@@ -21,7 +21,7 @@
 		class: className,
 		children,
 		...restProps
-	}: Props & { ref?: HTMLElement | null; children?: any } = $props();
+	}: Props & { ref?: HTMLElement | null; children?: unknown } = $props();
 </script>
 
 <div

@@ -1,80 +1,18 @@
 // generation.worker.ts
 
-// Worker message interfaces
-interface TransferrableTrait {
-	id: string;
-	name: string;
-	imageData: ArrayBuffer;
-	rarityWeight: number;
-	// Add width/height for better memory management
-	width?: number;
-	height?: number;
-}
+import type {
+	TransferrableTrait,
+	TransferrableLayer,
+	StartMessage,
+	ProgressMessage,
+	CompleteMessage,
+	ErrorMessage,
+	CancelledMessage,
+	IncomingMessage
+} from '$lib/types/worker-messages';
 
-interface TransferrableLayer {
-	id: string;
-	name: string;
-	order: number;
-	isOptional?: boolean;
-	traits: TransferrableTrait[];
-	// Add layer-level width/height for consistent sizing
-	width?: number;
-	height?: number;
-}
-
-interface StartMessage {
-	type: 'start';
-	payload: {
-		layers: TransferrableLayer[];
-		collectionSize: number;
-		outputSize: {
-			width: number;
-			height: number;
-		};
-		projectName: string;
-		projectDescription: string;
-	};
-}
-
-interface ProgressMessage {
-	type: 'progress';
-	payload: {
-		generatedCount: number;
-		totalCount: number;
-		statusText: string;
-		memoryUsage?: {
-			used: number;
-			available: number;
-			units: string;
-		};
-	};
-}
-
-interface CompleteMessage {
-	type: 'complete';
-	payload: {
-		images: { name: string; imageData: ArrayBuffer }[];
-		metadata: { name: string; data: object }[];
-		isChunk?: boolean; // Flag to indicate if this is a chunked response
-	};
-}
-
-interface ErrorMessage {
-	type: 'error';
-	payload: {
-		message: string;
-	};
-}
-
-interface CancelledMessage {
-	type: 'cancelled';
-	payload: {
-		generatedCount?: number;
-		totalCount?: number;
-	};
-}
-
-type IncomingMessage = StartMessage | { type: 'cancel' };
+// Send ready message when worker is initialized
+self.postMessage({ type: 'ready' });
 
 // Rarity algorithm
 function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
@@ -553,6 +491,13 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 		type: string;
 		payload?: unknown;
 	};
+
+	// Handle initialization message
+	if (type === 'initialize') {
+		// Worker is already initialized, send ready message
+		self.postMessage({ type: 'ready' });
+		return;
+	}
 
 	switch (type) {
 		case 'start':

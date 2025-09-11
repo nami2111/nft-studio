@@ -7,19 +7,23 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Loader2, GripVertical } from 'lucide-svelte';
+	import { showError, showSuccess } from '$lib/utils/error-handling';
 
 	let layers = $derived($project.layers);
 	let isAddingLayer = $state(false);
 	let dndError = $state(false);
+	let dndInitialized = $state(false);
 
 	// Initialize drag and drop and catch any initialization errors
 	$effect(() => {
 		try {
 			// The dndzone is automatically initialized when used in the template
 			// We'll catch errors in the template rendering instead
+			dndInitialized = true;
 		} catch (error) {
 			console.error('Failed to initialize drag and drop:', error);
 			dndError = true;
+			dndInitialized = false;
 		}
 	});
 
@@ -33,13 +37,12 @@
 				name: newLayerName,
 				order: layers.length
 			});
+			showSuccess('Layer added successfully.');
 		} catch (error) {
 			console.error('Failed to add layer:', error);
-			// Show user-friendly error message
-			import('svelte-sonner').then(({ toast }) => {
-				toast.error('Failed to add layer', {
-					description: error instanceof Error ? error.message : 'Unknown error'
-				});
+			showError(error, {
+				title: 'Layer Error',
+				description: error instanceof Error ? error.message : 'Unknown error'
 			});
 		} finally {
 			isAddingLayer = false;
@@ -48,6 +51,7 @@
 
 	function handleDndConsider(_e: CustomEvent) {
 		// Handle consider event if needed
+		// _e is intentionally unused
 	}
 
 	function handleDndFinalize(e: CustomEvent) {
@@ -58,14 +62,13 @@
 				order: index
 			}));
 			reorderLayers(reordered);
+			showSuccess('Layers reordered successfully.');
 		} catch (error) {
 			console.error('Error during drag and drop finalize:', error);
 			dndError = true;
-			// Show user-friendly error message
-			import('svelte-sonner').then(({ toast }) => {
-				toast.error('Drag and drop error', {
-					description: 'Failed to reorder layers. Please try again.'
-				});
+			showError(error, {
+				title: 'Drag and Drop Error',
+				description: 'Failed to reorder layers. Please try again.'
 			});
 		}
 	}
@@ -87,35 +90,38 @@
 			order: index
 		}));
 		reorderLayers(reordered);
+		showSuccess('Layer moved successfully.');
 	}
 </script>
 
-<Card class="mt-6">
-	<CardContent class="p-6">
-		<div class="mb-4 flex items-center justify-between">
-			<h2 class="text-xl font-bold text-gray-800">Layers ({layers.length})</h2>
-			<Button onclick={handleAddLayer} disabled={isAddingLayer}>
+<Card class="mt-4 sm:mt-6">
+	<CardContent class="p-4 sm:p-6">
+		<div class="mb-3 flex items-center justify-between sm:mb-4">
+			<h2 class="text-lg font-bold text-gray-800 sm:text-xl">Layers ({layers.length})</h2>
+			<Button size="sm" onclick={handleAddLayer} disabled={isAddingLayer}>
 				{#if isAddingLayer}
-					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-					Adding...
+					<Loader2 class="mr-1 h-3 w-3 animate-spin sm:mr-2 sm:h-4 sm:w-4" />
+					<span class="text-xs sm:text-sm">Adding...</span>
 				{:else}
-					Add Layer
+					<span class="text-xs sm:text-sm">Add Layer</span>
 				{/if}
 			</Button>
 		</div>
 
 		{#if layers.length === 0}
-			<p class="text-center text-gray-500">No layers yet. Add one to get started!</p>
+			<p class="text-center text-sm text-gray-500 sm:text-base">
+				No layers yet. Add one to get started!
+			</p>
 		{:else}
 			{#if dndError}
-				<div class="mb-4 rounded-md bg-yellow-50 p-4">
+				<div class="mb-3 rounded-md bg-yellow-50 p-3 sm:mb-4 sm:p-4">
 					<div class="flex">
 						<div class="flex-shrink-0">
 							<span class="text-yellow-400">⚠️</span>
 						</div>
-						<div class="ml-3">
-							<h3 class="text-sm font-medium text-yellow-800">Drag and Drop Disabled</h3>
-							<div class="mt-2 text-sm text-yellow-700">
+						<div class="ml-2 sm:ml-3">
+							<h3 class="text-xs font-medium text-yellow-800 sm:text-sm">Drag and Drop Disabled</h3>
+							<div class="mt-1 text-xs text-yellow-700 sm:text-sm">
 								<p>
 									Drag and drop functionality is currently disabled due to compatibility issues. Use
 									the arrow buttons to reorder layers.
@@ -126,26 +132,26 @@
 				</div>
 			{/if}
 			<div
-				class="space-y-4"
+				class="space-y-3 sm:space-y-4"
 				use:dndzone={{
 					items: layers,
 					flipDurationMs: 150,
-					dragDisabled: dndError
+					dragDisabled: dndError || !dndInitialized
 				}}
 				onconsider={handleDndConsider}
 				onfinalize={handleDndFinalize}
 			>
 				{#each layers as layer (layer.id)}
 					<div animate:flip={{ duration: 150 }} class="group relative">
-						{#if !dndError}
+						{#if !(dndError || !dndInitialized)}
 							<div
 								class="absolute top-1/2 left-0 -translate-y-1/2 cursor-grab opacity-0 transition-opacity group-hover:opacity-100"
 							>
-								<GripVertical class="h-4 w-4 text-gray-400" />
+								<GripVertical class="h-3 w-3 text-gray-400 sm:h-4 sm:w-4" />
 							</div>
 						{/if}
 						<LayerItem {layer} />
-						{#if dndError}
+						{#if dndError || !dndInitialized}
 							<div class="mt-2 flex justify-end space-x-1">
 								<Button
 									variant="outline"

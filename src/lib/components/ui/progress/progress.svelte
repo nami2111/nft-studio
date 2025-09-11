@@ -10,7 +10,7 @@
 	 * ```
 	 */
 	import { Progress as ProgressPrimitive } from 'bits-ui';
-	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
+	import { cn } from '$lib/utils.js';
 
 	interface Props extends ProgressPrimitive.RootProps {
 		/** Current progress value */

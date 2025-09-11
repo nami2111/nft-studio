@@ -1,24 +1,12 @@
-import type { TransferrableLayer } from '../domain/project.domain';
+import type { GenerationWorkerMessage } from '$lib/types/worker-messages';
 
-export type GenerationWorkerMessage =
-	| {
-			type: 'start';
-			payload: {
-				layers: TransferrableLayer[];
-				collectionSize: number;
-				outputSize: { width: number; height: number };
-				projectName: string;
-				projectDescription: string;
-			};
-	  }
-	| {
-			type: 'cancel';
-	  };
-
-// Re-export the worker pool functions for backward compatibility
+// Export the worker pool functions for backward compatibility
 export {
 	initializeWorkerPool,
 	postMessageToPool,
 	terminateWorkerPool,
 	getWorkerPoolStatus
 } from './worker.pool';
+
+// Export the GenerationWorkerMessage type
+export type { GenerationWorkerMessage };

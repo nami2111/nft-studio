@@ -1,11 +1,17 @@
 // src/lib/workers/worker.pool.ts
 
-import type { GenerationWorkerMessage } from './generation.worker.loader';
+import type {
+	GenerationWorkerMessage,
+	CompleteMessage,
+	ErrorMessage,
+	CancelledMessage
+} from '$lib/types/worker-messages';
 
 // Worker pool configuration
 interface WorkerPoolConfig {
 	maxWorkers?: number;
 	maxConcurrentTasks?: number;
+	workerInitializationTimeout?: number; // Timeout for worker initialization
 }
 
 // Task interface
@@ -15,6 +21,7 @@ interface WorkerTask<T = unknown> {
 	resolve: (value: T) => void;
 	reject: (reason?: unknown) => void;
 	assignedWorker?: number; // Track which worker is handling this task
+	timestamp: number; // Track when task was queued
 }
 
 // Worker pool interface
@@ -24,16 +31,20 @@ interface WorkerPool {
 	activeTasks: Map<string, WorkerTask>;
 	workerStatus: boolean[]; // true = available, false = busy
 	config: WorkerPoolConfig;
+	workerInitializationPromises: Promise<void>[]; // Track worker initialization
 }
 
 // Global worker pool instance
 let workerPool: WorkerPool | null = null;
 
 // Callback for forwarding messages to clients
-let messageCallback: ((data: unknown) => void) | null = null;
+let messageCallback: ((data: CompleteMessage | ErrorMessage | CancelledMessage) => void) | null =
+	null;
 
 // Set message callback for client components to receive worker messages
-export function setMessageCallback(callback: (data: unknown) => void): void {
+export function setMessageCallback(
+	callback: (data: CompleteMessage | ErrorMessage | CancelledMessage) => void
+): void {
 	messageCallback = callback;
 }
 
@@ -75,16 +86,44 @@ function calculateOptimalWorkerCount(): number {
 }
 
 /**
- * Create a new generation worker
+ * Create a new generation worker with error handling and timeout
  */
-function createWorker(): Worker {
-	return new Worker(new URL('./generation.worker.ts', import.meta.url), { type: 'module' });
+async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
+	return new Promise((resolve, reject) => {
+		const worker = new Worker(new URL('./generation.worker.ts', import.meta.url), {
+			type: 'module'
+		});
+
+		// Set up timeout for worker initialization
+		const timeoutId = setTimeout(() => {
+			worker.terminate();
+			reject(new Error('Worker initialization timeout'));
+		}, timeoutMs);
+
+		// Handle worker errors
+		worker.onerror = (error) => {
+			clearTimeout(timeoutId);
+			reject(new Error(`Worker error: ${error.message}`));
+		};
+
+		// Worker is ready when it sends a "ready" message
+		worker.onmessage = (e: MessageEvent) => {
+			if (e.data?.type === 'ready') {
+				clearTimeout(timeoutId);
+				worker.onmessage = null; // Reset to avoid conflict with normal message handling
+				resolve(worker);
+			}
+		};
+
+		// Send initialization message to worker
+		worker.postMessage({ type: 'initialize' });
+	});
 }
 
 /**
- * Initialize the worker pool
+ * Initialize the worker pool with better error handling
  */
-export function initializeWorkerPool(config?: WorkerPoolConfig): void {
+export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<void> {
 	if (workerPool) {
 		console.warn('Worker pool already initialized');
 		return;
@@ -92,6 +131,7 @@ export function initializeWorkerPool(config?: WorkerPoolConfig): void {
 
 	const optimalWorkerCount = calculateOptimalWorkerCount();
 	const maxWorkers = config?.maxWorkers || optimalWorkerCount;
+	const workerInitializationTimeout = config?.workerInitializationTimeout || 5000;
 
 	workerPool = {
 		workers: [],
@@ -100,23 +140,45 @@ export function initializeWorkerPool(config?: WorkerPoolConfig): void {
 		workerStatus: [],
 		config: {
 			maxWorkers,
-			maxConcurrentTasks: config?.maxConcurrentTasks || maxWorkers
-		}
+			maxConcurrentTasks: config?.maxConcurrentTasks || maxWorkers,
+			workerInitializationTimeout
+		},
+		workerInitializationPromises: []
 	};
 
-	// Create the workers
+	// Create the workers with proper error handling
+	const workerPromises: Promise<Worker>[] = [];
 	for (let i = 0; i < maxWorkers; i++) {
-		const worker = createWorker();
-		workerPool.workers.push(worker);
-		workerPool.workerStatus.push(true); // Mark as available
+		const workerPromise = createWorker(workerInitializationTimeout);
+		workerPromises.push(workerPromise);
 
-		// Set up message handler for each worker
-		worker.onmessage = (e: MessageEvent) => {
-			handleWorkerMessage(e, i);
-		};
+		workerPromise
+			.then((worker) => {
+				workerPool!.workers.push(worker);
+				workerPool!.workerStatus.push(true); // Mark as available
+
+				// Set up message handler for each worker
+				worker.onmessage = (e: MessageEvent) => {
+					handleWorkerMessage(e, workerPool!.workers.length - 1);
+				};
+
+				console.log(`Worker ${workerPool!.workers.length - 1} initialized successfully`);
+			})
+			.catch((error) => {
+				console.error(`Failed to initialize worker ${i}:`, error);
+				// Add a placeholder to maintain index consistency
+				workerPool!.workers.push(null as unknown as Worker);
+				workerPool!.workerStatus.push(false); // Mark as unavailable
+			});
 	}
 
-	console.log(`Worker pool initialized with ${maxWorkers} workers`);
+	// Wait for all workers to initialize
+	await Promise.allSettled(workerPromises);
+
+	const successfulWorkers = workerPool.workers.filter(
+		(worker) => worker !== (null as unknown as Worker)
+	).length;
+	console.log(`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers`);
 }
 
 /**
@@ -125,7 +187,7 @@ export function initializeWorkerPool(config?: WorkerPoolConfig): void {
 function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	if (!workerPool) return;
 
-	const data = event.data;
+	const data = event.data as CompleteMessage | ErrorMessage | CancelledMessage;
 	const { type } = data;
 
 	// Forward all messages to client components
@@ -181,7 +243,8 @@ function getAvailableWorker(): number | null {
 	if (!workerPool) return null;
 
 	for (let i = 0; i < workerPool.workerStatus.length; i++) {
-		if (workerPool.workerStatus[i]) {
+		// Check if worker exists and is available
+		if (workerPool.workers[i] && workerPool.workerStatus[i]) {
 			return i;
 		}
 	}
@@ -206,9 +269,18 @@ function processNextTask(): void {
 	workerPool.workerStatus[workerIndex] = false; // Mark as busy
 
 	// Post message to worker
-	workerPool.workers[workerIndex].postMessage(task.message);
-
-	console.log(`Task ${task.id} assigned to worker ${workerIndex}`);
+	try {
+		workerPool.workers[workerIndex].postMessage(task.message);
+		console.log(`Task ${task.id} assigned to worker ${workerIndex}`);
+	} catch (error) {
+		console.error(`Failed to post message to worker ${workerIndex}:`, error);
+		// Mark worker as available and reject task
+		workerPool.workerStatus[workerIndex] = true;
+		task.reject(new Error('Failed to send task to worker'));
+		workerPool.activeTasks.delete(task.id);
+		// Process next task
+		processNextTask();
+	}
 }
 
 /**
@@ -221,11 +293,11 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 
 	return new Promise<T>((resolve, reject) => {
 		const taskId = `${Date.now()}-${Math.random()}`;
-		const task: WorkerTask<T> = { id: taskId, message, resolve, reject };
+		const task: WorkerTask<T> = { id: taskId, message, resolve, reject, timestamp: Date.now() };
 
 		// Add to queue
 		if (workerPool) {
-			workerPool.taskQueue.push(task as WorkerTask);
+			workerPool.taskQueue.push(task as unknown as WorkerTask);
 		}
 
 		// Process immediately if possible
@@ -241,7 +313,9 @@ export function terminateWorkerPool(): void {
 
 	// Terminate all workers
 	for (const worker of workerPool.workers) {
-		worker.terminate();
+		if (worker) {
+			worker.terminate();
+		}
 	}
 
 	// Clear all pending tasks
@@ -271,12 +345,34 @@ export function getWorkerPoolStatus(): {
 } | null {
 	if (!workerPool) return null;
 
-	const availableWorkers = workerPool.workerStatus.filter((status) => status).length;
+	const availableWorkers = workerPool.workerStatus.filter(
+		(status, index) => workerPool!.workers[index] && status
+	).length;
 
 	return {
-		totalWorkers: workerPool.workers.length,
+		totalWorkers: workerPool.workers.filter((worker) => worker !== (null as unknown as Worker))
+			.length,
 		availableWorkers,
 		queuedTasks: workerPool.taskQueue.length,
 		activeTasks: workerPool.activeTasks.size
 	};
+}
+
+/**
+ * Clean up any completed tasks that are older than a certain threshold
+ */
+export function cleanupOldTasks(thresholdMs: number = 300000): void {
+	// 5 minutes threshold
+	if (!workerPool) return;
+
+	const now = Date.now();
+	const threshold = now - thresholdMs;
+
+	// Clean up completed tasks (those not in activeTasks but might still be in memory)
+	for (const [taskId, task] of workerPool.activeTasks.entries()) {
+		if (task.timestamp < threshold) {
+			console.warn(`Cleaning up old task ${taskId}`);
+			workerPool.activeTasks.delete(taskId);
+		}
+	}
 }

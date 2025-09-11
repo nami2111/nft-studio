@@ -3,7 +3,7 @@
 	import { initSatellite } from '@junobuild/core';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
-	import { cleanupAllObjectUrls } from '$lib/stores/runes-store';
+	import { cleanupAllResources } from '$lib/stores/runes-store';
 	import '../../app.css';
 
 	interface Props {
@@ -40,7 +40,7 @@
 	});
 
 	onDestroy(() => {
-		cleanupAllObjectUrls();
+		cleanupAllResources();
 	});
 </script>
 

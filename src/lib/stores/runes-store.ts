@@ -4,13 +4,14 @@ import type { Project } from '$lib/types/project';
 import type { Layer } from '$lib/types/layer';
 import type { Trait } from '$lib/types/trait';
 import { LocalStorageStore } from '$lib/persistence/storage';
-import { fileToArrayBuffer, normalizeFilename } from '$lib/utils';
+import { fileToArrayBuffer } from '$lib/utils';
 import {
 	isValidDimensions,
 	isValidProjectName,
 	isValidLayerName,
 	isValidTraitName,
-	isValidImportedProject
+	isValidImportedProject,
+	isValidRarityWeight
 } from '$lib/utils/validation';
 import { handleValidationError, handleFileError } from '$lib/utils/error-handler';
 import JSZip from 'jszip';
@@ -35,7 +36,16 @@ function defaultProject(): Project {
 }
 
 // Create reactive stores using Svelte 5 compatible patterns
+/**
+ * Reactive store containing the current project state.
+ * @type {import('svelte/store').Writable<Project>}
+ */
 export const projectStore = writable<Project>(defaultProject());
+
+/**
+ * Reactive store containing the loading states for various operations.
+ * @type {import('svelte/store').Writable<Record<string, boolean>>}
+ */
 export const loadingStore = writable<Record<string, boolean>>({});
 
 // Initialize from storage
@@ -76,17 +86,27 @@ projectStore.subscribe((project) => {
 const activeObjectUrls = new Set<string>();
 
 // Helper functions
+/**
+ * Sanitizes a filename by removing invalid characters.
+ * @param {string} filename - The filename to sanitize
+ * @returns {string} The sanitized filename
+ */
+function sanitizeFilename(filename: string): string {
+	// Remove invalid characters for filenames
+	return filename.replace(/[/\\:*?"<>|]/g, '_');
+}
+
 function restoreBlobUrls(p: Project): Project {
 	const restoredProject = { ...p };
 
 	// Clean up any existing object URLs before creating new ones
-	cleanupObjectUrls();
+	resourceManager.cleanup();
 
 	for (const layer of restoredProject.layers) {
 		for (const trait of layer.traits) {
 			if (trait.imageData && trait.imageData.byteLength > 0) {
 				// Only create new URL if we don't already have one for this data
-				if (!trait.imageUrl || !activeObjectUrls.has(trait.imageUrl)) {
+				if (!trait.imageUrl || !resourceManager.getActiveObjectUrls().has(trait.imageUrl)) {
 					if (trait.imageUrl) {
 						try {
 							URL.revokeObjectURL(trait.imageUrl);
@@ -97,7 +117,7 @@ function restoreBlobUrls(p: Project): Project {
 					const blob = new Blob([trait.imageData], { type: 'image/png' });
 					const newUrl = URL.createObjectURL(blob);
 					trait.imageUrl = newUrl;
-					activeObjectUrls.add(newUrl);
+					resourceManager.addObjectUrl(newUrl);
 				}
 			}
 		}
@@ -122,8 +142,14 @@ function sortLayers(layers: Layer[]): Layer[] {
 }
 
 // Project functions
+/**
+ * Updates the project name.
+ * @param {string} name - The new project name
+ * @throws {Error} If the name is invalid
+ */
 export function updateProjectName(name: string): void {
-	if (!isValidProjectName(name)) {
+	const sanitizedName = isValidProjectName(name);
+	if (sanitizedName === null) {
 		handleValidationError<void>(
 			new Error('Invalid project name: must be a non-empty string with maximum 100 characters'),
 			{
@@ -132,13 +158,23 @@ export function updateProjectName(name: string): void {
 		);
 		return;
 	}
-	projectStore.update((p: Project) => ({ ...p, name }));
+	projectStore.update((p: Project) => ({ ...p, name: sanitizedName }));
 }
 
+/**
+ * Updates the project description.
+ * @param {string} description - The new project description
+ */
 export function updateProjectDescription(description: string): void {
 	projectStore.update((p: Project) => ({ ...p, description }));
 }
 
+/**
+ * Updates the project dimensions.
+ * @param {number} width - The new width in pixels
+ * @param {number} height - The new height in pixels
+ * @throws {Error} If the dimensions are invalid
+ */
 export function updateProjectDimensions(width: number, height: number): void {
 	if (!isValidDimensions(width, height)) {
 		handleValidationError<void>(
@@ -152,8 +188,14 @@ export function updateProjectDimensions(width: number, height: number): void {
 	projectStore.update((p: Project) => ({ ...p, outputSize: { width, height } }));
 }
 
+/**
+ * Adds a new layer to the project.
+ * @param {Omit<Layer, 'id' | 'traits'>} layer - The layer to add (without id and traits)
+ * @throws {Error} If the layer name is invalid
+ */
 export function addLayer(layer: Omit<Layer, 'id' | 'traits'>): void {
-	if (!isValidLayerName(layer.name)) {
+	const sanitizedName = isValidLayerName(layer.name);
+	if (sanitizedName === null) {
 		handleValidationError<void>(
 			new Error('Invalid layer name: must be a non-empty string with maximum 100 characters'),
 			{
@@ -165,10 +207,17 @@ export function addLayer(layer: Omit<Layer, 'id' | 'traits'>): void {
 
 	projectStore.update((p) => ({
 		...p,
-		layers: sortLayers([...p.layers, { ...layer, id: crypto.randomUUID(), traits: [] }])
+		layers: sortLayers([
+			...p.layers,
+			{ ...layer, name: sanitizedName, id: crypto.randomUUID(), traits: [] }
+		])
 	}));
 }
 
+/**
+ * Removes a layer from the project.
+ * @param {string} layerId - The ID of the layer to remove
+ */
 export function removeLayer(layerId: string): void {
 	projectStore.update((p) => ({
 		...p,
@@ -176,8 +225,15 @@ export function removeLayer(layerId: string): void {
 	}));
 }
 
+/**
+ * Updates the name of a layer.
+ * @param {string} layerId - The ID of the layer to update
+ * @param {string} name - The new name for the layer
+ * @throws {Error} If the layer name is invalid
+ */
 export function updateLayerName(layerId: string, name: string): void {
-	if (!isValidLayerName(name)) {
+	const sanitizedName = isValidLayerName(name);
+	if (sanitizedName === null) {
 		handleValidationError<void>(
 			new Error('Invalid layer name: must be a non-empty string with maximum 100 characters'),
 			{
@@ -188,10 +244,16 @@ export function updateLayerName(layerId: string, name: string): void {
 	}
 	projectStore.update((p) => ({
 		...p,
-		layers: p.layers.map((layer) => (layer.id === layerId ? { ...layer, name } : layer))
+		layers: p.layers.map((layer) =>
+			layer.id === layerId ? { ...layer, name: sanitizedName } : layer
+		)
 	}));
 }
 
+/**
+ * Reorders the layers in the project.
+ * @param {Layer[]} reorderedLayers - The reordered layers
+ */
 export function reorderLayers(reorderedLayers: Layer[]): void {
 	projectStore.update((p) => ({
 		...p,
@@ -199,11 +261,19 @@ export function reorderLayers(reorderedLayers: Layer[]): void {
 	}));
 }
 
+/**
+ * Adds a new trait to a layer.
+ * @param {string} layerId - The ID of the layer to add the trait to
+ * @param {Omit<Trait, 'id' | 'imageData'> & { imageData: File }} trait - The trait to add
+ * @returns {Promise<void>} A promise that resolves when the trait is added
+ * @throws {Error} If the trait name is invalid
+ */
 export async function addTrait(
 	layerId: string,
 	trait: Omit<Trait, 'id' | 'imageData'> & { imageData: File }
 ): Promise<void> {
-	if (!isValidTraitName(trait.name)) {
+	const sanitizedName = isValidTraitName(trait.name);
+	if (sanitizedName === null) {
 		handleValidationError<void>(
 			new Error('Invalid trait name: must be a non-empty string with maximum 100 characters'),
 			{
@@ -213,36 +283,59 @@ export async function addTrait(
 		return;
 	}
 
-	const arrayBuffer = await fileToArrayBuffer(trait.imageData);
-	const imageUrl = URL.createObjectURL(trait.imageData);
-	activeObjectUrls.add(imageUrl);
+	startDetailedLoading(`trait-upload-${layerId}`, `Uploading trait ${sanitizedName}...`);
 
-	const newTrait: Trait = {
-		...trait,
-		id: crypto.randomUUID(),
-		imageUrl,
-		imageData: arrayBuffer
-	};
+	try {
+		const arrayBuffer = await fileToArrayBuffer(trait.imageData);
+		const imageUrl = URL.createObjectURL(trait.imageData);
+		resourceManager.addObjectUrl(imageUrl);
 
-	projectStore.update((p) => {
-		// Auto-set project output size based on first uploaded image
-		let newOutputSize = p.outputSize;
-		const isFirstImage = p.layers.every((layer) => layer.traits.length === 0);
+		// Ensure rarityWeight is a valid integer between 1 and 5
+		const validRarityWeight =
+			trait.rarityWeight && isValidRarityWeight(trait.rarityWeight) ? trait.rarityWeight : 3; // Default to 3 (Epic) if not provided or invalid
 
-		if (isFirstImage && trait.width && trait.height) {
-			newOutputSize = { width: trait.width, height: trait.height };
-		}
+		const newTrait: Trait = {
+			...trait,
+			name: sanitizedName,
+			id: crypto.randomUUID(),
+			imageUrl,
+			imageData: arrayBuffer,
+			rarityWeight: validRarityWeight
+		};
 
-		const newLayers = p.layers.map((layer) => {
-			if (layer.id === layerId) {
-				return { ...layer, traits: [...layer.traits, newTrait] };
+		projectStore.update((p) => {
+			// Auto-set project output size based on first uploaded image
+			let newOutputSize = p.outputSize;
+			const isFirstImage = p.layers.every((layer) => layer.traits.length === 0);
+
+			if (isFirstImage && trait.width && trait.height) {
+				newOutputSize = { width: trait.width, height: trait.height };
 			}
-			return layer;
+
+			const newLayers = p.layers.map((layer) => {
+				if (layer.id === layerId) {
+					return { ...layer, traits: [...layer.traits, newTrait] };
+				}
+				return layer;
+			});
+			return { ...p, outputSize: newOutputSize, layers: newLayers };
 		});
-		return { ...p, outputSize: newOutputSize, layers: newLayers };
-	});
+	} catch (error) {
+		handleFileError(error, {
+			context: { component: 'ProjectStore', action: 'addTrait' },
+			title: 'Upload Failed',
+			description: 'Failed to upload trait image. Please try again.'
+		});
+	} finally {
+		stopDetailedLoading(`trait-upload-${layerId}`);
+	}
 }
 
+/**
+ * Removes a trait from a layer.
+ * @param {string} layerId - The ID of the layer to remove the trait from
+ * @param {string} traitId - The ID of the trait to remove
+ */
 export function removeTrait(layerId: string, traitId: string): void {
 	// Revoke object URL for the trait being removed to avoid memory leaks
 	try {
@@ -250,8 +343,7 @@ export function removeTrait(layerId: string, traitId: string): void {
 		const layer = current.layers.find((l) => l.id === layerId);
 		const trait = layer?.traits.find((t) => t.id === traitId);
 		if (trait?.imageUrl) {
-			URL.revokeObjectURL(trait.imageUrl);
-			activeObjectUrls.delete(trait.imageUrl);
+			resourceManager.removeObjectUrl(trait.imageUrl);
 		}
 	} catch {
 		// noop in non-browser contexts
@@ -269,8 +361,16 @@ export function removeTrait(layerId: string, traitId: string): void {
 	});
 }
 
+/**
+ * Updates the name of a trait.
+ * @param {string} layerId - The ID of the layer containing the trait
+ * @param {string} traitId - The ID of the trait to update
+ * @param {string} name - The new name for the trait
+ * @throws {Error} If the trait name is invalid
+ */
 export function updateTraitName(layerId: string, traitId: string, name: string): void {
-	if (!isValidTraitName(name)) {
+	const sanitizedName = isValidTraitName(name);
+	if (sanitizedName === null) {
 		handleValidationError<void>(
 			new Error('Invalid trait name: must be a non-empty string with maximum 100 characters'),
 			{
@@ -285,22 +385,8 @@ export function updateTraitName(layerId: string, traitId: string, name: string):
 			layer.id === layerId
 				? {
 						...layer,
-						traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, name } : trait))
-					}
-				: layer
-		)
-	}));
-}
-
-export function updateTraitRarity(layerId: string, traitId: string, rarityWeight: number): void {
-	projectStore.update((p) => ({
-		...p,
-		layers: p.layers.map((layer) =>
-			layer.id === layerId
-				? {
-						...layer,
 						traits: layer.traits.map((trait) =>
-							trait.id === traitId ? { ...trait, rarityWeight } : trait
+							trait.id === traitId ? { ...trait, name: sanitizedName } : trait
 						)
 					}
 				: layer
@@ -308,20 +394,69 @@ export function updateTraitRarity(layerId: string, traitId: string, rarityWeight
 	}));
 }
 
-// Loading state functions
+/**
+ * Updates the rarity weight of a trait.
+ * @param {string} layerId - The ID of the layer containing the trait
+ * @param {string} traitId - The ID of the trait to update
+ * @param {number} rarityWeight - The new rarity weight (1-5)
+ */
+export function updateTraitRarity(layerId: string, traitId: string, rarityWeight: number): void {
+	// Ensure rarityWeight is a valid integer between 1 and 5
+	const validRarityWeight = Math.max(1, Math.min(5, Math.round(rarityWeight || 3)));
+
+	if (!isValidRarityWeight(validRarityWeight)) {
+		handleValidationError<void>(
+			new Error('Invalid rarity weight: must be an integer between 1 and 5'),
+			{
+				context: { component: 'ProjectStore', action: 'updateTraitRarity' }
+			}
+		);
+		return;
+	}
+
+	projectStore.update((p) => ({
+		...p,
+		layers: p.layers.map((layer) =>
+			layer.id === layerId
+				? {
+						...layer,
+						traits: layer.traits.map((trait) =>
+							trait.id === traitId ? { ...trait, rarityWeight: validRarityWeight } : trait
+						)
+					}
+				: layer
+		)
+	}));
+}
+
+/**
+ * Starts a loading state for a specific operation.
+ * @param {string} key - The key identifying the operation
+ */
 export function startLoading(key: string): void {
 	loadingStore.update((state) => ({ ...state, [key]: true }));
 }
 
+/**
+ * Stops a loading state for a specific operation.
+ * @param {string} key - The key identifying the operation
+ */
 export function stopLoading(key: string): void {
 	loadingStore.update((state) => ({ ...state, [key]: false }));
 }
 
+/**
+ * Resets all loading states.
+ */
 export function resetLoading(): void {
 	loadingStore.set({});
 }
 
 // Save project to ZIP
+/**
+ * Saves the current project to a ZIP file.
+ * @returns {Promise<void>} A promise that resolves when the project is saved
+ */
 export async function saveProjectToZip(): Promise<void> {
 	startLoading('project-save');
 
@@ -344,11 +479,11 @@ export async function saveProjectToZip(): Promise<void> {
 		zip.file('project.json', JSON.stringify(projectConfig, null, 2));
 
 		for (const layer of currentProject.layers) {
-			const layerFolder = zip.folder(normalizeFilename(layer.name));
+			const layerFolder = zip.folder(sanitizeFilename(layer.name));
 			if (layerFolder) {
 				for (const trait of layer.traits) {
 					if (trait.imageData && trait.imageData.byteLength > 0) {
-						const safeTraitName = normalizeFilename(trait.name);
+						const safeTraitName = sanitizeFilename(trait.name);
 						const blob = new Blob([trait.imageData], { type: 'image/png' });
 						layerFolder.file(`${safeTraitName}.png`, blob);
 					}
@@ -360,7 +495,7 @@ export async function saveProjectToZip(): Promise<void> {
 		const url = URL.createObjectURL(content);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `${currentProject.name || 'project'}.zip`;
+		a.download = `${sanitizeFilename(currentProject.name) || 'project'}.zip`;
 		a.click();
 		URL.revokeObjectURL(url);
 	} catch (error) {
@@ -375,6 +510,11 @@ export async function saveProjectToZip(): Promise<void> {
 }
 
 // Load project from ZIP
+/**
+ * Loads a project from a ZIP file.
+ * @param {File} file - The ZIP file to load
+ * @returns {Promise<boolean>} A promise that resolves to true if the project was loaded successfully
+ */
 export async function loadProjectFromZip(file: File): Promise<boolean> {
 	startLoading('project-load');
 
@@ -417,6 +557,9 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 		};
 
 		const layersWithImages: Layer[] = [];
+		const totalLayers = validatedProjectData.layers.length;
+		let processedLayers = 0;
+
 		for (const layer of validatedProjectData.layers) {
 			const layerWithTraits: Layer = {
 				id: layer.id || crypto.randomUUID(),
@@ -428,13 +571,20 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 
 			const layerFolder = contents.folder(layer.name);
 			if (layerFolder) {
+				const totalTraits = layer.traits.length;
+				let processedTraits = 0;
+
 				for (const trait of layer.traits) {
 					const traitFile = layerFolder.file(`${trait.name}.png`);
 					if (traitFile) {
 						const blob = await traitFile.async('blob');
 						const imageData = await fileToArrayBuffer(blob as unknown as File);
 						const imageUrl = URL.createObjectURL(blob);
-						activeObjectUrls.add(imageUrl);
+						resourceManager.addObjectUrl(imageUrl);
+						// Ensure rarityWeight is a valid integer between 1 and 5
+						const traitRarityWeight = trait.rarityWeight as number;
+						const validRarityWeight =
+							traitRarityWeight && isValidRarityWeight(traitRarityWeight) ? traitRarityWeight : 3; // Default to 3 (Epic) if not provided or invalid
 						layerWithTraits.traits.push({
 							id: trait.id || crypto.randomUUID(),
 							name: trait.name,
@@ -442,29 +592,21 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 							imageUrl,
 							width: (trait.width as number) || 0,
 							height: (trait.height as number) || 0,
-							rarityWeight: (trait.rarityWeight as number) || 1
+							rarityWeight: validRarityWeight
 						});
 					}
+					processedTraits++;
+					const progress = Math.round(
+						((processedLayers + processedTraits / totalTraits) / totalLayers) * 100
+					);
+					updateLoadingProgress('project-load', progress, `Loading layer ${layer.name}...`);
 				}
 			}
 			layersWithImages.push(layerWithTraits);
+			processedLayers++;
+			const progress = Math.round((processedLayers / totalLayers) * 100);
+			updateLoadingProgress('project-load', progress, `Loaded layer ${layer.name}`);
 		}
-
-		// const _outputSize = validatedProjectData.outputSize || { width: 0, height: 0 };
-		// const projectToSet: Project = {
-		// 	id: validatedProjectData.id || crypto.randomUUID(),
-		// 	name: validatedProjectData.name,
-		// 	description: validatedProjectData.description || '',
-		// 	outputSize,
-		// 	layers: layersWithImages.map((layer: Layer) => ({
-		// 		...layer,
-		// 		id: layer.id || crypto.randomUUID(),
-		// 		traits: layer.traits.map((trait: Trait) => ({
-		// 			...trait,
-		// 			id: trait.id || crypto.randomUUID()
-		// 		}))
-		// 	}))
-		// };
 
 		// Calculate output size from the first trait with valid dimensions
 		let outputSize = { width: 0, height: 0 };
@@ -521,16 +663,172 @@ export function markProjectAsLoaded(): void {
 	});
 }
 
+// Enhanced loading state functions with better tracking
+/**
+ * Interface for detailed loading state information.
+ */
+export interface LoadingState {
+	/** Whether the operation is currently loading */
+	isLoading: boolean;
+	/** Progress percentage (0-100) */
+	progress?: number;
+	/** Current status message */
+	message?: string;
+	/** Timestamp when the operation started */
+	startTime?: number;
+}
+
+/**
+ * Reactive store containing detailed loading states for various operations.
+ * @type {import('svelte/store').Writable<Record<string, LoadingState>>}
+ */
+export const detailedLoadingStore = writable<Record<string, LoadingState>>({});
+
+/**
+ * Starts a detailed loading state for a specific operation.
+ * @param {string} key - The key identifying the operation
+ * @param {string} [message] - Optional status message
+ */
+export function startDetailedLoading(key: string, message?: string): void {
+	detailedLoadingStore.update((state) => ({
+		...state,
+		[key]: {
+			isLoading: true,
+			message,
+			progress: 0,
+			startTime: Date.now()
+		}
+	}));
+}
+
+/**
+ * Updates the progress of a loading operation.
+ * @param {string} key - The key identifying the operation
+ * @param {number} progress - Progress percentage (0-100)
+ * @param {string} [message] - Optional status message
+ */
+export function updateLoadingProgress(key: string, progress: number, message?: string): void {
+	detailedLoadingStore.update((state) => ({
+		...state,
+		[key]: {
+			...state[key],
+			progress,
+			message: message || state[key]?.message
+		}
+	}));
+}
+
+/**
+ * Stops a detailed loading state for a specific operation.
+ * @param {string} key - The key identifying the operation
+ */
+export function stopDetailedLoading(key: string): void {
+	detailedLoadingStore.update((state) => ({
+		...state,
+		[key]: {
+			...state[key],
+			isLoading: false,
+			progress: 100
+		}
+	}));
+}
+
+/**
+ * Resets all detailed loading states.
+ */
+export function resetDetailedLoading(): void {
+	detailedLoadingStore.set({});
+}
+
 // Helper function to get loading state
+/**
+ * Gets the loading state for a specific operation.
+ * @param {string} key - The key identifying the operation
+ * @returns {boolean} Whether the operation is currently loading
+ */
 export function getLoadingState(key: string): boolean {
 	return get(loadingStore)[key] ?? false;
 }
 
-// Cleanup function to revoke all object URLs
-export function cleanupAllObjectUrls(): void {
-	cleanupObjectUrls();
+/**
+ * Gets the detailed loading state for a specific operation.
+ * @param {string} key - The key identifying the operation
+ * @returns {LoadingState | undefined} The detailed loading state
+ */
+export function getDetailedLoadingState(key: string): LoadingState | undefined {
+	return get(detailedLoadingStore)[key];
+}
+
+// Enhanced cleanup functions
+/**
+ * Interface for resource cleanup management.
+ */
+export interface ResourceCleanup {
+	/** Clean up all resources */
+	cleanup(): void;
+	/** Add an object URL to the resource manager */
+	addObjectUrl(url: string): void;
+	/** Remove an object URL from the resource manager */
+	removeObjectUrl(url: string): void;
+	/** Get all active object URLs */
+	getActiveObjectUrls(): Set<string>;
+}
+
+/**
+ * Resource manager for handling object URL cleanup.
+ * @type {ResourceCleanup}
+ */
+export const resourceManager: ResourceCleanup = {
+	cleanup(): void {
+		cleanupObjectUrls();
+	},
+
+	addObjectUrl(url: string): void {
+		activeObjectUrls.add(url);
+	},
+
+	removeObjectUrl(url: string): void {
+		try {
+			URL.revokeObjectURL(url);
+			activeObjectUrls.delete(url);
+		} catch {
+			// Ignore cleanup errors
+		}
+	},
+
+	getActiveObjectUrls(): Set<string> {
+		return new Set(activeObjectUrls);
+	}
+};
+
+// Cleanup function to revoke all object URLs and reset stores
+/**
+ * Cleans up all resources including object URLs and resets stores.
+ */
+export function cleanupAllResources(): void {
+	// Clean up object URLs
+	resourceManager.cleanup();
+
+	// Reset loading states
+	resetLoading();
+	resetDetailedLoading();
+
+	// Clear any active timeouts
+	if (saveTimeout) {
+		clearTimeout(saveTimeout);
+		saveTimeout = null;
+	}
 }
 
 // Export stores for direct access
+/**
+ * Reactive store containing the current project state.
+ * @type {import('svelte/store').Writable<Project>}
+ */
 export const project: Writable<Project> = projectStore;
+
+/**
+ * Reactive store containing the loading states for various operations.
+ * @type {import('svelte/store').Writable<Record<string, boolean>>}
+ */
 export const loadingStates: Writable<Record<string, boolean>> = loadingStore;

@@ -8,7 +8,10 @@
 		project,
 		projectNeedsZipLoad,
 		markProjectAsLoaded,
-		getLoadingState
+		getLoadingState,
+		getDetailedLoadingState,
+		startDetailedLoading,
+		stopDetailedLoading
 	} from '$lib/stores/runes-store';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
@@ -27,6 +30,8 @@
 	let saveFileInputElement: HTMLInputElement | null = null;
 	let isProjectLoading = $derived(getLoadingState('project-load'));
 	let isProjectSaving = $derived(getLoadingState('project-save'));
+	let projectLoadProgress = $derived(getDetailedLoadingState('project-load'));
+	let projectSaveProgress = $derived(getDetailedLoadingState('project-save'));
 
 	// Track unsaved changes
 	let hasUnsavedChanges = $derived(
@@ -56,6 +61,7 @@
 
 	async function handleSaveProject() {
 		try {
+			startDetailedLoading('project-save', 'Preparing project for save...');
 			await saveProjectToZip();
 			toast.success('Project saved successfully!');
 			saveDialogOpen = false;
@@ -67,6 +73,7 @@
 			if (saveFileInputElement) {
 				saveFileInputElement.value = '';
 			}
+			stopDetailedLoading('project-save');
 		}
 	}
 
@@ -91,6 +98,7 @@
 		}
 
 		try {
+			startDetailedLoading('project-load', 'Loading project file...');
 			const success = await loadProjectFromZip(file);
 			if (success) {
 				markProjectAsLoaded();
@@ -107,15 +115,16 @@
 			if (loadFileInputElement) {
 				loadFileInputElement.value = '';
 			}
+			stopDetailedLoading('project-load');
 		}
 	}
 </script>
 
-<div class="flex space-x-3">
+<div class="flex flex-wrap gap-2 sm:gap-3">
 	{#if projectNeedsZipLoad()}
-		<Card class="mb-2 border border-yellow-200 bg-yellow-50 p-2 text-sm">
+		<Card class="mb-2 w-full border border-yellow-200 bg-yellow-50 p-2 text-xs sm:text-sm">
 			<CardContent class="flex items-center p-0">
-				<AlertTriangle class="mr-2 h-4 w-4 text-yellow-600" />
+				<AlertTriangle class="mr-1.5 h-3 w-3 text-yellow-600 sm:mr-2 sm:h-4 sm:w-4" />
 				<p class="text-yellow-800">Don't forget to save your Project first before generate.</p>
 			</CardContent>
 		</Card>
@@ -126,9 +135,9 @@
 		<DialogTrigger>
 			<Button
 				variant="outline"
-				class="border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+				class="border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:px-4 sm:py-2 sm:text-sm"
 			>
-				<Upload class="mr-2 h-4 w-4" />
+				<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 				Load Project
 			</Button>
 		</DialogTrigger>
@@ -139,9 +148,9 @@
 					Upload a previously saved project ZIP file to restore your configuration and images.
 				</DialogDescription>
 			</DialogHeader>
-			<div class="space-y-4">
+			<div class="space-y-3 sm:space-y-4">
 				<div
-					class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-blue-500 hover:border-gray-400 {isProjectLoading
+					class="rounded-lg border-2 border-dashed border-gray-300 p-4 text-center transition-colors hover:border-blue-500 hover:border-gray-400 sm:p-6 {isProjectLoading
 						? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500'
 						: ''}"
 					role="button"
@@ -169,8 +178,8 @@
 						class="hidden"
 						onchange={(e) => handleLoadProject((e.target as HTMLInputElement).files)}
 					/>
-					<FolderOpen class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-					<p class="mb-4 text-sm text-gray-600">
+					<FolderOpen class="mx-auto mb-3 h-8 w-8 text-gray-400 sm:mb-4 sm:h-10 sm:w-10" />
+					<p class="mb-3 text-xs text-gray-600 sm:mb-4 sm:text-sm">
 						Drop a .zip project file here or select one to upload
 					</p>
 					<Button
@@ -181,10 +190,21 @@
 						{#if isProjectLoading}
 							<LoadingIndicator operation="project-load" message="Loading project..." />
 						{:else}
-							<Upload class="mr-2 h-4 w-4" />
-							Choose File
+							<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+							<span class="text-xs sm:text-sm">Choose File</span>
 						{/if}
 					</Button>
+					{#if projectLoadProgress?.progress !== undefined && projectLoadProgress.progress > 0}
+						<div class="mt-3 w-full rounded-full bg-gray-200 sm:mt-4">
+							<div
+								class="h-1.5 rounded-full bg-blue-600 sm:h-2"
+								style="width: {projectLoadProgress.progress}%"
+							></div>
+						</div>
+						{#if projectLoadProgress.message}
+							<p class="mt-1 text-xs text-gray-600 sm:mt-2">{projectLoadProgress.message}</p>
+						{/if}
+					{/if}
 				</div>
 				<p class="text-center text-xs text-gray-500">
 					Note: Loading a project will refresh the page and start fresh.
@@ -198,9 +218,9 @@
 		<DialogTrigger>
 			<Button
 				variant="outline"
-				class="border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+				class="border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:px-4 sm:py-2 sm:text-sm"
 			>
-				<Download class="mr-2 h-4 w-4" />
+				<Download class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 				Save Project
 			</Button>
 		</DialogTrigger>
@@ -216,8 +236,10 @@
 				<Button
 					variant="outline"
 					onclick={() => (saveDialogOpen = false)}
-					class="border-gray-300 text-gray-700 hover:bg-gray-100">Cancel</Button
+					class="border-gray-300 text-gray-700 hover:bg-gray-100"
 				>
+					<span class="text-xs sm:text-sm">Cancel</span>
+				</Button>
 				<Button
 					onclick={handleSaveProject}
 					disabled={isProjectSaving}
@@ -226,10 +248,21 @@
 					{#if isProjectSaving}
 						<LoadingIndicator operation="project-save" message="Saving project..." />
 					{:else}
-						<Save class="mr-2 h-4 w-4" />
-						Save Project
+						<Save class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+						<span class="text-xs sm:text-sm">Save Project</span>
 					{/if}
 				</Button>
+				{#if projectSaveProgress?.progress !== undefined && projectSaveProgress.progress > 0}
+					<div class="mt-2 w-full rounded-full bg-gray-200">
+						<div
+							class="h-1.5 rounded-full bg-blue-600 sm:h-2"
+							style="width: {projectSaveProgress.progress}%"
+						></div>
+					</div>
+					{#if projectSaveProgress.message}
+						<p class="mt-1 text-xs text-gray-600 sm:mt-2">{projectSaveProgress.message}</p>
+					{/if}
+				{/if}
 			</div>
 		</DialogContent>
 	</Dialog>

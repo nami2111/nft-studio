@@ -2,28 +2,7 @@
  * Domain payload abstractions used for worker communication.
  */
 import type { Layer } from '$lib/types/layer';
-// import type { Trait } from '$lib/types/trait';
-
-export interface TransferrableTrait {
-	id: string;
-	name: string;
-	imageData: ArrayBuffer;
-	rarityWeight: number;
-	// Add width/height for better memory management
-	width?: number;
-	height?: number;
-}
-
-export interface TransferrableLayer {
-	id: string;
-	name: string;
-	order: number;
-	isOptional?: boolean;
-	traits: TransferrableTrait[];
-	// Add layer-level width/height for consistent sizing
-	width?: number;
-	height?: number;
-}
+import type { TransferrableLayer } from '$lib/types/worker-messages';
 
 /**
  * Prepare layers for worker with validation.

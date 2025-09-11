@@ -10,7 +10,7 @@
 	 * ```
 	 */
 	import { Slider as SliderPrimitive } from 'bits-ui';
-	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
+	import { cn } from '$lib/utils.js';
 
 	interface Props {
 		/** Minimum value */
@@ -25,10 +25,6 @@
 		'aria-label'?: string;
 		/** Accessibility description for the slider */
 		'aria-describedby'?: string;
-		/** Callback when value changes */
-		onValueChange?: (value: number[]) => void;
-		/** Callback when slider interaction ends */
-		onValueCommit?: (value: number[]) => void;
 		/** Additional CSS classes */
 		class?: string;
 		/** Slider orientation */
@@ -50,8 +46,6 @@
 		class: className,
 		'aria-label': ariaLabel,
 		'aria-describedby': ariaDescribedBy,
-		onValueChange,
-		onValueCommit,
 		...restProps
 	}: Props = $props();
 

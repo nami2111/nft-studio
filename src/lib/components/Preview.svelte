@@ -356,23 +356,23 @@
 	}
 </script>
 
-<Card class="sticky top-8">
-	<CardContent class="p-6">
-		<h2 class="mb-4 text-xl font-bold text-gray-800">Preview</h2>
+<Card class="sticky top-4 sm:top-8">
+	<CardContent class="p-4 sm:p-6">
+		<h2 class="mb-3 text-lg font-bold text-gray-800 sm:mb-4 sm:text-xl">Preview</h2>
 		<div
 			bind:this={container}
-			class="flex h-96 w-full items-center justify-center overflow-hidden rounded-lg bg-gray-100"
+			class="flex h-64 w-full items-center justify-center overflow-hidden rounded-lg bg-gray-100 sm:h-96"
 		>
 			<canvas bind:this={canvas} class="block"></canvas>
 		</div>
-		<div class="mt-4 flex justify-center space-x-2">
-			<Button onclick={randomize}>
-				<Shuffle class="mr-2 h-4 w-4" />
-				Randomize
+		<div class="mt-3 flex justify-center space-x-2 sm:mt-4">
+			<Button size="sm" onclick={randomize}>
+				<Shuffle class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+				<span class="text-xs sm:text-sm">Randomize</span>
 			</Button>
-			<Button variant="outline" onclick={handleRefresh}>
-				<RefreshCw class="mr-2 h-4 w-4" />
-				Refresh
+			<Button variant="outline" size="sm" onclick={handleRefresh}>
+				<RefreshCw class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+				<span class="text-xs sm:text-sm">Refresh</span>
 			</Button>
 		</div>
 	</CardContent>
