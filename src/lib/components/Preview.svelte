@@ -7,10 +7,11 @@
 	import { onDestroy } from 'svelte';
 
 	let canvas: HTMLCanvasElement | null = null;
-	let ctx: CanvasRenderingContext2D | null = null;
+	let ctx = $state<CanvasRenderingContext2D | null>(null);
 	let container: HTMLDivElement | null = null;
 	let displayWidth = 0;
 	let displayHeight = 0;
+	let isCanvasInitialized = $state(false);
 
 	// Image cache using $state.raw since we don't need deep reactivity
 	const imageCache = $state.raw(new SvelteMap<string, HTMLImageElement>());
@@ -49,8 +50,7 @@
 	}
 
 	// Selected trait IDs state - starts with first trait of each layer
-	// Using $state.raw since we only need reactivity on array reassignment
-	let selectedTraitIds = $state.raw(
+	let selectedTraitIds = $state(
 		$project.layers.map((layer) => (layer.traits.length > 0 ? layer.traits[0].id : ''))
 	);
 
@@ -77,8 +77,11 @@
 		}
 
 		// Only update if there's actually a change to prevent infinite loops
+
 		if (JSON.stringify(newSelectedTraits) !== JSON.stringify(selectedTraitIds)) {
-			selectedTraitIds = newSelectedTraits;
+			// Use a temporary variable to break the reactivity cycle
+			const updatedTraits = [...newSelectedTraits];
+			selectedTraitIds = updatedTraits;
 		}
 	});
 
@@ -137,11 +140,8 @@
 
 	// Load image with caching using worker
 	async function loadImage(src: string): Promise<HTMLImageElement> {
-		console.log('Attempting to load image:', src);
-
 		// Check if image is already in cache
 		if (imageCache.has(src)) {
-			console.log('Image found in cache:', src);
 			cacheAccessTimes.set(src, Date.now());
 			return imageCache.get(src)!;
 		}
@@ -153,13 +153,12 @@
 				const img = new Image();
 				img.crossOrigin = 'anonymous';
 				img.onload = () => {
-					console.log('Blob image loaded successfully:', src);
 					imageCache.set(src, img);
 					cacheAccessTimes.set(src, Date.now());
 					resolve(img);
 				};
 				img.onerror = () => {
-					console.error('Failed to load blob image:', src);
+					console.error('Failed to load blob image');
 					reject(new Error('Failed to load blob image'));
 				};
 				img.src = src;
@@ -183,7 +182,6 @@
 						const img = new Image();
 						img.crossOrigin = 'anonymous';
 						img.onload = () => {
-							console.log('Image loaded successfully from worker:', src);
 							imageCache.set(src, img);
 							cacheAccessTimes.set(src, Date.now());
 							resolve(img);
@@ -203,10 +201,24 @@
 
 	// Memoized drawPreview using current state
 	async function drawPreview() {
-		if (!ctx || !canvas) return;
+		if (!ctx || !canvas) {
+			return;
+		}
 
 		// Clear canvas
-		ctx.clearRect(0, 0, displayWidth, displayHeight);
+		try {
+			ctx.clearRect(0, 0, displayWidth, displayHeight);
+		} catch (error) {
+			console.error('Error clearing canvas:', error);
+			// Try to reinitialize canvas context
+			if (canvas) {
+				const newCtx = canvas.getContext('2d');
+				if (newCtx) {
+					ctx = newCtx;
+				}
+			}
+			return;
+		}
 
 		const layers = $project.layers;
 		const outputSize = $project.outputSize;
@@ -247,10 +259,25 @@
 
 			if (effectiveTraitId) {
 				const selectedTrait = layer.traits.find((trait) => trait.id === effectiveTraitId);
+
 				if (selectedTrait && selectedTrait.imageUrl) {
 					try {
 						const img = await loadImage(selectedTrait.imageUrl);
-						ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+						try {
+							ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+						} catch (drawError) {
+							console.error('Error drawing image to canvas:', drawError);
+							// Canvas context might be lost, try to reinitialize
+							if (canvas) {
+								const newCtx = canvas.getContext('2d');
+								if (newCtx) {
+									ctx = newCtx;
+
+									// Try drawing again with new context
+									ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+								}
+							}
+						}
 					} catch (error) {
 						console.error('Error drawing image:', error);
 						// Only show error toast if we're not in the initial load state
@@ -282,7 +309,14 @@
 	// Handle canvas initialization and resize
 	$effect(() => {
 		if (canvas && container) {
-			ctx = canvas.getContext('2d');
+			const context = canvas.getContext('2d');
+			if (context) {
+				ctx = context;
+				isCanvasInitialized = true;
+			} else {
+				ctx = null;
+				isCanvasInitialized = false;
+			}
 			resizeCanvas();
 		}
 	});
@@ -330,14 +364,22 @@
 	}
 
 	function randomize() {
+		// Ensure we have a valid project state
+		if (!$project || !$project.layers) {
+			console.error('Cannot randomize: Project or layers not available');
+			return;
+		}
 		const { layers } = $project;
 		const newSelectedTraits: string[] = [];
 
+		console.log('Project layers:', layers.length);
 		for (const layer of layers) {
 			if (layer.traits.length > 0) {
 				// Select a random trait from this layer
 				const randomIndex = Math.floor(Math.random() * layer.traits.length);
-				newSelectedTraits.push(layer.traits[randomIndex].id);
+				const selectedTraitId = layer.traits[randomIndex].id;
+
+				newSelectedTraits.push(selectedTraitId);
 			} else {
 				newSelectedTraits.push('');
 			}
@@ -345,6 +387,28 @@
 
 		// Update selected traits - this will trigger $derived and effect
 		selectedTraitIds = newSelectedTraits;
+
+		// Ensure preview updates even if reactivity doesn't trigger
+		requestAnimationFrame(() => {
+			if (ctx && canvas && isCanvasInitialized) {
+				drawPreview().catch((error) => {
+					console.error('Error drawing preview after randomization:', error);
+				});
+			} else {
+				// Try to initialize canvas if not ready
+				if (canvas && container && !isCanvasInitialized) {
+					const context = canvas.getContext('2d');
+					if (context) {
+						ctx = context;
+						isCanvasInitialized = true;
+						resizeCanvas();
+						drawPreview().catch((error) => {
+							console.error('Error drawing preview after initialization:', error);
+						});
+					}
+				}
+			}
+		});
 	}
 
 	function handleRefresh() {
