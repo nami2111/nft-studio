@@ -1,31 +1,14 @@
 <script lang="ts">
 	import { project, addLayer, reorderLayers } from '$lib/stores/runes-store';
 	import LayerItem from '$lib/components/LayerItem.svelte';
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
-	import type { Layer } from '$lib/types/layer';
+
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import { Loader2, GripVertical } from 'lucide-svelte';
+	import { Loader2 } from 'lucide-svelte';
 	import { showError, showSuccess } from '$lib/utils/error-handling';
 
 	let layers = $derived($project.layers);
 	let isAddingLayer = $state(false);
-	let dndError = $state(false);
-	let dndInitialized = $state(false);
-
-	// Initialize drag and drop and catch any initialization errors
-	$effect(() => {
-		try {
-			// The dndzone is automatically initialized when used in the template
-			// We'll catch errors in the template rendering instead
-			dndInitialized = true;
-		} catch (error) {
-			console.error('Failed to initialize drag and drop:', error);
-			dndError = true;
-			dndInitialized = false;
-		}
-	});
 
 	async function handleAddLayer() {
 		if (isAddingLayer) return;
@@ -49,31 +32,6 @@
 		}
 	}
 
-	function handleDndConsider(_e: CustomEvent) {
-		// Handle consider event if needed
-		// _e is intentionally unused
-	}
-
-	function handleDndFinalize(e: CustomEvent) {
-		try {
-			const { items: newItems } = e.detail;
-			const reordered = newItems.map((layer: Layer, index: number) => ({
-				...layer,
-				order: index
-			}));
-			reorderLayers(reordered);
-			showSuccess('Layers reordered successfully.');
-		} catch (error) {
-			console.error('Error during drag and drop finalize:', error);
-			dndError = true;
-			showError(error, {
-				title: 'Drag and Drop Error',
-				description: 'Failed to reorder layers. Please try again.'
-			});
-		}
-	}
-
-	// Fallback function to move a layer up or down
 	function moveLayer(layerId: string, direction: 'up' | 'down') {
 		const currentIndex = layers.findIndex((layer) => layer.id === layerId);
 		if (currentIndex === -1) return;
@@ -113,64 +71,28 @@
 				No layers yet. Add one to get started!
 			</p>
 		{:else}
-			{#if dndError}
-				<div class="mb-3 rounded-md bg-yellow-50 p-3 sm:mb-4 sm:p-4">
-					<div class="flex">
-						<div class="flex-shrink-0">
-							<span class="text-yellow-400">⚠️</span>
-						</div>
-						<div class="ml-2 sm:ml-3">
-							<h3 class="text-xs font-medium text-yellow-800 sm:text-sm">Drag and Drop Disabled</h3>
-							<div class="mt-1 text-xs text-yellow-700 sm:text-sm">
-								<p>
-									Drag and drop functionality is currently disabled due to compatibility issues. Use
-									the arrow buttons to reorder layers.
-								</p>
-							</div>
-						</div>
-					</div>
-				</div>
-			{/if}
-			<div
-				class="space-y-3 sm:space-y-4"
-				use:dndzone={{
-					items: layers,
-					flipDurationMs: 150,
-					dragDisabled: dndError || !dndInitialized
-				}}
-				onconsider={handleDndConsider}
-				onfinalize={handleDndFinalize}
-			>
+			<div class="space-y-3 sm:space-y-4">
 				{#each layers as layer (layer.id)}
-					<div animate:flip={{ duration: 150 }} class="group relative">
-						{#if !(dndError || !dndInitialized)}
-							<div
-								class="absolute top-1/2 left-0 -translate-y-1/2 cursor-grab opacity-0 transition-opacity group-hover:opacity-100"
-							>
-								<GripVertical class="h-3 w-3 text-gray-400 sm:h-4 sm:w-4" />
-							</div>
-						{/if}
+					<div class="group relative">
 						<LayerItem {layer} />
-						{#if dndError || !dndInitialized}
-							<div class="mt-2 flex justify-end space-x-1">
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => moveLayer(layer.id, 'up')}
-									disabled={layers.indexOf(layer) === 0}
-								>
-									↑
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => moveLayer(layer.id, 'down')}
-									disabled={layers.indexOf(layer) === layers.length - 1}
-								>
-									↓
-								</Button>
-							</div>
-						{/if}
+						<div class="mt-2 flex justify-end space-x-1">
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => moveLayer(layer.id, 'up')}
+								disabled={layers.indexOf(layer) === 0}
+							>
+								↑
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => moveLayer(layer.id, 'down')}
+								disabled={layers.indexOf(layer) === layers.length - 1}
+							>
+								↓
+							</Button>
+						</div>
 					</div>
 				{/each}
 			</div>
