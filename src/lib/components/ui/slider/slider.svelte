@@ -73,7 +73,7 @@ get along, so we shut typescript up by casting `value` to `never`.
 	aria-label={ariaLabel}
 	aria-describedby={ariaDescribedBy}
 	class={cn(
-		'relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
+		'relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
 		className
 	)}
 	{...restProps}
@@ -83,21 +83,19 @@ get along, so we shut typescript up by casting `value` to `never`.
 			data-orientation={orientation}
 			data-slot="slider-track"
 			class={cn(
-				'bg-muted relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5'
+				'bg-primary/20 relative h-1.5 w-full grow overflow-hidden rounded-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5'
 			)}
 		>
 			<SliderPrimitive.Range
 				data-slot="slider-range"
-				class={cn(
-					'bg-primary absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full'
-				)}
+				class={cn('bg-primary absolute h-full data-[orientation=vertical]:w-full')}
 			/>
 		</span>
 		{#each thumbs as thumb (thumb)}
 			<SliderPrimitive.Thumb
 				data-slot="slider-thumb"
 				index={thumb}
-				class="border-primary bg-background ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+				class="border-primary/50 bg-background focus-visible:ring-ring block h-4 w-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
 			/>
 		{/each}
 	{/snippet}

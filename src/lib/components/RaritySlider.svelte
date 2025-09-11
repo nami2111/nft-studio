@@ -35,14 +35,14 @@
 	});
 </script>
 
-<div class="mt-2">
-	<label for="rarity-slider-{traitId}" class="block text-xs font-medium text-gray-700"
-		>Rarity: <span class="font-bold text-indigo-600">{rarityLabels[sliderValue[0]]}</span></label
-	>
-	<div class="mt-1 flex items-center">
-		<Slider min={1} max={5} step={1} bind:value={sliderValue} class="w-full" />
+<div class="space-y-2">
+	<div class="flex items-center justify-between">
+		<label for="rarity-slider-{traitId}" class="text-sm font-medium"
+			>Rarity: <span class="text-primary font-bold">{rarityLabels[sliderValue[0]]}</span></label
+		>
 	</div>
-	<div class="mt-1 flex justify-between text-xs text-gray-500">
+	<Slider min={1} max={5} step={1} bind:value={sliderValue} class="w-full" />
+	<div class="text-muted-foreground flex justify-between text-xs">
 		<span>Rare</span>
 		<span>Common</span>
 	</div>

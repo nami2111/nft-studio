@@ -10,6 +10,10 @@
 		DialogTitle,
 		DialogTrigger
 	} from '$lib/components/ui/dialog';
+	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
+	import FloatingElement from '$lib/components/FloatingElement.svelte';
+	import FeatureItem from '$lib/components/FeatureItem.svelte';
+	import WindowControls from '$lib/components/WindowControls.svelte';
 </script>
 
 <section class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16">
@@ -37,19 +41,12 @@
 
 	<div class="relative z-10 mx-auto w-full max-w-4xl">
 		<!-- Figma-style card -->
-		<div class="rounded-xl border border-gray-700 bg-gray-800/30 shadow-2xl backdrop-blur-sm">
-			<div class="border-b border-gray-700 px-6 py-4">
-				<div class="flex items-center">
-					<div class="flex space-x-2">
-						<div class="h-3 w-3 rounded-full bg-red-500"></div>
-						<div class="h-3 w-3 rounded-full bg-yellow-500"></div>
-						<div class="h-3 w-3 rounded-full bg-green-500"></div>
-					</div>
-					<div class="ml-4 text-sm text-gray-400">NFT Studio</div>
-				</div>
-			</div>
+		<Card class="border border-gray-700 bg-gray-800/30 shadow-2xl backdrop-blur-sm">
+			<CardHeader class="border-b border-gray-700 px-6 py-4">
+				<WindowControls title="NFT Studio" />
+			</CardHeader>
 
-			<div class="px-8 py-12 sm:px-12 sm:py-16">
+			<CardContent class="px-8 py-12 sm:px-12 sm:py-16">
 				<div class="text-center">
 					<h1
 						class="font-['JetBrains_Mono'] text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl"
@@ -95,41 +92,29 @@
 										Key Features:
 									</h3>
 									<ul class="space-y-2 font-['JetBrains_Mono'] text-gray-300">
-										<li class="flex items-start">
-											<span class="mr-2 text-green-500">✓</span>
-											<span>Upload your own artwork in layers</span>
-										</li>
-										<li class="flex items-start">
-											<span class="mr-2 text-green-500">✓</span>
-											<span>Adjust rarity weights for each trait</span>
-										</li>
-										<li class="flex items-start">
-											<span class="mr-2 text-green-500">✓</span>
-											<span>Generate thousands of unique images and metadata</span>
-										</li>
-										<li class="flex items-start">
-											<span class="mr-2 text-green-500">✓</span>
-											<span>Download your entire collection as a .zip file</span>
-										</li>
+										<FeatureItem text="Upload your own artwork in layers" />
+										<FeatureItem text="Adjust rarity weights for each trait" />
+										<FeatureItem text="Generate thousands of unique images and metadata" />
+										<FeatureItem text="Download your entire collection as a .zip file" />
 									</ul>
 								</div>
 							</DialogContent>
 						</Dialog>
 					</div>
 				</div>
-			</div>
-		</div>
+			</CardContent>
+		</Card>
 
 		<!-- Floating elements -->
 		<div
 			class="absolute -top-6 left-1/4 flex h-12 w-12 items-center justify-center rounded-lg border border-gray-700 bg-gray-800/80 shadow-lg"
 		>
-			<div class="h-6 w-6 rounded-full bg-blue-500"></div>
+			<FloatingElement bgColor="bg-blue-500" shape="circle" size="h-6 w-6" />
 		</div>
 		<div
 			class="absolute right-1/3 -bottom-6 flex h-16 w-16 items-center justify-center rounded-lg border border-gray-700 bg-gray-800/80 shadow-lg"
 		>
-			<div class="h-8 w-8 rounded-md bg-purple-500"></div>
+			<FloatingElement bgColor="bg-purple-500" shape="square" size="h-8 w-8" />
 		</div>
 	</div>
 </section>

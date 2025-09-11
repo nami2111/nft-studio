@@ -192,11 +192,18 @@
 		font-family: var(--font-sans);
 		font-size: var(--font-size-base);
 		line-height: var(--line-height-normal);
+		/* Performance optimization: Use transform for animations when possible */
+		will-change: scroll-position;
 	}
 	body {
 		@apply bg-background text-foreground;
 		padding: var(--space-md);
 		margin: 0;
+		transition:
+			background-color,
+			color 0.3s ease;
+		/* Performance optimization: Enable hardware acceleration for smooth animations */
+		transform: translateZ(0);
 	}
 	h1 {
 		font-size: var(--font-size-4xl);
@@ -254,5 +261,52 @@
 	}
 	.m-2xl {
 		margin: var(--space-2xl);
+	}
+
+	/* Focus visible styles for better accessibility */
+	*:focus-visible {
+		outline: 2px solid hsl(var(--ring));
+		outline-offset: 2px;
+	}
+
+	/* Scrollbar styles */
+	::-webkit-scrollbar {
+		width: 8px;
+		height: 8px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: hsl(var(--background));
+	}
+
+	::-webkit-scrollbar-thumb {
+		background: hsl(var(--border));
+		border-radius: 4px;
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: hsl(var(--accent));
+	}
+
+	/* Performance optimization: Contain layout, style, and paint for complex components */
+	.isolate {
+		isolation: isolate;
+	}
+
+	/* Performance optimization: Optimize text rendering */
+	.antialiased {
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	/* Performance optimization: Reduce motion for users who prefer it */
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+		}
 	}
 }
