@@ -4,7 +4,8 @@ import type {
 	TransferrableLayer,
 	CompleteMessage,
 	ErrorMessage,
-	CancelledMessage
+	CancelledMessage,
+	ProgressMessage
 } from '$lib/types/worker-messages';
 import type { GenerationWorkerMessage } from './generation.worker.loader';
 import {
@@ -17,8 +18,9 @@ import {
 // Worker pool will be initialized on demand
 
 // Callback for handling messages from workers
-let messageHandler: ((data: CompleteMessage | ErrorMessage | CancelledMessage) => void) | null =
-	null;
+let messageHandler:
+	| ((data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage) => void)
+	| null = null;
 
 // Set up message callback
 setMessageCallback((data) => {
@@ -33,7 +35,7 @@ export function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
-	onMessage?: (data: CompleteMessage | ErrorMessage | CancelledMessage) => void
+	onMessage?: (data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage) => void
 ): void {
 	// Initialize worker pool on demand
 	initializeWorkerPool();

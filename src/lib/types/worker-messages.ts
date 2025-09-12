@@ -66,6 +66,10 @@ export interface ErrorMessage {
 	};
 }
 
+export interface ReadyMessage {
+	type: 'ready';
+}
+
 export interface CancelledMessage {
 	type: 'cancelled';
 	payload: {
@@ -74,7 +78,15 @@ export interface CancelledMessage {
 	};
 }
 
-export type IncomingMessage = StartMessage | { type: 'cancel' };
+// Messages that can be sent from workers to the main thread
+export type OutgoingWorkerMessage =
+	| ReadyMessage
+	| ProgressMessage
+	| CompleteMessage
+	| ErrorMessage
+	| CancelledMessage;
+
+export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage;
 
 // Worker pool message types
 export type GenerationWorkerMessage =

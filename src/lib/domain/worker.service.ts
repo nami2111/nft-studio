@@ -1,7 +1,12 @@
 // src/lib/domain/worker.service.ts
 
 import type { Layer } from '$lib/types/layer';
-import type { CompleteMessage, ErrorMessage, CancelledMessage } from '$lib/types/worker-messages';
+import type {
+	CompleteMessage,
+	ErrorMessage,
+	CancelledMessage,
+	ProgressMessage
+} from '$lib/types/worker-messages';
 import {
 	startGeneration as startWorkerGeneration,
 	cancelGeneration as cancelWorkerGeneration
@@ -18,7 +23,7 @@ export async function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
-	onMessage?: (data: CompleteMessage | ErrorMessage | CancelledMessage) => void
+	onMessage?: (data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage) => void
 ): Promise<void> {
 	try {
 		// Validate layers before starting generation
