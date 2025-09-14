@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Layer } from '$lib/types/layer';
-	import type { Project } from '$lib/types/project';
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
 	import {
@@ -22,7 +21,6 @@
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { getImageDimensions } from '$lib/utils';
 	import { onMount, onDestroy } from 'svelte';
-	import { get } from 'svelte/store';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
@@ -32,7 +30,7 @@
 	const { layer }: Props = $props();
 
 	let layerName = $derived(layer.name);
-	let isUploading = $derived($loadingStates[`layer-upload-${layer.id}`] as boolean);
+	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
 
@@ -234,7 +232,7 @@
 						}
 
 						// For subsequent uploads, validate dimensions match project output size
-						const projectData = get(project) as Project;
+						const projectData = project;
 						if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
 							// Allow some flexibility for rounding errors (±1 pixel)
 							if (

@@ -67,7 +67,6 @@
 		"bits-ui": "^2.9.8",
 		"jszip": "^3.10.1",
 		"lucide-svelte": "^0.544.0",
-		"shadcn-svelte": "^1.0.7",
 		"svelte-dnd-action": "^0.9.65",
 		"svelte-headlessui": "^0.0.46"
 	}

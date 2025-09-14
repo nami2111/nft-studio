@@ -35,7 +35,7 @@
 
 	// Track unsaved changes
 	let hasUnsavedChanges = $derived(
-		$project.layers.length > 0 || $project.name.trim() !== '' || $project.description.trim() !== ''
+		project.layers.length > 0 || project.name.trim() !== '' || project.description.trim() !== ''
 	);
 
 	function triggerFileInput() {

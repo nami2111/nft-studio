@@ -1,10 +1,21 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import juno from '@junobuild/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
-	plugins: [sveltekit(), juno(), tailwindcss()],
+	plugins: [
+		sveltekit(),
+		// Temporarily disable Juno for bundle analysis
+		// juno(),
+		tailwindcss(),
+		visualizer({
+			filename: 'stats.html',
+			open: false,
+			gzipSize: true,
+			brotliSize: true
+		})
+	],
 	optimizeDeps: {
 		esbuildOptions: {
 			define: {

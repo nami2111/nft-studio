@@ -12,15 +12,16 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 - **Project Management**: Save, load, and export your projects
 - **Web Worker Processing**: Offload intensive image processing to background workers
 - **ZIP Export**: Package your entire collection for easy distribution
+- **Performance Optimized**: Lazy loading, bundle size optimization, and Web Worker processing
 
 ## Tech Stack
 
 - **Frontend**: SvelteKit 2, TypeScript, Tailwind CSS
-- **UI Components**: shadcn-svelte, bits-ui, lucide-svelte
-- **State Management**: Svelte stores with potential migration to Svelte 5 runes
+- **UI Components**: bits-ui, lucide-svelte
+- **State Management**: Svelte 5 runes and stores
 - **Image Processing**: Canvas API with Web Workers for performance
 - **Persistence**: IndexedDB for local storage, ZIP for export
-- **Build Tool**: Vite with static adapter
+- **Build Tool**: Vite with static adapter and bundle visualization
 - **Deployment**: Static hosting ready
 
 ## Getting Started
@@ -135,6 +136,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Built with [SvelteKit](https://kit.svelte.dev/)
-- UI components from [shadcn-svelte](https://www.shadcn-svelte.com/)
+- UI components from [bits-ui](https://www.bits-ui.com/)
 - Icons from [Lucide](https://lucide.dev/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)

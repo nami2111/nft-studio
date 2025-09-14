@@ -1,5 +1,3 @@
-import { writable, get } from 'svelte/store';
-import type { Writable } from 'svelte/store';
 import type { Project } from '$lib/types/project';
 import type { Layer } from '$lib/types/layer';
 import type { Trait } from '$lib/types/trait';
@@ -35,23 +33,26 @@ function defaultProject(): Project {
 	};
 }
 
-// Create reactive stores using Svelte 5 compatible patterns
+// Create reactive state using Svelte 5 runes
 /**
- * Reactive store containing the current project state.
- * @type {import('svelte/store').Writable<Project>}
+ * Reactive project state using Svelte 5 runes.
  */
-export const projectStore = writable<Project>(defaultProject());
+export const project = $state<Project>(defaultProject());
 
 /**
- * Reactive store containing the loading states for various operations.
- * @type {import('svelte/store').Writable<Record<string, boolean>>}
+ * Reactive loading states using Svelte 5 runes.
  */
-export const loadingStore = writable<Record<string, boolean>>({});
+export const loadingStates = $state<Record<string, boolean>>({});
+
+/**
+ * Reactive detailed loading states using Svelte 5 runes.
+ */
+export const detailedLoadingStates = $state<Record<string, LoadingState>>({});
 
 // Initialize from storage
 LOCAL_STORE.load().then((stored) => {
 	if (stored) {
-		projectStore.set(restoreBlobUrls(stored));
+		Object.assign(project, restoreBlobUrls(stored));
 	}
 });
 
@@ -59,7 +60,8 @@ LOCAL_STORE.load().then((stored) => {
 let saveTimeout: number | null = null;
 let lastSavedProject: string | null = null;
 
-projectStore.subscribe((project) => {
+// Use $effect to watch for project changes and auto-save
+$effect(() => {
 	// Only save if the project has actually changed
 	const projectString = JSON.stringify(project, (key, value) => {
 		// Skip imageData from comparison to avoid unnecessary saves
@@ -158,7 +160,7 @@ export function updateProjectName(name: string): void {
 		);
 		return;
 	}
-	projectStore.update((p: Project) => ({ ...p, name: sanitizedName }));
+	project.name = sanitizedName;
 }
 
 /**
@@ -166,7 +168,7 @@ export function updateProjectName(name: string): void {
  * @param {string} description - The new project description
  */
 export function updateProjectDescription(description: string): void {
-	projectStore.update((p: Project) => ({ ...p, description }));
+	project.description = description;
 }
 
 /**
@@ -185,7 +187,7 @@ export function updateProjectDimensions(width: number, height: number): void {
 		);
 		return;
 	}
-	projectStore.update((p: Project) => ({ ...p, outputSize: { width, height } }));
+	project.outputSize = { width, height };
 }
 
 /**
@@ -205,13 +207,10 @@ export function addLayer(layer: Omit<Layer, 'id' | 'traits'>): void {
 		return;
 	}
 
-	projectStore.update((p) => ({
-		...p,
-		layers: sortLayers([
-			...p.layers,
-			{ ...layer, name: sanitizedName, id: crypto.randomUUID(), traits: [] }
-		])
-	}));
+	project.layers = sortLayers([
+		...project.layers,
+		{ ...layer, name: sanitizedName, id: crypto.randomUUID(), traits: [] }
+	]);
 }
 
 /**
@@ -219,10 +218,7 @@ export function addLayer(layer: Omit<Layer, 'id' | 'traits'>): void {
  * @param {string} layerId - The ID of the layer to remove
  */
 export function removeLayer(layerId: string): void {
-	projectStore.update((p) => ({
-		...p,
-		layers: p.layers.filter((layer) => layer.id !== layerId)
-	}));
+	project.layers = project.layers.filter((layer) => layer.id !== layerId);
 }
 
 /**
@@ -242,12 +238,9 @@ export function updateLayerName(layerId: string, name: string): void {
 		);
 		return;
 	}
-	projectStore.update((p) => ({
-		...p,
-		layers: p.layers.map((layer) =>
-			layer.id === layerId ? { ...layer, name: sanitizedName } : layer
-		)
-	}));
+	project.layers = project.layers.map((layer) =>
+		layer.id === layerId ? { ...layer, name: sanitizedName } : layer
+	);
 }
 
 /**
@@ -255,10 +248,7 @@ export function updateLayerName(layerId: string, name: string): void {
  * @param {Layer[]} reorderedLayers - The reordered layers
  */
 export function reorderLayers(reorderedLayers: Layer[]): void {
-	projectStore.update((p) => ({
-		...p,
-		layers: sortLayers(reorderedLayers)
-	}));
+	project.layers = sortLayers(reorderedLayers);
 }
 
 /**
@@ -303,22 +293,18 @@ export async function addTrait(
 			rarityWeight: validRarityWeight
 		};
 
-		projectStore.update((p) => {
-			// Auto-set project output size based on first uploaded image
-			let newOutputSize = p.outputSize;
-			const isFirstImage = p.layers.every((layer) => layer.traits.length === 0);
+		// Auto-set project output size based on first uploaded image
+		const isFirstImage = project.layers.every((layer) => layer.traits.length === 0);
 
-			if (isFirstImage && trait.width && trait.height) {
-				newOutputSize = { width: trait.width, height: trait.height };
+		if (isFirstImage && trait.width && trait.height) {
+			project.outputSize = { width: trait.width, height: trait.height };
+		}
+
+		project.layers = project.layers.map((layer) => {
+			if (layer.id === layerId) {
+				return { ...layer, traits: [...layer.traits, newTrait] };
 			}
-
-			const newLayers = p.layers.map((layer) => {
-				if (layer.id === layerId) {
-					return { ...layer, traits: [...layer.traits, newTrait] };
-				}
-				return layer;
-			});
-			return { ...p, outputSize: newOutputSize, layers: newLayers };
+			return layer;
 		});
 	} catch (error) {
 		handleFileError(error, {
@@ -339,8 +325,7 @@ export async function addTrait(
 export function removeTrait(layerId: string, traitId: string): void {
 	// Revoke object URL for the trait being removed to avoid memory leaks
 	try {
-		const current = get(projectStore);
-		const layer = current.layers.find((l) => l.id === layerId);
+		const layer = project.layers.find((l) => l.id === layerId);
 		const trait = layer?.traits.find((t) => t.id === traitId);
 		if (trait?.imageUrl) {
 			resourceManager.removeObjectUrl(trait.imageUrl);
@@ -349,15 +334,10 @@ export function removeTrait(layerId: string, traitId: string): void {
 		// noop in non-browser contexts
 	}
 
-	projectStore.update((p) => {
-		return {
-			...p,
-			layers: p.layers.map((layer) => {
-				if (layer.id !== layerId) return layer;
-				const nextTraits = layer.traits.filter((trait) => trait.id !== traitId);
-				return { ...layer, traits: nextTraits };
-			})
-		};
+	project.layers = project.layers.map((layer) => {
+		if (layer.id !== layerId) return layer;
+		const nextTraits = layer.traits.filter((trait) => trait.id !== traitId);
+		return { ...layer, traits: nextTraits };
 	});
 }
 
@@ -379,19 +359,16 @@ export function updateTraitName(layerId: string, traitId: string, name: string):
 		);
 		return;
 	}
-	projectStore.update((p) => ({
-		...p,
-		layers: p.layers.map((layer) =>
-			layer.id === layerId
-				? {
-						...layer,
-						traits: layer.traits.map((trait) =>
-							trait.id === traitId ? { ...trait, name: sanitizedName } : trait
-						)
-					}
-				: layer
-		)
-	}));
+	project.layers = project.layers.map((layer) =>
+		layer.id === layerId
+			? {
+					...layer,
+					traits: layer.traits.map((trait) =>
+						trait.id === traitId ? { ...trait, name: sanitizedName } : trait
+					)
+				}
+			: layer
+	);
 }
 
 /**
@@ -414,19 +391,16 @@ export function updateTraitRarity(layerId: string, traitId: string, rarityWeight
 		return;
 	}
 
-	projectStore.update((p) => ({
-		...p,
-		layers: p.layers.map((layer) =>
-			layer.id === layerId
-				? {
-						...layer,
-						traits: layer.traits.map((trait) =>
-							trait.id === traitId ? { ...trait, rarityWeight: validRarityWeight } : trait
-						)
-					}
-				: layer
-		)
-	}));
+	project.layers = project.layers.map((layer) =>
+		layer.id === layerId
+			? {
+					...layer,
+					traits: layer.traits.map((trait) =>
+						trait.id === traitId ? { ...trait, rarityWeight: validRarityWeight } : trait
+					)
+				}
+			: layer
+	);
 }
 
 /**
@@ -434,7 +408,7 @@ export function updateTraitRarity(layerId: string, traitId: string, rarityWeight
  * @param {string} key - The key identifying the operation
  */
 export function startLoading(key: string): void {
-	loadingStore.update((state) => ({ ...state, [key]: true }));
+	loadingStates[key] = true;
 }
 
 /**
@@ -442,14 +416,16 @@ export function startLoading(key: string): void {
  * @param {string} key - The key identifying the operation
  */
 export function stopLoading(key: string): void {
-	loadingStore.update((state) => ({ ...state, [key]: false }));
+	loadingStates[key] = false;
 }
 
 /**
  * Resets all loading states.
  */
 export function resetLoading(): void {
-	loadingStore.set({});
+	for (const key in loadingStates) {
+		delete loadingStates[key];
+	}
 }
 
 // Save project to ZIP
@@ -462,7 +438,7 @@ export async function saveProjectToZip(): Promise<void> {
 
 	try {
 		const zip = new JSZip();
-		const currentProject = get(projectStore);
+		const currentProject = project;
 
 		const projectConfig = {
 			...currentProject,
@@ -620,18 +596,15 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 			if (outputSize.width > 0 && outputSize.height > 0) break;
 		}
 
-		projectStore.update((p: Project) => ({
-			...p,
-			name: validatedProjectData.name,
-			description: validatedProjectData.description || '',
-			outputSize: outputSize,
-			layers: layersWithImages.map((layer: Layer) => ({
-				...layer,
-				id: layer.id || crypto.randomUUID(),
-				traits: layer.traits.map((trait: Trait) => ({
-					...trait,
-					id: trait.id || crypto.randomUUID()
-				}))
+		project.name = validatedProjectData.name;
+		project.description = validatedProjectData.description || '';
+		project.outputSize = outputSize;
+		project.layers = layersWithImages.map((layer: Layer) => ({
+			...layer,
+			id: layer.id || crypto.randomUUID(),
+			traits: layer.traits.map((trait: Trait) => ({
+				...trait,
+				id: trait.id || crypto.randomUUID()
 			}))
 		}));
 
@@ -650,17 +623,14 @@ export async function loadProjectFromZip(file: File): Promise<boolean> {
 
 // Check if project needs proper loading from ZIP
 export function projectNeedsZipLoad(): boolean {
-	const currentProject = get(projectStore);
-	return currentProject._needsProperLoad === true;
+	return project._needsProperLoad === true;
 }
 
 // Mark project as properly loaded
 export function markProjectAsLoaded(): void {
-	projectStore.update((p) => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const { _needsProperLoad: _unused, ...projectWithoutFlag } = p;
-		return projectWithoutFlag as Project;
-	});
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const { _needsProperLoad: _unused, ...projectWithoutFlag } = project;
+	Object.assign(project, projectWithoutFlag);
 }
 
 // Enhanced loading state functions with better tracking
@@ -679,26 +649,17 @@ export interface LoadingState {
 }
 
 /**
- * Reactive store containing detailed loading states for various operations.
- * @type {import('svelte/store').Writable<Record<string, LoadingState>>}
- */
-export const detailedLoadingStore = writable<Record<string, LoadingState>>({});
-
-/**
  * Starts a detailed loading state for a specific operation.
  * @param {string} key - The key identifying the operation
  * @param {string} [message] - Optional status message
  */
 export function startDetailedLoading(key: string, message?: string): void {
-	detailedLoadingStore.update((state) => ({
-		...state,
-		[key]: {
-			isLoading: true,
-			message,
-			progress: 0,
-			startTime: Date.now()
-		}
-	}));
+	detailedLoadingStates[key] = {
+		isLoading: true,
+		message,
+		progress: 0,
+		startTime: Date.now()
+	};
 }
 
 /**
@@ -708,14 +669,12 @@ export function startDetailedLoading(key: string, message?: string): void {
  * @param {string} [message] - Optional status message
  */
 export function updateLoadingProgress(key: string, progress: number, message?: string): void {
-	detailedLoadingStore.update((state) => ({
-		...state,
-		[key]: {
-			...state[key],
-			progress,
-			message: message || state[key]?.message
+	if (detailedLoadingStates[key]) {
+		detailedLoadingStates[key].progress = progress;
+		if (message) {
+			detailedLoadingStates[key].message = message;
 		}
-	}));
+	}
 }
 
 /**
@@ -723,21 +682,19 @@ export function updateLoadingProgress(key: string, progress: number, message?: s
  * @param {string} key - The key identifying the operation
  */
 export function stopDetailedLoading(key: string): void {
-	detailedLoadingStore.update((state) => ({
-		...state,
-		[key]: {
-			...state[key],
-			isLoading: false,
-			progress: 100
-		}
-	}));
+	if (detailedLoadingStates[key]) {
+		detailedLoadingStates[key].isLoading = false;
+		detailedLoadingStates[key].progress = 100;
+	}
 }
 
 /**
  * Resets all detailed loading states.
  */
 export function resetDetailedLoading(): void {
-	detailedLoadingStore.set({});
+	for (const key in detailedLoadingStates) {
+		delete detailedLoadingStates[key];
+	}
 }
 
 // Helper function to get loading state
@@ -747,7 +704,7 @@ export function resetDetailedLoading(): void {
  * @returns {boolean} Whether the operation is currently loading
  */
 export function getLoadingState(key: string): boolean {
-	return get(loadingStore)[key] ?? false;
+	return loadingStates[key] ?? false;
 }
 
 /**
@@ -756,7 +713,7 @@ export function getLoadingState(key: string): boolean {
  * @returns {LoadingState | undefined} The detailed loading state
  */
 export function getDetailedLoadingState(key: string): LoadingState | undefined {
-	return get(detailedLoadingStore)[key];
+	return detailedLoadingStates[key];
 }
 
 // Enhanced cleanup functions
@@ -820,15 +777,44 @@ export function cleanupAllResources(): void {
 	}
 }
 
-// Export stores for direct access
+// Export additional store compatibility (for backward compatibility)
 /**
- * Reactive store containing the current project state.
- * @type {import('svelte/store').Writable<Project>}
+ * Reactive store containing the current project state (legacy export).
+ * @deprecated Use the `project` rune export instead
  */
-export const project: Writable<Project> = projectStore;
+export const projectStore = {
+	subscribe: (fn: (value: Project) => void) => {
+		$effect(() => fn(project));
+		return { unsubscribe: () => {} };
+	},
+	set: (value: Project) => Object.assign(project, value),
+	update: (fn: (value: Project) => Project) => Object.assign(project, fn(project))
+};
 
 /**
- * Reactive store containing the loading states for various operations.
- * @type {import('svelte/store').Writable<Record<string, boolean>>}
+ * Reactive store containing the loading states for various operations (legacy export).
+ * @deprecated Use the `loadingStates` rune export instead
  */
-export const loadingStates: Writable<Record<string, boolean>> = loadingStore;
+export const loadingStore = {
+	subscribe: (fn: (value: Record<string, boolean>) => void) => {
+		$effect(() => fn(loadingStates));
+		return { unsubscribe: () => {} };
+	},
+	set: (value: Record<string, boolean>) => Object.assign(loadingStates, value),
+	update: (fn: (value: Record<string, boolean>) => Record<string, boolean>) =>
+		Object.assign(loadingStates, fn(loadingStates))
+};
+
+/**
+ * Reactive store containing the detailed loading states for various operations (legacy export).
+ * @deprecated Use the `detailedLoadingStates` rune export instead
+ */
+export const detailedLoadingStore = {
+	subscribe: (fn: (value: Record<string, LoadingState>) => void) => {
+		$effect(() => fn(detailedLoadingStates));
+		return { unsubscribe: () => {} };
+	},
+	set: (value: Record<string, LoadingState>) => Object.assign(detailedLoadingStates, value),
+	update: (fn: (value: Record<string, LoadingState>) => Record<string, LoadingState>) =>
+		Object.assign(detailedLoadingStates, fn(detailedLoadingStates))
+};

@@ -21,7 +21,7 @@
 	// Helper to purge stale cache entries when traits change
 	function purgeStaleCache() {
 		const urlsInUse = new SvelteSet<string>();
-		const { layers } = $project;
+		const { layers } = project;
 		for (const layer of layers) {
 			for (const trait of layer.traits) {
 				if (trait.imageUrl) urlsInUse.add(trait.imageUrl);
@@ -51,12 +51,12 @@
 
 	// Selected trait IDs state - starts with first trait of each layer
 	let selectedTraitIds = $state(
-		$project.layers.map((layer) => (layer.traits.length > 0 ? layer.traits[0].id : ''))
+		project.layers.map((layer) => (layer.traits.length > 0 ? layer.traits[0].id : ''))
 	);
 
 	// Reset selected traits when project layers change
 	$effect(() => {
-		const { layers } = $project;
+		const { layers } = project;
 		const newSelectedTraits: string[] = [];
 
 		for (let i = 0; i < layers.length; i++) {
@@ -87,8 +87,8 @@
 
 	// Derived preview data for memoization
 	const previewData = $derived({
-		layers: $project.layers,
-		outputSize: $project.outputSize,
+		layers: project.layers,
+		outputSize: project.outputSize,
 		selectedTraitIds
 	});
 
@@ -182,12 +182,18 @@
 						const img = new Image();
 						img.crossOrigin = 'anonymous';
 						img.onload = () => {
+							// Revoke object URL after image loads to free memory
+							URL.revokeObjectURL(e.data.objectUrl);
 							imageCache.set(src, img);
 							cacheAccessTimes.set(src, Date.now());
 							resolve(img);
 						};
-						img.onerror = () => reject(new Error('Failed to load image from data URL'));
-						img.src = e.data.dataUrl;
+						img.onerror = () => {
+							// Revoke object URL on error too
+							URL.revokeObjectURL(e.data.objectUrl);
+							reject(new Error('Failed to load image from object URL'));
+						};
+						img.src = e.data.objectUrl;
 					}
 				}
 			};
@@ -220,8 +226,8 @@
 			return;
 		}
 
-		const layers = $project.layers;
-		const outputSize = $project.outputSize;
+		const layers = project.layers;
+		const outputSize = project.outputSize;
 
 		// Check if project has valid output size
 		if (outputSize.width <= 0 || outputSize.height <= 0) {
@@ -248,9 +254,8 @@
 			return;
 		}
 
-		// Load and draw images in sequence to avoid memory spikes
-		for (let i = 0; i < layers.length; i++) {
-			const layer = layers[i];
+		// Load all images in parallel for better performance
+		const loadPromises = layers.map(async (layer, i) => {
 			const selectedTraitId = selectedTraitIds[i];
 
 			// If no trait is selected for this layer, but the layer has traits, use the first one
@@ -259,36 +264,46 @@
 
 			if (effectiveTraitId) {
 				const selectedTrait = layer.traits.find((trait) => trait.id === effectiveTraitId);
-
 				if (selectedTrait && selectedTrait.imageUrl) {
 					try {
 						const img = await loadImage(selectedTrait.imageUrl);
-						try {
-							ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
-						} catch (drawError) {
-							console.error('Error drawing image to canvas:', drawError);
-							// Canvas context might be lost, try to reinitialize
-							if (canvas) {
-								const newCtx = canvas.getContext('2d');
-								if (newCtx) {
-									ctx = newCtx;
-
-									// Try drawing again with new context
-									ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
-								}
-							}
-						}
+						return { img, layerIndex: i };
 					} catch (error) {
-						console.error('Error drawing image:', error);
+						console.error('Error loading image for layer', layer.name, ':', error);
 						// Only show error toast if we're not in the initial load state
 						const isInitialLoad = layers.every((l) => l.traits.length === 0);
 						if (!isInitialLoad) {
 							// Show user-friendly error message
 							import('svelte-sonner').then(({ toast }) => {
-								toast.error('Failed to draw image in preview', {
+								toast.error('Failed to load image in preview', {
 									description: error instanceof Error ? error.message : 'Unknown error'
 								});
 							});
+						}
+						return null;
+					}
+				}
+			}
+			return null;
+		});
+
+		// Wait for all images to load, then draw them in layer order
+		const loadedImages = await Promise.all(loadPromises);
+
+		// Draw images in the correct order (by layer index)
+		for (const result of loadedImages) {
+			if (result && result.img) {
+				try {
+					ctx.drawImage(result.img, 0, 0, displayWidth, displayHeight);
+				} catch (drawError) {
+					console.error('Error drawing image to canvas:', drawError);
+					// Canvas context might be lost, try to reinitialize
+					if (canvas) {
+						const newCtx = canvas.getContext('2d');
+						if (newCtx) {
+							ctx = newCtx;
+							// Try drawing again with new context
+							ctx.drawImage(result.img, 0, 0, displayWidth, displayHeight);
 						}
 					}
 				}
@@ -296,13 +311,63 @@
 		}
 	}
 
+	// Preload adjacent traits for smoother user experience
+	async function preloadAdjacentTraits() {
+		const { layers } = project;
+		const preloadPromises: Promise<HTMLImageElement | void>[] = [];
+
+		for (let i = 0; i < layers.length; i++) {
+			const layer = layers[i];
+			const currentTraitId = selectedTraitIds[i];
+
+			if (layer.traits.length > 1 && currentTraitId) {
+				const currentIndex = layer.traits.findIndex((trait) => trait.id === currentTraitId);
+				if (currentIndex !== -1) {
+					// Preload next trait
+					const nextIndex = (currentIndex + 1) % layer.traits.length;
+					const nextTrait = layer.traits[nextIndex];
+					if (nextTrait && nextTrait.imageUrl && !imageCache.has(nextTrait.imageUrl)) {
+						preloadPromises.push(
+							loadImage(nextTrait.imageUrl).catch(() => {
+								// Silently ignore preload failures
+							})
+						);
+					}
+
+					// Preload previous trait
+					const prevIndex = currentIndex === 0 ? layer.traits.length - 1 : currentIndex - 1;
+					const prevTrait = layer.traits[prevIndex];
+					if (prevTrait && prevTrait.imageUrl && !imageCache.has(prevTrait.imageUrl)) {
+						preloadPromises.push(
+							loadImage(prevTrait.imageUrl).catch(() => {
+								// Silently ignore preload failures
+							})
+						);
+					}
+				}
+			}
+		}
+
+		// Limit concurrent preloads to avoid overwhelming the system
+		const maxConcurrentPreloads = 4;
+		for (let i = 0; i < preloadPromises.length; i += maxConcurrentPreloads) {
+			const batch = preloadPromises.slice(i, i + maxConcurrentPreloads);
+			await Promise.all(batch);
+		}
+	}
+
 	// Effect for drawing when preview data changes
 	$effect(() => {
 		if (ctx && canvas && previewData) {
 			purgeStaleCache();
-			drawPreview().catch((error) => {
-				console.error('Error in drawPreview:', error);
-			});
+			drawPreview()
+				.catch((error) => {
+					console.error('Error in drawPreview:', error);
+				})
+				.then(() => {
+					// Preload adjacent traits after main preview is drawn
+					preloadAdjacentTraits();
+				});
 		}
 	});
 
@@ -325,7 +390,7 @@
 	function resizeCanvas() {
 		if (!canvas || !container) return;
 
-		const { outputSize } = $project;
+		const { outputSize } = project;
 		const containerRect = container.getBoundingClientRect();
 
 		// Calculate display size based on container and project aspect ratio
@@ -365,11 +430,11 @@
 
 	function randomize() {
 		// Ensure we have a valid project state
-		if (!$project || !$project.layers) {
+		if (!project || !project.layers) {
 			console.error('Cannot randomize: Project or layers not available');
 			return;
 		}
-		const { layers } = $project;
+		const { layers } = project;
 		const newSelectedTraits: string[] = [];
 
 		console.log('Project layers:', layers.length);

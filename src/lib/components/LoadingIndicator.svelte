@@ -11,7 +11,7 @@
 	const { operation, message = 'Loading...', isLoading: externalIsLoading }: Props = $props();
 
 	// Create a reactive variable that updates when the loading state changes
-	let isLoading = $derived(externalIsLoading ?? $loadingStates[operation]);
+	let isLoading = $derived(externalIsLoading ?? loadingStates[operation]);
 </script>
 
 {#if isLoading}

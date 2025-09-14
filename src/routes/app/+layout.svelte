@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, type Snippet } from 'svelte';
-	import { initSatellite } from '@junobuild/core';
+	// import { initSatellite } from '@junobuild/core';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import { cleanupAllResources } from '$lib/stores/runes-store';
@@ -13,6 +13,8 @@
 	let { children }: Props = $props();
 
 	onMount(async () => {
+		// Temporarily disabled Juno initialization due to dependency conflicts
+		/*
 		if (
 			import.meta.env.VITE_APP_SATELLITE_ID &&
 			import.meta.env.VITE_APP_SATELLITE_ID !== '<DEV_SATELLITE_ID>'
@@ -37,6 +39,7 @@
 				'Satellite initialization skipped: VITE_APP_SATELLITE_ID is not set or is a placeholder.'
 			);
 		}
+		*/
 	});
 
 	onDestroy(() => {

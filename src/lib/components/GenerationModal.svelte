@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { get } from 'svelte/store';
-	import JSZip from 'jszip';
+	// JSZip will be imported dynamically when needed
 	import { project, loadingStates, startLoading, stopLoading } from '$lib/stores/runes-store';
 	import { startGeneration, cancelGeneration } from '$lib/domain/worker.service';
 	import { hasMissingImageData, getLayersWithMissingImages } from '$lib/domain/project.service';
@@ -27,7 +26,7 @@
 
 	// State
 	let collectionSize = $state(100);
-	let isGenerating = $derived($loadingStates['generation'] as boolean);
+	let isGenerating = $derived(loadingStates['generation'] as boolean);
 	let progress = $state(0);
 	let statusText = $state('Ready to generate');
 	let open = $state(false);
@@ -79,7 +78,7 @@
 		if (isPackaging) return;
 		isPackaging = true;
 
-		const projectData = get(project) as {
+		const projectData = project as {
 			name: string;
 			outputSize: { width: number; height: number };
 			description?: string;
@@ -88,6 +87,8 @@
 		updateProgress(images.length, images.length, 'Packaging files into a .zip...');
 
 		try {
+			// Dynamically import JSZip to reduce initial bundle size
+			const { default: JSZip } = await import('jszip');
 			const zip = new JSZip();
 			const imagesFolder = zip.folder('images');
 			const metadataFolder = zip.folder('metadata');
@@ -132,7 +133,7 @@
 		resetState();
 
 		try {
-			const projectData = get(project) as {
+			const projectData = project as {
 				name: string;
 				outputSize: { width: number; height: number };
 				description?: string;

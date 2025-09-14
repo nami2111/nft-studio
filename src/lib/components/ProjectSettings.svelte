@@ -12,7 +12,7 @@
 
 	// Initialize from project store
 	$effect(() => {
-		const currentProject = $project;
+		const currentProject = project;
 		// Only set initial values if they haven't been set yet
 		if (projectName === '') {
 			projectName = currentProject.name;
@@ -89,7 +89,7 @@
 	<div class="rounded-md bg-blue-50 p-3 sm:p-4">
 		<h3 class="mb-1 text-xs font-medium text-blue-800 sm:mb-2 sm:text-sm">Project Dimensions</h3>
 		<p class="mb-1 text-xs text-blue-800 sm:mb-2 sm:text-sm">
-			Width: {$project.outputSize.width}px x Height: {$project.outputSize.height}px
+			Width: {project.outputSize.width}px x Height: {project.outputSize.height}px
 		</p>
 		<p class="text-xs text-blue-800 sm:text-sm">
 			Dimensions are automatically set based on your uploaded image files. The first image uploaded
