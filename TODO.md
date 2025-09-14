@@ -4,160 +4,94 @@
 
 ### Core Functionality
 
-- [x] Fix ProjectSettings component to use proper store update functions instead of direct store manipulation
-- [x] Remove window.location.reload() calls in GenerationModal and implement proper state management
-- [x] Clean up commented code in GenerationModal component
-- [x] Migrate all components to use the new runes-based stores (runes-store.ts) instead of legacy stores
+- [ ] **Complete Svelte 5 Migration:** The project has started migrating to Svelte 5, but the transition is not yet complete. Prioritize finishing this migration to leverage the full benefits of runes, which will improve performance and simplify state management.
+- [ ] **Refactor `Preview.svelte`:** The existence of `Preview.svelte.backup` suggests that a refactoring effort is underway. Complete this refactoring to use Svelte 5 runes (`$derived`, `$effect`) for a more reactive and efficient preview component.
+- [ ] **Finalize State Management with Runes:** While `runes-store.ts` is a good start, ensure that all state management throughout the application is migrated to Svelte 5 runes for consistency and performance.
 
 ### Performance Optimizations
 
-- [x] Fix inefficient isLoading function in stores that subscribes/unsubscribes on each call
-- [x] Implement proper reactive loading state using Svelte 5 runes
-- [x] Optimize LayerManager re-renders by using proper reactive patterns
-- [x] Add lazy loading for large trait lists in VirtualTraitList component
-
-### User Experience
-
-// Added enhanced visual feedback (highlighting, icons) to drag and drop areas in ProjectManagement and LayerItem
-
-- [x] Add loading states for file uploads and processing
-- [x] Implement proper error boundaries for better error handling UX
-- [x] Add undo/redo functionality for project changes
-- [x] Improve drag and drop feedback with better visual indicators
+- [ ] **Optimize Image Caching and Loading:** Review the image caching mechanism in the `Preview.svelte` component and the `image-loader.worker.ts` to identify opportunities for further optimization.
+- [ ] **Analyze Bundle Size:** Use `rollup-plugin-visualizer` to analyze the production bundle size and identify any large or unnecessary dependencies that can be removed or optimized.
 
 ## 🎨 UI/UX Improvements
 
 ### Component Library
 
-- [x] Standardize component prop interfaces and add proper TypeScript documentation
-- [x] Implement consistent error state handling across all components
-- [x] Add accessibility improvements (ARIA labels, keyboard navigation)
-
-### Visual Feedback
-
-- [x] Add skeleton loading states for better perceived performance
-- [x] Implement toast notifications for all user actions
-- [ ] Add progress indicators for long-running operations
-- [ ] Improve mobile responsiveness for trait management
+- [ ] **Standardize Component Library:** The project currently uses both `svelte-headlessui` and `shadcn-svelte`. To reduce bundle size and improve consistency, standardize on one component library. `shadcn-svelte` is recommended due to its modern architecture and excellent developer experience.
+- [ ] **Enhance Visual Feedback:** Improve visual feedback for user interactions, such as loading states, and form submissions, to create a more intuitive and responsive user experience.
 
 ## 🔧 Technical Improvements
 
 ### Architecture
 
-- [x] Complete migration from legacy stores to Svelte 5 runes
-- [x] Implement proper separation of concerns between domain logic and UI
-- [x] Add proper TypeScript interfaces for all worker messages
+- [ ] **Improve Postinstall Script:** The current `postinstall` script copies files from `node_modules`, which is not ideal. Investigate alternative solutions, such as using a custom package or a more robust asset pipeline, to handle worker files more elegantly.
+- [ ] **Refine Error Handling and Validation:** While the project has a good error handling and validation system, a comprehensive review can help identify any gaps and ensure that all user inputs and data interactions are handled gracefully.
 
 ### Data Management
 
-- [x] Implement data validation at the domain layer
-- [ ] Add data migration support for future schema changes
-- [ ] Optimize localStorage usage with compression for large projects
+- [ ] **Enhance Local Storage Persistence:** The `runes-store.ts` already includes local storage persistence, but it can be improved by adding more robust error handling and data migration strategies for future updates.
 
 ### Worker Improvements
 
-- [ ] Add proper error recovery and retry logic in workers
-- [ ] Implement worker pool management for better resource utilization
-- [ ] Add worker health monitoring and automatic restart
+- [ ] **Optimize Worker Communication:** Review the communication between the main thread and the web workers to ensure that data is passed efficiently and that the workers are not causing any performance bottlenecks.
 
 ## 📁 Project Organization
 
 ### File Structure
 
-- [x] Consolidate duplicate store implementations (legacy vs runes)
-- [x] Organize utility functions into logical modules
-- [x] Create proper barrel exports for cleaner imports
+- [ ] **Remove Backup Files:** Once the refactoring of `Preview.svelte` is complete, remove the `Preview.svelte.backup` file to keep the codebase clean and organized.
+- [ ] **Review Folder Structure:** Conduct a review of the project's folder structure to identify any opportunities for improvement and ensure that it remains scalable and maintainable.
 
 ### Documentation
 
-- [x] Add comprehensive JSDoc comments to all public APIs
-- [x] Create API documentation for worker interfaces
-- [x] Add inline code comments for complex business logic
+- [ ] **Update Documentation for Svelte 5:** Update all relevant documentation, including the `onboarding.md` and in-code comments, to reflect the changes introduced by the Svelte 5 migration.
+- [ ] **Expand Component Documentation:** Add detailed documentation for each component, including its props, events, and usage examples, to make it easier for new developers to get up to speed.
 
 ## 🛡️ Security & Validation
 
-### Input Validation
-
-- [ ] Add client-side validation for file uploads (size, type, content)
-- [ ] Implement rate limiting for generation requests
-- [ ] Add CSRF protection for any future API endpoints
-
-### Data Integrity
-
-- [ ] Add checksum validation for stored image data
-- [ ] Implement backup and recovery mechanisms
-- [ ] Add data sanitization for user inputs
-
-## 🌐 Deployment & Build
-
-### Performance
-
-- [ ] Implement code splitting for better initial load times
-- [ ] Add service worker for caching and offline support
-- [ ] Optimize bundle size by tree-shaking unused dependencies
-
-### Configuration
-
-- [ ] Add environment-specific configurations
-- [ ] Implement proper CI/CD pipeline with automated testing
-- [ ] Add build-time optimizations for production
+- [ ] **Implement Content Security Policy (CSP):** Enhance the existing security headers by implementing a strict Content Security Policy (CSP). This will provide an additional layer of protection against XSS and other injection attacks.
+- [ ] **Audit Dependencies for Vulnerabilities:** Regularly audit all project dependencies for known vulnerabilities using tools like `pnpm audit` or `snyk`. This will help ensure that the application is not exposed to security risks from third-party packages.
+- [ ] **Sanitize User Inputs:** While the project already has some validation in place, a thorough review of all user inputs is needed to ensure that they are properly sanitized to prevent XSS and other injection attacks.
 
 ## 🧪 Testing
 
-- [ ] Set up Vitest configuration and test environment
-- [ ] Add unit tests for utility functions (validation, file handling)
-- [ ] Add component tests for critical UI components
-- [ ] Add integration tests for store operations
-- [ ] Add end-to-end tests for critical user flows
-- [ ] Implement test coverage reporting and minimum thresholds
+- [ ] **Expand Test Coverage:** The current testing setup is minimal. Expand the test suite to include unit tests for all critical components and services, as well as integration tests for key user flows.
+- [ ] **Implement End-to-End (E2E) Testing:** Introduce an E2E testing framework like Playwright or Cypress to automate testing of the application from the user's perspective. This will help ensure that the application is working as expected in a real-world environment.
 
-## 📝 Code Quality & Consistency
+## 🌐 Accessibility (a11y)
 
-- [ ] Implement consistent error handling patterns across all components
-- [ ] Add proper TypeScript strict mode configuration
-- [ ] Standardize component naming and file organization
-- [ ] Implement consistent async/await patterns
-
-## 🔒 Security Concerns
-
-- [ ] Add Content Security Policy (CSP) headers
-- [ ] Implement proper input sanitization for all user data
-- [ ] Add secure file upload validation and processing
-
-## 📚 Documentation Gaps
-
-- [ ] Create user-facing documentation for NFT creation process
-- [ ] Add developer onboarding documentation
-- [ ] Document architecture decisions and design patterns
+- [ ] **Conduct Accessibility Audit:** Perform a comprehensive accessibility audit of the application to identify and address any issues that may prevent users with disabilities from accessing the application.
+- [ ] **Ensure Keyboard Navigation:** Ensure that all interactive elements in the application can be accessed and operated using only the keyboard. This is a critical requirement for users who cannot use a mouse.
 
 ## ⚙️ Dependencies & Config Issues
 
-- [ ] Audit and update outdated dependencies
-- [ ] Remove unused dependencies from package.json
-- [ ] Add proper dependency version pinning
+- [ ] **Audit Dependencies:** Perform a thorough audit of all project dependencies to identify and remove any that are outdated, unused, or redundant.
+- [ ] **Review Configuration Files:** Review all configuration files, including `package.json`, `svelte.config.js`, `vite.config.ts`, and `tsconfig.json`, to ensure that they are up-to-date and optimized for the project's needs.
 
----
+## 🚀 Deployment & Build
+
+- [ ] **Optimize CI/CD Pipeline:** Review the existing GitHub Actions workflows to identify opportunities for optimization. This may include caching dependencies more effectively, running jobs in parallel, or using more efficient build commands.
+- [ ] **Implement Staging Environment:** Introduce a staging environment that mirrors the production environment. This will allow for thorough testing of all changes before they are deployed to production, reducing the risk of introducing bugs or other issues.
 
 ## 📈 Progress Tracking
 
-- **Total Items**: 0
+- **Total Items**: 26
 - **Completed**: 0
 - **In Progress**: 0
 - **Blocked**: 0
 
 ### Last Updated
 
-- **Date**: 2025-09-07
+- **Date**: 2025-09-14
 - **Version**: 1.0.0
-- **Next Review**: 2025-09-14
+- **Next Review**: 2025-09-21
 
 ### Notes
 
-- This TODO list should be reviewed and updated continuously
-- Priority items should be addressed first
-- New items should be added as they are identified
-- Completed items should be moved to a changelog
-- Test suite not needed at this time
+- This TODO list should be reviewed and updated continuously.
+- Priority items should be addressed first.
+- New items should be added as they are identified.
+- Completed items should be moved to a changelog.
 
 ### Priority Legend
 
