@@ -28,7 +28,22 @@ export default ts.config(
 		}
 	},
 	{
+		files: ['**/*.svelte.ts'],
+
+		languageOptions: {
+			parserOptions: {
+				parser: ts.parser
+			}
+		}
+	},
+	{
 		ignores: ['build/', '.svelte-kit/', 'dist/', 'static/']
+	},
+	{
+		files: ['**/*.svelte.ts'],
+		rules: {
+			'svelte/prefer-svelte-reactivity': 'off'
+		}
 	},
 	{
 		rules: {
