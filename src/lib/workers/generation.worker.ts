@@ -141,7 +141,8 @@ async function generateCollection(
 	collectionSize: number,
 	outputSize: { width: number; height: number },
 	projectName: string,
-	projectDescription: string
+	projectDescription: string,
+	taskId?: string
 ) {
 	// Use a smaller initial array size to reduce memory footprint
 	const metadata: { name: string; data: object }[] = [];
@@ -154,6 +155,7 @@ async function generateCollection(
 	const memoryUsage = getMemoryUsage();
 	const initialProgress: ProgressMessage = {
 		type: 'progress',
+		taskId,
 		payload: {
 			generatedCount: 0,
 			totalCount: collectionSize,
@@ -172,6 +174,7 @@ async function generateCollection(
 			cleanupResources();
 			const cancelledMessage: CancelledMessage = {
 				type: 'cancelled',
+				taskId,
 				payload: {
 					generatedCount: 0,
 					totalCount: collectionSize
@@ -291,6 +294,7 @@ async function generateCollection(
 
 					const progressMessage: ProgressMessage = {
 						type: 'progress',
+						taskId,
 						payload: {
 							generatedCount: i + 1,
 							totalCount: collectionSize,
@@ -310,6 +314,7 @@ async function generateCollection(
 
 				const errorMessage: ErrorMessage = {
 					type: 'error',
+					taskId,
 					payload: {
 						message: `Error generating item ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`
 					}
@@ -344,6 +349,7 @@ async function generateCollection(
 			// Send chunk completion message with transferables to avoid copying
 			const chunkCompleteMessage: CompleteMessage = {
 				type: 'complete',
+				taskId,
 				payload: {
 					images: chunkImagesForTransfer,
 					metadata: chunkMetadata
@@ -384,6 +390,7 @@ async function generateCollection(
 			if (memoryUsageRatio > 0.9) {
 				const warningMessage: ErrorMessage = {
 					type: 'error',
+					taskId,
 					payload: {
 						message: `Memory usage critical: ${Math.round(memoryUsageRatio * 100)}%. Reducing chunk size to ${CHUNK_SIZE}.`
 					}
@@ -397,6 +404,7 @@ async function generateCollection(
 			const chunkMemoryUsage = getMemoryUsage();
 			const chunkProgress: ProgressMessage = {
 				type: 'progress',
+				taskId,
 				payload: {
 					generatedCount: chunkEnd,
 					totalCount: collectionSize,
@@ -415,6 +423,7 @@ async function generateCollection(
 	if (isCancelled) {
 		const cancelledMessage: CancelledMessage = {
 			type: 'cancelled',
+			taskId,
 			payload: {
 				generatedCount: collectionSize,
 				totalCount: collectionSize
@@ -430,6 +439,7 @@ async function generateCollection(
 	// Send final completion message (empty images since they were sent in chunks)
 	const finalCompleteMessage: CompleteMessage = {
 		type: 'complete',
+		taskId,
 		payload: {
 			images: [], // Already sent in chunks
 			metadata: [] // Already sent in chunks
@@ -487,9 +497,10 @@ function cleanupResources() {
 
 // Main worker message handler
 self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
-	const { type, payload } = e.data as {
+	const { type, payload, taskId } = e.data as {
 		type: string;
 		payload?: unknown;
+		taskId?: string;
 	};
 
 	// Handle initialization message
@@ -508,11 +519,13 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 					startPayload.collectionSize,
 					startPayload.outputSize,
 					startPayload.projectName,
-					startPayload.projectDescription
+					startPayload.projectDescription,
+					taskId
 				);
 			} catch (error) {
 				const errorMessage: ErrorMessage = {
 					type: 'error',
+					taskId,
 					payload: {
 						message: error instanceof Error ? error.message : 'An unknown error occurred'
 					}
@@ -526,6 +539,7 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 		default: {
 			const errorMessage: ErrorMessage = {
 				type: 'error',
+				taskId,
 				payload: {
 					message: `Unknown message type: ${type}`
 				}

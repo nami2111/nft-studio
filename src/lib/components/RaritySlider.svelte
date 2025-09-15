@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { updateTraitRarity } from '$lib/stores/runes-store';
+	import { updateTraitRarity } from '$lib/stores/runes-store.svelte';
 	import { Slider } from '$lib/components/ui/slider';
 
 	interface Props {

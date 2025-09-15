@@ -52,6 +52,8 @@ export function startGeneration(
 			projectName,
 			projectDescription
 		}
+		// Don't include callback in the message - it will be handled separately
+		// onMessage callback is handled by the global message handler
 	};
 
 	// Post message to worker pool instead of single worker

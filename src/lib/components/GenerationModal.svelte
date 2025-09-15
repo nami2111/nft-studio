@@ -1,6 +1,11 @@
 <script lang="ts">
 	// JSZip will be imported dynamically when needed
-	import { project, loadingStates, startLoading, stopLoading } from '$lib/stores/runes-store';
+	import {
+		project,
+		loadingStates,
+		startLoading,
+		stopLoading
+	} from '$lib/stores/runes-store.svelte';
 	import { startGeneration, cancelGeneration } from '$lib/domain/worker.service';
 	import { hasMissingImageData, getLayersWithMissingImages } from '$lib/domain/project.service';
 	import { Play } from 'lucide-svelte';

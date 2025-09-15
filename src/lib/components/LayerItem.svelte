@@ -14,7 +14,7 @@
 		addTrait,
 		updateLayerName,
 		removeLayer
-	} from '$lib/stores/runes-store';
+	} from '$lib/stores/runes-store.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';

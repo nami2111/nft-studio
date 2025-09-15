@@ -2,7 +2,7 @@
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Trait } from '$lib/types/trait';
 	import RaritySlider from '$lib/components/RaritySlider.svelte';
-	import { removeTrait, updateTraitName } from '$lib/stores/runes-store';
+	import { removeTrait, updateTraitName } from '$lib/stores/runes-store.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Edit, Trash2, Check, X } from 'lucide-svelte';

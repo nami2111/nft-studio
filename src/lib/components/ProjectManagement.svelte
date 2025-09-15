@@ -12,7 +12,7 @@
 		getDetailedLoadingState,
 		startDetailedLoading,
 		stopDetailedLoading
-	} from '$lib/stores/runes-store';
+	} from '$lib/stores/runes-store.svelte';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
@@ -120,7 +120,7 @@
 	}
 </script>
 
-<div class="flex flex-wrap gap-2 sm:gap-3">
+<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
 	{#if projectNeedsZipLoad()}
 		<Card class="mb-2 w-full border border-yellow-200 bg-yellow-50 p-2 text-xs sm:text-sm">
 			<CardContent class="flex items-center p-0">
@@ -135,10 +135,12 @@
 		<DialogTrigger>
 			<Button
 				variant="outline"
-				class="border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:px-4 sm:py-2 sm:text-sm"
+				size="sm"
+				class="w-full border-gray-300 bg-white font-medium text-gray-700 hover:bg-gray-50 sm:w-auto sm:px-4"
 			>
 				<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-				Load Project
+				<span class="xs:inline hidden">Load Project</span>
+				<span class="xs:hidden">Load</span>
 			</Button>
 		</DialogTrigger>
 		<DialogContent>
@@ -218,10 +220,12 @@
 		<DialogTrigger>
 			<Button
 				variant="outline"
-				class="border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:px-4 sm:py-2 sm:text-sm"
+				size="sm"
+				class="w-full border-gray-300 bg-white font-medium text-gray-700 hover:bg-gray-50 sm:w-auto sm:px-4"
 			>
 				<Download class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-				Save Project
+				<span class="xs:inline hidden">Save Project</span>
+				<span class="xs:hidden">Save</span>
 			</Button>
 		</DialogTrigger>
 		<DialogContent>

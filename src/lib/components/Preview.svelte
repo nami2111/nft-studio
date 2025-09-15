@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { project } from '$lib/stores/runes-store';
+	import { project } from '$lib/stores/runes-store.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { RefreshCw, Shuffle } from 'lucide-svelte';
@@ -485,21 +485,23 @@
 	}
 </script>
 
-<Card class="sticky top-4 sm:top-8">
-	<CardContent class="p-4 sm:p-6">
-		<h2 class="mb-3 text-lg font-bold text-gray-800 sm:mb-4 sm:text-xl">Preview</h2>
+<Card class="sticky top-3 sm:top-4 md:top-6 lg:top-8">
+	<CardContent class="p-3 sm:p-4 md:p-6">
+		<h2 class="mb-2 text-base font-bold text-gray-800 sm:mb-3 sm:text-lg md:text-xl">Preview</h2>
 		<div
 			bind:this={container}
-			class="flex h-64 w-full items-center justify-center overflow-hidden rounded-lg bg-gray-100 sm:h-96"
+			class="flex h-48 w-full items-center justify-center overflow-hidden rounded-md bg-gray-100 sm:h-64 md:h-80 lg:h-96"
 		>
-			<canvas bind:this={canvas} class="block"></canvas>
+			<canvas bind:this={canvas} class="block max-h-full max-w-full"></canvas>
 		</div>
-		<div class="mt-3 flex justify-center space-x-2 sm:mt-4">
-			<Button size="sm" onclick={randomize}>
+		<div
+			class="mt-2 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:justify-center sm:gap-0 sm:space-x-2 md:mt-4"
+		>
+			<Button size="sm" onclick={randomize} class="w-full sm:w-auto">
 				<Shuffle class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 				<span class="text-xs sm:text-sm">Randomize</span>
 			</Button>
-			<Button variant="outline" size="sm" onclick={handleRefresh}>
+			<Button variant="outline" size="sm" onclick={handleRefresh} class="w-full sm:w-auto">
 				<RefreshCw class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 				<span class="text-xs sm:text-sm">Refresh</span>
 			</Button>

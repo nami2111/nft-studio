@@ -24,6 +24,9 @@ interface WorkerTask<T = unknown> {
 	reject: (reason?: unknown) => void;
 	assignedWorker?: number; // Track which worker is handling this task
 	timestamp: number; // Track when task was queued
+	// Store resolve/reject separately to avoid cloning issues
+	_resolve?: (value: T) => void;
+	_reject?: (reason?: unknown) => void;
 }
 
 // Worker pool interface
@@ -145,22 +148,45 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 
 	// For terminal messages, resolve/reject promises and clean up
 	if (type === 'complete' || type === 'error' || type === 'cancelled') {
-		// Find and resolve/reject the corresponding task
+		// Find and resolve/reject the corresponding task using taskId from message
+		const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
 		let foundTask = false;
-		for (const [taskId, task] of workerPool.activeTasks.entries()) {
-			if (task.assignedWorker === workerIndex) {
-				if (type === 'complete') {
-					task.resolve(data);
-				} else if (type === 'error') {
-					task.reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
-				} else if (type === 'cancelled') {
-					task.reject(new Error('Generation cancelled'));
-				}
 
-				// Remove the task from active tasks
-				workerPool.activeTasks.delete(taskId);
+		if (messageTaskId) {
+			// Try to find task by taskId first
+			const task = workerPool.activeTasks.get(messageTaskId);
+			if (task) {
+				if (type === 'complete') {
+					if (task._resolve) task._resolve(data);
+				} else if (type === 'error') {
+					if (task._reject)
+						task._reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
+				} else if (type === 'cancelled') {
+					if (task._reject) task._reject(new Error('Generation cancelled'));
+				}
+				workerPool.activeTasks.delete(messageTaskId);
 				foundTask = true;
-				break;
+			}
+		}
+
+		// Fallback: find by worker index if taskId matching failed
+		if (!foundTask) {
+			for (const [taskId, task] of workerPool.activeTasks.entries()) {
+				if (task.assignedWorker === workerIndex) {
+					if (type === 'complete') {
+						if (task._resolve) task._resolve(data);
+					} else if (type === 'error') {
+						if (task._reject)
+							task._reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
+					} else if (type === 'cancelled') {
+						if (task._reject) task._reject(new Error('Generation cancelled'));
+					}
+
+					// Remove the task from active tasks
+					workerPool.activeTasks.delete(taskId);
+					foundTask = true;
+					break;
+				}
 			}
 		}
 
@@ -220,15 +246,27 @@ function processNextTask(): void {
 	workerPool.activeTasks.set(task.id, task);
 	workerPool.workerStatus[workerIndex] = false; // Mark as busy
 
-	// Post message to worker
+	// Post message to worker (only send the message, not the task with functions)
 	try {
-		workerPool.workers[workerIndex].postMessage(task.message);
+		// Create a clean message object without any potential non-cloneable data
+		const baseMessage = {
+			type: task.message.type,
+			taskId: task.id // Include task ID for tracking
+		};
+
+		// Only include payload if it exists (not all message types have payload)
+		const messageToSend =
+			'payload' in task.message ? { ...baseMessage, payload: task.message.payload } : baseMessage;
+
+		workerPool.workers[workerIndex].postMessage(messageToSend);
 		console.log(`Task ${task.id} assigned to worker ${workerIndex}`);
 	} catch (error) {
 		console.error(`Failed to post message to worker ${workerIndex}:`, error);
 		// Mark worker as available and reject task
 		workerPool.workerStatus[workerIndex] = true;
-		task.reject(new Error('Failed to send task to worker'));
+		if (task._reject) {
+			task._reject(new Error('Failed to send task to worker'));
+		}
 		workerPool.activeTasks.delete(task.id);
 		// Process next task
 		processNextTask();
@@ -310,7 +348,16 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 
 	return new Promise<T>((resolve, reject) => {
 		const taskId = `${Date.now()}-${Math.random()}`;
-		const task: WorkerTask<T> = { id: taskId, message, resolve, reject, timestamp: Date.now() };
+		const task: WorkerTask<T> = {
+			id: taskId,
+			message,
+			resolve,
+			reject,
+			timestamp: Date.now(),
+			// Store functions separately to avoid cloning issues
+			_resolve: resolve,
+			_reject: reject
+		};
 
 		// Add to queue
 		if (workerPool) {

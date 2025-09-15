@@ -56,33 +56,7 @@ LOCAL_STORE.load().then((stored) => {
 	}
 });
 
-// Auto-save to storage (debounced and optimized to prevent excessive saves)
-let saveTimeout: number | null = null;
-let lastSavedProject: string | null = null;
-
-// Use $effect to watch for project changes and auto-save
-$effect(() => {
-	// Only save if the project has actually changed
-	const projectString = JSON.stringify(project, (key, value) => {
-		// Skip imageData from comparison to avoid unnecessary saves
-		if (key === 'imageData') return undefined;
-		return value;
-	});
-
-	if (projectString === lastSavedProject) {
-		return; // No actual changes, skip save
-	}
-
-	if (saveTimeout) {
-		clearTimeout(saveTimeout);
-	}
-
-	saveTimeout = setTimeout(() => {
-		LOCAL_STORE.save(project);
-		lastSavedProject = projectString;
-		saveTimeout = null;
-	}, 500); // Increased debounce time to prevent rapid consecutive saves
-});
+// Auto-save functionality moved to AutoSave.svelte component
 
 // Track object URLs to prevent memory leaks
 const activeObjectUrls = new Set<string>();
@@ -770,11 +744,7 @@ export function cleanupAllResources(): void {
 	resetLoading();
 	resetDetailedLoading();
 
-	// Clear any active timeouts
-	if (saveTimeout) {
-		clearTimeout(saveTimeout);
-		saveTimeout = null;
-	}
+	// Auto-save timeouts are now handled by AutoSave component
 }
 
 // Export additional store compatibility (for backward compatibility)

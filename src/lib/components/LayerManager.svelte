@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { project, addLayer, reorderLayers } from '$lib/stores/runes-store';
+	import { project, addLayer, reorderLayers } from '$lib/stores/runes-store.svelte';
 	import LayerItem from '$lib/components/LayerItem.svelte';
 
 	import { Button } from '$lib/components/ui/button';
@@ -54,9 +54,13 @@
 
 <Card class="mt-4 sm:mt-6">
 	<CardContent class="p-4 sm:p-6">
-		<div class="mb-3 flex items-center justify-between sm:mb-4">
-			<h2 class="text-lg font-bold text-gray-800 sm:text-xl">Layers ({layers.length})</h2>
-			<Button size="sm" onclick={handleAddLayer} disabled={isAddingLayer}>
+		<div
+			class="mb-2 flex flex-col gap-2 sm:mb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 md:mb-4"
+		>
+			<h2 class="text-base font-bold text-gray-800 sm:text-lg md:text-xl">
+				Layers ({layers.length})
+			</h2>
+			<Button size="sm" onclick={handleAddLayer} disabled={isAddingLayer} class="w-full sm:w-auto">
 				{#if isAddingLayer}
 					<Loader2 class="mr-1 h-3 w-3 animate-spin sm:mr-2 sm:h-4 sm:w-4" />
 					<span class="text-xs sm:text-sm">Adding...</span>
@@ -75,22 +79,26 @@
 				{#each layers as layer (layer.id)}
 					<div class="group relative">
 						<LayerItem {layer} />
-						<div class="mt-2 flex justify-end space-x-1">
+						<div class="mt-2 flex justify-end gap-1">
 							<Button
 								variant="outline"
 								size="sm"
 								onclick={() => moveLayer(layer.id, 'up')}
 								disabled={layers.indexOf(layer) === 0}
+								class="px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm"
 							>
-								↑
+								<span class="hidden sm:inline">↑</span>
+								<span class="sm:hidden">Up</span>
 							</Button>
 							<Button
 								variant="outline"
 								size="sm"
 								onclick={() => moveLayer(layer.id, 'down')}
 								disabled={layers.indexOf(layer) === layers.length - 1}
+								class="px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm"
 							>
-								↓
+								<span class="hidden sm:inline">↓</span>
+								<span class="sm:hidden">Down</span>
 							</Button>
 						</div>
 					</div>

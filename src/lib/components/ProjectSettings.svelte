@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { project, updateProjectName, updateProjectDescription } from '$lib/stores/runes-store';
+	import {
+		project,
+		updateProjectName,
+		updateProjectDescription
+	} from '$lib/stores/runes-store.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { showSuccess, showWarning } from '$lib/utils/error-handling';
@@ -10,16 +14,12 @@
 	const MAX_NAME_LENGTH = 100;
 	const MAX_DESC_LENGTH = 500;
 
-	// Initialize from project store
+	// Sync with project store changes
 	$effect(() => {
 		const currentProject = project;
-		// Only set initial values if they haven't been set yet
-		if (projectName === '') {
-			projectName = currentProject.name;
-		}
-		if (projectDescription === '') {
-			projectDescription = currentProject.description;
-		}
+		// Always sync with the current project data
+		projectName = currentProject.name;
+		projectDescription = currentProject.description;
 	});
 
 	// Save project name

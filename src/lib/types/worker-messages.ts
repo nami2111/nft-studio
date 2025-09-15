@@ -24,6 +24,7 @@ export interface TransferrableLayer {
 
 export interface StartMessage {
 	type: 'start';
+	taskId?: string; // Added for worker pool task tracking
 	payload: {
 		layers: TransferrableLayer[];
 		collectionSize: number;
@@ -38,6 +39,7 @@ export interface StartMessage {
 
 export interface ProgressMessage {
 	type: 'progress';
+	taskId?: string;
 	payload: {
 		generatedCount: number;
 		totalCount: number;
@@ -52,6 +54,7 @@ export interface ProgressMessage {
 
 export interface CompleteMessage {
 	type: 'complete';
+	taskId?: string;
 	payload: {
 		images: { name: string; imageData: ArrayBuffer }[];
 		metadata: { name: string; data: object }[];
@@ -61,6 +64,7 @@ export interface CompleteMessage {
 
 export interface ErrorMessage {
 	type: 'error';
+	taskId?: string;
 	payload: {
 		message: string;
 	};
@@ -72,6 +76,7 @@ export interface ReadyMessage {
 
 export interface CancelledMessage {
 	type: 'cancelled';
+	taskId?: string;
 	payload: {
 		generatedCount?: number;
 		totalCount?: number;
