@@ -11,6 +11,8 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 - **Rarity Control**: Fine-tune the distribution of traits with adjustable rarity sliders
 - **Project Management**: Save, load, and export your projects
 - **Web Worker Processing**: Offload intensive image processing to background workers
+- **WASM Acceleration**: WebAssembly-powered image compositing for large collections (>10k items)
+- **Progressive Previews**: Real-time preview generation during batch processing
 - **ZIP Export**: Package your entire collection for easy distribution
 - **Performance Optimized**: Lazy loading, bundle size optimization, and Web Worker processing
 
@@ -19,7 +21,7 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 - **Frontend**: SvelteKit 2, TypeScript, Tailwind CSS
 - **UI Components**: bits-ui, lucide-svelte
 - **State Management**: Svelte 5 runes and stores
-- **Image Processing**: Canvas API with Web Workers for performance
+- **Image Processing**: Canvas API with Web Workers and Rust/WASM for performance
 - **Persistence**: IndexedDB for local storage, ZIP for export
 - **Build Tool**: Vite with static adapter and bundle visualization
 - **Deployment**: Static hosting ready

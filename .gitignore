@@ -21,6 +21,10 @@ static/workers
 
 target
 
+# Rust/WASM build artifacts
+src/lib/wasm/pkg/
+src/lib/wasm/target/
+
 # SvelteKit build artifacts
 .svelte-kit/
 .svelte-kit/output/
