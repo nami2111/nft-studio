@@ -141,3 +141,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - UI components from [bits-ui](https://www.bits-ui.com/)
 - Icons from [Lucide](https://lucide.dev/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
+- Deployed on [Juno](https://juno.build/)
