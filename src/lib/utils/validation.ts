@@ -157,7 +157,7 @@ export function isValidImportedProject(data: unknown): data is Record<string, un
 			if (typeof traitObj.name !== 'string' || !isValidTraitName(traitObj.name)) return false;
 
 			// Validate rarity weight (if present)
-			if (traitObj.rarityWeight !== undefined && typeof traitObj.rarityWeight !== 'number')
+			if (traitObj.rarityWeight !== undefined && !isValidRarityWeight(traitObj.rarityWeight))
 				return false;
 
 			// imageData may be missing (export strips image data)
@@ -219,7 +219,7 @@ export function isValidTrait(trait: unknown): boolean {
 	if (typeof traitData.name !== 'string' || !isValidTraitName(traitData.name)) return false;
 
 	// Validate rarity weight (if present)
-	if (traitData.rarityWeight !== undefined && typeof traitData.rarityWeight !== 'number')
+	if (traitData.rarityWeight !== undefined && !isValidRarityWeight(traitData.rarityWeight))
 		return false;
 
 	return true;

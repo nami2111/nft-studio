@@ -2,7 +2,7 @@
  * Domain payload abstractions used for worker communication.
  */
 import type { Layer } from '$lib/types/layer';
-import type { TransferrableLayer } from '$lib/types/worker-messages';
+import type { TransferrableLayer, TransferrableTrait } from '$lib/types/worker-messages';
 
 /**
  * Prepare layers for worker with validation.
@@ -11,7 +11,7 @@ import type { TransferrableLayer } from '$lib/types/worker-messages';
 export async function prepareLayersForWorker(layers: Layer[]): Promise<TransferrableLayer[]> {
 	// Validate that all layers have valid image data
 	for (const layer of layers) {
-		if (layer.traits.length === 0) {
+	if (layer.traits.length === 0) {
 			throw new Error(
 				`Layer "${layer.name}" has no traits. Please add at least one trait to each layer.`
 			);
@@ -29,24 +29,37 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 	const transferrableLayers = await Promise.all(
 		layers.map(async (layer) => {
 			const transferrableTraits = await Promise.all(
-				layer.traits.map(async (trait) => ({
-					id: trait.id,
-					name: trait.name,
-					imageData: trait.imageData,
-					rarityWeight: trait.rarityWeight,
-					// Include width/height for better memory management
-					width: trait.width,
-					height: trait.height
-				}))
+				layer.traits.map(async (trait) => {
+					// Create a clean ArrayBuffer to ensure it's properly serializable
+					const cleanArrayBuffer = new ArrayBuffer(trait.imageData.byteLength);
+					const sourceView = new Uint8Array(trait.imageData);
+					const destView = new Uint8Array(cleanArrayBuffer);
+					destView.set(sourceView);
+					
+					// Create a clean trait object with only the properties defined in TransferrableTrait
+					const transferrableTrait: TransferrableTrait = {
+						id: String(trait.id),
+						name: String(trait.name),
+						imageData: cleanArrayBuffer,
+						rarityWeight: Number(trait.rarityWeight),
+						width: trait.width !== undefined ? Number(trait.width) : undefined,
+						height: trait.height !== undefined ? Number(trait.height) : undefined
+					};
+					
+					return transferrableTrait;
+				})
 			);
-			return {
-				id: layer.id,
-				name: layer.name,
-				order: layer.order,
-				isOptional: layer.isOptional,
+			
+			// Create a clean layer object with only the properties defined in TransferrableLayer
+			const transferrableLayer: TransferrableLayer = {
+				id: String(layer.id),
+				name: String(layer.name),
+				order: Number(layer.order),
+				isOptional: layer.isOptional ? Boolean(layer.isOptional) : undefined,
 				traits: transferrableTraits
-				// Note: Layer doesn't have width/height properties in the base type
 			};
+			
+			return transferrableLayer;
 		})
 	);
 	return transferrableLayers;

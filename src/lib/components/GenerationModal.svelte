@@ -24,8 +24,9 @@
 		ProgressMessage,
 		CompleteMessage,
 		ErrorMessage,
-		CancelledMessage
-	} from '$lib/types/worker-messages';
+		CancelledMessage,
+		PreviewMessage
+} from '$lib/types/worker-messages';
 	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
 
@@ -39,6 +40,7 @@
 	// Accumulators for chunked data
 	let allImages: { name: string; imageData: ArrayBuffer }[] = [];
 	let allMetadata: { name: string; data: Record<string, unknown> }[] = [];
+	let previews = $state([] as { index: number; url: string }[]);
 	// Track if we've started packaging to prevent duplicate calls
 	let isPackaging = $state(false);
 
@@ -73,6 +75,8 @@
 		allMetadata = [];
 		isPackaging = false;
 		memoryUsage = null;
+		previews.forEach(p => URL.revokeObjectURL(p.url));
+		previews = [];
 	}
 
 	async function packageZip(
@@ -194,7 +198,7 @@
 
 			// Set up a simple event system to handle messages from workers
 			const workerMessageHandler = async (
-				data: ProgressMessage | CompleteMessage | ErrorMessage | CancelledMessage
+				data: ProgressMessage | CompleteMessage | ErrorMessage | CancelledMessage | PreviewMessage
 			) => {
 				const message = data;
 
@@ -206,6 +210,15 @@
 							message.payload.statusText,
 							message.payload.memoryUsage
 						);
+						break;
+					case 'preview':
+						const { payload } = message as PreviewMessage;
+						for (let j = 0; j < payload.indexes.length; j++) {
+							const buffer = payload.previewData[j];
+							const blob = new Blob([buffer], {type: 'image/png'});
+							const url = URL.createObjectURL(blob);
+							previews.push({index: payload.indexes[j], url});
+						}
 						break;
 					case 'complete':
 						// Handle chunked image data

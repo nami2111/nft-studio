@@ -6,7 +6,8 @@ import type {
 	ErrorMessage,
 	CancelledMessage,
 	OutgoingWorkerMessage,
-	ProgressMessage
+	ProgressMessage,
+	PreviewMessage
 } from '$lib/types/worker-messages';
 
 // Worker pool configuration
@@ -44,12 +45,60 @@ let workerPool: WorkerPool | null = null;
 
 // Callback for forwarding messages to clients
 let messageCallback:
-	| ((data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage) => void)
+	| ((data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage) => void)
 	| null = null;
+
+/**
+ * Clone serializable data, preserving ArrayBuffers and other transferable objects
+ */
+function cloneSerializableData(obj: any): any {
+	if (obj === null || typeof obj !== 'object') {
+		return obj;
+	}
+	
+	// Handle ArrayBuffer specifically
+	if (obj instanceof ArrayBuffer) {
+	const newBuffer = new ArrayBuffer(obj.byteLength);
+		const sourceView = new Uint8Array(obj);
+		const destView = new Uint8Array(newBuffer);
+		destView.set(sourceView);
+		return newBuffer;
+	}
+	
+	// Handle TypedArray (like Uint8Array, Int32Array, etc.)
+	if (ArrayBuffer.isView(obj)) {
+		// Create a new instance of the same type with copied data
+		const TypedArrayConstructor = Object.getPrototypeOf(obj).constructor;
+		return new TypedArrayConstructor(obj);
+	}
+	
+	// Handle Date
+	if (obj instanceof Date) {
+	return new Date(obj.getTime());
+	}
+	
+	// Handle Array
+	if (Array.isArray(obj)) {
+	return obj.map(item => cloneSerializableData(item));
+	}
+	
+	// Handle plain objects
+	if (typeof obj === 'object') {
+		const cloned: any = {};
+		for (const key in obj) {
+			if (Object.prototype.hasOwnProperty.call(obj, key)) {
+				cloned[key] = cloneSerializableData(obj[key]);
+			}
+		}
+		return cloned;
+	}
+	
+	return obj;
+}
 
 // Set message callback for client components to receive worker messages
 export function setMessageCallback(
-	callback: (data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage) => void
+	callback: (data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage) => void
 ): void {
 	messageCallback = callback;
 }
@@ -62,7 +111,7 @@ function getDeviceCapabilities() {
 	let memoryGB = 8;
 	if ('deviceMemory' in navigator) {
 		// @ts-expect-error - deviceMemory not in all browsers
-		memoryGB = navigator.deviceMemory || 8;
+	memoryGB = navigator.deviceMemory || 8;
 	}
 	const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 	return { coreCount, memoryGB, isMobile };
@@ -119,7 +168,7 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 				worker.onmessage = null; // Reset to avoid conflict with normal message handling
 				resolve(worker);
 			}
-		};
+	};
 
 		// Send initialization message to worker
 		worker.postMessage({ type: 'initialize' });
@@ -143,13 +192,19 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 
 	// Forward all other messages to client components
 	if (messageCallback) {
-		messageCallback(data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage);
+		messageCallback(data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage);
 	}
 
-	// For terminal messages, resolve/reject promises and clean up
+	// For preview messages, just forward to client without affecting worker status
+	if (type === 'preview') {
+		// Preview messages are forwarded but don't affect worker state
+		return;
+	}
+
+	// For terminal messages (complete, error, cancelled), resolve/reject promises and clean up
 	if (type === 'complete' || type === 'error' || type === 'cancelled') {
 		// Find and resolve/reject the corresponding task using taskId from message
-		const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
+	const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
 		let foundTask = false;
 
 		if (messageTaskId) {
@@ -190,8 +245,7 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 			}
 		}
 
-		// If we couldn't find the task, it might be a chunked message
-		// Just mark worker as available and continue
+		// If we couldn't find the task, just mark worker as available and continue
 		if (!foundTask) {
 			if (workerPool) {
 				workerPool.workerStatus[workerIndex] = true;
@@ -200,13 +254,15 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 			return;
 		}
 
-		// Mark worker as available when task completes
-		if (workerPool) {
-			workerPool.workerStatus[workerIndex] = true;
-		}
+		// Mark worker as available when task completes (for terminal messages)
+		if (foundTask && (type === 'complete' || type === 'error' || type === 'cancelled')) {
+			if (workerPool) {
+				workerPool.workerStatus[workerIndex] = true;
+			}
 
-		// Process next task if available
-		processNextTask();
+			// Process next task if available
+			processNextTask();
+		}
 	}
 }
 
@@ -217,7 +273,7 @@ function getAvailableWorker(): number | null {
 	if (!workerPool) return null;
 
 	for (let i = 0; i < workerPool.workerStatus.length; i++) {
-		// Check if worker exists and is available
+	// Check if worker exists and is available
 		if (workerPool.workers[i] && workerPool.workerStatus[i]) {
 			return i;
 		}
@@ -230,7 +286,7 @@ function getAvailableWorker(): number | null {
  */
 function processNextTask(): void {
 	if (!workerPool || workerPool.taskQueue.length === 0) {
-		return;
+	return;
 	}
 
 	const workerIndex = getAvailableWorker();
@@ -255,8 +311,17 @@ function processNextTask(): void {
 		};
 
 		// Only include payload if it exists (not all message types have payload)
-		const messageToSend =
-			'payload' in task.message ? { ...baseMessage, payload: task.message.payload } : baseMessage;
+		// Create a deep copy of the payload to ensure it's clean of any non-serializable references
+		// We need to handle ArrayBuffers specially since JSON serialization loses them
+		let messageToSend;
+		if ('payload' in task.message) {
+			// For deep cloning that preserves ArrayBuffers, we need a custom approach
+			// Create a structured clone by serializing and deserializing only the non-ArrayBuffer parts
+			const cleanPayload = cloneSerializableData(task.message.payload);
+			messageToSend = { ...baseMessage, payload: cleanPayload };
+		} else {
+			messageToSend = baseMessage;
+		}
 
 		workerPool.workers[workerIndex].postMessage(messageToSend);
 		console.log(`Task ${task.id} assigned to worker ${workerIndex}`);
@@ -287,8 +352,8 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 	const workerInitializationTimeout = config?.workerInitializationTimeout || 5000;
 
 	workerPool = {
-		workers: [],
-		taskQueue: [],
+	workers: [],
+	taskQueue: [],
 		activeTasks: new Map(),
 		workerStatus: [],
 		config: {
@@ -389,7 +454,7 @@ export function terminateWorkerPool(): void {
 
 	// Clear active tasks
 	for (const task of workerPool.activeTasks.values()) {
-		task.reject(new Error('Worker pool terminated'));
+	task.reject(new Error('Worker pool terminated'));
 	}
 
 	// Clear the pool
@@ -425,7 +490,7 @@ export function getWorkerPoolStatus(): {
 /**
  * Clean up any completed tasks that are older than a certain threshold
  */
-export function cleanupOldTasks(thresholdMs: number = 300000): void {
+export function cleanupOldTasks(thresholdMs: number = 3000): void {
 	// 5 minutes threshold
 	if (!workerPool) return;
 

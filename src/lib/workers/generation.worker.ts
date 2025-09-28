@@ -8,8 +8,35 @@ import type {
 	CompleteMessage,
 	ErrorMessage,
 	CancelledMessage,
+	PreviewMessage,
 	IncomingMessage
 } from '$lib/types/worker-messages';
+
+// WASM module for large collections and progressive rendering
+let wasmModule: any = null;
+let wasmInitialized = false;
+
+// Initialize WASM module
+async function initializeWasm() {
+	if (wasmInitialized) {
+		return;
+	}
+	
+	try {
+		// Dynamically import the WASM module
+		const wasmImports = await import('$lib/wasm/pkg/nft_studio_wasm.js');
+		wasmModule = await wasmImports.default();
+		
+		// Initialize panic hook for better error reporting
+		wasmImports.init_console_panic_hook();
+		
+		wasmInitialized = true;
+		console.log('WASM module initialized successfully');
+	} catch (error) {
+		console.warn('Failed to initialize WASM module:', error);
+		// Continue with regular canvas implementation if WASM fails
+	}
+}
 
 // Send ready message when worker is initialized
 self.postMessage({ type: 'ready' });
@@ -35,7 +62,7 @@ function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
 		if (randomNum < trait.rarityWeight) {
 			return trait;
 		}
-		randomNum -= trait.rarityWeight;
+	randomNum -= trait.rarityWeight;
 	}
 	return null;
 }
@@ -73,9 +100,53 @@ async function createImageBitmapFromBuffer(
 		const imageBitmap = await createImageBitmap(blob, imageBitmapOptions);
 		return imageBitmap;
 	} catch (error) {
-		throw new Error(
+	throw new Error(
 			`Failed to process image "${traitName}": ${error instanceof Error ? error.message : 'Unknown error'}`
 		);
+	}
+}
+
+// Compose images using WASM for better performance on large collections
+async function compositeImagesWithWasm(baseImageData: ArrayBuffer, overlayImageData: ArrayBuffer): Promise<ArrayBuffer> {
+	if (!wasmInitialized || !wasmModule) {
+	throw new Error('WASM module not initialized');
+	}
+	
+	try {
+		const result = await wasmModule.composite_images(new Uint8Array(baseImageData), new Uint8Array(overlayImageData));
+		// Extract base64 data from the result URL
+		const base64Data = result.split(',')[1];
+		const binaryString = atob(base64Data);
+		const bytes = new Uint8Array(binaryString.length);
+		for (let i = 0; i < binaryString.length; i++) {
+			bytes[i] = binaryString.charCodeAt(i);
+		}
+		return bytes.buffer;
+	} catch (error) {
+		console.warn('WASM composition failed, falling back to canvas:', error);
+		throw error;
+	}
+}
+
+// Create a preview image using WASM
+async function createPreviewWithWasm(baseImageData: ArrayBuffer, overlayImageData: ArrayBuffer, width: number, height: number): Promise<ArrayBuffer> {
+	if (!wasmInitialized || !wasmModule) {
+		throw new Error('WASM module not initialized');
+	}
+	
+	try {
+		const result = await wasmModule.generate_preview(new Uint8Array(baseImageData), new Uint8Array(overlayImageData), width, height);
+	// Extract base64 data from the result URL
+		const base64Data = result.split(',')[1];
+		const binaryString = atob(base64Data);
+		const bytes = new Uint8Array(binaryString.length);
+		for (let i = 0; i < binaryString.length; i++) {
+			bytes[i] = binaryString.charCodeAt(i);
+	}
+		return bytes.buffer;
+	} catch (error) {
+		console.warn('WASM preview generation failed:', error);
+		throw error;
 	}
 }
 
@@ -124,6 +195,11 @@ function calculateOptimalChunkSize(
 		chunkSize = Math.floor(chunkSize * 0.5); // Reduce by half for mobile
 	}
 
+	// For large collections (>10k), use smaller chunks but leverage WASM
+	if (collectionSize > 10000) {
+		chunkSize = Math.min(chunkSize, 100);
+	}
+
 	// Ensure reasonable bounds
 	chunkSize = Math.max(10, Math.min(chunkSize, 200));
 
@@ -150,6 +226,12 @@ async function generateCollection(
 	// Detect device capabilities and set optimal chunk size
 	const deviceCapabilities = getDeviceCapabilities();
 	let CHUNK_SIZE = calculateOptimalChunkSize(deviceCapabilities, collectionSize);
+
+	// Initialize WASM if collection is large
+	const useWasm = collectionSize > 10000;
+	if (useWasm) {
+		await initializeWasm();
+	}
 
 	// Send initial progress
 	const memoryUsage = getMemoryUsage();
@@ -210,51 +292,59 @@ async function generateCollection(
 
 		for (let i = chunkStart; i < chunkEnd && !isCancelled; i++) {
 			try {
-				// Clear the reusable canvas for this item
-				reusableCtx.clearRect(0, 0, targetWidth, targetHeight);
+				let blob: Blob;
+				
+				if (useWasm) {
+					// Use WASM for image compositing
+					blob = await compositeImagesWithWasmForNFT(layers, targetWidth, targetHeight);
+				} else {
+					// Use canvas for image compositing
+					// Clear the reusable canvas for this item
+					reusableCtx.clearRect(0, 0, targetWidth, targetHeight);
 
-				// Selected traits for this NFT
-				const selectedTraits = [];
+					// Selected traits for this NFT
+					const selectedTraits = [];
 
-				// Iterate through the layers in their specified order
-				for (const layer of layers) {
-					// Validate layer has traits
-					if (!layer.traits || layer.traits.length === 0) {
-						continue;
+					// Iterate through the layers in their specified order
+					for (const layer of layers) {
+						// Validate layer has traits
+						if (!layer.traits || layer.traits.length === 0) {
+							continue;
+						}
+
+						// Select a trait based on the rarity algorithm
+						const selectedTrait = selectTrait(layer);
+
+						// If a trait is selected, draw it
+						if (selectedTrait) {
+							selectedTraits.push({
+								layerId: layer.id,
+								layerName: layer.name,
+								traitId: selectedTrait.id,
+								traitName: selectedTrait.name
+							});
+
+							// Create ImageBitmap from the trait's image data with resizing for memory efficiency
+							const imageBitmap = await createImageBitmapFromBuffer(
+								selectedTrait.imageData,
+								selectedTrait.name,
+								{ resizeWidth: targetWidth, resizeHeight: targetHeight }
+							);
+
+							// Draw the image onto the OffscreenCanvas
+							reusableCtx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+
+							// Clean up the ImageBitmap immediately to free memory
+							imageBitmap.close();
+						}
 					}
 
-					// Select a trait based on the rarity algorithm
-					const selectedTrait = selectTrait(layer);
-
-					// If a trait is selected, draw it
-					if (selectedTrait) {
-						selectedTraits.push({
-							layerId: layer.id,
-							layerName: layer.name,
-							traitId: selectedTrait.id,
-							traitName: selectedTrait.name
-						});
-
-						// Create ImageBitmap from the trait's image data with resizing for memory efficiency
-						const imageBitmap = await createImageBitmapFromBuffer(
-							selectedTrait.imageData,
-							selectedTrait.name,
-							{ resizeWidth: targetWidth, resizeHeight: targetHeight }
-						);
-
-						// Draw the image onto the OffscreenCanvas
-						reusableCtx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
-
-						// Clean up the ImageBitmap immediately to free memory
-						imageBitmap.close();
-					}
+					// Convert the canvas to a Blob with optimized quality settings
+					blob = await reusableCanvas.convertToBlob({
+						type: 'image/png',
+						quality: 0.9 // Slight compression to reduce memory usage
+					});
 				}
-
-				// Convert the canvas to a Blob with optimized quality settings
-				const blob = await reusableCanvas.convertToBlob({
-					type: 'image/png',
-					quality: 0.9 // Slight compression to reduce memory usage
-				});
 
 				// Store the blob in the chunk array (not the main array)
 				chunkImages.push({
@@ -264,7 +354,7 @@ async function generateCollection(
 
 				// Create metadata
 				const attributes = [];
-				for (const trait of selectedTraits) {
+				for (const trait of getSelectedTraitsForNFT(layers)) {
 					attributes.push({
 						trait_type: trait.layerName,
 						value: trait.traitName
@@ -304,6 +394,43 @@ async function generateCollection(
 					};
 					self.postMessage(progressMessage);
 				}
+				
+				// Send preview for progressive rendering every 100 items for large collections (to reduce overhead)
+				if (collectionSize > 1000 && (i % 100 === 0 || i === collectionSize - 1)) {
+					// Only send preview data for the final item to reduce memory usage
+					// We'll send a small preview that doesn't require full array buffer conversion
+					const previewIndexes = [i];
+					
+					// Create a small preview by converting to a small canvas to reduce data transfer
+					try {
+						const smallCanvas = new OffscreenCanvas(100, 100); // Small preview size
+						const smallCtx = smallCanvas.getContext('2d');
+						if (smallCtx) {
+							// Create image bitmap from blob and draw to small canvas
+							const imageBitmap = await createImageBitmap(blob);
+							// Scale the image to fit the small canvas
+							smallCtx.drawImage(imageBitmap, 0, 0, 100, 100);
+							imageBitmap.close();
+							
+							// Convert to a small blob to reduce transfer size
+							const smallBlob = await smallCanvas.convertToBlob({ type: 'image/png', quality: 0.5 });
+							const previewData = [await smallBlob.arrayBuffer()];
+							
+							const previewMessage: PreviewMessage = {
+								type: 'preview',
+								taskId,
+								payload: {
+									indexes: previewIndexes,
+									previewData: previewData
+								}
+							};
+							self.postMessage(previewMessage);
+						}
+					} catch (previewError) {
+						console.warn('Failed to generate preview:', previewError);
+						// Continue generation even if preview fails
+					}
+				}
 			} catch (error) {
 				// Ensure we detach the cancel listener on error paths to avoid leaks across runs
 				try {
@@ -325,7 +452,7 @@ async function generateCollection(
 		}
 
 		// Process chunk images to ArrayBuffers and send immediately to free memory
-		if (chunkImages.length > 0 && !isCancelled) {
+	if (chunkImages.length > 0 && !isCancelled) {
 			// Convert only this chunk's Blobs to ArrayBuffers for transfer
 			const chunkImagesForTransfer = await Promise.all(
 				chunkImages.map(async (image) => ({
@@ -438,7 +565,7 @@ async function generateCollection(
 
 	// Send final completion message (empty images since they were sent in chunks)
 	const finalCompleteMessage: CompleteMessage = {
-		type: 'complete',
+	type: 'complete',
 		taskId,
 		payload: {
 			images: [], // Already sent in chunks
@@ -448,6 +575,87 @@ async function generateCollection(
 
 	// Send final completion message
 	self.postMessage(finalCompleteMessage);
+}
+
+// Helper function to composite images using WASM for a complete NFT
+async function compositeImagesWithWasmForNFT(layers: TransferrableLayer[], width: number, height: number): Promise<Blob> {
+	// Select traits for this NFT
+	const selectedTraits = [];
+	for (const layer of layers) {
+		if (!layer.traits || layer.traits.length === 0) {
+			continue;
+		}
+		const selectedTrait = selectTrait(layer);
+		if (selectedTrait) {
+			selectedTraits.push(selectedTrait);
+		}
+	}
+
+	// Create a transparent base image as ArrayBuffer
+	const canvas = new OffscreenCanvas(width, height);
+	const ctx = canvas.getContext('2d');
+	if (!ctx) {
+		throw new Error('Could not get 2d context from OffscreenCanvas');
+	}
+	
+	// Fill with transparent background
+	ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+	ctx.fillRect(0, 0, width, height);
+	
+	// Convert to blob for base
+	const baseBlob = await canvas.convertToBlob({ type: 'image/png' });
+	let baseBuffer = await baseBlob.arrayBuffer();
+
+	// Composite each trait using WASM
+	for (const trait of selectedTraits) {
+		try {
+			const overlayBuffer = trait.imageData;
+			baseBuffer = await compositeImagesWithWasm(baseBuffer, overlayBuffer);
+		} catch (error) {
+			console.warn('Falling back to canvas composition for trait:', error);
+			// Fallback to canvas composition
+			const canvas = new OffscreenCanvas(width, height);
+			const ctx = canvas.getContext('2d');
+			if (!ctx) throw new Error('Could not get 2d context');
+			
+			// Create ImageBitmap from base
+			const baseBlob = new Blob([baseBuffer], { type: 'image/png' });
+			const baseImageBitmap = await createImageBitmap(baseBlob);
+			ctx.drawImage(baseImageBitmap, 0, 0);
+			baseImageBitmap.close();
+			
+			// Create ImageBitmap from trait
+			const traitBlob = new Blob([trait.imageData], { type: 'image/png' });
+			const traitImageBitmap = await createImageBitmap(traitBlob);
+			ctx.drawImage(traitImageBitmap, 0, 0);
+			traitImageBitmap.close();
+			
+			// Convert back to buffer
+			const newBlob = await canvas.convertToBlob({ type: 'image/png' });
+			baseBuffer = await newBlob.arrayBuffer();
+		}
+	}
+
+	// Convert final buffer to blob
+	return new Blob([baseBuffer], { type: 'image/png' });
+}
+
+// Helper function to get selected traits for metadata (for WASM path)
+function getSelectedTraitsForNFT(layers: TransferrableLayer[]): Array<{layerName: string, traitName: string}> {
+	const selectedTraits = [];
+	for (const layer of layers) {
+	if (!layer.traits || layer.traits.length === 0) {
+			continue;
+	}
+		const selectedTrait = selectTrait(layer);
+		if (selectedTrait) {
+			selectedTraits.push({
+				layerName: layer.name,
+				traitName: selectedTrait.name
+			});
+		}
+	}
+	return selectedTraits;
 }
 
 // Memory information interface
@@ -491,7 +699,7 @@ function getMemoryUsage() {
 // Cleanup function to free resources
 function cleanupResources() {
 	if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
-		(globalThis as { gc?: () => void }).gc?.();
+	(globalThis as { gc?: () => void }).gc?.();
 	}
 }
 

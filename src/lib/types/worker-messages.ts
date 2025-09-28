@@ -26,7 +26,7 @@ export interface StartMessage {
 	type: 'start';
 	taskId?: string; // Added for worker pool task tracking
 	payload: {
-		layers: TransferrableLayer[];
+	layers: TransferrableLayer[];
 		collectionSize: number;
 		outputSize: {
 			width: number;
@@ -42,7 +42,7 @@ export interface ProgressMessage {
 	taskId?: string;
 	payload: {
 		generatedCount: number;
-		totalCount: number;
+	totalCount: number;
 		statusText: string;
 		memoryUsage?: {
 			used: number;
@@ -83,13 +83,24 @@ export interface CancelledMessage {
 	};
 }
 
+export interface PreviewMessage {
+	type: 'preview';
+	taskId?: string;
+	payload: {
+		indexes: number[];
+		previewData: ArrayBuffer[];
+		metadata?: { name: string; data: object }[];
+	};
+}
+
 // Messages that can be sent from workers to the main thread
 export type OutgoingWorkerMessage =
 	| ReadyMessage
 	| ProgressMessage
 	| CompleteMessage
 	| ErrorMessage
-	| CancelledMessage;
+	| CancelledMessage
+	| PreviewMessage;
 
 export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage;
 

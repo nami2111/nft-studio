@@ -1,4 +1,4 @@
-import type { GenerationWorkerMessage } from '$lib/types/worker-messages';
+import type { GenerationWorkerMessage, PreviewMessage } from '$lib/types/worker-messages';
 
 // Export the worker pool functions for backward compatibility
 export {
@@ -9,4 +9,4 @@ export {
 } from './worker.pool';
 
 // Export the GenerationWorkerMessage type
-export type { GenerationWorkerMessage };
+export type { GenerationWorkerMessage, PreviewMessage };

@@ -5,7 +5,8 @@ import type {
 	CompleteMessage,
 	ErrorMessage,
 	CancelledMessage,
-	ProgressMessage
+	ProgressMessage,
+	PreviewMessage
 } from '$lib/types/worker-messages';
 import {
 	startGeneration as startWorkerGeneration,
@@ -23,7 +24,7 @@ export async function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
-	onMessage?: (data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage) => void
+	onMessage?: (data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage) => void
 ): Promise<void> {
 	try {
 		// Validate layers before starting generation
