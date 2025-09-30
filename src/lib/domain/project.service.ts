@@ -1,50 +1,24 @@
 // src/lib/domain/project.service.ts
 
-import type { Project } from '$lib/types/project';
-import type { Layer } from '$lib/types/layer';
-import type { Trait } from '$lib/types/trait';
+import type { Project, Layer, Trait } from '$lib/types/project';
 import { fileToArrayBuffer } from '$lib/utils';
 import {
-	isValidProjectName,
-	isValidLayerName,
-	isValidTraitName,
-	isValidDimensions
-} from '$lib/utils/validation';
+	validateProjectName,
+	validateLayerName,
+	validateTraitName,
+	validateDimensions,
+	validateRarityWeight,
+	validateImportedProject
+} from './validation';
+import { handleValidationError, handleFileError } from '$lib/utils/error-handler';
+import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 
 /**
- * Validates a project name.
- * @param {string} name - The project name to validate
- * @returns {boolean} True if the project name is valid, false otherwise
+ * Create a new project with default values
  */
-export function validateProjectName(name: string): boolean {
-	return isValidProjectName(name) !== null;
-}
-
-/**
- * Validates a layer name.
- * @param {string} name - The layer name to validate
- * @returns {boolean} True if the layer name is valid, false otherwise
- */
-export function validateLayerName(name: string): boolean {
-	return isValidLayerName(name) !== null;
-}
-
-/**
- * Validates a trait name.
- * @param {string} name - The trait name to validate
- * @returns {boolean} True if the trait name is valid, false otherwise
- */
-export function validateTraitName(name: string): boolean {
-	return isValidTraitName(name) !== null;
-}
-
-export function validateDimensions(width: number, height: number): boolean {
-	return isValidDimensions(width, height);
-}
-
-export function createDefaultProject(): Project {
-	return {
-		id: crypto.randomUUID(),
+export function createProject(): Project {
+	const project: Project = {
+		id: createProjectId(crypto.randomUUID()),
 		name: 'My NFT Collection',
 		description: 'A collection of unique NFTs',
 		outputSize: {
@@ -53,116 +27,271 @@ export function createDefaultProject(): Project {
 		},
 		layers: []
 	};
+
+	return project;
 }
 
-export async function addTraitToLayer(
-	layer: Layer,
-	trait: Omit<Trait, 'id' | 'imageData'> & { imageData: File }
-): Promise<Trait> {
-	if (!validateTraitName(trait.name)) {
-		throw new Error('Invalid trait name: must be a non-empty string with maximum 100 characters');
+/**
+ * Add a new layer to the project
+ */
+export function addLayer(project: Project, name: string = 'New Layer'): Project {
+	if (!validateLayerName(name)) {
+		throw new Error('Invalid layer name');
 	}
 
-	const arrayBuffer = await fileToArrayBuffer(trait.imageData);
-	const imageUrl = URL.createObjectURL(trait.imageData);
+	const newLayer: Layer = {
+		id: createLayerId(crypto.randomUUID()),
+		name,
+		order: project.layers.length,
+		traits: []
+	};
 
 	return {
-		...trait,
-		id: crypto.randomUUID(),
-		imageUrl,
-		imageData: arrayBuffer
+		...project,
+		layers: [...project.layers, newLayer]
 	};
 }
 
-export function removeTraitFromLayer(layer: Layer, traitId: string): Layer {
-	return {
+/**
+ * Remove a layer from the project
+ */
+export function removeLayer(project: Project, layerId: string): Project {
+	const filteredLayers = project.layers.filter((layer) => layer.id !== layerId);
+
+	// Reorder remaining layers
+	const reorderedLayers = filteredLayers.map((layer, index) => ({
 		...layer,
-		traits: layer.traits.filter((trait) => trait.id !== traitId)
-	};
-}
+		order: index
+	}));
 
-export function updateTraitInLayer(layer: Layer, traitId: string, updates: Partial<Trait>): Layer {
 	return {
-		...layer,
-		traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, ...updates } : trait))
+		...project,
+		layers: reorderedLayers
 	};
 }
 
-export function addLayerToProject(project: Project, layer: Omit<Layer, 'id' | 'traits'>): Project {
-	if (!validateLayerName(layer.name)) {
-		throw new Error('Invalid layer name: must be a non-empty string with maximum 100 characters');
+/**
+ * Update layer name
+ */
+export function updateLayerName(project: Project, layerId: string, name: string): Project {
+	if (!validateLayerName(name)) {
+		throw new Error('Invalid layer name');
 	}
 
 	return {
 		...project,
-		layers: [...project.layers, { ...layer, id: crypto.randomUUID(), traits: [] }]
+		layers: project.layers.map((layer) => (layer.id === layerId ? { ...layer, name } : layer))
 	};
 }
 
-export function removeLayerFromProject(project: Project, layerId: string): Project {
+/**
+ * Reorder layers in the project
+ */
+export function reorderLayers(project: Project, layerIds: string[]): Project {
+	const newLayers: Layer[] = [];
+
+	layerIds.forEach((layerId, index) => {
+		const layer = project.layers.find((l) => l.id === layerId);
+		if (layer) {
+			newLayers.push({ ...layer, order: index });
+		}
+	});
+
 	return {
 		...project,
-		layers: project.layers.filter((layer) => layer.id !== layerId)
+		layers: newLayers
 	};
 }
 
-export function updateLayerInProject(
+/**
+ * Add a trait to a layer
+ */
+export async function addTrait(
 	project: Project,
 	layerId: string,
-	updates: Partial<Layer>
+	file: File,
+	name?: string
+): Promise<Project> {
+	const traitName = name || file.name.replace(/\.[^/.]+$/, '');
+	if (!validateTraitName(traitName)) {
+		throw new Error('Invalid trait name');
+	}
+
+	const layer = project.layers.find((layer) => layer.id === layerId);
+	if (!layer) {
+		throw new Error(`Layer with id ${layerId} not found`);
+	}
+
+	try {
+		const arrayBuffer = await fileToArrayBuffer(file);
+
+		const newTrait: Trait = {
+			id: createTraitId(crypto.randomUUID()),
+			name: traitName,
+			imageData: arrayBuffer,
+			rarityWeight: 1
+		};
+
+		return {
+			...project,
+			layers: project.layers.map((l) =>
+				l.id === layerId
+					? {
+							...l,
+							traits: [...l.traits, newTrait]
+						}
+					: l
+			)
+		};
+	} catch (error) {
+		await handleFileError(error, {
+			operation: 'addTrait',
+			context: { layerId, fileName: file.name }
+		});
+		throw error;
+	}
+}
+
+/**
+ * Remove a trait from a layer
+ */
+export function removeTrait(project: Project, layerId: string, traitId: string): Project {
+	return {
+		...project,
+		layers: project.layers.map((layer) =>
+			layer.id === layerId
+				? {
+						...layer,
+						traits: layer.traits.filter((trait) => trait.id !== traitId)
+					}
+				: layer
+		)
+	};
+}
+
+/**
+ * Update trait name
+ */
+export function updateTraitName(
+	project: Project,
+	layerId: string,
+	traitId: string,
+	name: string
 ): Project {
+	if (!validateTraitName(name)) {
+		throw new Error('Invalid trait name');
+	}
+
 	return {
 		...project,
-		layers: project.layers.map((layer) => (layer.id === layerId ? { ...layer, ...updates } : layer))
+		layers: project.layers.map((layer) =>
+			layer.id === layerId
+				? {
+						...layer,
+						traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, name } : trait))
+					}
+				: layer
+		)
 	};
 }
 
-export function reorderLayersInProject(project: Project, reorderedLayers: Layer[]): Project {
+/**
+ * Update trait rarity weight
+ */
+export function updateTraitRarity(
+	project: Project,
+	layerId: string,
+	traitId: string,
+	rarityWeight: number
+): Project {
+	if (!validateRarityWeight(rarityWeight)) {
+		throw new Error('Invalid rarity weight');
+	}
+
 	return {
 		...project,
-		layers: reorderedLayers.sort((a, b) => a.order - b.order)
+		layers: project.layers.map((layer) =>
+			layer.id === layerId
+				? {
+						...layer,
+						traits: layer.traits.map((trait) =>
+							trait.id === traitId ? { ...trait, rarityWeight } : trait
+						)
+					}
+				: layer
+		)
 	};
 }
 
+/**
+ * Update project name
+ */
 export function updateProjectName(project: Project, name: string): Project {
 	if (!validateProjectName(name)) {
-		throw new Error('Invalid project name: must be a non-empty string with maximum 100 characters');
+		throw new Error('Invalid project name');
 	}
-	return { ...project, name };
+
+	return {
+		...project,
+		name
+	};
 }
 
+/**
+ * Update project description
+ */
 export function updateProjectDescription(project: Project, description: string): Project {
-	return { ...project, description };
+	return {
+		...project,
+		description
+	};
 }
 
+/**
+ * Update project dimensions
+ */
 export function updateProjectDimensions(project: Project, width: number, height: number): Project {
 	if (!validateDimensions(width, height)) {
-		throw new Error('Invalid dimensions: width and height must be positive numbers');
+		throw new Error('Invalid dimensions');
 	}
-	return { ...project, outputSize: { width, height } };
+
+	return {
+		...project,
+		outputSize: { width, height }
+	};
 }
 
-export function hasMissingImageData(layers: Layer[]): boolean {
-	for (const layer of layers) {
-		for (const trait of layer.traits) {
-			if (!trait.imageData || trait.imageData.byteLength === 0) {
-				return true;
-			}
-		}
+/**
+ * Validate project structure
+ */
+export function validateProjectStructure(project: Project): boolean {
+	try {
+		const validation = validateImportedProject(project);
+		return validation.success;
+	} catch {
+		return false;
 	}
-	return false;
 }
 
-export function getLayersWithMissingImages(
-	layers: Layer[]
-): Array<{ layerName: string; traitName: string }> {
-	const missingImages: Array<{ layerName: string; traitName: string }> = [];
-	for (const layer of layers) {
-		for (const trait of layer.traits) {
-			if (!trait.imageData || trait.imageData.byteLength === 0) {
-				missingImages.push({ layerName: layer.name, traitName: trait.name });
-			}
-		}
-	}
-	return missingImages;
+/**
+ * Calculate total possible combinations
+ */
+export function calculateTotalCombinations(project: Project): number {
+	if (project.layers.length === 0) return 0;
+
+	return project.layers.reduce((total, layer) => {
+		return total * Math.max(layer.traits.length, 1);
+	}, 1);
+}
+
+/**
+ * Check if project can generate NFTs
+ */
+export function canGenerateNFTs(project: Project): boolean {
+	return (
+		project.layers.length > 0 &&
+		project.outputSize.width > 0 &&
+		project.outputSize.height > 0 &&
+		project.layers.every((layer) => layer.traits.length > 0)
+	);
 }

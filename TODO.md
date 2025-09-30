@@ -34,7 +34,7 @@
 
 ## 5. Code Quality and Best Practices
 
-- **Refactoring**: Domain validation is duplicated between utils/validation.ts and domain/project.service.ts; consolidate into a single validation module. Use Zod for schema validation of Project/Layer/Trait types.
+- [DONE] **Refactoring**: Domain validation is duplicated between utils/validation.ts and domain/project.service.ts; consolidated into a single validation module using Zod schemas. Deprecated files have been removed for cleaner codebase.
 - **Type Safety**: Add more discriminated unions for worker messages. Use branded types for IDs (e.g., ProjectId) to prevent mixing.
 - **Error Handling**: Utils/error-handler.ts is good; propagate more typed errors (e.g., ValidationError, StorageError) and add global ErrorBoundary coverage.
 - **Accessibility**: Ensure all UI components (buttons, modals) have proper ARIA labels, keyboard navigation, and screen reader support. Test with axe-core.

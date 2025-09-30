@@ -1,8 +1,10 @@
 // src/lib/types/worker-messages.ts
 
+import type { LayerId, TraitId, TaskId } from './ids';
+
 // Worker message interfaces for generation worker
 export interface TransferrableTrait {
-	id: string;
+	id: TraitId;
 	name: string;
 	imageData: ArrayBuffer;
 	rarityWeight: number;
@@ -12,7 +14,7 @@ export interface TransferrableTrait {
 }
 
 export interface TransferrableLayer {
-	id: string;
+	id: LayerId;
 	name: string;
 	order: number;
 	isOptional?: boolean;
@@ -22,9 +24,15 @@ export interface TransferrableLayer {
 	height?: number;
 }
 
-export interface StartMessage {
+// Base message interface with common properties
+interface BaseWorkerMessage {
+	type: string;
+	taskId?: TaskId;
+}
+
+// Start generation message
+export interface StartMessage extends BaseWorkerMessage {
 	type: 'start';
-	taskId?: string; // Added for worker pool task tracking
 	payload: {
 		layers: TransferrableLayer[];
 		collectionSize: number;
@@ -37,9 +45,9 @@ export interface StartMessage {
 	};
 }
 
-export interface ProgressMessage {
+// Progress update message
+export interface ProgressMessage extends BaseWorkerMessage {
 	type: 'progress';
-	taskId?: string;
 	payload: {
 		generatedCount: number;
 		totalCount: number;
@@ -52,9 +60,9 @@ export interface ProgressMessage {
 	};
 }
 
-export interface CompleteMessage {
+// Generation complete message
+export interface CompleteMessage extends BaseWorkerMessage {
 	type: 'complete';
-	taskId?: string;
 	payload: {
 		images: { name: string; imageData: ArrayBuffer }[];
 		metadata: { name: string; data: object }[];
@@ -62,30 +70,34 @@ export interface CompleteMessage {
 	};
 }
 
-export interface ErrorMessage {
+// Error message
+export interface ErrorMessage extends BaseWorkerMessage {
 	type: 'error';
-	taskId?: string;
 	payload: {
 		message: string;
+		code?: string; // Specific error code for better handling
+		recoverable?: boolean; // Whether the error is recoverable
 	};
 }
 
-export interface ReadyMessage {
+// Worker ready message
+export interface ReadyMessage extends BaseWorkerMessage {
 	type: 'ready';
 }
 
-export interface CancelledMessage {
+// Generation cancelled message
+export interface CancelledMessage extends BaseWorkerMessage {
 	type: 'cancelled';
-	taskId?: string;
 	payload: {
 		generatedCount?: number;
 		totalCount?: number;
+		reason?: string; // Reason for cancellation
 	};
 }
 
-export interface PreviewMessage {
+// Preview generation message
+export interface PreviewMessage extends BaseWorkerMessage {
 	type: 'preview';
-	taskId?: string;
 	payload: {
 		indexes: number[];
 		previewData: ArrayBuffer[];
@@ -102,6 +114,7 @@ export type OutgoingWorkerMessage =
 	| CancelledMessage
 	| PreviewMessage;
 
+// Messages that can be sent to workers
 export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage;
 
 // Worker pool message types
@@ -119,3 +132,108 @@ export type GenerationWorkerMessage =
 	| {
 			type: 'cancel';
 	  };
+
+// Type guards for discriminated unions
+
+/**
+ * Type guard for StartMessage
+ */
+export function isStartMessage(message: unknown): message is StartMessage {
+	return (
+		typeof message === 'object' && message !== null && 'type' in message && message.type === 'start'
+	);
+}
+
+/**
+ * Type guard for ProgressMessage
+ */
+export function isProgressMessage(message: unknown): message is ProgressMessage {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		'type' in message &&
+		message.type === 'progress'
+	);
+}
+
+/**
+ * Type guard for CompleteMessage
+ */
+export function isCompleteMessage(message: unknown): message is CompleteMessage {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		'type' in message &&
+		message.type === 'complete'
+	);
+}
+
+/**
+ * Type guard for ErrorMessage
+ */
+export function isErrorMessage(message: unknown): message is ErrorMessage {
+	return (
+		typeof message === 'object' && message !== null && 'type' in message && message.type === 'error'
+	);
+}
+
+/**
+ * Type guard for ReadyMessage
+ */
+export function isReadyMessage(message: unknown): message is ReadyMessage {
+	return (
+		typeof message === 'object' && message !== null && 'type' in message && message.type === 'ready'
+	);
+}
+
+/**
+ * Type guard for CancelledMessage
+ */
+export function isCancelledMessage(message: unknown): message is CancelledMessage {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		'type' in message &&
+		message.type === 'cancelled'
+	);
+}
+
+/**
+ * Type guard for PreviewMessage
+ */
+export function isPreviewMessage(message: unknown): message is PreviewMessage {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		'type' in message &&
+		message.type === 'preview'
+	);
+}
+
+/**
+ * Type guard for OutgoingWorkerMessage
+ */
+export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWorkerMessage {
+	return (
+		isReadyMessage(message) ||
+		isProgressMessage(message) ||
+		isCompleteMessage(message) ||
+		isErrorMessage(message) ||
+		isCancelledMessage(message) ||
+		isPreviewMessage(message)
+	);
+}
+
+/**
+ * Type guard for IncomingMessage
+ */
+export function isIncomingMessage(message: unknown): message is IncomingMessage {
+	return (
+		isStartMessage(message) ||
+		(typeof message === 'object' &&
+			message !== null &&
+			'type' in message &&
+			message.type === 'cancel') ||
+		isReadyMessage(message)
+	);
+}

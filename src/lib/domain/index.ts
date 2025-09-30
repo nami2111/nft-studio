@@ -7,6 +7,13 @@ export {
 	validateLayerName,
 	validateTraitName,
 	validateDimensions,
-	createDefaultProject
-} from './project.service';
+	validateRarityWeight,
+	validateImportedProject,
+	sanitizeString,
+	createValidatedProject,
+	createValidatedLayer,
+	createValidatedTrait,
+	safeValidate
+} from './validation';
+export { createDefaultProject } from './project.service';
 export * from './worker.service';
