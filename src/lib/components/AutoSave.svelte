@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { project } from '$lib/stores/runes-store.svelte';
+	import { project } from '$lib/stores';
 	import { LocalStorageStore } from '$lib/persistence/storage';
 	import type { Project } from '$lib/types/project';
 

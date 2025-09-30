@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { loadingStates } from '$lib/stores/runes-store.svelte';
+	import { loadingStates } from '$lib/stores';
 	import { Loader2 } from 'lucide-svelte';
 
 	interface Props {

@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { AlertCircle, RefreshCw, Home, FileText } from 'lucide-svelte';
 	import { handleError, getDetailedErrorInfo } from '$lib/utils/error-handler';
-	import type { AppError } from '$lib/utils/error-handling';
+	import { AppError } from '$lib/utils/error-handling';
 
 	interface ErrorInfo {
 		componentStack: string;
@@ -42,9 +42,9 @@
 		// Log error with our error handler
 		handleError(err, {
 			context: {
-				componentName,
-				componentStack: info.componentStack,
-				boundary: 'ErrorBoundary'
+				component: componentName,
+				action: 'error-boundary',
+				userAction: 'component-rendering'
 			},
 			logError: true,
 			silent: true // Don't show toast, we'll handle in UI

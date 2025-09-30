@@ -38,12 +38,10 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 
 					// Create a clean trait object with only the properties defined in TransferrableTrait
 					const transferrableTrait: TransferrableTrait = {
-						id: String(trait.id),
-						name: String(trait.name),
+						id: trait.id,
+						name: trait.name,
 						imageData: cleanArrayBuffer,
-						rarityWeight: Number(trait.rarityWeight),
-						width: trait.width !== undefined ? Number(trait.width) : undefined,
-						height: trait.height !== undefined ? Number(trait.height) : undefined
+						rarityWeight: trait.rarityWeight
 					};
 
 					return transferrableTrait;
@@ -52,10 +50,10 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 
 			// Create a clean layer object with only the properties defined in TransferrableLayer
 			const transferrableLayer: TransferrableLayer = {
-				id: String(layer.id),
-				name: String(layer.name),
-				order: Number(layer.order),
-				isOptional: layer.isOptional ? Boolean(layer.isOptional) : undefined,
+				id: layer.id,
+				name: layer.name,
+				order: layer.order,
+				isOptional: layer.isOptional,
 				traits: transferrableTraits
 			};
 

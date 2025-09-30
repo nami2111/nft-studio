@@ -1,2 +1,2 @@
-// Export the new runes-based store
-export * from './runes-store.svelte';
+// Export the project store
+export * from './project.store.svelte';

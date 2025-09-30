@@ -86,7 +86,8 @@ export async function getImageDimensions(file: File): Promise<{ width: number; h
  */
 export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
 	try {
-		return await file.arrayBuffer();
+		const result = await file.arrayBuffer();
+		return result;
 	} catch (error) {
 		throw new Error(
 			`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`

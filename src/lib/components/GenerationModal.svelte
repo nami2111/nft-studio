@@ -1,13 +1,7 @@
 <script lang="ts">
 	// JSZip will be imported dynamically when needed
-	import {
-		project,
-		loadingStates,
-		startLoading,
-		stopLoading
-	} from '$lib/stores/runes-store.svelte';
+	import { project, loadingStates, startLoading, stopLoading } from '$lib/stores';
 	import { startGeneration, cancelGeneration } from '$lib/domain/worker.service';
-	import { hasMissingImageData, getLayersWithMissingImages } from '$lib/domain/project.service';
 	import { Play } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
@@ -180,9 +174,11 @@
 				return;
 			}
 
-			// Check for missing image data using domain service
-			if (hasMissingImageData(projectData.layers)) {
-				const missingImages = getLayersWithMissingImages(projectData.layers);
+			// Check for missing image data
+			const missingImages = projectData.layers.flatMap((layer) =>
+				layer.traits.filter((trait) => !trait.imageData || trait.imageData.byteLength === 0)
+			);
+			if (missingImages.length > 0) {
 				showWarning(
 					`Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`,
 					{
@@ -308,7 +304,7 @@
 			>Generate Collection</Button
 		>
 	</DialogTrigger>
-	<DialogContent>
+	<DialogContent class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:max-w-lg">
 		<DialogHeader>
 			<DialogTitle>Generate Collection</DialogTitle>
 			<DialogDescription>Configure your collection generation settings.</DialogDescription>

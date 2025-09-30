@@ -12,7 +12,7 @@
 		getDetailedLoadingState,
 		startDetailedLoading,
 		stopDetailedLoading
-	} from '$lib/stores/runes-store.svelte';
+	} from '$lib/stores';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
@@ -61,7 +61,7 @@
 
 	async function handleSaveProject() {
 		try {
-			startDetailedLoading('project-save', 'Preparing project for save...');
+			startDetailedLoading('project-save', 100);
 			await saveProjectToZip();
 			toast.success('Project saved successfully!');
 			saveDialogOpen = false;
@@ -98,15 +98,11 @@
 		}
 
 		try {
-			startDetailedLoading('project-load', 'Loading project file...');
-			const success = await loadProjectFromZip(file);
-			if (success) {
-				markProjectAsLoaded();
-				toast.success('Project loaded successfully!');
-				loadDialogOpen = false;
-			} else {
-				toast.error('Failed to load project. Please check the file format.');
-			}
+			startDetailedLoading('project-load', 100);
+			await loadProjectFromZip(file);
+			markProjectAsLoaded();
+			toast.success('Project loaded successfully!');
+			loadDialogOpen = false;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to load project';
 			toast.error(message);

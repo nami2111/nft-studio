@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { project, addLayer, reorderLayers } from '$lib/stores/runes-store.svelte';
+	import { project, addLayer, reorderLayers } from '$lib/stores';
+	import type { LayerId } from '$lib/types/ids';
 	import LayerItem from '$lib/components/LayerItem.svelte';
 
 	import { Button } from '$lib/components/ui/button';
@@ -16,10 +17,7 @@
 
 		try {
 			const newLayerName = `Layer ${layers.length + 1}`;
-			addLayer({
-				name: newLayerName,
-				order: layers.length
-			});
+			addLayer(newLayerName);
 			showSuccess('Layer added successfully.');
 		} catch (error) {
 			console.error('Failed to add layer:', error);
@@ -32,7 +30,7 @@
 		}
 	}
 
-	function moveLayer(layerId: string, direction: 'up' | 'down') {
+	function moveLayer(layerId: LayerId, direction: 'up' | 'down') {
 		const currentIndex = layers.findIndex((layer) => layer.id === layerId);
 		if (currentIndex === -1) return;
 
@@ -43,11 +41,8 @@
 		const [movedLayer] = newLayers.splice(currentIndex, 1);
 		newLayers.splice(newIndex, 0, movedLayer);
 
-		const reordered = newLayers.map((layer, index) => ({
-			...layer,
-			order: index
-		}));
-		reorderLayers(reordered);
+		const layerIds = newLayers.map((layer) => layer.id);
+		reorderLayers(layerIds);
 		showSuccess('Layer moved successfully.');
 	}
 </script>

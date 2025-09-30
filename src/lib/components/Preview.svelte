@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { project } from '$lib/stores/runes-store.svelte';
+	import { project } from '$lib/stores';
+	import type { Layer, Trait } from '$lib/types/layer';
+	import type { TraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { RefreshCw, Shuffle } from 'lucide-svelte';
@@ -50,14 +52,14 @@
 	}
 
 	// Selected trait IDs state - starts with first trait of each layer
-	let selectedTraitIds = $state(
-		project.layers.map((layer) => (layer.traits.length > 0 ? layer.traits[0].id : ''))
+	let selectedTraitIds = $state<(TraitId | '')[]>(
+		project.layers.map((layer: Layer) => (layer.traits.length > 0 ? layer.traits[0].id : ''))
 	);
 
 	// Reset selected traits when project layers change
 	$effect(() => {
 		const { layers } = project;
-		const newSelectedTraits: string[] = [];
+		const newSelectedTraits: (TraitId | '')[] = [];
 
 		for (let i = 0; i < layers.length; i++) {
 			const layer = layers[i];
@@ -65,7 +67,7 @@
 
 			// If current selection exists in new layer, keep it, otherwise use first trait
 			if (layer.traits.length > 0) {
-				const traitExists = layer.traits.some((trait) => trait.id === currentSelectedId);
+				const traitExists = layer.traits.some((trait: Trait) => trait.id === currentSelectedId);
 				if (traitExists) {
 					newSelectedTraits.push(currentSelectedId);
 				} else {
@@ -244,7 +246,7 @@
 		}
 
 		// Check if there are any traits to display
-		const hasTraits = layers.some((layer) => layer.traits.length > 0);
+		const hasTraits = layers.some((layer: Layer) => layer.traits.length > 0);
 		if (!hasTraits) {
 			// Draw placeholder text when no traits are uploaded yet
 			ctx.fillStyle = '#9ca3af'; // gray-400
@@ -255,7 +257,7 @@
 		}
 
 		// Load all images in parallel for better performance
-		const loadPromises = layers.map(async (layer, i) => {
+		const loadPromises = layers.map(async (layer: Layer, i: number) => {
 			const selectedTraitId = selectedTraitIds[i];
 
 			// If no trait is selected for this layer, but the layer has traits, use the first one
@@ -263,7 +265,7 @@
 				selectedTraitId || (layer.traits.length > 0 ? layer.traits[0].id : null);
 
 			if (effectiveTraitId) {
-				const selectedTrait = layer.traits.find((trait) => trait.id === effectiveTraitId);
+				const selectedTrait = layer.traits.find((trait: Trait) => trait.id === effectiveTraitId);
 				if (selectedTrait && selectedTrait.imageUrl) {
 					try {
 						const img = await loadImage(selectedTrait.imageUrl);
@@ -271,7 +273,7 @@
 					} catch (error) {
 						console.error('Error loading image for layer', layer.name, ':', error);
 						// Only show error toast if we're not in the initial load state
-						const isInitialLoad = layers.every((l) => l.traits.length === 0);
+						const isInitialLoad = layers.every((l: Layer) => l.traits.length === 0);
 						if (!isInitialLoad) {
 							// Show user-friendly error message
 							import('svelte-sonner').then(({ toast }) => {
@@ -321,7 +323,7 @@
 			const currentTraitId = selectedTraitIds[i];
 
 			if (layer.traits.length > 1 && currentTraitId) {
-				const currentIndex = layer.traits.findIndex((trait) => trait.id === currentTraitId);
+				const currentIndex = layer.traits.findIndex((trait: Trait) => trait.id === currentTraitId);
 				if (currentIndex !== -1) {
 					// Preload next trait
 					const nextIndex = (currentIndex + 1) % layer.traits.length;
@@ -435,7 +437,7 @@
 			return;
 		}
 		const { layers } = project;
-		const newSelectedTraits: string[] = [];
+		const newSelectedTraits: (TraitId | '')[] = [];
 
 		console.log('Project layers:', layers.length);
 		for (const layer of layers) {
@@ -485,17 +487,17 @@
 	}
 </script>
 
-<Card class="sticky top-3 sm:top-4 md:top-6 lg:top-8">
-	<CardContent class="p-3 sm:p-4 md:p-6">
-		<h2 class="mb-2 text-base font-bold text-gray-800 sm:mb-3 sm:text-lg md:text-xl">Preview</h2>
+<Card class="sticky top-3 sm:top-4">
+	<CardContent class="p-3 sm:p-4">
+		<h2 class="mb-2 text-base font-bold text-gray-800 sm:mb-3 sm:text-lg">Preview</h2>
 		<div
 			bind:this={container}
-			class="flex h-48 w-full items-center justify-center overflow-hidden rounded-md bg-gray-100 sm:h-64 md:h-80 lg:h-96"
+			class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md bg-gray-100"
 		>
 			<canvas bind:this={canvas} class="block max-h-full max-w-full"></canvas>
 		</div>
 		<div
-			class="mt-2 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:justify-center sm:gap-0 sm:space-x-2 md:mt-4"
+			class="mt-2 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:justify-center sm:gap-0 sm:space-x-2"
 		>
 			<Button size="sm" onclick={randomize} class="w-full sm:w-auto">
 				<Shuffle class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />

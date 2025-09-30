@@ -15,5 +15,5 @@ export {
 	createValidatedTrait,
 	safeValidate
 } from './validation';
-export { createDefaultProject } from './project.service';
+
 export * from './worker.service';

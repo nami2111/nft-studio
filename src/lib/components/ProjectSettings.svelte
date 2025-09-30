@@ -1,9 +1,5 @@
 <script lang="ts">
-	import {
-		project,
-		updateProjectName,
-		updateProjectDescription
-	} from '$lib/stores/runes-store.svelte';
+	import { project, updateProjectName, updateProjectDescription } from '$lib/stores';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { showSuccess, showWarning } from '$lib/utils/error-handling';

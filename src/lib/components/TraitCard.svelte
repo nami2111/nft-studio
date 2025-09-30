@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import type { Trait } from '$lib/types/trait';
+	import type { Trait } from '$lib/types/layer';
 	import RaritySlider from '$lib/components/RaritySlider.svelte';
-	import { removeTrait, updateTraitName } from '$lib/stores/runes-store.svelte';
+	import { removeTrait, updateTraitName } from '$lib/stores';
+	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Edit, Trash2, Check, X } from 'lucide-svelte';
@@ -14,6 +15,8 @@
 	}
 
 	const { trait, layerId }: Props = $props();
+	const layerIdTyped = createLayerId(layerId);
+	const traitIdTyped = createTraitId(trait.id);
 
 	let traitName = $derived(trait.name);
 	let isEditing = $state(false);
@@ -25,7 +28,7 @@
 			action: {
 				label: 'Delete',
 				onClick: () => {
-					removeTrait(layerId, trait.id);
+					removeTrait(layerIdTyped, traitIdTyped);
 					toast.success(`Trait "${trait.name}" has been deleted.`);
 				}
 			},
@@ -49,7 +52,7 @@
 			return;
 		}
 
-		updateTraitName(layerId, trait.id, traitName);
+		updateTraitName(layerIdTyped, traitIdTyped, traitName);
 		toast.success('Trait name updated.');
 		isEditing = false;
 	}
@@ -107,6 +110,12 @@
 				class="h-full w-full object-contain"
 				loading="lazy"
 			/>
+		{:else if !trait.imageUrl}
+			<div class="flex h-full items-center justify-center">
+				<div
+					class="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"
+				></div>
+			</div>
 		{:else}
 			<span class="text-gray-500">No image</span>
 		{/if}

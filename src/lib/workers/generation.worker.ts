@@ -11,6 +11,7 @@ import type {
 	PreviewMessage,
 	IncomingMessage
 } from '$lib/types/worker-messages';
+import { createTaskId, type TaskId } from '$lib/types/ids';
 
 // Optimized Canvas for all generations with enhanced memory management
 
@@ -150,7 +151,7 @@ async function generateCollection(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
-	taskId?: string
+	taskId?: TaskId
 ) {
 	// Use a smaller initial array size to reduce memory footprint
 	const metadata: { name: string; data: object }[] = [];
@@ -547,11 +548,16 @@ function cleanupResources() {
 
 // Main worker message handler
 self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
-	const { type, payload, taskId } = e.data as {
+	const {
+		type,
+		payload,
+		taskId: rawTaskId
+	} = e.data as {
 		type: string;
 		payload?: unknown;
 		taskId?: string;
 	};
+	const taskId = rawTaskId ? createTaskId(rawTaskId) : undefined;
 
 	// Handle initialization message
 	if (type === 'initialize') {

@@ -71,7 +71,7 @@ export async function handleError<T>(
 			appError = new AppError(error.message, 'UNHANDLED_ERROR', enhancedContext, true);
 		}
 	} else {
-		appError = new AppError(String(error), 'UNKNOWN_ERROR', { ...context, operation }, true);
+		appError = new AppError(String(error), 'UNKNOWN_ERROR', context, true);
 	}
 
 	// Log error if requested
@@ -285,10 +285,5 @@ export function createTypedError(error: unknown, context?: Record<string, unknow
 	}
 
 	const errorInfo = getErrorInfo(error);
-	return new AppError(
-		errorInfo.message,
-		'CONVERTED_ERROR',
-		{ ...context, originalError: errorInfo },
-		true
-	);
+	return new AppError(errorInfo.message, 'CONVERTED_ERROR', context, true);
 }

@@ -88,7 +88,7 @@ export function createFileId(id: string): FileId {
 /**
  * Extract the underlying string value from a branded ID
  */
-export function getIdValue<T extends Branded<string, any>>(id: T): string {
+export function getIdValue<T extends Branded<string, string>>(id: T): string {
 	return id as string;
 }
 
@@ -123,7 +123,7 @@ export function isTaskId(value: unknown): value is TaskId {
 /**
  * Generate a new random ID of the specified type
  */
-export function generateId<T extends Branded<string, any>>(): T {
+export function generateId<T extends Branded<string, string>>(): T {
 	return crypto.randomUUID() as T;
 }
 

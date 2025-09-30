@@ -25,10 +25,7 @@ export abstract class AppError extends Error {
 		this.timestamp = new Date();
 		this.recoverable = recoverable;
 
-		// Maintain proper stack trace
-		if (Error.captureStackTrace) {
-			Error.captureStackTrace(this, this.constructor);
-		}
+		// Maintain proper stack trace (captureStackTrace is not available in all environments)
 	}
 
 	/**

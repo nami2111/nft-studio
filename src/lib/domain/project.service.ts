@@ -145,8 +145,7 @@ export async function addTrait(
 		};
 	} catch (error) {
 		await handleFileError(error, {
-			operation: 'addTrait',
-			context: { layerId, fileName: file.name }
+			operation: 'addTrait'
 		});
 		throw error;
 	}

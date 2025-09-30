@@ -4,7 +4,7 @@
 	import { Toaster } from '$lib/components/ui/sonner';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import AutoSave from '$lib/components/AutoSave.svelte';
-	import { cleanupAllResources } from '$lib/stores/runes-store.svelte';
+	import { cleanupAllResources } from '$lib/stores';
 	import '../../app.css';
 
 	interface Props {

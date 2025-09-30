@@ -350,7 +350,7 @@ describe('Zod Validation Module', () => {
 				layers: []
 			});
 			expect(result.success).toBe(true);
-			if (result.success) {
+			if (result.success && result.data) {
 				expect(result.data.name).toBe('Test Project');
 			}
 		});
@@ -365,7 +365,7 @@ describe('Zod Validation Module', () => {
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.errors.length).toBeGreaterThan(0);
+				expect(result.error).toBeDefined();
 			}
 		});
 	});

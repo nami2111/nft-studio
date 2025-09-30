@@ -10,12 +10,6 @@ export default defineConfig({
 		// Temporarily disable Juno for bundle analysis
 		// juno(),
 		tailwindcss(),
-		visualizer({
-			filename: 'stats.html',
-			open: false,
-			gzipSize: true,
-			brotliSize: true
-		}),
 		VitePWA({
 			registerType: 'autoUpdate',
 			workbox: {

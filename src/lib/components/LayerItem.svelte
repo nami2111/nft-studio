@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Layer } from '$lib/types/layer';
+	import { createTraitId, type TraitId } from '$lib/types/ids';
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
 	import {
@@ -13,8 +14,9 @@
 		updateTraitName,
 		addTrait,
 		updateLayerName,
-		removeLayer
-	} from '$lib/stores/runes-store.svelte';
+		removeLayer,
+		updateProjectDimensions
+	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
@@ -46,12 +48,12 @@
 	);
 
 	// Bulk operation states
-	let selectedTraits = new SvelteSet<string>();
+	let selectedTraits = new SvelteSet<TraitId>();
 	let bulkRarityWeight = $state(3);
 	let bulkNewName = $state('');
 
 	// Toggle trait selection
-	// function toggleTraitSelection(traitId: string) {
+	// function toggleTraitSelection(traitId: TraitId) {
 	// 	if (selectedTraits.has(traitId)) {
 	// 		selectedTraits.delete(traitId);
 	// 	} else {
@@ -61,7 +63,7 @@
 
 	// Select all filtered traits
 	function selectAllFiltered() {
-		filteredTraits.forEach((trait) => selectedTraits.add(trait.id));
+		filteredTraits.forEach((trait) => selectedTraits.add(createTraitId(trait.id)));
 	}
 
 	// Clear selection
@@ -233,94 +235,62 @@
 				}
 			}
 
+			// Validate project dimensions match (fail fast)
+			if (firstImageDimensions) {
+				const { width, height } = firstImageDimensions;
+				const projectData = project;
+				if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
+					// Allow some flexibility for rounding errors (±1 pixel)
+					if (
+						Math.abs(width - projectData.outputSize.width) > 1 ||
+						Math.abs(height - projectData.outputSize.height) > 1
+					) {
+						import('svelte-sonner').then(({ toast }) => {
+							toast.error(
+								`First image dimensions (${width}x${height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
+							);
+						});
+						return;
+					}
+				} else {
+					// Set project dimensions from first image if not already set
+					updateProjectDimensions({ width, height });
+				}
+			}
+
 			// Process files in smaller batches for better UI responsiveness
-			const BATCH_SIZE = 3; // Reduced batch size for better concurrency control
+			const BATCH_SIZE = 5; // Increased batch size for better performance
 			let successCount = 0;
 			let errorCount = 0;
 			const totalFiles = validFiles.length;
 
+			// Add all traits immediately without awaiting image processing
 			for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
 				const batch = validFiles.slice(i, i + BATCH_SIZE);
 
-				// Process batch with concurrency limit to prevent UI blocking
-				const batchPromises = batch.map(async (file) => {
+				// Add traits synchronously for immediate UI feedback
+				batch.forEach((file) => {
 					try {
-						// Use first image dimensions for all files, or get individual dimensions if first failed
-						let dimensions = firstImageDimensions;
-						if (!dimensions) {
-							dimensions = await getImageDimensions(file);
-						}
-
-						// Validate dimensions (must be positive)
-						if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) {
-							throw new Error(`File "${file.name}" has invalid dimensions`);
-						}
-
-						// For subsequent uploads, validate dimensions match project output size
-						const projectData = project;
-						if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
-							// Allow some flexibility for rounding errors (±1 pixel)
-							if (
-								Math.abs(dimensions.width - projectData.outputSize.width) > 1 ||
-								Math.abs(dimensions.height - projectData.outputSize.height) > 1
-							) {
-								throw new Error(
-									`File "${file.name}" dimensions (${dimensions.width}x${dimensions.height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
-								);
-							}
-						}
-
-						// Normalize base name (remove extension, sanitize)
-						const baseName = file.name.replace(/\.[^/.]+$/, '');
-						const safeName = baseName
-							.trim()
-							.slice(0, 100)
-							.replace(/[^a-zA-Z0-9._ -]/g, '_');
-
-						// Ensure the name is not empty
-						if (safeName.trim() === '') {
-							throw new Error(`File "${file.name}" has an invalid name`);
-						}
-
-						// Add small delay between individual trait additions to prevent UI blocking
-						await new Promise((resolve) => setTimeout(resolve, 10));
-
-						await addTrait(layer.id, {
-							name: safeName,
-							imageUrl: '', // Will be created in addTrait
-							imageData: file,
-							width: dimensions.width,
-							height: dimensions.height,
-							rarityWeight: 3
-						});
-						return true;
+						addTrait(layer.id, file);
 					} catch (error) {
-						console.error(`Error processing file ${file.name}:`, error);
-						// Show user-friendly error message
-						import('svelte-sonner').then(({ toast }) => {
-							toast.error(`Error processing file "${file.name}"`, {
-								description: error instanceof Error ? error.message : 'Unknown error'
-							});
-						});
-						return false;
+						console.error(`Error adding trait for ${file.name}:`, error);
+						errorCount++;
 					}
 				});
 
-				const batchResults = await Promise.all(batchPromises);
-				successCount += batchResults.filter(Boolean).length;
-				errorCount += batchResults.filter((r) => !r).length;
+				successCount += batch.length; // All files should succeed since validation passed
 
-				// Update progress (trait processing is second 50% of progress)
+				// Update progress
 				if (totalFiles > 0) {
 					const batchProgress = Math.min(100, Math.round(((i + batch.length) / totalFiles) * 100));
-					uploadProgress = 50 + Math.round(batchProgress / 2); // Start from 50% since dimension extraction is done
+					uploadProgress = 50 + Math.round(batchProgress / 2);
 				} else {
 					uploadProgress = 50;
 				}
 
-				// Allow UI to update between batches with increased delay
+				// Allow UI to update between batches with reduced delay
 				if (i + BATCH_SIZE < validFiles.length) {
-					await new Promise((resolve) => setTimeout(resolve, 50));
+					await new Promise((resolve) => setTimeout(resolve, 25));
 				}
 			}
 
@@ -377,10 +347,14 @@
 			img.alt = trait.name;
 			imgContainer.appendChild(img);
 		} else {
-			const span = document.createElement('span');
-			span.className = 'text-gray-500';
-			span.textContent = 'No image';
-			imgContainer.appendChild(span);
+			// Show loading spinner while image is being processed
+			const loaderDiv = document.createElement('div');
+			loaderDiv.className = 'flex h-full items-center justify-center';
+			const spinner = document.createElement('div');
+			spinner.className =
+				'h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600';
+			loaderDiv.appendChild(spinner);
+			imgContainer.appendChild(loaderDiv);
 		}
 
 		const body = document.createElement('div');

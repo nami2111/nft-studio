@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { updateTraitRarity } from '$lib/stores/runes-store.svelte';
+	import { updateTraitRarity } from '$lib/stores';
 	import { Slider } from '$lib/components/ui/slider';
+	import { createLayerId, createTraitId } from '$lib/types/ids';
 
 	interface Props {
 		rarityWeight: number;
@@ -9,6 +10,8 @@
 	}
 
 	const { rarityWeight, traitId, layerId }: Props = $props();
+	const layerIdTyped = createLayerId(layerId);
+	const traitIdTyped = createTraitId(traitId);
 	// Ensure the initial value is valid (between 1 and 5)
 	let clampedRarityWeight = Math.max(1, Math.min(5, Math.round(rarityWeight || 1)));
 	let sliderValue = $state([clampedRarityWeight]);
@@ -30,7 +33,7 @@
 			if (validValue !== sliderValue[0]) {
 				sliderValue = [validValue];
 			}
-			updateTraitRarity(layerId, traitId, validValue);
+			updateTraitRarity(layerIdTyped, traitIdTyped, validValue);
 		}
 	});
 </script>
