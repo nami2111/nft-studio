@@ -24,7 +24,9 @@ export async function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
-	onMessage?: (data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage) => void
+	onMessage?: (
+		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	) => void
 ): Promise<void> {
 	try {
 		// Validate layers before starting generation

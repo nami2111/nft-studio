@@ -26,7 +26,7 @@
 		ErrorMessage,
 		CancelledMessage,
 		PreviewMessage
-} from '$lib/types/worker-messages';
+	} from '$lib/types/worker-messages';
 	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
 
@@ -75,7 +75,7 @@
 		allMetadata = [];
 		isPackaging = false;
 		memoryUsage = null;
-		previews.forEach(p => URL.revokeObjectURL(p.url));
+		previews.forEach((p) => URL.revokeObjectURL(p.url));
 		previews = [];
 	}
 
@@ -211,15 +211,16 @@
 							message.payload.memoryUsage
 						);
 						break;
-					case 'preview':
+					case 'preview': {
 						const { payload } = message as PreviewMessage;
 						for (let j = 0; j < payload.indexes.length; j++) {
 							const buffer = payload.previewData[j];
-							const blob = new Blob([buffer], {type: 'image/png'});
+							const blob = new Blob([buffer], { type: 'image/png' });
 							const url = URL.createObjectURL(blob);
-							previews.push({index: payload.indexes[j], url});
+							previews.push({ index: payload.indexes[j], url });
 						}
 						break;
+					}
 					case 'complete':
 						// Handle chunked image data
 						if (message.payload.images && message.payload.images.length > 0) {

@@ -4,6 +4,11 @@
  * @module utils
  */
 
+export interface ImageDimensions {
+	width: number;
+	height: number;
+}
+
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 

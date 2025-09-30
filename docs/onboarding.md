@@ -193,3 +193,34 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 - [Project TODO List](../TODO.md)
 - [Architecture Documentation](./architecture-diagrams.md)
 - [Coding Standards](./coding-standards.md)
+
+## UI Flow Screenshots
+
+> **Note**: Screenshots will be added as the UI evolves. This section documents the expected user interface flow.
+
+### Main Application Interface
+
+- **Project Management**: Create, save, and load NFT projects
+- **Layer Management**: Add, remove, and reorder layers for your NFT collection
+- **Trait Management**: Upload and configure traits with rarity settings
+- **Preview Panel**: Real-time preview of generated NFTs
+- **Generation Controls**: Configure and start batch NFT generation
+
+### Key Screens
+
+1. **Welcome Screen** - Project creation and loading
+2. **Layer Editor** - Layer organization and configuration
+3. **Trait Upload** - Image upload and rarity configuration
+4. **Generation Progress** - Real-time progress monitoring
+5. **Export Options** - ZIP export and project packaging
+
+### Navigation Flow
+
+1. Start with project creation or loading
+2. Configure layers and upload traits
+3. Set output dimensions and project metadata
+4. Preview individual NFTs
+5. Generate complete collection
+6. Export as ZIP package
+
+> **TODO**: Add actual screenshots once UI is stable and production-ready.

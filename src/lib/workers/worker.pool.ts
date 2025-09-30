@@ -45,60 +45,64 @@ let workerPool: WorkerPool | null = null;
 
 // Callback for forwarding messages to clients
 let messageCallback:
-	| ((data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage) => void)
+	| ((
+			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	  ) => void)
 	| null = null;
 
 /**
  * Clone serializable data, preserving ArrayBuffers and other transferable objects
  */
-function cloneSerializableData(obj: any): any {
+function cloneSerializableData(obj: unknown): unknown {
 	if (obj === null || typeof obj !== 'object') {
 		return obj;
 	}
-	
+
 	// Handle ArrayBuffer specifically
 	if (obj instanceof ArrayBuffer) {
-	const newBuffer = new ArrayBuffer(obj.byteLength);
+		const newBuffer = new ArrayBuffer(obj.byteLength);
 		const sourceView = new Uint8Array(obj);
 		const destView = new Uint8Array(newBuffer);
 		destView.set(sourceView);
 		return newBuffer;
 	}
-	
+
 	// Handle TypedArray (like Uint8Array, Int32Array, etc.)
 	if (ArrayBuffer.isView(obj)) {
 		// Create a new instance of the same type with copied data
 		const TypedArrayConstructor = Object.getPrototypeOf(obj).constructor;
 		return new TypedArrayConstructor(obj);
 	}
-	
+
 	// Handle Date
 	if (obj instanceof Date) {
-	return new Date(obj.getTime());
+		return new Date(obj.getTime());
 	}
-	
+
 	// Handle Array
 	if (Array.isArray(obj)) {
-	return obj.map(item => cloneSerializableData(item));
+		return obj.map((item) => cloneSerializableData(item));
 	}
-	
+
 	// Handle plain objects
-	if (typeof obj === 'object') {
-		const cloned: any = {};
+	if (typeof obj === 'object' && obj !== null) {
+		const cloned: Record<string, unknown> = {};
 		for (const key in obj) {
 			if (Object.prototype.hasOwnProperty.call(obj, key)) {
-				cloned[key] = cloneSerializableData(obj[key]);
+				cloned[key] = cloneSerializableData((obj as Record<string, unknown>)[key]);
 			}
 		}
 		return cloned;
 	}
-	
+
 	return obj;
 }
 
 // Set message callback for client components to receive worker messages
 export function setMessageCallback(
-	callback: (data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage) => void
+	callback: (
+		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	) => void
 ): void {
 	messageCallback = callback;
 }
@@ -111,7 +115,7 @@ function getDeviceCapabilities() {
 	let memoryGB = 8;
 	if ('deviceMemory' in navigator) {
 		// @ts-expect-error - deviceMemory not in all browsers
-	memoryGB = navigator.deviceMemory || 8;
+		memoryGB = navigator.deviceMemory || 8;
 	}
 	const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 	return { coreCount, memoryGB, isMobile };
@@ -168,7 +172,7 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 				worker.onmessage = null; // Reset to avoid conflict with normal message handling
 				resolve(worker);
 			}
-	};
+		};
 
 		// Send initialization message to worker
 		worker.postMessage({ type: 'initialize' });
@@ -192,7 +196,9 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 
 	// Forward all other messages to client components
 	if (messageCallback) {
-		messageCallback(data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage);
+		messageCallback(
+			data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+		);
 	}
 
 	// For preview messages, just forward to client without affecting worker status
@@ -204,7 +210,7 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	// For terminal messages (complete, error, cancelled), resolve/reject promises and clean up
 	if (type === 'complete' || type === 'error' || type === 'cancelled') {
 		// Find and resolve/reject the corresponding task using taskId from message
-	const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
+		const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
 		let foundTask = false;
 
 		if (messageTaskId) {
@@ -273,7 +279,7 @@ function getAvailableWorker(): number | null {
 	if (!workerPool) return null;
 
 	for (let i = 0; i < workerPool.workerStatus.length; i++) {
-	// Check if worker exists and is available
+		// Check if worker exists and is available
 		if (workerPool.workers[i] && workerPool.workerStatus[i]) {
 			return i;
 		}
@@ -286,7 +292,7 @@ function getAvailableWorker(): number | null {
  */
 function processNextTask(): void {
 	if (!workerPool || workerPool.taskQueue.length === 0) {
-	return;
+		return;
 	}
 
 	const workerIndex = getAvailableWorker();
@@ -352,8 +358,8 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 	const workerInitializationTimeout = config?.workerInitializationTimeout || 5000;
 
 	workerPool = {
-	workers: [],
-	taskQueue: [],
+		workers: [],
+		taskQueue: [],
 		activeTasks: new Map(),
 		workerStatus: [],
 		config: {
@@ -454,7 +460,7 @@ export function terminateWorkerPool(): void {
 
 	// Clear active tasks
 	for (const task of workerPool.activeTasks.values()) {
-	task.reject(new Error('Worker pool terminated'));
+		task.reject(new Error('Worker pool terminated'));
 	}
 
 	// Clear the pool

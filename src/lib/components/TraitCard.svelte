@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Edit, Trash2, Check, X } from 'lucide-svelte';
+	import { onMount, onDestroy } from 'svelte';
 
 	interface Props {
 		trait: Trait;
@@ -16,6 +17,8 @@
 
 	let traitName = $derived(trait.name);
 	let isEditing = $state(false);
+	let isVisible = $state(false);
+	let observer: IntersectionObserver | null = $state(null);
 
 	function handleRemoveTrait() {
 		toast.warning(`Are you sure you want to delete "${trait.name}"?`, {
@@ -55,12 +58,55 @@
 		traitName = trait.name;
 		isEditing = false;
 	}
+
+	let imageContainer: HTMLElement;
+
+	onMount(() => {
+		if (!imageContainer) return;
+
+		// Set up Intersection Observer for lazy loading
+		observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (entry.isIntersecting) {
+						isVisible = true;
+						// Disconnect observer once image is loaded
+						if (observer) {
+							observer.disconnect();
+							observer = null;
+						}
+					}
+				});
+			},
+			{
+				rootMargin: '50px', // Start loading 50px before entering viewport
+				threshold: 0.1
+			}
+		);
+
+		observer.observe(imageContainer);
+	});
+
+	onDestroy(() => {
+		if (observer) {
+			observer.disconnect();
+			observer = null;
+		}
+	});
 </script>
 
 <Card class="overflow-hidden">
-	<div class="flex aspect-square items-center justify-center bg-gray-100">
-		{#if trait.imageUrl}
-			<img src={trait.imageUrl} alt={trait.name} class="h-full w-full object-contain" />
+	<div
+		class="flex aspect-square items-center justify-center bg-gray-100"
+		bind:this={imageContainer}
+	>
+		{#if isVisible && trait.imageUrl}
+			<img
+				src={trait.imageUrl}
+				alt={trait.name}
+				class="h-full w-full object-contain"
+				loading="lazy"
+			/>
 		{:else}
 			<span class="text-gray-500">No image</span>
 		{/if}

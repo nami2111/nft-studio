@@ -5,23 +5,22 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 ## Features
 
 - **Layer Management**: Organize your NFT collection with multiple layers (background, character, accessories, etc.)
-- **Trait System**: Define traits for each layer with customizable rarity weights
+- **Trait System**: Define traits for each layer with customizable rarity weights (1-5)
 - **Visual Preview**: Real-time preview of your NFT collection as you build it
-- **Batch Generation**: Generate hundreds or thousands of unique NFT combinations
+- **Batch Generation**: Generate up to 10,000 unique NFT combinations
 - **Rarity Control**: Fine-tune the distribution of traits with adjustable rarity sliders
 - **Project Management**: Save, load, and export your projects
 - **Web Worker Processing**: Offload intensive image processing to background workers
-- **WASM Acceleration**: WebAssembly-powered image compositing for large collections (>10k items)
 - **Progressive Previews**: Real-time preview generation during batch processing
-- **ZIP Export**: Package your entire collection for easy distribution
-- **Performance Optimized**: Lazy loading, bundle size optimization, and Web Worker processing
+- **ZIP Export**: Complete collection packaging with images and metadata
+- **Performance Optimized**: Automatic memory management, adaptive chunking, and Canvas-based processing
 
 ## Tech Stack
 
 - **Frontend**: SvelteKit 2, TypeScript, Tailwind CSS
 - **UI Components**: bits-ui, lucide-svelte
 - **State Management**: Svelte 5 runes and stores
-- **Image Processing**: Canvas API with Web Workers and Rust/WASM for performance
+- **Image Processing**: Canvas API with Web Workers for performance
 - **Persistence**: IndexedDB for local storage, ZIP for export
 - **Build Tool**: Vite with static adapter and bundle visualization
 - **Deployment**: Static hosting ready
@@ -118,14 +117,25 @@ NFT Studio follows a layered architecture:
 
 See [Architecture Documentation](docs/architecture-diagrams.md) for more details.
 
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- [Onboarding Guide](docs/onboarding.md) - Getting started for developers
+- [User Guide: Adding Traits](docs/user-guide-adding-traits.md) - How to add traits to your collection
+- [User Guide: Generating Collections](docs/user-guide-generating-collections.md) - How to generate NFT collections
+- [API Documentation](docs/api-documentation.md) - Complete API reference
+- [Architecture Documentation](docs/architecture-diagrams.md) - System architecture overview
+- [Coding Standards](docs/coding-standards.md) - Development guidelines
+
 ## Contributing
 
-We welcome contributions! Please see our [Onboarding Guide](docs/onboarding.md) for details on:
+We welcome contributions! Please see our documentation for details:
 
-- Setting up the development environment
-- Coding standards and best practices
-- Testing guidelines
-- Pull request process
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines and process
+- [Onboarding Guide](docs/onboarding.md) - Development environment setup
+- [Coding Standards](docs/coding-standards.md) - Code style and best practices
+- [Changelog](CHANGELOG.md) - Version history and changes
 
 ## Roadmap
 

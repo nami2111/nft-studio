@@ -26,7 +26,7 @@ export interface StartMessage {
 	type: 'start';
 	taskId?: string; // Added for worker pool task tracking
 	payload: {
-	layers: TransferrableLayer[];
+		layers: TransferrableLayer[];
 		collectionSize: number;
 		outputSize: {
 			width: number;
@@ -42,7 +42,7 @@ export interface ProgressMessage {
 	taskId?: string;
 	payload: {
 		generatedCount: number;
-	totalCount: number;
+		totalCount: number;
 		statusText: string;
 		memoryUsage?: {
 			used: number;

@@ -11,7 +11,7 @@ import type { TransferrableLayer, TransferrableTrait } from '$lib/types/worker-m
 export async function prepareLayersForWorker(layers: Layer[]): Promise<TransferrableLayer[]> {
 	// Validate that all layers have valid image data
 	for (const layer of layers) {
-	if (layer.traits.length === 0) {
+		if (layer.traits.length === 0) {
 			throw new Error(
 				`Layer "${layer.name}" has no traits. Please add at least one trait to each layer.`
 			);
@@ -35,7 +35,7 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 					const sourceView = new Uint8Array(trait.imageData);
 					const destView = new Uint8Array(cleanArrayBuffer);
 					destView.set(sourceView);
-					
+
 					// Create a clean trait object with only the properties defined in TransferrableTrait
 					const transferrableTrait: TransferrableTrait = {
 						id: String(trait.id),
@@ -45,11 +45,11 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 						width: trait.width !== undefined ? Number(trait.width) : undefined,
 						height: trait.height !== undefined ? Number(trait.height) : undefined
 					};
-					
+
 					return transferrableTrait;
 				})
 			);
-			
+
 			// Create a clean layer object with only the properties defined in TransferrableLayer
 			const transferrableLayer: TransferrableLayer = {
 				id: String(layer.id),
@@ -58,7 +58,7 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 				isOptional: layer.isOptional ? Boolean(layer.isOptional) : undefined,
 				traits: transferrableTraits
 			};
-			
+
 			return transferrableLayer;
 		})
 	);

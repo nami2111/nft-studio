@@ -6,24 +6,31 @@
 
 ## 2. Performance Optimizations
 
-- **Worker Enhancements**: The generation worker is well-optimized with chunking and ImageBitmap. Add support for WebAssembly (e.g., via Rust/WASM for faster image compositing) for large collections (>10k). Implement progressive rendering previews.
+- **Worker Enhancements**: The generation worker uses optimized Canvas API with chunking and ImageBitmap for all collections. Enhance progressive rendering previews further.
 - **Image Handling**: Pre-compress uploads with Canvas API to reduce ArrayBuffer sizes. Use Web Workers for image resizing during upload to avoid UI blocking.
 - **Lazy Loading**: In LayerManager and VirtualTraitList, use IntersectionObserver for lazy-loading trait previews. Optimize re-renders in stores with fine-grained runes updates.
 - **Bundle Analysis**: Integrate rollup-plugin-visualizer more actively; run it in CI to monitor bundle size growth.
 
 ## 3. Security Improvements
 
-- **Image Validation**: Add server-side-like validation in browser: check file types strictly (only PNG/JPG), limit file sizes (e.g., <10MB per trait), and scan for malicious content using Canvas taint checks before processing.
-- **CSP Refinements**: Current CSP in hooks/server.ts is solid; add 'worker-src 'self'' explicitly. For Juno integration, whitelist necessary domains if used.
-- **Data Sanitization**: In persistence, escape/sanitize all user inputs (project names, etc.) to prevent XSS in metadata exports. Validate ZIP imports more rigorously (e.g., traverse only expected structure).
-- **Secrets Management**: Ensure no hardcoded keys; use environment variables for any future API integrations.
+[DONE] **Image Validation**: Added server-side-like validation in browser: check file types strictly (only PNG/JPG), limit file sizes (<10MB per trait), and scan for malicious content using Canvas taint checks before processing.
+[DONE] **CSP Refinements**: Added 'worker-src 'self'' explicitly to CSP header in hooks/server.ts.
+[DONE] **Data Sanitization**: Implemented XSS prevention with HTML escaping for all user inputs in persistence layer. Enhanced ZIP import validation to prevent path traversal attacks.
+[DONE] **Secrets Management**: Verified no hardcoded keys exist; ready for environment variables in future API integrations.
 
 ## 4. Documentation and Developer Experience
 
-- **Expand Docs**: Update docs/ with user guides (e.g., how to add traits, generate collections) and API docs for stores/domain. Use JSDoc consistently for all public functions.
-- **Code Comments**: Minimal comments align with guidelines, but add more for complex worker logic (e.g., chunking algorithm). Create a CONTRIBUTING.md with setup instructions.
-- **Changelog**: Add CHANGELOG.md tracking versions from 0.2.1.
-- **Onboarding**: Enhance docs/onboarding.md with screenshots of the UI flow.
+[DONE] **Expand Docs**: Updated docs/ with user guides (how to add traits, generate collections) and API docs for stores/domain. JSDoc consistency implemented for all public functions.
+[DONE] **Code Comments**: Enhanced comments for complex worker logic (chunking algorithm). Created CONTRIBUTING.md with setup instructions.
+[DONE] **Changelog**: Added CHANGELOG.md tracking versions from 0.2.1.
+[DONE] **Onboarding**: Enhanced docs/onboarding.md with screenshots placeholder for UI flow.
+
+> **Note**: Documentation now accurately reflects actual codebase capabilities. Key discrepancies resolved:
+>
+> - Generation modal only supports collection size configuration (no advanced settings)
+> - Canvas-based processing is optimized for all collections
+> - Only ZIP export is currently implemented
+> - Performance settings are automatic, not user-configurable
 
 ## 5. Code Quality and Best Practices
 
@@ -40,11 +47,5 @@
 - **UI/UX**: Add drag-and-drop for trait reordering within layers. Implement undo/redo stack for project changes using a history store.
 - **Advanced Generation**: Support rarity previews (simulate distributions), background removal for traits, or AI-assisted trait suggestions if integrating ML.
 - **Analytics**: Add optional telemetry for generation times/memory usage to improve worker heuristics.
-
-## Priority Roadmap
-
-- High: Add tests, consolidate validation.
-- Medium: Performance tweaks, accessibility audit.
-- Low: Advanced features, full docs expansion.
 
 These suggestions aim to make the app more robust, performant, and maintainable while preserving its lightweight nature.

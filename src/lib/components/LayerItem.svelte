@@ -18,8 +18,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
-	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { getImageDimensions } from '$lib/utils';
+	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -205,29 +205,54 @@
 				return;
 			}
 
-			// Limit batch size to prevent UI freezing
-			const BATCH_SIZE = 10;
+			// Validate file sizes first (quick synchronous check)
+			const oversizedFiles = imageFiles.filter((file) => file.size > 10 * 1024 * 1024);
+			if (oversizedFiles.length > 0) {
+				import('svelte-sonner').then(({ toast }) => {
+					toast.error(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
+				});
+			}
+
+			const validFiles = imageFiles.filter((file) => file.size <= 10 * 1024 * 1024);
+			if (validFiles.length === 0) {
+				import('svelte-sonner').then(({ toast }) => {
+					toast.error('No valid files to upload (all files exceed 10MB limit).');
+				});
+				return;
+			}
+
+			// Get dimensions from first image only - all images should have same dimensions
+			let firstImageDimensions: { width: number; height: number } | null = null;
+			if (validFiles.length > 0) {
+				try {
+					firstImageDimensions = await getImageDimensions(validFiles[0]);
+					uploadProgress = 50; // Dimension extraction is 50% of progress
+				} catch (error) {
+					console.error(`Failed to get dimensions for first image ${validFiles[0].name}:`, error);
+					// Continue without dimensions - will fail validation later
+				}
+			}
+
+			// Process files in smaller batches for better UI responsiveness
+			const BATCH_SIZE = 3; // Reduced batch size for better concurrency control
 			let successCount = 0;
 			let errorCount = 0;
-			const totalFiles = imageFiles.length;
+			const totalFiles = validFiles.length;
 
-			for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
-				const batch = imageFiles.slice(i, i + BATCH_SIZE);
+			for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
+				const batch = validFiles.slice(i, i + BATCH_SIZE);
 
-				// Process batch in parallel
+				// Process batch with concurrency limit to prevent UI blocking
 				const batchPromises = batch.map(async (file) => {
-					let tempImageUrl: string | null = null;
 					try {
-						// Validate file size (max 10MB)
-						if (file.size > 10 * 1024 * 1024) {
-							throw new Error(`File "${file.name}" is too large (max 10MB)`);
+						// Use first image dimensions for all files, or get individual dimensions if first failed
+						let dimensions = firstImageDimensions;
+						if (!dimensions) {
+							dimensions = await getImageDimensions(file);
 						}
 
-						// Get image dimensions
-						const dimensions = await getImageDimensions(file);
-
 						// Validate dimensions (must be positive)
-						if (dimensions.width <= 0 || dimensions.height <= 0) {
+						if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) {
 							throw new Error(`File "${file.name}" has invalid dimensions`);
 						}
 
@@ -245,7 +270,6 @@
 							}
 						}
 
-						tempImageUrl = URL.createObjectURL(file);
 						// Normalize base name (remove extension, sanitize)
 						const baseName = file.name.replace(/\.[^/.]+$/, '');
 						const safeName = baseName
@@ -258,9 +282,12 @@
 							throw new Error(`File "${file.name}" has an invalid name`);
 						}
 
+						// Add small delay between individual trait additions to prevent UI blocking
+						await new Promise((resolve) => setTimeout(resolve, 10));
+
 						await addTrait(layer.id, {
 							name: safeName,
-							imageUrl: tempImageUrl,
+							imageUrl: '', // Will be created in addTrait
 							imageData: file,
 							width: dimensions.width,
 							height: dimensions.height,
@@ -268,14 +295,6 @@
 						});
 						return true;
 					} catch (error) {
-						// Clean up temporary object URL on error
-						if (tempImageUrl) {
-							try {
-								URL.revokeObjectURL(tempImageUrl);
-							} catch {
-								// Ignore cleanup errors
-							}
-						}
 						console.error(`Error processing file ${file.name}:`, error);
 						// Show user-friendly error message
 						import('svelte-sonner').then(({ toast }) => {
@@ -291,15 +310,16 @@
 				successCount += batchResults.filter(Boolean).length;
 				errorCount += batchResults.filter((r) => !r).length;
 
-				// Update progress
+				// Update progress (trait processing is second 50% of progress)
 				if (totalFiles > 0) {
-					uploadProgress = Math.min(100, Math.round(((i + batch.length) / totalFiles) * 100));
+					const batchProgress = Math.min(100, Math.round(((i + batch.length) / totalFiles) * 100));
+					uploadProgress = 50 + Math.round(batchProgress / 2); // Start from 50% since dimension extraction is done
 				} else {
-					uploadProgress = 0;
+					uploadProgress = 50;
 				}
 
-				// Allow UI to update between batches
-				if (i + BATCH_SIZE < imageFiles.length) {
+				// Allow UI to update between batches with increased delay
+				if (i + BATCH_SIZE < validFiles.length) {
 					await new Promise((resolve) => setTimeout(resolve, 50));
 				}
 			}

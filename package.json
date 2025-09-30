@@ -22,8 +22,7 @@
 		"verify-lock": "npm run verify-lockfile",
 		"verify-lockfile-ci": "bash ./scripts/verify-lockfile.sh",
 		"lint-ci": "npm run lint",
-		"test:ci": "vitest run --reporter=junit --outdir .svelte-kit/test-results",
-		"build-wasm": "node scripts/build-wasm.js"
+		"test:ci": "vitest run --reporter=junit --outdir .svelte-kit/test-results"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.36.0",
