@@ -108,8 +108,18 @@
 			const a = document.createElement('a');
 			a.href = url;
 			a.download = `${projectData.name || 'collection'}.zip`;
-			a.click();
-			URL.revokeObjectURL(url);
+			// Try programmatic download
+			document.body.appendChild(a);
+			try {
+				a.click();
+				console.log('Download initiated for:', a.download);
+			} catch (error) {
+				console.error('Download failed:', error);
+				throw error;
+			} finally {
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}
 
 			statusText = 'Download started.';
 			showSuccess('Generation complete', {
@@ -235,6 +245,7 @@
 						// If this is the final message (no more chunks expected)
 						// In our new system, we'll know it's done when we've received all expected items
 						if (allImages.length >= collectionSize || message.payload.images.length === 0) {
+							console.log('Generation complete, packaging:', allImages.length, 'images,', allMetadata.length, 'metadata');
 							await packageZip(allImages, allMetadata);
 							open = false;
 						}
@@ -304,7 +315,7 @@
 			>Generate Collection</Button
 		>
 	</DialogTrigger>
-	<DialogContent class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:max-w-lg">
+	<DialogContent class="fixed top-1/3 left-1/2 -translate-x-1/2 sm:max-w-lg">
 		<DialogHeader>
 			<DialogTitle>Generate Collection</DialogTitle>
 			<DialogDescription>Configure your collection generation settings.</DialogDescription>

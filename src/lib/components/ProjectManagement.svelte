@@ -62,7 +62,26 @@
 	async function handleSaveProject() {
 		try {
 			startDetailedLoading('project-save', 100);
-			await saveProjectToZip();
+			const zipData = await saveProjectToZip();
+
+			// Trigger download
+			const blob = new Blob([zipData], { type: 'application/zip' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `${project.name || 'nft-project'}.zip`;
+			document.body.appendChild(a);
+			try {
+				a.click();
+				console.log('Project download initiated for:', a.download);
+			} catch (error) {
+				console.error('Download failed:', error);
+				throw error;
+			} finally {
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}
+
 			toast.success('Project saved successfully!');
 			saveDialogOpen = false;
 		} catch (error) {

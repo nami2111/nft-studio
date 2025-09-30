@@ -4,8 +4,7 @@
  */
 
 import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
-import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
-import { LocalStorageStore } from '$lib/persistence/storage';
+import type { LayerId, TraitId } from '$lib/types/ids';
 import { fileToArrayBuffer } from '$lib/utils';
 import {
 	validateDimensions,
@@ -15,13 +14,12 @@ import {
 	validateImportedProject,
 	validateRarityWeight
 } from '$lib/domain/validation';
-import { handleValidationError, handleFileError } from '$lib/utils/error-handler';
+import { handleFileError } from '$lib/utils/error-handler';
 import JSZip from 'jszip';
 import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 
 // Local storage key
-const PROJECT_STORAGE_KEY = 'nft-studio-project';
-const LOCAL_STORE = new LocalStorageStore<Project>(PROJECT_STORAGE_KEY);
+// const PROJECT_STORAGE_KEY = 'nft-studio-project';
 
 // Default project
 function defaultProject(): Project {
@@ -209,7 +207,7 @@ export function addTrait(layerId: LayerId, file: File): void {
 				layer.traits[traitIndex] = newTrait;
 			}
 		})
-		.catch((error) => {
+		.catch(() => {
 			// Remove the trait if loading fails
 			const traitIndex = layer.traits.findIndex((t: Trait) => t.id === newTrait.id);
 			if (traitIndex !== -1) {

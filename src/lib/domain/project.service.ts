@@ -10,7 +10,7 @@ import {
 	validateRarityWeight,
 	validateImportedProject
 } from './validation';
-import { handleValidationError, handleFileError } from '$lib/utils/error-handler';
+import { handleFileError } from '$lib/utils/error-handler';
 import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 
 /**

@@ -13,7 +13,6 @@ import {
 	WorkerError,
 	GenerationError,
 	NetworkError,
-	ConfigurationError,
 	getErrorInfo,
 	isRecoverableError
 } from './typed-errors';
