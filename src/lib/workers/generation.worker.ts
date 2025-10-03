@@ -559,6 +559,12 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 	};
 	const taskId = rawTaskId ? createTaskId(rawTaskId) : undefined;
 
+	// Handle ping messages for health checks
+	if (type === 'ping') {
+		self.postMessage({ pingResponse: e.data.pingId });
+		return;
+	}
+
 	// Handle initialization message
 	if (type === 'initialize') {
 		// Worker is already initialized, send ready message

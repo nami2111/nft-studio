@@ -245,7 +245,13 @@
 						// If this is the final message (no more chunks expected)
 						// In our new system, we'll know it's done when we've received all expected items
 						if (allImages.length >= collectionSize || message.payload.images.length === 0) {
-							console.log('Generation complete, packaging:', allImages.length, 'images,', allMetadata.length, 'metadata');
+							console.log(
+								'Generation complete, packaging:',
+								allImages.length,
+								'images,',
+								allMetadata.length,
+								'metadata'
+							);
 							await packageZip(allImages, allMetadata);
 							open = false;
 						}
