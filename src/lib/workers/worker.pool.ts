@@ -258,11 +258,7 @@ function calculateOptimalWorkerCount(
 /**
  * Estimate task duration based on complexity and device capabilities
  */
-function estimateTaskDuration(
-	_complexity: TaskComplexity,
-	collectionSize: number,
-	_size: { width: number; height: number }
-): number {
+function estimateTaskDuration(_complexity: TaskComplexity, collectionSize: number): number {
 	const { coreCount, memoryGB, isMobile } = getDeviceCapabilities();
 
 	// Base time estimates (in milliseconds)
@@ -971,7 +967,7 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 		if (message.type === 'start' && message.payload) {
 			const { layers, collectionSize, outputSize } = message.payload;
 			complexity = calculateTaskComplexity(layers, collectionSize, outputSize);
-			estimatedDuration = estimateTaskDuration(complexity, collectionSize, outputSize);
+			estimatedDuration = estimateTaskDuration(complexity, collectionSize);
 		}
 
 		const task: WorkerTask<T> = {

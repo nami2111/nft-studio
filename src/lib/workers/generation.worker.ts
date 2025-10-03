@@ -219,11 +219,6 @@ async function generateCollection(
 
 		for (let i = chunkStart; i < chunkEnd && !isCancelled; i++) {
 			try {
-				const blob: Blob = await reusableCanvas.convertToBlob({
-					type: 'image/png',
-					quality: 0.9 // Slight compression to reduce memory usage
-				});
-
 				// Always use optimized Canvas compositing
 				// Clear the reusable canvas for this item
 				reusableCtx.clearRect(0, 0, targetWidth, targetHeight);
@@ -269,6 +264,12 @@ async function generateCollection(
 				if (collectionSize > 1000 && typeof globalThis !== 'undefined' && 'gc' in globalThis) {
 					(globalThis as { gc?: () => void }).gc?.();
 				}
+
+				// Convert the canvas to blob after all layers are drawn
+				const blob: Blob = await reusableCanvas.convertToBlob({
+					type: 'image/png',
+					quality: 0.9 // Slight compression to reduce memory usage
+				});
 
 				// Store the blob in the chunk array (not the main array)
 				chunkImages.push({
