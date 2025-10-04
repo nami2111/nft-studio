@@ -2,7 +2,7 @@
 	import ProjectSettings from '$lib/components/ProjectSettings.svelte';
 	import LayerManager from '$lib/components/LayerManager.svelte';
 	import ProjectManagement from '$lib/components/ProjectManagement.svelte';
-	import GenerationModal from '$lib/components/GenerationModal.svelte';
+	import GenerationForm from '$lib/components/GenerationForm.svelte';
 	import Preview from '$lib/components/Preview.svelte';
 </script>
 
@@ -46,7 +46,7 @@
 				</div>
 				<div class="p-3 sm:p-4">
 					<div class="flex justify-center">
-						<GenerationModal />
+						<GenerationForm />
 					</div>
 				</div>
 			</div>

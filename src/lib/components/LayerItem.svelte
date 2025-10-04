@@ -326,7 +326,7 @@
 		}
 	}
 
-	// Lazy loading for trait cards (secure; no innerHTML)
+	// Lazy loading for trait cards with improved memory management
 	let observer: IntersectionObserver | null = null;
 
 	function createSafeLazyTraitCard(trait: (typeof layer.traits)[number]): HTMLElement {
@@ -342,6 +342,8 @@
 		if (trait.imageUrl) {
 			const img = document.createElement('img');
 			img.className = 'h-full w-full object-contain';
+			// Use loading="lazy" for native lazy loading as fallback
+			img.loading = 'lazy';
 			// Only assign to src; do not inject HTML
 			img.src = trait.imageUrl;
 			img.alt = trait.name;
@@ -440,8 +442,9 @@
 	}
 
 	function initializeLazyLoading() {
-		if (layer.traits.length <= 50) return;
+		if (layer.traits.length <= 25) return; // Only for larger lists
 
+		// Use more aggressive intersection observer settings
 		observer = new IntersectionObserver(
 			(entries) => {
 				entries.forEach((entry) => {
@@ -459,13 +462,14 @@
 					const traitCard = createSafeLazyTraitCard(trait);
 					container.replaceChild(traitCard, placeholder);
 
+					// Unobserve after loading to save memory
 					observer?.unobserve(container);
 				});
 			},
 			{
 				root: null,
-				rootMargin: '50px',
-				threshold: 0.1
+				rootMargin: '100px', // Load earlier for better UX
+				threshold: 0.01 // Trigger on any visibility
 			}
 		);
 

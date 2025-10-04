@@ -69,8 +69,8 @@ interface WorkerPool {
 	}[];
 	config: WorkerPoolConfig;
 	workerInitializationPromises: Promise<void>[]; // Track worker initialization
-	healthCheckInterval: NodeJS.Timeout | null; // Health check timer
-	scalingInterval: NodeJS.Timeout | null; // Dynamic scaling timer
+	healthCheckInterval: number | null; // Health check timer
+	scalingInterval: number | null; // Dynamic scaling timer
 }
 
 // Global worker pool instance
@@ -426,9 +426,20 @@ function reassignWorkerTasks(failedWorkerIndex: number): void {
 }
 async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 	return new Promise((resolve, reject) => {
-		const worker = new Worker(new URL('./generation.worker.ts', import.meta.url), {
-			type: 'module'
-		});
+		let worker: Worker;
+
+		try {
+			worker = new Worker(new URL('./generation.worker.ts', import.meta.url), {
+				type: 'module'
+			});
+		} catch (creationError) {
+			reject(
+				new Error(
+					`Worker creation failed: ${creationError instanceof Error ? creationError.message : 'Unknown error'}`
+				)
+			);
+			return;
+		}
 
 		// Set up timeout for worker initialization
 		const timeoutId = setTimeout(() => {
@@ -437,16 +448,22 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 		}, timeoutMs);
 
 		// Handle worker errors
-		worker.onerror = (error) => {
+		worker.onerror = (error: ErrorEvent) => {
 			clearTimeout(timeoutId);
-			reject(new Error(`Worker error: ${error.message}`));
+			let errorMessage = 'Unknown worker error';
+			if (error.message) {
+				errorMessage = error.message;
+			} else if (error.filename && error.lineno) {
+				errorMessage = `Error in ${error.filename}:${error.lineno}:${error.colno || 0}`;
+			}
+			reject(new Error(`Worker error: ${errorMessage}`));
 		};
 
 		// Worker is ready when it sends a "ready" message
 		worker.onmessage = (e: MessageEvent) => {
 			if (e.data?.type === 'ready') {
 				clearTimeout(timeoutId);
-				worker.onmessage = null; // Reset to avoid conflict with normal message handling
+				// Don't set onmessage to null - let the caller handle it
 				resolve(worker);
 			}
 		};
@@ -468,6 +485,17 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	// Handle "ready" messages separately - these are initialization messages
 	if (type === 'ready') {
 		// Worker is ready, no need to forward to client
+		return;
+	}
+
+	// Handle unknown message types
+	if (!type) {
+		return;
+	}
+
+	// Handle ping responses - these are internal messages for health checks
+	if (type === 'pingResponse') {
+		// This will be handled by the health check system
 		return;
 	}
 
@@ -585,7 +613,7 @@ function updateWorkerPerformance(
 /**
  * Find the least loaded worker using work stealing algorithm
  */
-function findBestWorkerForTask(task: WorkerTask): number | null {
+function findBestWorkerForTask(): number | null {
 	if (!workerPool) return null;
 
 	const availableWorkers: number[] = [];
@@ -773,7 +801,7 @@ function processNextTask(): void {
 		return;
 	}
 
-	const bestWorker = findBestWorkerForTask(workerPool.taskQueue[0]);
+	const bestWorker = findBestWorkerForTask();
 	if (bestWorker === null) {
 		return; // No workers available
 	}

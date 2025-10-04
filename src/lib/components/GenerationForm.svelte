@@ -4,14 +4,6 @@
 	import { startGeneration, cancelGeneration } from '$lib/domain/worker.service';
 	import { Play } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
-	import {
-		Dialog,
-		DialogTrigger,
-		DialogContent,
-		DialogHeader,
-		DialogTitle,
-		DialogDescription
-	} from '$lib/components/ui/dialog';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Button } from '$lib/components/ui/button';
 	import type {
@@ -29,7 +21,6 @@
 	let isGenerating = $derived(loadingStates['generation'] as boolean);
 	let progress = $state(0);
 	let statusText = $state('Ready to generate');
-	let open = $state(false);
 	let memoryUsage = $state<{ used: number; available: number; units: string } | null>(null);
 	// Accumulators for chunked data
 	let allImages: { name: string; imageData: ArrayBuffer }[] = [];
@@ -253,7 +244,6 @@
 								'metadata'
 							);
 							await packageZip(allImages, allMetadata);
-							open = false;
 						}
 						break;
 					case 'cancelled':
@@ -265,7 +255,6 @@
 						// Show info message for cancellation
 						showInfo('Generation has been cancelled.');
 						resetState();
-						open = false;
 						break;
 					case 'error':
 						showError(new Error(message.payload.message), {
@@ -297,14 +286,6 @@
 		}
 	}
 
-	function handleModalInteraction(newOpenState: boolean) {
-		// If closing the modal during generation, cancel it
-		if (!newOpenState && isGenerating) {
-			handleCancel();
-		}
-		open = newOpenState;
-	}
-
 	function handleCancel() {
 		// Use the public cancel API to terminate all workers
 		cancelGeneration();
@@ -315,66 +296,56 @@
 	}
 </script>
 
-<Dialog bind:open onOpenChange={handleModalInteraction}>
-	<DialogTrigger>
-		<Button class="h-auto px-4 py-2 text-sm sm:px-6 sm:py-3 sm:text-base md:px-8 md:py-4 md:text-lg"
-			>Generate Collection</Button
-		>
-	</DialogTrigger>
-	<DialogContent class="fixed top-1/3 left-1/2 -translate-x-1/2 sm:max-w-lg">
-		<DialogHeader>
-			<DialogTitle>Generate Collection</DialogTitle>
-			<DialogDescription>Configure your collection generation settings.</DialogDescription>
-		</DialogHeader>
-
-		<div class="grid gap-3 py-3 sm:gap-4 sm:py-4">
-			<div class="grid grid-cols-4 items-center gap-3 sm:gap-4">
-				<label class="text-right text-xs sm:text-sm" for="collectionSize">Collection Size</label>
-				<input
-					id="collectionSize"
-					type="number"
-					min="1"
-					max="10000"
-					class="col-span-3 rounded border p-1.5 text-xs sm:p-2 sm:text-sm"
-					bind:value={collectionSize}
-					disabled={isGenerating}
-				/>
-			</div>
-
-			<div class="grid grid-cols-4 items-center gap-3 sm:gap-4">
-				<label class="text-right text-xs sm:text-sm" for="gen-progress">Progress</label>
-				<div class="col-span-3">
-					<Progress value={progress} max={100} class="w-full" />
-					<p class="mt-1 text-xs text-gray-500 sm:text-sm">{statusText}</p>
-					{#if memoryUsage}
-						<p class="mt-1 text-xs text-gray-400">
-							Memory: {Math.round(memoryUsage.used / 1024 / 1024)}MB / {Math.round(
-								memoryUsage.available / 1024 / 1024
-							)}MB
-						</p>
-					{/if}
-				</div>
-			</div>
-		</div>
-
-		<div class="flex justify-end space-x-2">
-			{#if isGenerating}
-				<Button variant="outline" onclick={handleCancel} size="sm">
-					<LoadingIndicator operation="generation" message="Canceling..." />
-				</Button>
-			{/if}
-			<Button
-				onclick={handleGenerate}
-				disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
-				size="sm"
+<div class="space-y-4">
+	<div class="grid gap-3 py-3 sm:gap-4 sm:py-4">
+		<div class="grid grid-cols-4 items-center gap-3 sm:gap-4">
+			<label class="text-right text-xs text-gray-700 sm:text-sm" for="collectionSize"
+				>Collection Size</label
 			>
-				{#if isGenerating}
-					<LoadingIndicator operation="generation" message="Generating..." />
-				{:else}
-					<Play class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-					<span class="text-xs sm:text-sm">Generate</span>
-				{/if}
-			</Button>
+			<input
+				id="collectionSize"
+				type="number"
+				min="1"
+				max="10000"
+				class="col-span-3 rounded border p-1.5 text-xs text-gray-700 sm:p-2 sm:text-sm"
+				bind:value={collectionSize}
+				disabled={isGenerating}
+			/>
 		</div>
-	</DialogContent>
-</Dialog>
+
+		<div class="grid grid-cols-4 items-center gap-3 sm:gap-4">
+			<label class="text-right text-xs text-gray-700 sm:text-sm" for="gen-progress">Progress</label>
+			<div class="col-span-3">
+				<Progress value={progress} max={100} class="w-full" />
+				<p class="mt-1 text-xs text-gray-600 sm:text-sm">{statusText}</p>
+				{#if memoryUsage}
+					<p class="mt-1 text-xs text-gray-500">
+						Memory: {Math.round(memoryUsage.used / 1024 / 1024)}MB / {Math.round(
+							memoryUsage.available / 1024 / 1024
+						)}MB
+					</p>
+				{/if}
+			</div>
+		</div>
+	</div>
+
+	<div class="flex justify-end space-x-2">
+		{#if isGenerating}
+			<Button variant="outline" onclick={handleCancel} size="sm">
+				<LoadingIndicator operation="generation" message="Canceling..." />
+			</Button>
+		{/if}
+		<Button
+			onclick={handleGenerate}
+			disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
+			size="sm"
+		>
+			{#if isGenerating}
+				<LoadingIndicator operation="generation" message="Generating..." />
+			{:else}
+				<Play class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+				<span class="text-xs sm:text-sm">Generate</span>
+			{/if}
+		</Button>
+	</div>
+</div>

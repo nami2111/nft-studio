@@ -112,7 +112,8 @@ export type OutgoingWorkerMessage =
 	| CompleteMessage
 	| ErrorMessage
 	| CancelledMessage
-	| PreviewMessage;
+	| PreviewMessage
+	| { type: 'pingResponse'; pingResponse: string };
 
 // Messages that can be sent to workers
 export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage;
