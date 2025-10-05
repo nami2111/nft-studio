@@ -308,38 +308,63 @@ export function getDetailedLoadingState(operation: string): LoadingState | undef
 
 // Project persistence
 export async function saveProjectToZip(): Promise<ArrayBuffer> {
-	const zip = new JSZip();
+	startLoading('project-save');
+	startDetailedLoading('project-save', 100);
 
-	// Create project metadata
-	const projectData = {
-		name: project.name,
-		description: project.description,
-		outputSize: project.outputSize,
-		layers: project.layers.map((layer: Layer) => ({
-			name: layer.name,
-			order: layer.order,
-			traits: layer.traits.map((trait: Trait) => ({
-				name: trait.name,
-				rarityWeight: trait.rarityWeight
+	try {
+		const zip = new JSZip();
+
+		// Create project metadata
+		const projectData = {
+			name: project.name,
+			description: project.description,
+			outputSize: project.outputSize,
+			layers: project.layers.map((layer: Layer) => ({
+				id: layer.id,
+				name: layer.name,
+				order: layer.order,
+				isOptional: layer.isOptional,
+				traits: layer.traits.map((trait: Trait) => ({
+					id: trait.id,
+					name: trait.name,
+					rarityWeight: trait.rarityWeight
+				}))
 			}))
-		}))
-	};
+		};
 
-	zip.file('project.json', JSON.stringify(projectData, null, 2));
+		zip.file('project.json', JSON.stringify(projectData, null, 2));
 
-	// Add trait images
-	for (const layer of project.layers) {
-		for (const trait of layer.traits) {
-			const imagePath = `images/${layer.id}/${trait.id}.png`;
-			zip.file(imagePath, trait.imageData);
+		// Add trait images
+		let processedCount = 0;
+		const totalTraits = project.layers.reduce((sum, layer) => sum + layer.traits.length, 0);
+
+		for (const layer of project.layers) {
+			for (const trait of layer.traits) {
+				if (trait.imageData && trait.imageData.byteLength > 0) {
+					const imagePath = `images/${layer.id}/${trait.id}.png`;
+					zip.file(imagePath, trait.imageData);
+				}
+				processedCount++;
+				updateDetailedLoading('project-save', Math.round((processedCount / totalTraits) * 100));
+			}
 		}
-	}
 
-	return await zip.generateAsync({ type: 'arraybuffer' });
+		const result = await zip.generateAsync({ type: 'arraybuffer' });
+		stopDetailedLoading('project-save');
+		stopLoading('project-save');
+		return result;
+	} catch (error) {
+		stopDetailedLoading('project-save', false);
+		stopLoading('project-save');
+		throw error;
+	}
 }
 
 export async function loadProjectFromZip(file: File): Promise<void> {
 	try {
+		startLoading('project-load');
+		startDetailedLoading('project-load', 100);
+
 		const arrayBuffer = await fileToArrayBuffer(file);
 		const zip = await JSZip.loadAsync(arrayBuffer);
 
@@ -360,26 +385,57 @@ export async function loadProjectFromZip(file: File): Promise<void> {
 		// Clean up existing object URLs
 		resourceManager.cleanup();
 
-		// Restore object URLs for traits
+		// Process the stored project data and load trait images
 		const storedProject = validationResult.data as Project;
-		storedProject.layers.forEach((layer: Layer) => {
-			layer.traits.forEach((trait: Trait) => {
-				if (trait.imageData && !trait.imageUrl) {
-					const blob = new Blob([trait.imageData], { type: 'image/png' });
+
+		// Add IDs to layers and traits, and load image data for each trait
+		for (const layer of storedProject.layers) {
+			// Ensure layer has an ID
+			if (!layer.id) {
+				layer.id = createLayerId(crypto.randomUUID());
+			}
+
+			// Process each trait in the layer
+			for (const trait of layer.traits) {
+				// Ensure trait has an ID
+				if (!trait.id) {
+					trait.id = createTraitId(crypto.randomUUID());
+				}
+
+				// Load image data from ZIP
+				const imagePath = `images/${layer.id}/${trait.id}.png`;
+				const imageFile = zip.file(imagePath);
+
+				if (imageFile) {
+					// Load the image data
+					const imageData = await imageFile.async('arraybuffer');
+					trait.imageData = imageData;
+
+					// Create object URL for preview
+					const blob = new Blob([imageData], { type: 'image/png' });
 					trait.imageUrl = URL.createObjectURL(blob);
 					resourceManager.addObjectUrl(trait.imageUrl);
+				} else {
+					console.warn(`Image file not found for trait ${trait.name} at ${imagePath}`);
+					// Create empty image data if file not found
+					trait.imageData = new ArrayBuffer(0);
 				}
-			});
-		});
+			}
+		}
 
 		// Update project state
 		project.id = createProjectId(crypto.randomUUID());
 		project.name = storedProject.name;
-		project.description = storedProject.description;
-		project.outputSize = storedProject.outputSize;
+		project.description = storedProject.description || '';
+		project.outputSize = storedProject.outputSize || { width: 0, height: 0 };
 		project.layers = storedProject.layers;
 		project._needsProperLoad = false;
+
+		stopDetailedLoading('project-load');
+		stopLoading('project-load');
 	} catch (error) {
+		stopDetailedLoading('project-load', false);
+		stopLoading('project-load');
 		throw handleFileError(error, { description: 'Failed to load project from ZIP file' });
 	}
 }

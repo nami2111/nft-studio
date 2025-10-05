@@ -372,7 +372,7 @@
 	function cleanupImageCache() {
 		// Purge stale cache entries based on what's currently needed
 		purgeStaleCache();
-		
+
 		// If cache is getting too large, force cleanup of least recently used items
 		if (imageCache.size > MAX_CACHE_SIZE) {
 			const entries = Array.from(cacheAccessTimes.entries());

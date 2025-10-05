@@ -56,7 +56,7 @@ export const ProjectSchema = z.object({
 
 // Import/export schemas (more lenient for compatibility)
 export const ImportedTraitSchema = z.object({
-	id: IdSchema,
+	id: IdSchema.optional(),
 	name: NameSchema,
 	rarityWeight: RarityWeightSchema.optional(),
 	// imageData may be missing in imports/exports
@@ -65,7 +65,7 @@ export const ImportedTraitSchema = z.object({
 });
 
 export const ImportedLayerSchema = z.object({
-	id: IdSchema,
+	id: IdSchema.optional(),
 	name: NameSchema,
 	order: z.number().int().min(0).optional(),
 	isOptional: z.boolean().optional(),
@@ -73,7 +73,7 @@ export const ImportedLayerSchema = z.object({
 });
 
 export const ImportedProjectSchema = z.object({
-	id: IdSchema,
+	id: IdSchema.optional(),
 	name: NameSchema,
 	description: DescriptionSchema.optional(),
 	outputSize: ProjectDimensionsSchema.optional(),

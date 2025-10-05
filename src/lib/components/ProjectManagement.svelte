@@ -11,7 +11,9 @@
 		getLoadingState,
 		getDetailedLoadingState,
 		startDetailedLoading,
-		stopDetailedLoading
+		stopDetailedLoading,
+		startLoading,
+		stopLoading
 	} from '$lib/stores';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
@@ -117,6 +119,7 @@
 		}
 
 		try {
+			startLoading('project-load');
 			startDetailedLoading('project-load', 100);
 			await loadProjectFromZip(file);
 			markProjectAsLoaded();
@@ -131,6 +134,7 @@
 				loadFileInputElement.value = '';
 			}
 			stopDetailedLoading('project-load');
+			stopLoading('project-load');
 		}
 	}
 </script>
