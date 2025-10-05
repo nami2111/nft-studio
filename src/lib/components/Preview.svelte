@@ -161,6 +161,11 @@
 				};
 				img.onerror = () => {
 					console.error('Failed to load blob image');
+					// Remove from cache if it was added somehow during error
+					if (imageCache.has(src)) {
+						imageCache.delete(src);
+						cacheAccessTimes.delete(src);
+					}
 					reject(new Error('Failed to load blob image'));
 				};
 				img.src = src;
@@ -193,6 +198,11 @@
 						img.onerror = () => {
 							// Revoke object URL on error too
 							URL.revokeObjectURL(e.data.objectUrl);
+							// Remove from cache if it was added somehow during error
+							if (imageCache.has(src)) {
+								imageCache.delete(src);
+								cacheAccessTimes.delete(src);
+							}
 							reject(new Error('Failed to load image from object URL'));
 						};
 						img.src = e.data.objectUrl;
@@ -358,6 +368,29 @@
 		}
 	}
 
+	// Clean up the image cache periodically to prevent accumulation during randomization
+	function cleanupImageCache() {
+		// Purge stale cache entries based on what's currently needed
+		purgeStaleCache();
+		
+		// If cache is getting too large, force cleanup of least recently used items
+		if (imageCache.size > MAX_CACHE_SIZE) {
+			const entries = Array.from(cacheAccessTimes.entries());
+			entries.sort((a, b) => a[1] - b[1]); // Sort by access time (oldest first)
+
+			// Remove oldest entries until we're under the limit
+			for (let i = 0; i < entries.length - MAX_CACHE_SIZE; i++) {
+				const url = entries[i][0];
+				if (imageCache.has(url)) {
+					// Revoke the object URL to free memory if it's not needed anymore
+					URL.revokeObjectURL(url);
+					imageCache.delete(url);
+				}
+				cacheAccessTimes.delete(url);
+			}
+		}
+	}
+
 	// Effect for drawing when preview data changes
 	$effect(() => {
 		if (ctx && canvas && previewData) {
@@ -369,6 +402,8 @@
 				.then(() => {
 					// Preload adjacent traits after main preview is drawn
 					preloadAdjacentTraits();
+					// Clean up image cache after drawing to prevent accumulation during randomization
+					cleanupImageCache();
 				});
 		}
 	});
@@ -458,9 +493,14 @@
 		// Ensure preview updates even if reactivity doesn't trigger
 		requestAnimationFrame(() => {
 			if (ctx && canvas && isCanvasInitialized) {
-				drawPreview().catch((error) => {
-					console.error('Error drawing preview after randomization:', error);
-				});
+				drawPreview()
+					.catch((error) => {
+						console.error('Error drawing preview after randomization:', error);
+					})
+					.finally(() => {
+						// Clean up image cache after drawing to prevent accumulation during randomization
+						cleanupImageCache();
+					});
 			} else {
 				// Try to initialize canvas if not ready
 				if (canvas && container && !isCanvasInitialized) {
@@ -469,9 +509,14 @@
 						ctx = context;
 						isCanvasInitialized = true;
 						resizeCanvas();
-						drawPreview().catch((error) => {
-							console.error('Error drawing preview after initialization:', error);
-						});
+						drawPreview()
+							.catch((error) => {
+								console.error('Error drawing preview after initialization:', error);
+							})
+							.finally(() => {
+								// Clean up image cache after drawing to prevent accumulation during randomization
+								cleanupImageCache();
+							});
 					}
 				}
 			}
