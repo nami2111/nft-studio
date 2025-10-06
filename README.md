@@ -21,13 +21,13 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 
 ## Tech Stack
 
-- **Frontend**: SvelteKit 2, TypeScript, Tailwind CSS
-- **UI Components**: bits-ui, lucide-svelte
+- **Frontend**: SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS 4
+- **UI Components**: bits-ui, lucide-svelte, svelte-sonner
 - **State Management**: Svelte 5 runes and stores
 - **Image Processing**: Canvas API with Web Workers for performance
 - **Persistence**: IndexedDB for local storage, ZIP for export
-- **Build Tool**: Vite with static adapter and bundle visualization
-- **Deployment**: Static hosting ready
+- **Build Tool**: Vite with static adapter, bundle visualization, and PWA support
+- **Deployment**: ICP Blockchain with Juno hosting, static hosting ready
 
 ## Getting Started
 
@@ -79,14 +79,16 @@ src/
 │   ├── components/     # Reusable UI components
 │   │   ├── layer/      # Layer-specific components (bulk ops, upload, filter)
 │   │   ├── preview/    # Preview system (cache, renderer, selector)
-│   │   └── ui/         # Base UI components
+│   │   └── ui/         # Base UI components (button, card, dialog, input, etc.)
 │   ├── domain/         # Business logic and models
 │   ├── persistence/    # Data storage and retrieval
 │   ├── stores/         # Modular Svelte stores (SRP-based)
 │   ├── types/          # TypeScript types and interfaces
-│   ├── utils/          # Utility functions
+│   ├── utils/          # Utility functions (error handling, logging, retry)
 │   └── workers/        # Web workers for background processing
 ├── routes/             # SvelteKit page routes
+├── hooks/              # SvelteKit hooks
+├── satellite/          # Juno satellite configuration
 └── app.css             # Global styles
 ```
 
@@ -98,10 +100,14 @@ src/
 | `pnpm build`                | Build for production             |
 | `pnpm preview`              | Preview production build         |
 | `pnpm check`                | Run TypeScript and Svelte checks |
+| `pnpm check:watch`          | Watch mode for type checking     |
 | `pnpm lint`                 | Check code style                 |
 | `pnpm format`               | Format code                      |
 | `pnpm test`                 | Run tests                        |
+| `pnpm test:watch`           | Run tests in watch mode          |
+| `pnpm test:coverage`        | Run tests with coverage          |
 | `pnpm standardize-comments` | Standardize comment formatting   |
+| `pnpm verify-lockfile`      | Verify package lock integrity    |
 
 ### Code Quality
 
@@ -136,6 +142,7 @@ The state management system is organized into focused, single-responsibility mod
 - **`stores/resource-manager.ts`**: Memory management and URL cleanup
 - **`stores/file-operations.ts`**: ZIP import/export functionality
 - **`stores/loading-state.ts`**: Loading states and progress tracking
+- **`stores/loading-state.svelte.ts`**: Svelte 5 reactive loading states
 
 ### Component Modularity
 
@@ -143,9 +150,8 @@ Large components have been refactored into focused sub-modules:
 
 #### Preview System
 
-- **`components/preview/image-cache.ts`**: LRU image caching
-- **`components/preview/canvas-renderer.ts`**: Canvas drawing and resizing
 - **`components/preview/trait-selector.ts`**: Trait selection logic
+- Image caching and canvas rendering integrated into core components
 
 #### Layer Management
 
@@ -173,14 +179,16 @@ Comprehensive documentation is available in the `docs/` directory:
 - [API Documentation](docs/api-documentation.md) - Complete API reference
 - [Architecture Documentation](docs/architecture-diagrams.md) - System architecture overview
 - [Coding Standards](docs/coding-standards.md) - Development guidelines
+- [Comment Formatting](docs/comment-formatting-summary.md) - Comment style guide
+- [In-Code Documentation](docs/in-code-docs.md) - Documentation standards
 
 ## Contributing
 
 We welcome contributions! Please see our documentation for details:
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines and process
 - [Onboarding Guide](docs/onboarding.md) - Development environment setup
 - [Coding Standards](docs/coding-standards.md) - Code style and best practices
+- [AGENTS.md](AGENTS.md) - Guidelines for agentic coding assistants
 - [Changelog](CHANGELOG.md) - Version history and changes
 
 ## Roadmap

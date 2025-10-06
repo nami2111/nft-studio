@@ -12,7 +12,7 @@ This document provides comprehensive API documentation for NFT Studio's core mod
 
 ## Stores API
 
-### Project Store (`src/lib/stores/runes-store.svelte.ts`)
+### Project Store (`src/lib/stores/project.store.svelte.ts`)
 
 The project store manages the reactive state of the current NFT project using Svelte 5 runes.
 
@@ -22,21 +22,8 @@ The project store manages the reactive state of the current NFT project using Sv
 /**
  * Reactive project state using Svelte 5 runes.
  * Contains the current project data including layers, traits, and configuration.
- * @type {Project}
+ * Managed through modular store architecture with single responsibility principle.
  */
-export const project = $state<Project>(defaultProject());
-
-/**
- * Reactive loading states for various operations.
- * @type {Record<string, boolean>}
- */
-export const loadingStates = $state<Record<string, boolean>>({});
-
-/**
- * Reactive detailed loading states with progress information.
- * @type {Record<string, LoadingState>}
- */
-export const detailedLoadingStates = $state<Record<string, LoadingState>>({});
 ```
 
 #### Project Management Functions
@@ -519,22 +506,26 @@ export async function validateImageSecurity(file: File): Promise<boolean>;
 
 ### Core Types
 
+Core types are defined in `src/lib/types/`:
+
+- **`project.ts`**: Project, Layer, and Trait interfaces
+- **`layer.ts`**: Layer-specific types and enums
+- **`ids.ts`**: ID generation and validation types
+- **`worker-messages.ts`**: Worker communication message types
+
+### Key Interfaces
+
 ```typescript
-/**
- * Project configuration and data.
- */
+// Project configuration and data
 interface Project {
 	id: string;
 	name: string;
 	description: string;
 	outputSize: { width: number; height: number };
 	layers: Layer[];
-	_needsProperLoad?: boolean;
 }
 
-/**
- * Layer containing traits and rendering order.
- */
+// Layer containing traits and rendering order
 interface Layer {
 	id: string;
 	name: string;
@@ -543,9 +534,7 @@ interface Layer {
 	traits: Trait[];
 }
 
-/**
- * Individual trait with image data and rarity configuration.
- */
+// Individual trait with image data and rarity configuration
 interface Trait {
 	id: string;
 	name: string;
@@ -559,10 +548,13 @@ interface Trait {
 
 ### Worker Message Types
 
-```typescript
-/**
- * Transferrable layer data for worker communication.
- */
-interface TransferrableLayer {
-  id:
+Worker communication types are defined in `src/lib/types/worker-messages.ts`:
+
+- **ProgressMessage**: Generation progress updates
+- **CompleteMessage**: Task completion with results
+- **ErrorMessage**: Error reporting from workers
+- **TransferrableLayer**: Optimized data transfer for workers
+
+```
+
 ```

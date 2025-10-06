@@ -43,9 +43,17 @@ nft-studio/
 ├── scripts/           # Utility scripts
 ├── src/               # Source code
 │   ├── lib/           # Reusable components and utilities
+│   │   ├── components/ # UI components (layer, preview, ui)
+│   │   ├── domain/    # Business logic and models
+│   │   ├── stores/    # Svelte stores with runes
+│   │   ├── utils/     # Utility functions
+│   │   ├── workers/   # Web workers
+│   │   └── types/     # TypeScript definitions
 │   ├── routes/        # SvelteKit page routes
+│   ├── hooks/         # SvelteKit hooks
 │   └── app.css        # Global styles
 ├── static/            # Static assets
+├── satellite/         # Juno satellite configuration
 ├── package.json       # Project configuration
 └── README.md          # Project overview
 ```
@@ -59,7 +67,7 @@ nft-studio/
 pnpm test
 
 # Run tests in watch mode
-vitest
+pnpm test:watch
 
 # Run tests with coverage
 pnpm test:coverage
@@ -149,10 +157,14 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 | `pnpm dev`                  | Start development server         |
 | `pnpm build`                | Build for production             |
 | `pnpm check`                | Run TypeScript and Svelte checks |
+| `pnpm check:watch`          | Watch mode for type checking     |
 | `pnpm lint`                 | Check code style                 |
 | `pnpm format`               | Format code                      |
 | `pnpm test`                 | Run tests                        |
+| `pnpm test:watch`           | Run tests in watch mode          |
+| `pnpm test:coverage`        | Run tests with coverage          |
 | `pnpm standardize-comments` | Standardize comment formatting   |
+| `pnpm verify-lockfile`      | Verify package lock integrity    |
 
 ## Getting Help
 
@@ -188,11 +200,15 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 ## Resources
 
 - [SvelteKit Documentation](https://kit.svelte.dev/docs)
+- [Svelte 5 Documentation](https://svelte.dev/docs)
 - [TypeScript Documentation](https://www.typescriptlang.org/docs/)
-- [Juno Documentation](https://github.com/junobuild/juno)
+- [Juno Documentation](https://juno.build/docs)
+- [ICP Blockchain Documentation](https://internetcomputer.org/docs)
+- [Vitest Documentation](https://vitest.dev/docs)
 - [Project TODO List](../TODO.md)
 - [Architecture Documentation](./architecture-diagrams.md)
 - [Coding Standards](./coding-standards.md)
+- [AGENTS.md](../AGENTS.md) - Agent development guidelines
 
 ## UI Flow Screenshots
 
