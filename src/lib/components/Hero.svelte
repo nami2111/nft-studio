@@ -16,7 +16,7 @@
 	import WindowControls from '$lib/components/WindowControls.svelte';
 </script>
 
-<section class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16">
+<section class="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
 	<!-- Decorative background elements -->
 	<div class="absolute inset-0 overflow-hidden">
 		<!-- Custom gradient with transparent center -->
