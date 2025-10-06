@@ -14,6 +14,10 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 - **Progressive Previews**: Real-time preview generation during batch processing
 - **ZIP Export**: Complete collection packaging with images and metadata
 - **Performance Optimized**: Automatic memory management, adaptive chunking, and Canvas-based processing
+- **Modular Architecture**: Clean separation of concerns with SRP-based design
+- **Bulk Operations**: Efficient bulk trait editing, renaming, and deletion
+- **Drag & Drop**: Intuitive file upload with progress tracking
+- **Smart Caching**: LRU image caching for optimal performance
 
 ## Tech Stack
 
@@ -73,9 +77,12 @@ pnpm preview
 src/
 ├── lib/
 │   ├── components/     # Reusable UI components
+│   │   ├── layer/      # Layer-specific components (bulk ops, upload, filter)
+│   │   ├── preview/    # Preview system (cache, renderer, selector)
+│   │   └── ui/         # Base UI components
 │   ├── domain/         # Business logic and models
 │   ├── persistence/    # Data storage and retrieval
-│   ├── stores/         # Svelte stores for state management
+│   ├── stores/         # Modular Svelte stores (SRP-based)
 │   ├── types/          # TypeScript types and interfaces
 │   ├── utils/          # Utility functions
 │   └── workers/        # Web workers for background processing
@@ -98,24 +105,63 @@ src/
 
 ### Code Quality
 
-We maintain high code quality standards:
+We maintain high code quality standards with a focus on maintainable architecture:
 
-- TypeScript for type safety
-- Prettier for code formatting
-- ESLint for linting
-- JSDoc for documentation
-- Comprehensive test coverage
+- **Single Responsibility Principle**: Each module has one clear purpose
+- **TypeScript**: Comprehensive type safety and interfaces
+- **Prettier**: Consistent code formatting
+- **ESLint**: Code quality and style enforcement
+- **Modular Design**: Focused, reusable components and services
+- **Error Handling**: Centralized error management with typed errors
+- **Performance**: Memory management and Web Worker optimization
+- **JSDoc**: Comprehensive API documentation
+- **Test Coverage**: Unit tests for business logic and utilities
 
 ## Architecture
 
-NFT Studio follows a layered architecture:
+NFT Studio follows a clean, modular architecture built on Single Responsibility Principle (SRP):
+
+### Core Architecture Layers
 
 1. **UI Layer**: Svelte components for user interaction
 2. **Domain Layer**: Business logic and data models
 3. **Persistence Layer**: Data storage and retrieval
 4. **Worker Layer**: Background processing for intensive operations
 
-See [Architecture Documentation](docs/architecture-diagrams.md) for more details.
+### Modular Store Architecture
+
+The state management system is organized into focused, single-responsibility modules:
+
+- **`stores/project.store.svelte.ts`**: Core project state and business logic
+- **`stores/resource-manager.ts`**: Memory management and URL cleanup
+- **`stores/file-operations.ts`**: ZIP import/export functionality
+- **`stores/loading-state.ts`**: Loading states and progress tracking
+
+### Component Modularity
+
+Large components have been refactored into focused sub-modules:
+
+#### Preview System
+
+- **`components/preview/image-cache.ts`**: LRU image caching
+- **`components/preview/canvas-renderer.ts`**: Canvas drawing and resizing
+- **`components/preview/trait-selector.ts`**: Trait selection logic
+
+#### Layer Management
+
+- **`components/layer/trait-bulk-operations.ts`**: Bulk trait operations
+- **`components/layer/file-upload-handler.ts`**: Drag/drop and file processing
+- **`components/layer/trait-filter.ts`**: Trait search and filtering
+
+### Design Principles
+
+- **Single Responsibility**: Each module has one clear purpose
+- **Separation of Concerns**: UI, business logic, and data are cleanly separated
+- **Dependency Injection**: Services are injected rather than tightly coupled
+- **Type Safety**: Comprehensive TypeScript coverage
+- **Performance Optimized**: Web Workers and efficient memory management
+
+See [Architecture Documentation](docs/architecture-diagrams.md) for detailed diagrams.
 
 ## Documentation
 

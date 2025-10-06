@@ -89,6 +89,7 @@ export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
 		const result = await file.arrayBuffer();
 		return result;
 	} catch (error) {
+		console.error(`[fileToArrayBuffer] Failed to read file ${file.name}:`, error);
 		throw new Error(
 			`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`
 		);

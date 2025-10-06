@@ -1,6 +1,6 @@
 /**
  * Modern Svelte 5 runes-based project store for NFT Studio
- * Fully leverages Svelte 5 runes for reactive state management
+ * Focused on core state management and business logic
  */
 
 import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
@@ -11,12 +11,15 @@ import {
 	validateProjectName,
 	validateLayerName,
 	validateTraitName,
-	validateImportedProject,
 	validateRarityWeight
 } from '$lib/domain/validation';
-import { handleFileError } from '$lib/utils/error-handler';
-import JSZip from 'jszip';
 import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
+import { globalResourceManager } from './resource-manager';
+import {
+	saveProjectToZip as saveProjectToZipImpl,
+	loadProjectFromZip as loadProjectFromZipImpl
+} from './file-operations';
+import { loadingStateManager } from './loading-state';
 
 // Local storage key
 // const PROJECT_STORAGE_KEY = 'nft-studio-project';
@@ -39,16 +42,7 @@ function defaultProject(): Project {
 // Reactive state using Svelte 5 runes
 export const project = $state<Project>(defaultProject());
 
-export const loadingStates = $state<Record<string, boolean>>({});
-
-export interface LoadingState {
-	progress: number;
-	total: number;
-	message: string;
-	status: 'idle' | 'loading' | 'success' | 'error';
-}
-
-export const detailedLoadingStates = $state<Record<string, LoadingState>>({});
+import type { LoadingState } from './loading-state';
 
 // Derived state functions
 export function isProjectValid(): boolean {
@@ -68,21 +62,8 @@ export function projectNeedsZipLoad(): boolean {
 	return project._needsProperLoad ?? true;
 }
 
-// Resource management for object URLs
-class ResourceManager {
-	private objectUrls = new Set<string>();
-
-	addObjectUrl(url: string): void {
-		this.objectUrls.add(url);
-	}
-
-	cleanup(): void {
-		this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
-		this.objectUrls.clear();
-	}
-}
-
-const resourceManager = new ResourceManager();
+// Resource management is handled by the dedicated resource manager
+// Use globalResourceManager for URL tracking and cleanup
 
 // Project management functions
 export function updateProjectName(name: string): void {
@@ -130,7 +111,7 @@ export function removeLayer(layerId: LayerId): void {
 	const layer = project.layers[layerIndex];
 	layer.traits.forEach((trait: Trait) => {
 		if (trait.imageUrl) {
-			URL.revokeObjectURL(trait.imageUrl);
+			globalResourceManager.removeObjectUrl(trait.imageUrl);
 		}
 	});
 
@@ -169,6 +150,64 @@ export function reorderLayers(layerIds: LayerId[]): void {
 	project.layers = newLayers;
 }
 
+// Batch loading state to prevent multiple rapid updates
+let pendingTraitUpdates = new Map<string, { trait: Trait; layer: Layer; file: File }>();
+
+// Process pending trait updates in batches
+function processPendingTraitUpdates() {
+	if (pendingTraitUpdates.size === 0) return;
+
+	const updates = Array.from(pendingTraitUpdates.values());
+	pendingTraitUpdates.clear();
+
+	// Process all pending updates
+	Promise.all(
+		updates.map(({ trait, layer, file }) =>
+			fileToArrayBuffer(file)
+				.then((arrayBuffer) => {
+					trait.imageData = arrayBuffer;
+					// Create object URL for preview
+					const blob = new Blob([arrayBuffer], { type: file.type || 'image/png' });
+					trait.imageUrl = URL.createObjectURL(blob);
+					globalResourceManager.addObjectUrl(trait.imageUrl);
+					return { trait, layer };
+				})
+				.catch((error) => {
+					console.error(`Failed to load image for trait: ${trait.name}`, error);
+					// Remove the trait if loading fails
+					const traitIndex = layer.traits.findIndex((t: Trait) => t.id === trait.id);
+					if (traitIndex !== -1) {
+						layer.traits.splice(traitIndex, 1);
+					}
+					return null;
+				})
+		)
+	).then((results) => {
+		// Force a single reactivity update after all traits are loaded
+		const validResults = results.filter((r): r is { trait: Trait; layer: Layer } => r !== null);
+		for (const { trait, layer } of validResults) {
+			const traitIndex = layer.traits.findIndex((t: Trait) => t.id === trait.id);
+			if (traitIndex !== -1) {
+				layer.traits[traitIndex] = trait;
+			}
+		}
+	});
+}
+
+// Debounced batch processing
+let batchTimeoutId: number | null = null;
+const BATCH_DELAY_MS = 100;
+
+function scheduleBatchUpdate() {
+	if (batchTimeoutId) {
+		clearTimeout(batchTimeoutId);
+	}
+	batchTimeoutId = setTimeout(() => {
+		processPendingTraitUpdates();
+		batchTimeoutId = null;
+	}, BATCH_DELAY_MS);
+}
+
 // Trait management functions
 export function addTrait(layerId: LayerId, file: File): void {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
@@ -192,28 +231,9 @@ export function addTrait(layerId: LayerId, file: File): void {
 
 	layer.traits.push(newTrait);
 
-	// Load image data asynchronously
-	fileToArrayBuffer(file)
-		.then((arrayBuffer) => {
-			newTrait.imageData = arrayBuffer;
-			// Create object URL for preview
-			const blob = new Blob([arrayBuffer], { type: 'image/png' });
-			newTrait.imageUrl = URL.createObjectURL(blob);
-			resourceManager.addObjectUrl(newTrait.imageUrl);
-
-			// Force reactivity by reassigning the trait in the array
-			const traitIndex = layer.traits.findIndex((t: Trait) => t.id === newTrait.id);
-			if (traitIndex !== -1) {
-				layer.traits[traitIndex] = newTrait;
-			}
-		})
-		.catch(() => {
-			// Remove the trait if loading fails
-			const traitIndex = layer.traits.findIndex((t: Trait) => t.id === newTrait.id);
-			if (traitIndex !== -1) {
-				layer.traits.splice(traitIndex, 1);
-			}
-		});
+	// Add to pending updates for batch processing
+	pendingTraitUpdates.set(newTrait.id, { trait: newTrait, layer, file });
+	scheduleBatchUpdate();
 }
 
 export function removeTrait(layerId: LayerId, traitId: TraitId): void {
@@ -226,7 +246,7 @@ export function removeTrait(layerId: LayerId, traitId: TraitId): void {
 	// Clean up object URL
 	const trait = layer.traits[traitIndex];
 	if (trait.imageUrl) {
-		URL.revokeObjectURL(trait.imageUrl);
+		globalResourceManager.removeObjectUrl(trait.imageUrl);
 	}
 
 	layer.traits.splice(traitIndex, 1);
@@ -262,94 +282,44 @@ export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeig
 	trait.rarityWeight = rarityWeight;
 }
 
-// Loading state management
+// Loading state management - delegated to loading state manager
 export function startLoading(operation: string): void {
-	loadingStates[operation] = true;
+	loadingStateManager.startLoading(operation);
 }
 
 export function stopLoading(operation: string): void {
-	loadingStates[operation] = false;
+	loadingStateManager.stopLoading(operation);
 }
 
 export function getLoadingState(operation: string): boolean {
-	return loadingStates[operation] || false;
+	return loadingStateManager.getLoadingState(operation);
 }
 
 export function startDetailedLoading(operation: string, total: number = 100): void {
-	detailedLoadingStates[operation] = {
-		progress: 0,
-		total,
-		message: 'Starting...',
-		status: 'loading'
-	};
+	loadingStateManager.startDetailedLoading(operation, total);
 }
 
 export function updateDetailedLoading(operation: string, progress: number, message?: string): void {
-	const state = detailedLoadingStates[operation];
-	if (state) {
-		state.progress = progress;
-		if (message) {
-			state.message = message;
-		}
-	}
+	loadingStateManager.updateDetailedLoading(operation, progress, message);
 }
 
 export function stopDetailedLoading(operation: string, success: boolean = true): void {
-	const state = detailedLoadingStates[operation];
-	if (state) {
-		state.status = success ? 'success' : 'error';
-		state.progress = state.total;
-	}
+	loadingStateManager.stopDetailedLoading(operation, success);
 }
 
 export function getDetailedLoadingState(operation: string): LoadingState | undefined {
-	return detailedLoadingStates[operation];
+	return loadingStateManager.getDetailedLoadingState(operation);
 }
 
-// Project persistence
+// Project persistence - delegated to file operations module
 export async function saveProjectToZip(): Promise<ArrayBuffer> {
 	startLoading('project-save');
 	startDetailedLoading('project-save', 100);
 
 	try {
-		const zip = new JSZip();
+		// Save using the file operations module
+		const result = await saveProjectToZipImpl(project);
 
-		// Create project metadata
-		const projectData = {
-			name: project.name,
-			description: project.description,
-			outputSize: project.outputSize,
-			layers: project.layers.map((layer: Layer) => ({
-				id: layer.id,
-				name: layer.name,
-				order: layer.order,
-				isOptional: layer.isOptional,
-				traits: layer.traits.map((trait: Trait) => ({
-					id: trait.id,
-					name: trait.name,
-					rarityWeight: trait.rarityWeight
-				}))
-			}))
-		};
-
-		zip.file('project.json', JSON.stringify(projectData, null, 2));
-
-		// Add trait images
-		let processedCount = 0;
-		const totalTraits = project.layers.reduce((sum, layer) => sum + layer.traits.length, 0);
-
-		for (const layer of project.layers) {
-			for (const trait of layer.traits) {
-				if (trait.imageData && trait.imageData.byteLength > 0) {
-					const imagePath = `images/${layer.id}/${trait.id}.png`;
-					zip.file(imagePath, trait.imageData);
-				}
-				processedCount++;
-				updateDetailedLoading('project-save', Math.round((processedCount / totalTraits) * 100));
-			}
-		}
-
-		const result = await zip.generateAsync({ type: 'arraybuffer' });
 		stopDetailedLoading('project-save');
 		stopLoading('project-save');
 		return result;
@@ -365,70 +335,18 @@ export async function loadProjectFromZip(file: File): Promise<void> {
 		startLoading('project-load');
 		startDetailedLoading('project-load', 100);
 
-		const arrayBuffer = await fileToArrayBuffer(file);
-		const zip = await JSZip.loadAsync(arrayBuffer);
+		// Clean up existing resources before loading new project
+		globalResourceManager.cleanup();
 
-		// Read project metadata
-		const projectFile = zip.file('project.json');
-		if (!projectFile) {
-			throw new Error('Project metadata not found in ZIP file');
-		}
-
-		const projectData = JSON.parse(await projectFile.async('text'));
-
-		// Validate imported project
-		const validationResult = validateImportedProject(projectData);
-		if (!validationResult.success) {
-			throw new Error(validationResult.error);
-		}
-
-		// Clean up existing object URLs
-		resourceManager.cleanup();
-
-		// Process the stored project data and load trait images
-		const storedProject = validationResult.data as Project;
-
-		// Add IDs to layers and traits, and load image data for each trait
-		for (const layer of storedProject.layers) {
-			// Ensure layer has an ID
-			if (!layer.id) {
-				layer.id = createLayerId(crypto.randomUUID());
-			}
-
-			// Process each trait in the layer
-			for (const trait of layer.traits) {
-				// Ensure trait has an ID
-				if (!trait.id) {
-					trait.id = createTraitId(crypto.randomUUID());
-				}
-
-				// Load image data from ZIP
-				const imagePath = `images/${layer.id}/${trait.id}.png`;
-				const imageFile = zip.file(imagePath);
-
-				if (imageFile) {
-					// Load the image data
-					const imageData = await imageFile.async('arraybuffer');
-					trait.imageData = imageData;
-
-					// Create object URL for preview
-					const blob = new Blob([imageData], { type: 'image/png' });
-					trait.imageUrl = URL.createObjectURL(blob);
-					resourceManager.addObjectUrl(trait.imageUrl);
-				} else {
-					console.warn(`Image file not found for trait ${trait.name} at ${imagePath}`);
-					// Create empty image data if file not found
-					trait.imageData = new ArrayBuffer(0);
-				}
-			}
-		}
+		// Load project using the dedicated file operations module
+		const loadedProject = await loadProjectFromZipImpl(file);
 
 		// Update project state
-		project.id = createProjectId(crypto.randomUUID());
-		project.name = storedProject.name;
-		project.description = storedProject.description || '';
-		project.outputSize = storedProject.outputSize || { width: 0, height: 0 };
-		project.layers = storedProject.layers;
+		project.id = loadedProject.id;
+		project.name = loadedProject.name;
+		project.description = loadedProject.description || '';
+		project.outputSize = loadedProject.outputSize || { width: 0, height: 0 };
+		project.layers = loadedProject.layers;
 		project._needsProperLoad = false;
 
 		stopDetailedLoading('project-load');
@@ -436,7 +354,7 @@ export async function loadProjectFromZip(file: File): Promise<void> {
 	} catch (error) {
 		stopDetailedLoading('project-load', false);
 		stopLoading('project-load');
-		throw handleFileError(error, { description: 'Failed to load project from ZIP file' });
+		throw error;
 	}
 }
 
@@ -446,5 +364,5 @@ export function markProjectAsLoaded(): void {
 
 // Cleanup
 export function cleanupAllResources(): void {
-	resourceManager.cleanup();
+	globalResourceManager.cleanup();
 }

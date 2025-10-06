@@ -14,11 +14,14 @@
 	let displayWidth = 0;
 	let displayHeight = 0;
 	let isCanvasInitialized = $state(false);
+	let isRandomizing = $state(false);
+	let randomizeTimeoutId: number | null = null;
 
 	// Image cache using $state.raw since we don't need deep reactivity
 	const imageCache = $state.raw(new SvelteMap<string, HTMLImageElement>());
 	const cacheAccessTimes = $state.raw(new SvelteMap<string, number>());
 	const MAX_CACHE_SIZE = 20; // Maximum number of images to cache
+	const RANDOMIZE_DEBOUNCE_MS = 150; // Debounce time for randomize button
 
 	// Helper to purge stale cache entries when traits change
 	function purgeStaleCache() {
@@ -115,6 +118,18 @@
 
 	// Component cleanup
 	onDestroy(() => {
+		// Clear any pending randomize timeout
+		if (randomizeTimeoutId) {
+			clearTimeout(randomizeTimeoutId);
+			randomizeTimeoutId = null;
+		}
+
+		// Clear any pending preview update timeout
+		if (previewUpdateTimeoutId) {
+			clearTimeout(previewUpdateTimeoutId);
+			previewUpdateTimeoutId = null;
+		}
+
 		// Clear image cache to free memory
 		imageCache.clear();
 		cacheAccessTimes.clear();
@@ -140,6 +155,23 @@
 		}
 	});
 
+	// Track active image loading operations for cancellation
+	const activeImageLoads = new SvelteMap<
+		string,
+		{ resolve: (value: HTMLImageElement) => void; reject: (reason: unknown) => void }
+	>();
+
+	// Helper function to validate blob URL before using it
+	async function validateBlobUrl(blobUrl: string): Promise<boolean> {
+		try {
+			// Create a test fetch to check if blob URL is accessible
+			const response = await fetch(blobUrl);
+			return response.ok;
+		} catch {
+			return false;
+		}
+	}
+
 	// Load image with caching using worker
 	async function loadImage(src: string): Promise<HTMLImageElement> {
 		// Check if image is already in cache
@@ -150,17 +182,43 @@
 
 		// Check if this is a blob URL (starts with blob:)
 		if (src.startsWith('blob:')) {
-			// For blob URLs, load directly without using the worker
+			// First validate the blob URL to prevent browser errors
+			const isValid = await validateBlobUrl(src);
+			if (!isValid) {
+				// Skip trying to load invalid blob URLs
+				return Promise.reject(new Error('Blob URL no longer accessible'));
+			}
+
+			// Blob URL is valid, proceed with loading
 			return new Promise((resolve, reject) => {
+				const loadId = `${src}-${Date.now()}`;
+				activeImageLoads.set(loadId, { resolve, reject });
+
 				const img = new Image();
-				img.crossOrigin = 'anonymous';
+				// Don't set crossOrigin for blob URLs as it's not needed and might cause issues
+				// img.crossOrigin = 'anonymous';
+
+				// Set a timeout for blob URL loading to prevent hanging
+				const timeoutId = setTimeout(() => {
+					console.error(`Timeout loading blob URL: ${src}`);
+					activeImageLoads.delete(loadId);
+					if (imageCache.has(src)) {
+						imageCache.delete(src);
+						cacheAccessTimes.delete(src);
+					}
+					reject(new Error('Timeout loading blob image'));
+				}, 5000); // 5 second timeout
+
 				img.onload = () => {
+					clearTimeout(timeoutId);
+					activeImageLoads.delete(loadId);
 					imageCache.set(src, img);
 					cacheAccessTimes.set(src, Date.now());
 					resolve(img);
 				};
 				img.onerror = () => {
-					console.error('Failed to load blob image');
+					clearTimeout(timeoutId);
+					activeImageLoads.delete(loadId);
 					// Remove from cache if it was added somehow during error
 					if (imageCache.has(src)) {
 						imageCache.delete(src);
@@ -177,11 +235,15 @@
 
 		return new Promise((resolve, reject) => {
 			const id = crypto.randomUUID();
+			const loadId = `${id}-${Date.now()}`;
+			activeImageLoads.set(loadId, { resolve, reject });
+
 			const handleMessage = (e: MessageEvent) => {
 				if (e.data.id === id) {
 					// Remove this specific handler
 					imageWorker?.removeEventListener('message', handleMessage);
 					messageHandlers.delete(id);
+					activeImageLoads.delete(loadId);
 
 					if (e.data.error) {
 						reject(new Error(e.data.error));
@@ -215,6 +277,14 @@
 			imageWorker?.addEventListener('message', handleMessage);
 			imageWorker?.postMessage({ id, src });
 		});
+	}
+
+	// Cancel all active image loads (useful during rapid randomization)
+	function cancelActiveImageLoads() {
+		for (const [loadId, { reject }] of activeImageLoads) {
+			reject(new Error('Image load cancelled due to new randomization'));
+			activeImageLoads.delete(loadId);
+		}
 	}
 
 	// Memoized drawPreview using current state
@@ -276,24 +346,67 @@
 
 			if (effectiveTraitId) {
 				const selectedTrait = layer.traits.find((trait: Trait) => trait.id === effectiveTraitId);
-				if (selectedTrait && selectedTrait.imageUrl) {
-					try {
-						const img = await loadImage(selectedTrait.imageUrl);
-						return { img, layerIndex: i };
-					} catch (error) {
-						console.error('Error loading image for layer', layer.name, ':', error);
-						// Only show error toast if we're not in the initial load state
-						const isInitialLoad = layers.every((l: Layer) => l.traits.length === 0);
-						if (!isInitialLoad) {
-							// Show user-friendly error message
-							import('svelte-sonner').then(({ toast }) => {
-								toast.error('Failed to load image in preview', {
-									description: error instanceof Error ? error.message : 'Unknown error'
-								});
-							});
+				if (selectedTrait) {
+					let imageUrl = selectedTrait.imageUrl;
+
+					// Try to load with imageUrl first
+					if (imageUrl) {
+						try {
+							const img = await loadImage(imageUrl);
+							return { img, layerIndex: i };
+						} catch (error) {
+							// Try to recreate blob URL from imageData if imageUrl failed
+							if (selectedTrait.imageData && selectedTrait.imageData.byteLength > 0) {
+								try {
+									const blob = new Blob([selectedTrait.imageData], { type: 'image/png' });
+									imageUrl = URL.createObjectURL(blob);
+
+									// Update the trait with the new URL
+									selectedTrait.imageUrl = imageUrl;
+
+									const img = await loadImage(imageUrl);
+									return { img, layerIndex: i };
+								} catch (recreateError) {
+									console.error(
+										`Failed to recreate image for trait ${selectedTrait.name}:`,
+										recreateError
+									);
+								}
+							}
 						}
-						return null;
+					} else if (selectedTrait.imageData && selectedTrait.imageData.byteLength > 0) {
+						// No imageUrl but we have imageData, try to create blob URL
+						try {
+							const blob = new Blob([selectedTrait.imageData], { type: 'image/png' });
+							imageUrl = URL.createObjectURL(blob);
+
+							// Update the trait with the new URL
+							selectedTrait.imageUrl = imageUrl;
+
+							const img = await loadImage(imageUrl);
+							return { img, layerIndex: i };
+						} catch (createError) {
+							console.error(`Failed to create image for trait ${selectedTrait.name}:`, createError);
+						}
 					}
+
+					// If we get here, all loading attempts failed
+					console.error(
+						`All attempts to load image failed for trait ${selectedTrait?.name || 'UNKNOWN'}`
+					);
+					// Only show error toast if we're not in the initial load state
+					const isInitialLoad = layers.every((l: Layer) => l.traits.length === 0);
+					if (!isInitialLoad) {
+						// Show user-friendly error message
+						import('svelte-sonner').then(({ toast }) => {
+							toast.error('Failed to load image in preview', {
+								description: `Could not load ${selectedTrait?.name || 'trait'}`
+							});
+						});
+					}
+					return null;
+				} else {
+					console.warn(`Layer ${layer.name}: No trait found with ID ${effectiveTraitId}`);
 				}
 			}
 			return null;
@@ -370,20 +483,24 @@
 
 	// Clean up the image cache periodically to prevent accumulation during randomization
 	function cleanupImageCache() {
+		// More aggressive cleanup during randomization
+		const aggressiveCleanupSize = Math.floor(MAX_CACHE_SIZE * 0.7); // Keep only 70% of max cache
+
 		// Purge stale cache entries based on what's currently needed
 		purgeStaleCache();
 
-		// If cache is getting too large, force cleanup of least recently used items
-		if (imageCache.size > MAX_CACHE_SIZE) {
+		// Force cleanup of least recently used items more aggressively
+		if (imageCache.size > aggressiveCleanupSize) {
 			const entries = Array.from(cacheAccessTimes.entries());
 			entries.sort((a, b) => a[1] - b[1]); // Sort by access time (oldest first)
 
-			// Remove oldest entries until we're under the limit
-			for (let i = 0; i < entries.length - MAX_CACHE_SIZE; i++) {
+			// Remove oldest entries to get down to aggressive cleanup size
+			const toRemove = imageCache.size - aggressiveCleanupSize;
+			for (let i = 0; i < toRemove; i++) {
 				const url = entries[i][0];
 				if (imageCache.has(url)) {
-					// Revoke the object URL to free memory if it's not needed anymore
-					URL.revokeObjectURL(url);
+					// Don't revoke blob URLs aggressively - let them be cleaned up naturally
+					// This prevents ERR_FILE_NOT_FOUND errors
 					imageCache.delete(url);
 				}
 				cacheAccessTimes.delete(url);
@@ -391,21 +508,39 @@
 		}
 	}
 
-	// Effect for drawing when preview data changes
-	$effect(() => {
-		if (ctx && canvas && previewData) {
-			purgeStaleCache();
-			drawPreview()
-				.catch((error) => {
-					console.error('Error in drawPreview:', error);
-				})
-				.then(() => {
+	// Debounce timer for preview updates
+	let previewUpdateTimeoutId: number | null = null;
+	const PREVIEW_UPDATE_DEBOUNCE_MS = 200; // Increased debounce time for preview updates
+
+	// Debounced preview update function
+	function schedulePreviewUpdate() {
+		// Clear any existing timeout
+		if (previewUpdateTimeoutId) {
+			clearTimeout(previewUpdateTimeoutId);
+		}
+
+		// Schedule a new preview update
+		previewUpdateTimeoutId = setTimeout(async () => {
+			if (ctx && canvas && isCanvasInitialized) {
+				try {
+					purgeStaleCache();
+					await drawPreview();
 					// Preload adjacent traits after main preview is drawn
 					preloadAdjacentTraits();
-					// Clean up image cache after drawing to prevent accumulation during randomization
+					// Clean up image cache after drawing
 					cleanupImageCache();
-				});
-		}
+				} catch (error) {
+					console.error('Error in debounced preview update:', error);
+				}
+			}
+			previewUpdateTimeoutId = null;
+		}, PREVIEW_UPDATE_DEBOUNCE_MS);
+	}
+
+	// Effect for drawing when preview data changes - now uses debouncing
+	$effect(() => {
+		// Only schedule preview update, don't draw immediately
+		schedulePreviewUpdate();
 	});
 
 	// Handle canvas initialization and resize
@@ -466,65 +601,69 @@
 	}
 
 	function randomize() {
-		// Ensure we have a valid project state
-		if (!project || !project.layers) {
-			console.error('Cannot randomize: Project or layers not available');
+		// Prevent multiple rapid randomizations
+		if (isRandomizing) {
 			return;
 		}
-		const { layers } = project;
-		const newSelectedTraits: (TraitId | '')[] = [];
 
-		console.log('Project layers:', layers.length);
-		for (const layer of layers) {
-			if (layer.traits.length > 0) {
-				// Select a random trait from this layer
-				const randomIndex = Math.floor(Math.random() * layer.traits.length);
-				const selectedTraitId = layer.traits[randomIndex].id;
-
-				newSelectedTraits.push(selectedTraitId);
-			} else {
-				newSelectedTraits.push('');
-			}
+		// Clear any existing timeout
+		if (randomizeTimeoutId) {
+			clearTimeout(randomizeTimeoutId);
 		}
 
-		// Update selected traits - this will trigger $derived and effect
-		selectedTraitIds = newSelectedTraits;
+		// Set loading state
+		isRandomizing = true;
 
-		// Ensure preview updates even if reactivity doesn't trigger
-		requestAnimationFrame(() => {
-			if (ctx && canvas && isCanvasInitialized) {
-				drawPreview()
-					.catch((error) => {
-						console.error('Error drawing preview after randomization:', error);
-					})
-					.finally(() => {
-						// Clean up image cache after drawing to prevent accumulation during randomization
-						cleanupImageCache();
-					});
-			} else {
-				// Try to initialize canvas if not ready
-				if (canvas && container && !isCanvasInitialized) {
-					const context = canvas.getContext('2d');
-					if (context) {
-						ctx = context;
-						isCanvasInitialized = true;
-						resizeCanvas();
-						drawPreview()
-							.catch((error) => {
-								console.error('Error drawing preview after initialization:', error);
-							})
-							.finally(() => {
-								// Clean up image cache after drawing to prevent accumulation during randomization
-								cleanupImageCache();
-							});
+		// Debounce the randomization to prevent rapid clicks
+		randomizeTimeoutId = setTimeout(async () => {
+			try {
+				// Cancel any ongoing image loads to prevent conflicts
+				cancelActiveImageLoads();
+
+				// Ensure we have a valid project state
+				if (!project || !project.layers) {
+					console.error('Cannot randomize: Project or layers not available');
+					return;
+				}
+				const { layers } = project;
+				const newSelectedTraits: (TraitId | '')[] = [];
+
+				for (const layer of layers) {
+					if (layer.traits.length > 0) {
+						// Select a random trait from this layer
+						const randomIndex = Math.floor(Math.random() * layer.traits.length);
+						const selectedTraitId = layer.traits[randomIndex].id;
+
+						newSelectedTraits.push(selectedTraitId);
+					} else {
+						newSelectedTraits.push('');
 					}
 				}
+
+				// Update selected traits - this will trigger $derived and effect
+				selectedTraitIds = newSelectedTraits;
+
+				// Aggressive cache cleanup before drawing new preview
+				cleanupImageCache();
+
+				// Schedule preview update instead of immediate draw to prevent excessive redraws
+				schedulePreviewUpdate();
+			} finally {
+				// Reset loading state
+				isRandomizing = false;
+				randomizeTimeoutId = null;
 			}
-		});
+		}, RANDOMIZE_DEBOUNCE_MS);
 	}
 
 	function handleRefresh() {
-		if (ctx && canvas && previewData) {
+		// Clear any pending preview update and schedule immediate refresh
+		if (previewUpdateTimeoutId) {
+			clearTimeout(previewUpdateTimeoutId);
+			previewUpdateTimeoutId = null;
+		}
+
+		if (ctx && canvas && isCanvasInitialized) {
 			drawPreview().catch((error) => {
 				console.error('Error refreshing preview:', error);
 			});
@@ -544,9 +683,9 @@
 		<div
 			class="mt-2 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:justify-center sm:gap-0 sm:space-x-2"
 		>
-			<Button size="sm" onclick={randomize} class="w-full sm:w-auto">
-				<Shuffle class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-				<span class="text-xs sm:text-sm">Randomize</span>
+			<Button size="sm" onclick={randomize} disabled={isRandomizing} class="w-full sm:w-auto">
+				<Shuffle class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4 {isRandomizing ? 'animate-spin' : ''}" />
+				<span class="text-xs sm:text-sm">{isRandomizing ? 'Randomizing...' : 'Randomize'}</span>
 			</Button>
 			<Button variant="outline" size="sm" onclick={handleRefresh} class="w-full sm:w-auto">
 				<RefreshCw class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />

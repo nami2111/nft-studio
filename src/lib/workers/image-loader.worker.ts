@@ -34,8 +34,7 @@ async function loadSingleImage(id: string, src: string) {
 				width: img.naturalWidth,
 				height: img.naturalHeight
 			});
-			// Clean up object URL after sending
-			objectUrls.delete(id);
+			// Note: Don't revoke object URL here - it will be cleaned up when no longer needed
 		};
 		img.onerror = () => {
 			// Clean up object URL on error
@@ -99,7 +98,7 @@ async function loadBatchImages(requests: Array<{ id: string; src: string }>) {
 								width: img.naturalWidth,
 								height: img.naturalHeight
 							});
-							objectUrls.delete(id);
+							// Note: Don't remove from map here - cleanup happens later
 						};
 						img.onerror = () => {
 							if (objectUrls.has(id)) {
