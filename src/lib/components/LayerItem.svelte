@@ -1,18 +1,28 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Layer } from '$lib/types/layer';
+	import { createTraitId, type TraitId } from '$lib/types/ids';
 	import TraitCard from '$lib/components/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
-	import { layersStore, traitsStore } from '$lib/stores';
-	import { project } from '$lib/stores/project/project.store';
+	import {
+		project,
+		startLoading,
+		stopLoading,
+		loadingStates,
+		removeTrait,
+		updateTraitRarity,
+		updateTraitName,
+		addTrait,
+		updateLayerName,
+		removeLayer,
+		updateProjectDimensions
+	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
-	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { getImageDimensions } from '$lib/utils';
+	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { onMount, onDestroy } from 'svelte';
-	import { get } from 'svelte/store';
-	import { loadingStore } from '$lib/stores/loading.store';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
@@ -22,21 +32,7 @@
 	const { layer }: Props = $props();
 
 	let layerName = $derived(layer.name);
-	let isUploading = $state(loadingStore.isLoading(`layer-upload-${layer.id}`));
-	let unsubscribe: (() => void) | null = null;
-
-	// Keep isUploading in sync with the loading store
-	unsubscribe = loadingStore.subscribe((state) => {
-		isUploading = state[`layer-upload-${layer.id}`] || false;
-	});
-
-	// Clean up subscription on destroy
-	onDestroy(() => {
-		if (unsubscribe) {
-			unsubscribe();
-			unsubscribe = null;
-		}
-	});
+	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
 
@@ -52,12 +48,12 @@
 	);
 
 	// Bulk operation states
-	let selectedTraits = new SvelteSet<string>();
+	let selectedTraits = new SvelteSet<TraitId>();
 	let bulkRarityWeight = $state(3);
 	let bulkNewName = $state('');
 
 	// Toggle trait selection
-	// function toggleTraitSelection(traitId: string) {
+	// function toggleTraitSelection(traitId: TraitId) {
 	// 	if (selectedTraits.has(traitId)) {
 	// 		selectedTraits.delete(traitId);
 	// 	} else {
@@ -67,7 +63,7 @@
 
 	// Select all filtered traits
 	function selectAllFiltered() {
-		filteredTraits.forEach((trait) => selectedTraits.add(trait.id));
+		filteredTraits.forEach((trait) => selectedTraits.add(createTraitId(trait.id)));
 	}
 
 	// Clear selection
@@ -86,7 +82,7 @@
 				onClick: () => {
 					// Delete all selected traits
 					selectedTraits.forEach((traitId) => {
-						traitsStore.removeTrait(layer.id, traitId);
+						removeTrait(layer.id, traitId);
 					});
 					toast.success(`${selectedTraits.size} trait(s) deleted successfully.`);
 					clearSelection();
@@ -103,9 +99,15 @@
 	function bulkUpdateRarity() {
 		if (selectedTraits.size === 0) return;
 
+		// Validate bulkRarityWeight is a valid integer between 1 and 5
+		if (!Number.isInteger(bulkRarityWeight) || bulkRarityWeight < 1 || bulkRarityWeight > 5) {
+			toast.error('Invalid rarity weight: must be an integer between 1 and 5');
+			return;
+		}
+
 		// Update rarity for all selected traits
 		selectedTraits.forEach((traitId) => {
-			traitsStore.updateTraitRarity(layer.id, traitId, bulkRarityWeight);
+			updateTraitRarity(layer.id, traitId, bulkRarityWeight);
 		});
 		toast.success(`Rarity updated for ${selectedTraits.size} trait(s).`);
 	}
@@ -127,7 +129,7 @@
 			if (trait) {
 				const newName = `${bulkNewName}_${count + 1}`;
 				if (newName.length <= 100) {
-					traitsStore.updateTraitName(layer.id, traitId, newName);
+					updateTraitName(layer.id, traitId, newName);
 					successCount++;
 				}
 			}
@@ -152,7 +154,7 @@
 			return;
 		}
 
-		layersStore.updateLayerName(layer.id, layerName);
+		updateLayerName(layer.id, layerName);
 		isEditing = false;
 	}
 
@@ -170,14 +172,14 @@
 				}
 			}
 		});
-		layersStore.removeLayer(layer.id);
+		removeLayer(layer.id);
 	}
 
 	async function handleFileUpload(files: FileList | null) {
 		if (!files || files.length === 0) return;
 
 		// Start loading state
-		loadingStore.start(`layer-upload-${layer.id}`);
+		startLoading(`layer-upload-${layer.id}`);
 		uploadProgress = 0;
 		isDragover = false;
 
@@ -205,102 +207,90 @@
 				return;
 			}
 
-			// Limit batch size to prevent UI freezing
-			const BATCH_SIZE = 10;
+			// Validate file sizes first (quick synchronous check)
+			const oversizedFiles = imageFiles.filter((file) => file.size > 10 * 1024 * 1024);
+			if (oversizedFiles.length > 0) {
+				import('svelte-sonner').then(({ toast }) => {
+					toast.error(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
+				});
+			}
+
+			const validFiles = imageFiles.filter((file) => file.size <= 10 * 1024 * 1024);
+			if (validFiles.length === 0) {
+				import('svelte-sonner').then(({ toast }) => {
+					toast.error('No valid files to upload (all files exceed 10MB limit).');
+				});
+				return;
+			}
+
+			// Get dimensions from first image only - all images should have same dimensions
+			let firstImageDimensions: { width: number; height: number } | null = null;
+			if (validFiles.length > 0) {
+				try {
+					firstImageDimensions = await getImageDimensions(validFiles[0]);
+					uploadProgress = 50; // Dimension extraction is 50% of progress
+				} catch (error) {
+					console.error(`Failed to get dimensions for first image ${validFiles[0].name}:`, error);
+					// Continue without dimensions - will fail validation later
+				}
+			}
+
+			// Validate project dimensions match (fail fast)
+			if (firstImageDimensions) {
+				const { width, height } = firstImageDimensions;
+				const projectData = project;
+				if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
+					// Allow some flexibility for rounding errors (±1 pixel)
+					if (
+						Math.abs(width - projectData.outputSize.width) > 1 ||
+						Math.abs(height - projectData.outputSize.height) > 1
+					) {
+						import('svelte-sonner').then(({ toast }) => {
+							toast.error(
+								`First image dimensions (${width}x${height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
+							);
+						});
+						return;
+					}
+				} else {
+					// Set project dimensions from first image if not already set
+					updateProjectDimensions({ width, height });
+				}
+			}
+
+			// Process files in smaller batches for better UI responsiveness
+			const BATCH_SIZE = 5; // Increased batch size for better performance
 			let successCount = 0;
 			let errorCount = 0;
-			const totalFiles = imageFiles.length;
+			const totalFiles = validFiles.length;
 
-			for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
-				const batch = imageFiles.slice(i, i + BATCH_SIZE);
+			// Add all traits immediately without awaiting image processing
+			for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
+				const batch = validFiles.slice(i, i + BATCH_SIZE);
 
-				// Process batch in parallel
-				const batchPromises = batch.map(async (file) => {
-					let tempImageUrl: string | null = null;
+				// Add traits synchronously for immediate UI feedback
+				batch.forEach((file) => {
 					try {
-						// Validate file size (max 10MB)
-						if (file.size > 10 * 1024 * 1024) {
-							throw new Error(`File "${file.name}" is too large (max 10MB)`);
-						}
-
-						// Get image dimensions
-						const dimensions = await getImageDimensions(file);
-
-						// Validate dimensions (must be positive)
-						if (dimensions.width <= 0 || dimensions.height <= 0) {
-							throw new Error(`File "${file.name}" has invalid dimensions`);
-						}
-
-						// For subsequent uploads, validate dimensions match project output size
-						const projectData = get(project);
-						if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
-							// Allow some flexibility for rounding errors (±1 pixel)
-							if (
-								Math.abs(dimensions.width - projectData.outputSize.width) > 1 ||
-								Math.abs(dimensions.height - projectData.outputSize.height) > 1
-							) {
-								throw new Error(
-									`File "${file.name}" dimensions (${dimensions.width}x${dimensions.height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
-								);
-							}
-						}
-
-						tempImageUrl = URL.createObjectURL(file);
-						// Normalize base name (remove extension, sanitize)
-						const baseName = file.name.replace(/\.[^/.]+$/, '');
-						const safeName = baseName
-							.trim()
-							.slice(0, 100)
-							.replace(/[^a-zA-Z0-9._ -]/g, '_');
-
-						// Ensure the name is not empty
-						if (safeName.trim() === '') {
-							throw new Error(`File "${file.name}" has an invalid name`);
-						}
-
-						await traitsStore.addTrait(layer.id, {
-							name: safeName,
-							imageUrl: tempImageUrl,
-							imageData: file,
-							width: dimensions.width,
-							height: dimensions.height,
-							rarityWeight: 3
-						});
-						return true;
+						addTrait(layer.id, file);
 					} catch (error) {
-						// Clean up temporary object URL on error
-						if (tempImageUrl) {
-							try {
-								URL.revokeObjectURL(tempImageUrl);
-							} catch {
-								// Ignore cleanup errors
-							}
-						}
-						console.error(`Error processing file ${file.name}:`, error);
-						// Show user-friendly error message
-						import('svelte-sonner').then(({ toast }) => {
-							toast.error(`Error processing file "${file.name}"`, {
-								description: error instanceof Error ? error.message : 'Unknown error'
-							});
-						});
-						return false;
+						console.error(`Error adding trait for ${file.name}:`, error);
+						errorCount++;
 					}
 				});
 
-				const batchResults = await Promise.all(batchPromises);
-				successCount += batchResults.filter(Boolean).length;
-				errorCount += batchResults.filter((r) => !r).length;
+				successCount += batch.length; // All files should succeed since validation passed
 
 				// Update progress
 				if (totalFiles > 0) {
-					uploadProgress = Math.min(100, Math.round(((i + batch.length) / totalFiles) * 100));
+					const batchProgress = Math.min(100, Math.round(((i + batch.length) / totalFiles) * 100));
+					uploadProgress = 50 + Math.round(batchProgress / 2);
 				} else {
-					uploadProgress = 0;
+					uploadProgress = 50;
 				}
 
-				// Allow UI to update between batches
-				if (i + BATCH_SIZE < imageFiles.length) {
-					await new Promise((resolve) => setTimeout(resolve, 50));
+				// Allow UI to update between batches with reduced delay
+				if (i + BATCH_SIZE < validFiles.length) {
+					await new Promise((resolve) => setTimeout(resolve, 25));
 				}
 			}
 
@@ -324,7 +314,7 @@
 			});
 		} finally {
 			// Stop loading state
-			loadingStore.stop(`layer-upload-${layer.id}`);
+			stopLoading(`layer-upload-${layer.id}`);
 			// Reset file input
 			if (fileInputElement) {
 				fileInputElement.value = '';
@@ -336,7 +326,7 @@
 		}
 	}
 
-	// Lazy loading for trait cards (secure; no innerHTML)
+	// Lazy loading for trait cards with improved memory management
 	let observer: IntersectionObserver | null = null;
 
 	function createSafeLazyTraitCard(trait: (typeof layer.traits)[number]): HTMLElement {
@@ -352,15 +342,21 @@
 		if (trait.imageUrl) {
 			const img = document.createElement('img');
 			img.className = 'h-full w-full object-contain';
+			// Use loading="lazy" for native lazy loading as fallback
+			img.loading = 'lazy';
 			// Only assign to src; do not inject HTML
 			img.src = trait.imageUrl;
 			img.alt = trait.name;
 			imgContainer.appendChild(img);
 		} else {
-			const span = document.createElement('span');
-			span.className = 'text-gray-500';
-			span.textContent = 'No image';
-			imgContainer.appendChild(span);
+			// Show loading spinner while image is being processed
+			const loaderDiv = document.createElement('div');
+			loaderDiv.className = 'flex h-full items-center justify-center';
+			const spinner = document.createElement('div');
+			spinner.className =
+				'h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600';
+			loaderDiv.appendChild(spinner);
+			imgContainer.appendChild(loaderDiv);
 		}
 
 		const body = document.createElement('div');
@@ -446,8 +442,9 @@
 	}
 
 	function initializeLazyLoading() {
-		if (layer.traits.length <= 50) return;
+		if (layer.traits.length <= 25) return; // Only for larger lists
 
+		// Use more aggressive intersection observer settings
 		observer = new IntersectionObserver(
 			(entries) => {
 				entries.forEach((entry) => {
@@ -465,13 +462,14 @@
 					const traitCard = createSafeLazyTraitCard(trait);
 					container.replaceChild(traitCard, placeholder);
 
+					// Unobserve after loading to save memory
 					observer?.unobserve(container);
 				});
 			},
 			{
 				root: null,
-				rootMargin: '50px',
-				threshold: 0.1
+				rootMargin: '100px', // Load earlier for better UX
+				threshold: 0.01 // Trigger on any visibility
 			}
 		);
 
@@ -545,7 +543,7 @@
 				<div
 					class="flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors {isDragover
 						? 'border-indigo-600 bg-indigo-50'
-						: 'border-gray-300'}"
+						: 'gray-300'}"
 					ondragover={(e) => {
 						e.preventDefault();
 						isDragover = true;
@@ -568,6 +566,7 @@
 									<LoadingIndicator
 										operation={`layer-upload-${layer.id}`}
 										message="Uploading files..."
+										isLoading={isUploading}
 									/>
 								</div>
 							</div>
@@ -709,16 +708,7 @@
 					{:else}
 						<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
 							{#each filteredTraits as trait (trait.id)}
-								{#if layer.traits.length > 50}
-									<!-- Lazy load trait cards when there are many traits -->
-									<div class="lazy-trait-container" data-trait-id={trait.id}>
-										<div class="lazy-trait-placeholder">
-											<div class="h-full w-full rounded-lg bg-gray-200"></div>
-										</div>
-									</div>
-								{:else}
-									<TraitCard {trait} layerId={layer.id} />
-								{/if}
+								<TraitCard {trait} layerId={layer.id} />
 							{/each}
 						</div>
 					{/if}

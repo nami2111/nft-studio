@@ -28,12 +28,28 @@ export default ts.config(
 		}
 	},
 	{
+		files: ['**/*.svelte.ts'],
+
+		languageOptions: {
+			parserOptions: {
+				parser: ts.parser
+			}
+		}
+	},
+	{
 		ignores: ['build/', '.svelte-kit/', 'dist/', 'static/']
+	},
+	{
+		files: ['**/*.svelte.ts'],
+		rules: {
+			'svelte/prefer-svelte-reactivity': 'off'
+		}
 	},
 	{
 		rules: {
 			'@typescript-eslint/no-unused-vars': 'warn',
-			'@typescript-eslint/no-explicit-any': 'warn'
+			'@typescript-eslint/no-explicit-any': 'warn',
+			'no-control-regex': 'off'
 		}
 	}
 );

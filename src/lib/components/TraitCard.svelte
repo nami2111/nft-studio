@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import type { Trait } from '$lib/types/trait';
+	import type { Trait } from '$lib/types/layer';
 	import RaritySlider from '$lib/components/RaritySlider.svelte';
-	import { traitsStore } from '$lib/stores';
+	import { removeTrait, updateTraitName } from '$lib/stores';
+	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { Edit, Trash2, Check, X } from 'lucide-svelte';
+	import { onMount, onDestroy } from 'svelte';
 
 	interface Props {
 		trait: Trait;
@@ -13,16 +15,20 @@
 	}
 
 	const { trait, layerId }: Props = $props();
+	const layerIdTyped = createLayerId(layerId);
+	const traitIdTyped = createTraitId(trait.id);
 
 	let traitName = $derived(trait.name);
 	let isEditing = $state(false);
+	let isVisible = $state(false);
+	let observer: IntersectionObserver | null = $state(null);
 
 	function handleRemoveTrait() {
 		toast.warning(`Are you sure you want to delete "${trait.name}"?`, {
 			action: {
 				label: 'Delete',
 				onClick: () => {
-					traitsStore.removeTrait(layerId, trait.id);
+					removeTrait(layerIdTyped, traitIdTyped);
 					toast.success(`Trait "${trait.name}" has been deleted.`);
 				}
 			},
@@ -46,7 +52,7 @@
 			return;
 		}
 
-		traitsStore.updateTraitName(layerId, trait.id, traitName);
+		updateTraitName(layerIdTyped, traitIdTyped, traitName);
 		toast.success('Trait name updated.');
 		isEditing = false;
 	}
@@ -55,12 +61,61 @@
 		traitName = trait.name;
 		isEditing = false;
 	}
+
+	let imageContainer: HTMLElement;
+
+	onMount(() => {
+		if (!imageContainer) return;
+
+		// Set up Intersection Observer for lazy loading
+		observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (entry.isIntersecting) {
+						isVisible = true;
+						// Disconnect observer once image is loaded
+						if (observer) {
+							observer.disconnect();
+							observer = null;
+						}
+					}
+				});
+			},
+			{
+				rootMargin: '50px', // Start loading 50px before entering viewport
+				threshold: 0.1
+			}
+		);
+
+		observer.observe(imageContainer);
+	});
+
+	onDestroy(() => {
+		if (observer) {
+			observer.disconnect();
+			observer = null;
+		}
+	});
 </script>
 
 <Card class="overflow-hidden">
-	<div class="flex aspect-square items-center justify-center bg-gray-100">
-		{#if trait.imageUrl}
-			<img src={trait.imageUrl} alt={trait.name} class="h-full w-full object-contain" />
+	<div
+		class="flex aspect-square items-center justify-center bg-gray-100"
+		bind:this={imageContainer}
+	>
+		{#if isVisible && trait.imageUrl}
+			<img
+				src={trait.imageUrl}
+				alt={trait.name}
+				class="h-full w-full object-contain"
+				loading="lazy"
+			/>
+		{:else if !trait.imageUrl}
+			<div class="flex h-full items-center justify-center">
+				<div
+					class="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"
+				></div>
+			</div>
 		{:else}
 			<span class="text-gray-500">No image</span>
 		{/if}

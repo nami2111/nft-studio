@@ -77,21 +77,24 @@ const LOCAL_STORE = new LocalStorageStore<Project>(PROJECT_STORAGE_KEY); // migr
 
 - Separate script, markup, and style sections with blank lines
 - Use TypeScript in script tags (`<script lang="ts">`)
-- Place component imports at the top of the script section
-- Group related imports together
+- Place imports at the top of the script section in this order: External libraries, Svelte imports, Project imports ($lib aliases), with blank lines between groups
+- Use `import type` for types
 - Use reactive statements (`$:`) for computed values
-- Use Svelte 5 runes (`$state`, `$derived`, `$effect`) when appropriate
+- Prefer Svelte 5 runes (`$state` for mutable state, `$derived` for computed values, `$effect` for side effects) for better reactivity
 - Keep markup clean and semantic
 - Use proper accessibility attributes (aria-\*, role, etc.)
+- Props: Use `{prop}` shorthand; type via interfaces
 
-Example structure:
+Example structure with runes:
 
 ```svelte
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { ComponentProps } from 'svelte';
 	import Component from '$lib/components/Component.svelte';
 
 	let count = $state(0);
+	let doubled = $derived(count * 2);
 
 	$effect(() => {
 		console.log('Count changed:', count);
@@ -100,6 +103,7 @@ Example structure:
 
 <div class="container">
 	<Component {count} />
+	<p>Doubled: {doubled}</p>
 </div>
 
 <style>

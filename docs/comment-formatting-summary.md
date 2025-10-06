@@ -7,14 +7,14 @@ We've successfully improved the consistency of inline comments and formatting in
 ## Changes Made
 
 1. **Enhanced Coding Standards Documentation**
-   - Updated `docs/coding-standards.md` with comprehensive guidelines for:
-     - Block comments (JSDoc style) with examples
+   - Updated `docs/coding-standards.md` with comprehensive guidelines aligned with AGENTS.md for:
+     - Block comments (JSDoc style) with examples; no comments unless requested
      - Inline comments with best practices
      - Trailing comments usage
-     - General formatting standards
-     - Naming conventions
-     - Error handling patterns
-     - Testing guidelines
+     - General formatting standards (Prettier config)
+     - Naming conventions (camelCase, PascalCase)
+     - Error handling patterns using utils/error-handler.ts
+     - Testing guidelines with Vitest
 
 2. **Maintained Comment Standardization Script**
    - Kept `scripts/standardize-comments.js` to automatically:

@@ -1,9 +1,42 @@
 <script lang="ts">
+	/**
+	 * Dialog content component with standardized props and accessibility features.
+	 *
+	 * @module DialogContent
+	 * @example
+	 * ```svelte
+	 * <DialogContent>
+	 *   <DialogHeader>
+	 *     <DialogTitle>Dialog Title</DialogTitle>
+	 *     <DialogDescription>Dialog Description</DialogDescription>
+	 *   </DialogHeader>
+	 *   <div>Dialog Content</div>
+	 * </DialogContent>
+	 * ```
+	 */
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import XIcon from '@lucide/svelte/icons/x';
 	import type { Snippet } from 'svelte';
 	import * as Dialog from './index.js';
-	import { cn, type WithoutChildrenOrChild } from '$lib/utils';
+	import { cn } from '$lib/utils';
+	import type { HTMLAttributes } from 'svelte/elements';
+
+	interface Props extends HTMLAttributes<HTMLDivElement> {
+		/** Portal props */
+		portalProps?: DialogPrimitive.PortalProps;
+		/** Dialog content */
+		children: Snippet;
+		/** Whether to show close button */
+		showCloseButton?: boolean;
+		/** Accessibility label for the dialog */
+		'aria-label'?: string;
+		/** Accessibility description for the dialog */
+		'aria-describedby'?: string;
+		/** Whether the dialog is modal */
+		modal?: boolean;
+		/** Additional CSS classes */
+		class?: string;
+	}
 
 	let {
 		ref = $bindable(null),
@@ -11,12 +44,20 @@
 		portalProps,
 		children,
 		showCloseButton = true,
+		'aria-label': ariaLabel,
+		'aria-describedby': ariaDescribedBy,
+		modal = true,
 		...restProps
-	}: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
-		portalProps?: DialogPrimitive.PortalProps;
-		children: Snippet;
-		showCloseButton?: boolean;
-	} = $props();
+	}: Props & { ref?: HTMLElement | null } = $props();
+
+	// Filter out null values from restProps to avoid type issues with bits-ui
+	let filteredRestProps = $derived({
+		...restProps,
+		id: restProps.id ? String(restProps.id) : undefined
+	});
+
+	// Generate aria attributes for accessibility
+	let ariaModal = $derived(modal ? true : undefined);
 </script>
 
 <Dialog.Portal {...portalProps}>
@@ -28,7 +69,11 @@
 			'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
 			className
 		)}
-		{...restProps}
+		aria-label={ariaLabel}
+		aria-describedby={ariaDescribedBy}
+		aria-modal={ariaModal ? 'true' : undefined}
+		role="dialog"
+		{...filteredRestProps}
 	>
 		{@render children?.()}
 		{#if showCloseButton}

@@ -1,13 +1,30 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from '$lib/utils.js';
+	/**
+	 * Card header component with standardized props.
+	 *
+	 * @module CardHeader
+	 * @example
+	 * ```svelte
+	 * <CardHeader>
+	 *   <CardTitle>Card Title</CardTitle>
+	 *   <CardDescription>Card Description</CardDescription>
+	 * </CardHeader>
+	 * ```
+	 */
+	import { cn } from '$lib/utils.js';
 	import type { HTMLAttributes } from 'svelte/elements';
+
+	interface Props extends HTMLAttributes<HTMLDivElement> {
+		/** Additional CSS classes */
+		class?: string;
+	}
 
 	let {
 		ref = $bindable(null),
 		class: className,
 		children,
 		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+	}: Props & { ref?: HTMLElement | null; children?: unknown } = $props();
 </script>
 
 <div

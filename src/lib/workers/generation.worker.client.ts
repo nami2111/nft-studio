@@ -1,6 +1,13 @@
 // src/lib/workers/generation.worker.client.ts
 
-import type { TransferrableLayer } from '../domain/project.domain';
+import type {
+	TransferrableLayer,
+	CompleteMessage,
+	ErrorMessage,
+	CancelledMessage,
+	ProgressMessage,
+	PreviewMessage
+} from '$lib/types/worker-messages';
 import type { GenerationWorkerMessage } from './generation.worker.loader';
 import {
 	postMessageToPool,
@@ -9,11 +16,14 @@ import {
 	setMessageCallback
 } from './worker.pool';
 
-// Initialize worker pool on first import
-initializeWorkerPool();
+// Worker pool will be initialized on demand
 
 // Callback for handling messages from workers
-let messageHandler: ((data: unknown) => void) | null = null;
+let messageHandler:
+	| ((
+			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	  ) => void)
+	| null = null;
 
 // Set up message callback
 setMessageCallback((data) => {
@@ -28,8 +38,13 @@ export function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
-	onMessage?: (data: unknown) => void
+	onMessage?: (
+		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	) => void
 ): void {
+	// Initialize worker pool on demand
+	initializeWorkerPool();
+
 	// Set message handler for this generation session
 	messageHandler = onMessage || null;
 
@@ -42,6 +57,8 @@ export function startGeneration(
 			projectName,
 			projectDescription
 		}
+		// Don't include callback in the message - it will be handled separately
+		// onMessage callback is handled by the global message handler
 	};
 
 	// Post message to worker pool instead of single worker

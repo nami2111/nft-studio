@@ -43,10 +43,17 @@ nft-studio/
 ├── scripts/           # Utility scripts
 ├── src/               # Source code
 │   ├── lib/           # Reusable components and utilities
+│   │   ├── components/ # UI components (layer, preview, ui)
+│   │   ├── domain/    # Business logic and models
+│   │   ├── stores/    # Svelte stores with runes
+│   │   ├── utils/     # Utility functions
+│   │   ├── workers/   # Web workers
+│   │   └── types/     # TypeScript definitions
 │   ├── routes/        # SvelteKit page routes
+│   ├── hooks/         # SvelteKit hooks
 │   └── app.css        # Global styles
 ├── static/            # Static assets
-├── tests/             # Test files
+├── satellite/         # Juno satellite configuration
 ├── package.json       # Project configuration
 └── README.md          # Project overview
 ```
@@ -150,10 +157,14 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 | `pnpm dev`                  | Start development server         |
 | `pnpm build`                | Build for production             |
 | `pnpm check`                | Run TypeScript and Svelte checks |
+| `pnpm check:watch`          | Watch mode for type checking     |
 | `pnpm lint`                 | Check code style                 |
 | `pnpm format`               | Format code                      |
 | `pnpm test`                 | Run tests                        |
+| `pnpm test:watch`           | Run tests in watch mode          |
+| `pnpm test:coverage`        | Run tests with coverage          |
 | `pnpm standardize-comments` | Standardize comment formatting   |
+| `pnpm verify-lockfile`      | Verify package lock integrity    |
 
 ## Getting Help
 
@@ -189,8 +200,43 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 ## Resources
 
 - [SvelteKit Documentation](https://kit.svelte.dev/docs)
+- [Svelte 5 Documentation](https://svelte.dev/docs)
 - [TypeScript Documentation](https://www.typescriptlang.org/docs/)
-- [Juno Documentation](https://github.com/junobuild/juno)
+- [Juno Documentation](https://juno.build/docs)
+- [ICP Blockchain Documentation](https://internetcomputer.org/docs)
+- [Vitest Documentation](https://vitest.dev/docs)
 - [Project TODO List](../TODO.md)
 - [Architecture Documentation](./architecture-diagrams.md)
 - [Coding Standards](./coding-standards.md)
+- [AGENTS.md](../AGENTS.md) - Agent development guidelines
+
+## UI Flow Screenshots
+
+> **Note**: Screenshots will be added as the UI evolves. This section documents the expected user interface flow.
+
+### Main Application Interface
+
+- **Project Management**: Create, save, and load NFT projects
+- **Layer Management**: Add, remove, and reorder layers for your NFT collection
+- **Trait Management**: Upload and configure traits with rarity settings
+- **Preview Panel**: Real-time preview of generated NFTs
+- **Generation Controls**: Configure and start batch NFT generation
+
+### Key Screens
+
+1. **Welcome Screen** - Project creation and loading
+2. **Layer Editor** - Layer organization and configuration
+3. **Trait Upload** - Image upload and rarity configuration
+4. **Generation Progress** - Real-time progress monitoring
+5. **Export Options** - ZIP export and project packaging
+
+### Navigation Flow
+
+1. Start with project creation or loading
+2. Configure layers and upload traits
+3. Set output dimensions and project metadata
+4. Preview individual NFTs
+5. Generate complete collection
+6. Export as ZIP package
+
+> **TODO**: Add actual screenshots once UI is stable and production-ready.

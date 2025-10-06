@@ -6,57 +6,57 @@ NFT Studio follows a layered architecture pattern with clear separation of conce
 
 ### UI Layer (SvelteKit)
 
-- **Components**: Reusable UI components built with Svelte 5
+- **Components**: Reusable UI components built with Svelte 5 using runes for reactivity ($state, $derived, $effect)
   - Layer management (LayerManager, LayerItem)
   - Trait management (TraitCard, VirtualTraitList)
   - Project management (ProjectManagement, ProjectSettings)
   - Generation workflow (GenerationModal, Preview)
   - UI utilities (LoadingIndicator, ErrorBoundary)
-- **Stores**: Reactive state management using Svelte stores
-  - Project state (project.store)
-  - Layer state (layers.store)
-  - Trait state (traits.store)
-  - Application state (loading.store)
+- **Stores**: Reactive state management using Svelte 5 runes stores in src/lib/stores/
+  - Project state (project.store.svelte.ts)
+  - Resource management (resource-manager.ts)
+  - File operations (file-operations.ts)
+  - Loading states (loading-state.ts, loading-state.svelte.ts)
 
 ### Domain Layer
 
 - **Models**: Core business logic and data structures
-  - Project domain (Project model and operations)
-  - Layer and Trait models
+  - Project domain (project.domain.ts, project.service.ts)
+  - Layer and Trait models (models.ts)
+  - Validation logic (validation.ts)
 - **Services**: Business logic implementations
-  - Generation service for NFT creation
-  - Validation service for data integrity
-  - Error handling service
+  - Worker service for background processing
+  - Error handling and logging utilities
 
 ### Worker Layer
 
 - **Generation Workers**: Web Workers for heavy computation
-  - Image processing and compositing
-  - Rarity distribution algorithms
-  - Batch generation operations
-- **Worker Pool**: Management of worker instances
-  - Dynamic scaling based on system capabilities
-  - Task queuing and load distribution
+  - Image processing and compositing (generation.worker.ts)
+  - Image loading worker (image-loader.worker.ts)
+  - Worker pool management (worker.pool.ts)
+  - Client-side worker communication (generation.worker.client.ts)
 
 ### Persistence Layer
 
 - **Storage Adapters**: Multiple storage backends
-  - IndexedDB for structured data persistence
-  - LocalStorage for simple key-value storage
+  - IndexedDB for structured data persistence (indexeddb.ts)
+  - Storage abstraction layer (storage.ts)
 - **Import/Export**: Project serialization
-  - ZIP-based project packaging
+  - ZIP-based project packaging (JSZip integration)
   - JSON metadata handling
-  - Image asset management
+  - Image asset management with URL cleanup
 
 ### Infrastructure Layer
 
 - **Utilities**: Common helper functions
-  - Error handling and logging
-  - Validation and sanitization
-  - Retry mechanisms
+  - Error handling and logging (error-handler.ts, error-logger.ts)
+  - Validation and sanitization (validation.ts)
+  - Retry mechanisms (retry.ts)
+  - Typed errors (typed-errors.ts)
 - **Configuration**: Environment and build settings
-  - Juno integration for decentralized storage
-  - Vite build configuration
+  - ICP blockchain integration with Juno hosting (juno.config.ts)
+  - Vite build configuration with PWA support
+  - Tailwind CSS 4 configuration
 
 ## Data Flow
 
@@ -69,6 +69,8 @@ NFT Studio follows a layered architecture pattern with clear separation of conce
 
 ## Notes
 
-- Diagrams are placeholders; replace with real diagrams as you evolve.
-- Architecture may be updated to use Svelte 5 runes for better reactivity
-- Consider implementing proper error boundaries for worker failures
+- Architecture now fully implements Svelte 5 runes for reactive state management
+- Worker pool management provides efficient background processing
+- Error boundaries implemented with comprehensive error handling utilities
+- Modular component structure with clear separation of concerns
+- Performance optimizations include LRU caching and memory management

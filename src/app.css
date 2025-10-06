@@ -21,7 +21,37 @@
 	font-display: swap;
 }
 
+/* Design System Tokens */
 :root {
+	/* Spacing Scale */
+	--space-xs: 0.25rem;
+	--space-sm: 0.5rem;
+	--space-md: 1rem;
+	--space-lg: 1.5rem;
+	--space-xl: 2rem;
+	--space-2xl: 3rem;
+
+	/* Typography Scale */
+	--font-sans: 'Inter', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', monospace;
+	--font-size-xs: 0.75rem;
+	--font-size-sm: 0.875rem;
+	--font-size-base: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.25rem;
+	--font-size-2xl: 1.5rem;
+	--font-size-3xl: 1.875rem;
+	--font-size-4xl: 2.25rem;
+	--font-size-5xl: 3rem;
+	--font-weight-light: 300;
+	--font-weight-normal: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
+	--line-height-tight: 1.2;
+	--line-height-normal: 1.5;
+	--line-height-loose: 1.6;
+
 	--radius: 0.625rem;
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.129 0.042 264.695);
@@ -57,6 +87,34 @@
 }
 
 .dark {
+	/* Spacing and Typography remain the same in dark mode */
+	--space-xs: 0.25rem;
+	--space-sm: 0.5rem;
+	--space-md: 1rem;
+	--space-lg: 1.5rem;
+	--space-xl: 2rem;
+	--space-2xl: 3rem;
+
+	--font-sans: 'Inter', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', monospace;
+	--font-size-xs: 0.75rem;
+	--font-size-sm: 0.875rem;
+	--font-size-base: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.25rem;
+	--font-size-2xl: 1.5rem;
+	--font-size-3xl: 1.875rem;
+	--font-size-4xl: 2.25rem;
+	--font-size-5xl: 3rem;
+	--font-weight-light: 300;
+	--font-weight-normal: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
+	--line-height-tight: 1.2;
+	--line-height-normal: 1.5;
+	--line-height-loose: 1.6;
+
 	--background: oklch(0.129 0.042 264.695);
 	--foreground: oklch(0.984 0.003 247.858);
 	--card: oklch(0.208 0.042 265.755);
@@ -131,8 +189,124 @@
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
+		font-family: var(--font-sans);
+		font-size: var(--font-size-base);
+		line-height: var(--line-height-normal);
+		/* Performance optimization: Use transform for animations when possible */
+		will-change: scroll-position;
 	}
 	body {
 		@apply bg-background text-foreground;
+		padding: var(--space-md);
+		margin: 0;
+		transition:
+			background-color,
+			color 0.3s ease;
+		/* Performance optimization: Enable hardware acceleration for smooth animations */
+		transform: translateZ(0);
+	}
+	h1 {
+		font-size: var(--font-size-4xl);
+		font-weight: var(--font-weight-bold);
+		line-height: var(--line-height-tight);
+	}
+	h2 {
+		font-size: var(--font-size-3xl);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--line-height-normal);
+	}
+	h3 {
+		font-size: var(--font-size-2xl);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--line-height-normal);
+	}
+	p {
+		font-size: var(--font-size-base);
+		line-height: var(--line-height-loose);
+		margin-bottom: var(--space-sm);
+	}
+	/* Utility classes for spacing */
+	.p-xs {
+		padding: var(--space-xs);
+	}
+	.p-sm {
+		padding: var(--space-sm);
+	}
+	.p-md {
+		padding: var(--space-md);
+	}
+	.p-lg {
+		padding: var(--space-lg);
+	}
+	.p-xl {
+		padding: var(--space-xl);
+	}
+	.p-2xl {
+		padding: var(--space-2xl);
+	}
+	.m-xs {
+		margin: var(--space-xs);
+	}
+	.m-sm {
+		margin: var(--space-sm);
+	}
+	.m-md {
+		margin: var(--space-md);
+	}
+	.m-lg {
+		margin: var(--space-lg);
+	}
+	.m-xl {
+		margin: var(--space-xl);
+	}
+	.m-2xl {
+		margin: var(--space-2xl);
+	}
+
+	/* Focus visible styles for better accessibility */
+	*:focus-visible {
+		outline: 2px solid hsl(var(--ring));
+		outline-offset: 2px;
+	}
+
+	/* Scrollbar styles */
+	::-webkit-scrollbar {
+		width: 8px;
+		height: 8px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: hsl(var(--background));
+	}
+
+	::-webkit-scrollbar-thumb {
+		background: hsl(var(--border));
+		border-radius: 4px;
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: hsl(var(--accent));
+	}
+
+	/* Performance optimization: Contain layout, style, and paint for complex components */
+	.isolate {
+		isolation: isolate;
+	}
+
+	/* Performance optimization: Optimize text rendering */
+	.antialiased {
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	/* Performance optimization: Reduce motion for users who prefer it */
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+		}
 	}
 }

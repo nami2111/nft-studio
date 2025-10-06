@@ -1,4 +1,5 @@
-export * as projectStore from './project';
-export * as layersStore from './layers';
-export * as traitsStore from './traits';
-export * from './store-core';
+// Export the project store
+export * from './project.store.svelte';
+
+// Export loading states
+export { loadingStates, detailedLoadingStates } from './loading-state.svelte';

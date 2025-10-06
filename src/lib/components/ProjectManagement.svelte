@@ -2,9 +2,19 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { toast } from 'svelte-sonner';
-	import { loadProjectFromZip, saveProjectToZip, project } from '$lib/stores/project/project.store';
-	import { get } from 'svelte/store';
-	import { loadingStore } from '$lib/stores/loading.store';
+	import {
+		loadProjectFromZip,
+		saveProjectToZip,
+		project,
+		projectNeedsZipLoad,
+		markProjectAsLoaded,
+		getLoadingState,
+		getDetailedLoadingState,
+		startDetailedLoading,
+		stopDetailedLoading,
+		startLoading,
+		stopLoading
+	} from '$lib/stores';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import {
@@ -20,26 +30,15 @@
 	let saveDialogOpen = $state(false);
 	let loadFileInputElement: HTMLInputElement | null = null;
 	let saveFileInputElement: HTMLInputElement | null = null;
-	let isLoading = $derived(loadingStore.isLoading('project-load'));
-	let isSaving = $derived(loadingStore.isLoading('project-save'));
+	let isProjectLoading = $derived(getLoadingState('project-load'));
+	let isProjectSaving = $derived(getLoadingState('project-save'));
+	let projectLoadProgress = $derived(getDetailedLoadingState('project-load'));
+	let projectSaveProgress = $derived(getDetailedLoadingState('project-save'));
 
-	// Check if project needs to be loaded from ZIP (indicated by the special flag)
-	function projectNeedsZipLoad(): boolean {
-		const currentProject = get(project);
-		return !!currentProject._needsProperLoad;
-	}
-
-	// Mark project as properly loaded (remove the special flag)
-	function markProjectAsLoaded(): void {
-		// This function is not available in the project store
-		// We'll need to implement this functionality differently
-		// For now, we'll just update the project to remove the _needsProperLoad flag
-		project.update((currentProject) => {
-			const updatedProject = { ...currentProject };
-			delete updatedProject._needsProperLoad;
-			return updatedProject;
-		});
-	}
+	// Track unsaved changes
+	let hasUnsavedChanges = $derived(
+		project.layers.length > 0 || project.name.trim() !== '' || project.description.trim() !== ''
+	);
 
 	function triggerFileInput() {
 		if (loadFileInputElement) {
@@ -47,21 +46,55 @@
 		}
 	}
 
+	// async function confirmAndSave() {
+	// 	if (!hasUnsavedChanges) return true;
+	// 	const confirmed = confirm('You have unsaved changes. Do you want to save before proceeding?');
+	// 	if (confirmed) {
+	// 		try {
+	// 			await saveProjectToZip();
+	// 			toast.success('Project saved successfully!');
+	// 		} catch (error) {
+	// 			toast.error(error instanceof Error ? error.message : 'Failed to save project');
+	// 			return false;
+	// 		}
+	// 	}
+	// 	return true;
+	// }
+
 	async function handleSaveProject() {
-		loadingStore.start('project-save');
 		try {
-			await saveProjectToZip();
+			startDetailedLoading('project-save', 100);
+			const zipData = await saveProjectToZip();
+
+			// Trigger download
+			const blob = new Blob([zipData], { type: 'application/zip' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `${project.name || 'nft-project'}.zip`;
+			document.body.appendChild(a);
+			try {
+				a.click();
+				console.log('Project download initiated for:', a.download);
+			} catch (error) {
+				console.error('Download failed:', error);
+				throw error;
+			} finally {
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}
+
 			toast.success('Project saved successfully!');
 			saveDialogOpen = false;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to save project';
 			toast.error(message);
 		} finally {
-			loadingStore.stop('project-save');
 			// Reset file input
 			if (saveFileInputElement) {
 				saveFileInputElement.value = '';
 			}
+			stopDetailedLoading('project-save');
 		}
 	}
 
@@ -77,57 +110,56 @@
 			return;
 		}
 
-		loadingStore.start('project-load');
+		// Warn about unsaved changes before loading
+		if (hasUnsavedChanges) {
+			const proceed = confirm(
+				'Loading a new project will discard current unsaved changes. Proceed?'
+			);
+			if (!proceed) return;
+		}
+
 		try {
-			const success = await loadProjectFromZip(file);
-			if (success) {
-				// Mark project as properly loaded
-				markProjectAsLoaded();
-				toast.success('Project loaded successfully!');
-				loadDialogOpen = false;
-				// Refresh the page to start fresh
-				setTimeout(() => {
-					window.location.reload();
-				}, 1000);
-			} else {
-				toast.error('Failed to load project. Please check the file format.');
-			}
+			startLoading('project-load');
+			startDetailedLoading('project-load', 100);
+			await loadProjectFromZip(file);
+			markProjectAsLoaded();
+			toast.success('Project loaded successfully!');
+			loadDialogOpen = false;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to load project';
 			toast.error(message);
 		} finally {
-			loadingStore.stop('project-load');
 			// Reset file input
 			if (loadFileInputElement) {
 				loadFileInputElement.value = '';
 			}
+			stopDetailedLoading('project-load');
+			stopLoading('project-load');
 		}
 	}
 </script>
 
-{#if projectNeedsZipLoad()}
-	<Card class="mb-4 border border-yellow-200 bg-yellow-50">
-		<CardContent class="p-4">
-			<div class="flex items-center">
-				<AlertTriangle class="mr-2 h-5 w-5 text-yellow-600" />
-				<p class="text-yellow-800">
-					Please load a project file to start generating, or create a new project and save it first.
-				</p>
-			</div>
-		</CardContent>
-	</Card>
-{/if}
+<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
+	{#if projectNeedsZipLoad()}
+		<Card class="mb-2 w-full border border-yellow-200 bg-yellow-50 p-2 text-xs sm:text-sm">
+			<CardContent class="flex items-center p-0">
+				<AlertTriangle class="mr-1.5 h-3 w-3 text-yellow-600 sm:mr-2 sm:h-4 sm:w-4" />
+				<p class="text-yellow-800">Don't forget to save your Project first before generate.</p>
+			</CardContent>
+		</Card>
+	{/if}
 
-<div class="flex space-x-3">
 	<!-- Load Project Dialog -->
 	<Dialog bind:open={loadDialogOpen}>
 		<DialogTrigger>
 			<Button
 				variant="outline"
-				class="border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+				size="sm"
+				class="w-full border-gray-300 bg-white font-medium text-gray-700 hover:bg-gray-50 sm:w-auto sm:px-4"
 			>
-				<Upload class="mr-2 h-4 w-4" />
-				Load Project
+				<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+				<span class="xs:inline hidden">Load Project</span>
+				<span class="xs:hidden">Load</span>
 			</Button>
 		</DialogTrigger>
 		<DialogContent>
@@ -137,8 +169,29 @@
 					Upload a previously saved project ZIP file to restore your configuration and images.
 				</DialogDescription>
 			</DialogHeader>
-			<div class="space-y-4">
-				<div class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+			<div class="space-y-3 sm:space-y-4">
+				<div
+					class="rounded-lg border-2 border-dashed border-gray-300 p-4 text-center transition-colors hover:border-blue-500 hover:border-gray-400 sm:p-6 {isProjectLoading
+						? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500'
+						: ''}"
+					role="button"
+					tabindex="0"
+					ondragover={(e) => {
+						e.preventDefault();
+						if (e.dataTransfer) {
+							e.dataTransfer.dropEffect = 'copy';
+						}
+					}}
+					ondragenter={(e) => e.preventDefault()}
+					ondragleave={(e) => e.preventDefault()}
+					ondrop={(e) => {
+						e.preventDefault();
+						if (e.dataTransfer) {
+							const files = e.dataTransfer.files;
+							handleLoadProject(files);
+						}
+					}}
+				>
 					<input
 						bind:this={loadFileInputElement}
 						type="file"
@@ -146,20 +199,33 @@
 						class="hidden"
 						onchange={(e) => handleLoadProject((e.target as HTMLInputElement).files)}
 					/>
-					<FolderOpen class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-					<p class="mb-4 text-sm text-gray-600">Select a .zip project file to upload</p>
+					<FolderOpen class="mx-auto mb-3 h-8 w-8 text-gray-400 sm:mb-4 sm:h-10 sm:w-10" />
+					<p class="mb-3 text-xs text-gray-600 sm:mb-4 sm:text-sm">
+						Drop a .zip project file here or select one to upload
+					</p>
 					<Button
 						onclick={triggerFileInput}
-						disabled={isLoading}
+						disabled={isProjectLoading}
 						class="bg-blue-600 text-white hover:bg-blue-700"
 					>
-						{#if isLoading}
+						{#if isProjectLoading}
 							<LoadingIndicator operation="project-load" message="Loading project..." />
 						{:else}
-							<Upload class="mr-2 h-4 w-4" />
-							Choose File
+							<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+							<span class="text-xs sm:text-sm">Choose File</span>
 						{/if}
 					</Button>
+					{#if projectLoadProgress?.progress !== undefined && projectLoadProgress.progress > 0}
+						<div class="mt-3 w-full rounded-full bg-gray-200 sm:mt-4">
+							<div
+								class="h-1.5 rounded-full bg-blue-600 sm:h-2"
+								style="width: {projectLoadProgress.progress}%"
+							></div>
+						</div>
+						{#if projectLoadProgress.message}
+							<p class="mt-1 text-xs text-gray-600 sm:mt-2">{projectLoadProgress.message}</p>
+						{/if}
+					{/if}
 				</div>
 				<p class="text-center text-xs text-gray-500">
 					Note: Loading a project will refresh the page and start fresh.
@@ -173,10 +239,12 @@
 		<DialogTrigger>
 			<Button
 				variant="outline"
-				class="border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+				size="sm"
+				class="w-full border-gray-300 bg-white font-medium text-gray-700 hover:bg-gray-50 sm:w-auto sm:px-4"
 			>
-				<Download class="mr-2 h-4 w-4" />
-				Save Project
+				<Download class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+				<span class="xs:inline hidden">Save Project</span>
+				<span class="xs:hidden">Save</span>
 			</Button>
 		</DialogTrigger>
 		<DialogContent>
@@ -191,20 +259,33 @@
 				<Button
 					variant="outline"
 					onclick={() => (saveDialogOpen = false)}
-					class="border-gray-300 text-gray-700 hover:bg-gray-100">Cancel</Button
+					class="border-gray-300 text-gray-700 hover:bg-gray-100"
 				>
+					<span class="text-xs sm:text-sm">Cancel</span>
+				</Button>
 				<Button
 					onclick={handleSaveProject}
-					disabled={isSaving}
+					disabled={isProjectSaving}
 					class="bg-blue-600 text-white hover:bg-blue-700"
 				>
-					{#if isSaving}
+					{#if isProjectSaving}
 						<LoadingIndicator operation="project-save" message="Saving project..." />
 					{:else}
-						<Save class="mr-2 h-4 w-4" />
-						Save Project
+						<Save class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+						<span class="text-xs sm:text-sm">Save Project</span>
 					{/if}
 				</Button>
+				{#if projectSaveProgress?.progress !== undefined && projectSaveProgress.progress > 0}
+					<div class="mt-2 w-full rounded-full bg-gray-200">
+						<div
+							class="h-1.5 rounded-full bg-blue-600 sm:h-2"
+							style="width: {projectSaveProgress.progress}%"
+						></div>
+					</div>
+					{#if projectSaveProgress.message}
+						<p class="mt-1 text-xs text-gray-600 sm:mt-2">{projectSaveProgress.message}</p>
+					{/if}
+				{/if}
 			</div>
 		</DialogContent>
 	</Dialog>

@@ -1,80 +1,17 @@
 // generation.worker.ts
 
-// Worker message interfaces
-interface TransferrableTrait {
-	id: string;
-	name: string;
-	imageData: ArrayBuffer;
-	rarityWeight: number;
-	// Add width/height for better memory management
-	width?: number;
-	height?: number;
-}
-
-interface TransferrableLayer {
-	id: string;
-	name: string;
-	order: number;
-	isOptional?: boolean;
-	traits: TransferrableTrait[];
-	// Add layer-level width/height for consistent sizing
-	width?: number;
-	height?: number;
-}
-
-interface StartMessage {
-	type: 'start';
-	payload: {
-		layers: TransferrableLayer[];
-		collectionSize: number;
-		outputSize: {
-			width: number;
-			height: number;
-		};
-		projectName: string;
-		projectDescription: string;
-	};
-}
-
-interface ProgressMessage {
-	type: 'progress';
-	payload: {
-		generatedCount: number;
-		totalCount: number;
-		statusText: string;
-		memoryUsage?: {
-			used: number;
-			available: number;
-			units: string;
-		};
-	};
-}
-
-interface CompleteMessage {
-	type: 'complete';
-	payload: {
-		images: { name: string; imageData: ArrayBuffer }[];
-		metadata: { name: string; data: object }[];
-		isChunk?: boolean; // Flag to indicate if this is a chunked response
-	};
-}
-
-interface ErrorMessage {
-	type: 'error';
-	payload: {
-		message: string;
-	};
-}
-
-interface CancelledMessage {
-	type: 'cancelled';
-	payload: {
-		generatedCount?: number;
-		totalCount?: number;
-	};
-}
-
-type IncomingMessage = StartMessage | { type: 'cancel' };
+import type {
+	TransferrableTrait,
+	TransferrableLayer,
+	StartMessage,
+	ProgressMessage,
+	CompleteMessage,
+	ErrorMessage,
+	CancelledMessage,
+	PreviewMessage,
+	IncomingMessage
+} from '$lib/types/worker-messages';
+import { createTaskId, type TaskId } from '$lib/types/ids';
 
 // Rarity algorithm
 function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
@@ -146,6 +83,13 @@ function cleanupObjectUrls() {
 	// Intentionally empty: we no longer create object URLs in the worker
 }
 
+// Cleanup function to free resources
+function cleanupResources() {
+	if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
+		(globalThis as { gc?: () => void }).gc?.();
+	}
+}
+
 // Detect device capabilities for optimal performance
 function getDeviceCapabilities() {
 	// Get available cores
@@ -186,6 +130,11 @@ function calculateOptimalChunkSize(
 		chunkSize = Math.floor(chunkSize * 0.5); // Reduce by half for mobile
 	}
 
+	// For large collections (>10k), use smaller chunks with Canvas optimization
+	if (collectionSize > 10000) {
+		chunkSize = Math.min(chunkSize, 100);
+	}
+
 	// Ensure reasonable bounds
 	chunkSize = Math.max(10, Math.min(chunkSize, 200));
 
@@ -197,13 +146,14 @@ function calculateOptimalChunkSize(
 	return chunkSize;
 }
 
-// Generate the collection with chunked processing and optimized memory usage
+// Generate the collection with enhanced streaming and optimized memory usage
 async function generateCollection(
 	layers: TransferrableLayer[],
 	collectionSize: number,
 	outputSize: { width: number; height: number },
 	projectName: string,
-	projectDescription: string
+	projectDescription: string,
+	taskId?: TaskId
 ) {
 	// Use a smaller initial array size to reduce memory footprint
 	const metadata: { name: string; data: object }[] = [];
@@ -212,14 +162,15 @@ async function generateCollection(
 	const deviceCapabilities = getDeviceCapabilities();
 	let CHUNK_SIZE = calculateOptimalChunkSize(deviceCapabilities, collectionSize);
 
-	// Send initial progress
+	// Send initial progress with streaming intent
 	const memoryUsage = getMemoryUsage();
 	const initialProgress: ProgressMessage = {
 		type: 'progress',
+		taskId,
 		payload: {
 			generatedCount: 0,
 			totalCount: collectionSize,
-			statusText: 'Starting generation...',
+			statusText: `Starting generation of ${collectionSize} NFTs...`,
 			memoryUsage: memoryUsage || undefined
 		}
 	};
@@ -234,6 +185,7 @@ async function generateCollection(
 			cleanupResources();
 			const cancelledMessage: CancelledMessage = {
 				type: 'cancelled',
+				taskId,
 				payload: {
 					generatedCount: 0,
 					totalCount: collectionSize
@@ -260,213 +212,95 @@ async function generateCollection(
 	const targetWidth = reusableCanvas.width;
 	const targetHeight = reusableCanvas.height;
 
-	// Generate each NFT in chunks
-	for (let chunkStart = 0; chunkStart < collectionSize && !isCancelled; chunkStart += CHUNK_SIZE) {
-		const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, collectionSize);
+	// For smaller collections, use streaming instead of chunking
+	const useStreaming = collectionSize <= 1000;
 
-		// Create a temporary array to hold only the current chunk's images
-		const chunkImages: { name: string; blob: Blob }[] = [];
+	// Generate each NFT with streaming or chunking based on collection size
+	if (useStreaming) {
+		// Streaming approach for smaller collections
+		for (let i = 0; i < collectionSize && !isCancelled; i++) {
+			await generateAndStreamItem(
+				i,
+				layers,
+				reusableCanvas,
+				reusableCtx,
+				targetWidth,
+				targetHeight,
+				projectName,
+				projectDescription,
+				collectionSize,
+				metadata,
+				undefined, // no chunkImages for streaming
+				taskId
+			);
+		}
+	} else {
+		// Chunked approach for larger collections
+		for (
+			let chunkStart = 0;
+			chunkStart < collectionSize && !isCancelled;
+			chunkStart += CHUNK_SIZE
+		) {
+			const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, collectionSize);
 
-		for (let i = chunkStart; i < chunkEnd && !isCancelled; i++) {
-			try {
-				// Clear the reusable canvas for this item
-				reusableCtx.clearRect(0, 0, targetWidth, targetHeight);
+			// Create a temporary array to hold only the current chunk's images
+			const chunkImages: { name: string; blob: Blob }[] = [];
 
-				// Selected traits for this NFT
-				const selectedTraits = [];
+			for (let i = chunkStart; i < chunkEnd && !isCancelled; i++) {
+				await generateAndStreamItem(
+					i,
+					layers,
+					reusableCanvas,
+					reusableCtx,
+					targetWidth,
+					targetHeight,
+					projectName,
+					projectDescription,
+					collectionSize,
+					metadata,
+					chunkImages,
+					taskId
+				);
 
-				// Iterate through the layers in their specified order
-				for (const layer of layers) {
-					// Validate layer has traits
-					if (!layer.traits || layer.traits.length === 0) {
-						continue;
-					}
-
-					// Select a trait based on the rarity algorithm
-					const selectedTrait = selectTrait(layer);
-
-					// If a trait is selected, draw it
-					if (selectedTrait) {
-						selectedTraits.push({
-							layerId: layer.id,
-							layerName: layer.name,
-							traitId: selectedTrait.id,
-							traitName: selectedTrait.name
-						});
-
-						// Create ImageBitmap from the trait's image data with resizing for memory efficiency
-						const imageBitmap = await createImageBitmapFromBuffer(
-							selectedTrait.imageData,
-							selectedTrait.name,
-							{ resizeWidth: targetWidth, resizeHeight: targetHeight }
-						);
-
-						// Draw the image onto the OffscreenCanvas
-						reusableCtx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
-
-						// Clean up the ImageBitmap immediately to free memory
-						imageBitmap.close();
-					}
-				}
-
-				// Convert the canvas to a Blob with optimized quality settings
-				const blob = await reusableCanvas.convertToBlob({
-					type: 'image/png',
-					quality: 0.9 // Slight compression to reduce memory usage
-				});
-
-				// Store the blob in the chunk array (not the main array)
-				chunkImages.push({
-					name: `${i + 1}.png`,
-					blob
-				});
-
-				// Create metadata
-				const attributes = [];
-				for (const trait of selectedTraits) {
-					attributes.push({
-						trait_type: trait.layerName,
-						value: trait.traitName
-					});
-				}
-
-				const metadataObj = {
-					name: `${projectName} #${i + 1}`,
-					description: projectDescription,
-					image: `${i + 1}.png`,
-					attributes: attributes
-				};
-
-				// Store the metadata (this is much smaller than image data)
-				metadata.push({
-					name: `${i + 1}.json`,
-					data: metadataObj
-				});
-
-				// Send progress update
-				if (i % 10 === 0 || i === collectionSize - 1 || i === chunkEnd - 1) {
-					// Cleanup resources periodically to free memory
-					cleanupObjectUrls();
-
-					// Get current memory usage
-					const currentMemoryUsage = getMemoryUsage();
-
-					const progressMessage: ProgressMessage = {
+				// Send progress update for each item in large chunks to show progress
+				if (!isCancelled && (i + 1) % 50 === 0) {
+					// Send progress update every 50 items
+					const currentProgress: ProgressMessage = {
 						type: 'progress',
+						taskId,
 						payload: {
 							generatedCount: i + 1,
 							totalCount: collectionSize,
-							statusText: `Generated ${i + 1} of ${collectionSize} items`,
-							memoryUsage: currentMemoryUsage || undefined
+							statusText: `Generated ${i + 1} of ${collectionSize} NFTs`,
+							memoryUsage: getMemoryUsage() || undefined
 						}
 					};
-					self.postMessage(progressMessage);
+					self.postMessage(currentProgress);
 				}
-			} catch (error) {
-				// Ensure we detach the cancel listener on error paths to avoid leaks across runs
-				try {
-					self.removeEventListener('message', cancelHandler);
-				} catch {
-					// We ignore errors when removing event listeners
-				}
+			}
 
-				const errorMessage: ErrorMessage = {
-					type: 'error',
+			// Process chunk images to ArrayBuffers and send immediately to free memory
+			if (chunkImages.length > 0 && !isCancelled) {
+				await sendChunkCompletion(chunkImages, metadata, chunkStart, taskId);
+			}
+
+			// Send progress update after each chunk
+			if (!isCancelled) {
+				const chunkProgress: ProgressMessage = {
+					type: 'progress',
+					taskId,
 					payload: {
-						message: `Error generating item ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`
+						generatedCount: chunkEnd,
+						totalCount: collectionSize,
+						statusText: `Generated ${chunkEnd} of ${collectionSize} NFTs`,
+						memoryUsage: getMemoryUsage() || undefined
 					}
 				};
-				self.postMessage(errorMessage);
-				throw error; // Stop generation on error
-			}
-		}
-
-		// Process chunk images to ArrayBuffers and send immediately to free memory
-		if (chunkImages.length > 0 && !isCancelled) {
-			// Convert only this chunk's Blobs to ArrayBuffers for transfer
-			const chunkImagesForTransfer = await Promise.all(
-				chunkImages.map(async (image) => ({
-					name: image.name,
-					imageData: await image.blob.arrayBuffer()
-				}))
-			);
-
-			// Prepare transferables for this chunk
-			const transferables: ArrayBuffer[] = [];
-			chunkImagesForTransfer.forEach((img) => {
-				if (img.imageData instanceof ArrayBuffer) {
-					transferables.push(img.imageData);
-				}
-			});
-
-			// Extract metadata for this chunk (indices that correspond to this chunk's images)
-			const chunkStartIndex = chunkStart;
-			const chunkMetadata = metadata.slice(chunkStartIndex, chunkStartIndex + chunkImages.length);
-
-			// Send chunk completion message with transferables to avoid copying
-			const chunkCompleteMessage: CompleteMessage = {
-				type: 'complete',
-				payload: {
-					images: chunkImagesForTransfer,
-					metadata: chunkMetadata
-				}
-			};
-
-			// Transfer the underlying ArrayBuffers
-			// @ts-expect-error - TS in worker env may not infer postMessage overload with transfer list
-			self.postMessage(chunkCompleteMessage, transferables);
-
-			// Force garbage collection between chunks if available to free memory immediately
-			if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
-				(globalThis as { gc?: () => void }).gc?.();
-			}
-		}
-
-		// Adaptive chunking based on memory usage
-		const memoryUsage = getMemoryUsage();
-		if (memoryUsage) {
-			const memoryUsageRatio = memoryUsage.used / memoryUsage.available;
-
-			// More granular chunk size adjustments
-			if (memoryUsageRatio > 0.9) {
-				// Critical memory pressure
-				CHUNK_SIZE = Math.max(5, Math.floor(CHUNK_SIZE * 0.3));
-			} else if (memoryUsageRatio > 0.8) {
-				// High memory pressure
-				CHUNK_SIZE = Math.max(10, Math.floor(CHUNK_SIZE * 0.5));
-			} else if (memoryUsageRatio > 0.7) {
-				// Medium memory pressure
-				CHUNK_SIZE = Math.max(15, Math.floor(CHUNK_SIZE * 0.7));
-			} else if (memoryUsageRatio < 0.5 && CHUNK_SIZE < 200) {
-				// Low memory usage, can increase chunk size
-				CHUNK_SIZE = Math.min(200, Math.floor(CHUNK_SIZE * 1.2));
+				self.postMessage(chunkProgress);
 			}
 
-			// Send memory warning if usage is critical
-			if (memoryUsageRatio > 0.9) {
-				const warningMessage: ErrorMessage = {
-					type: 'error',
-					payload: {
-						message: `Memory usage critical: ${Math.round(memoryUsageRatio * 100)}%. Reducing chunk size to ${CHUNK_SIZE}.`
-					}
-				};
-				self.postMessage(warningMessage);
-			}
-		}
-
-		// Send intermediate progress for chunk completion
-		if (!isCancelled && chunkEnd < collectionSize) {
-			const chunkMemoryUsage = getMemoryUsage();
-			const chunkProgress: ProgressMessage = {
-				type: 'progress',
-				payload: {
-					generatedCount: chunkEnd,
-					totalCount: collectionSize,
-					statusText: `Completed chunk ${Math.floor(chunkEnd / CHUNK_SIZE)} of ${Math.ceil(collectionSize / CHUNK_SIZE)}`,
-					memoryUsage: chunkMemoryUsage || undefined
-				}
-			};
-			self.postMessage(chunkProgress);
+			// Adaptive chunking based on memory usage
+			CHUNK_SIZE = adaptChunkSize(CHUNK_SIZE, getMemoryUsage());
 		}
 	}
 
@@ -477,8 +311,9 @@ async function generateCollection(
 	if (isCancelled) {
 		const cancelledMessage: CancelledMessage = {
 			type: 'cancelled',
+			taskId,
 			payload: {
-				generatedCount: collectionSize,
+				generatedCount: 0,
 				totalCount: collectionSize
 			}
 		};
@@ -487,14 +322,15 @@ async function generateCollection(
 	}
 
 	// Final cleanup
-	cleanupObjectUrls();
+	cleanupResources();
 
-	// Send final completion message (empty images since they were sent in chunks)
+	// Send final completion message
 	const finalCompleteMessage: CompleteMessage = {
 		type: 'complete',
+		taskId,
 		payload: {
-			images: [], // Already sent in chunks
-			metadata: [] // Already sent in chunks
+			images: [], // Already sent via streaming/chunking
+			metadata: [] // Already sent via streaming/chunking
 		}
 	};
 
@@ -502,7 +338,267 @@ async function generateCollection(
 	self.postMessage(finalCompleteMessage);
 }
 
-// Memory information interface
+// Generate a single item and stream it immediately
+async function generateAndStreamItem(
+	index: number,
+	layers: TransferrableLayer[],
+	canvas: OffscreenCanvas,
+	ctx: OffscreenCanvasRenderingContext2D,
+	targetWidth: number,
+	targetHeight: number,
+	projectName: string,
+	projectDescription: string,
+	collectionSize: number,
+	metadata: { name: string; data: object }[],
+	chunkImages?: { name: string; blob: Blob }[],
+	taskId?: TaskId
+): Promise<void> {
+	try {
+		// Always use optimized Canvas compositing
+		// Clear the reusable canvas for this item
+		ctx.clearRect(0, 0, targetWidth, targetHeight);
+
+		// Selected traits for this NFT
+		const selectedTraits = [];
+
+		// Iterate through the layers in their specified order
+		for (const layer of layers) {
+			// Validate layer has traits
+			if (!layer.traits || layer.traits.length === 0) {
+				continue;
+			}
+
+			// Select a trait based on the rarity algorithm
+			const selectedTrait = selectTrait(layer);
+
+			// If a trait is selected, draw it
+			if (selectedTrait) {
+				selectedTraits.push({
+					layerId: layer.id,
+					layerName: layer.name,
+					traitId: selectedTrait.id,
+					traitName: selectedTrait.name
+				});
+
+				// Create ImageBitmap from the trait's image data with resizing for memory efficiency
+				const imageBitmap = await createImageBitmapFromBuffer(
+					selectedTrait.imageData,
+					selectedTrait.name,
+					{ resizeWidth: targetWidth, resizeHeight: targetHeight }
+				);
+
+				// Draw the image onto the OffscreenCanvas
+				ctx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+
+				// Clean up the ImageBitmap immediately to free memory
+				imageBitmap.close();
+			}
+		}
+
+		// Convert the canvas to blob after all layers are drawn
+		const blob: Blob = await canvas.convertToBlob({
+			type: 'image/png',
+			quality: 0.9 // Slight compression to reduce memory usage
+		});
+
+		// Create metadata using selected traits
+		const attributes = selectedTraits.map((trait) => ({
+			trait_type: trait.layerName,
+			value: trait.traitName
+		}));
+
+		const metadataObj = {
+			name: `${projectName} #${index + 1}`,
+			description: projectDescription,
+			image: `${index + 1}.png`,
+			attributes: attributes
+		};
+
+		// Store the metadata
+		metadata.push({
+			name: `${index + 1}.json`,
+			data: metadataObj
+		});
+
+		if (chunkImages) {
+			// Chunked approach - add to chunk array
+			chunkImages.push({
+				name: `${index + 1}.png`,
+				blob
+			});
+		} else {
+			// Streaming approach - send immediately
+			const imageData = await blob.arrayBuffer();
+			const streamMessage: CompleteMessage = {
+				type: 'complete',
+				taskId,
+				payload: {
+					images: [{ name: `${index + 1}.png`, imageData }],
+					metadata: [{ name: `${index + 1}.json`, data: metadataObj }]
+				}
+			};
+
+			// Transfer the underlying ArrayBuffer
+			// @ts-expect-error - TS in worker env may not infer postMessage overload with transfer list
+			self.postMessage(streamMessage, [imageData]);
+		}
+
+		// Send progress update more frequently for streaming
+		if (!chunkImages && (index % 5 === 0 || index === collectionSize - 1)) {
+			// Cleanup resources periodically to free memory
+			cleanupObjectUrls();
+
+			// Get current memory usage
+			const currentMemoryUsage = getMemoryUsage();
+
+			const progressMessage: ProgressMessage = {
+				type: 'progress',
+				taskId,
+				payload: {
+					generatedCount: index + 1,
+					totalCount: collectionSize,
+					statusText: `Generated ${index + 1} of ${collectionSize} NFTs`,
+					memoryUsage: currentMemoryUsage || undefined
+				}
+			};
+			self.postMessage(progressMessage);
+		}
+
+		// Send preview for progressive rendering every 50 items for streaming (more frequent)
+		if (
+			!chunkImages &&
+			collectionSize <= 1000 &&
+			(index % 50 === 0 || index === collectionSize - 1)
+		) {
+			await sendPreview(blob, index, taskId);
+		}
+
+		// Force GC after each item for better memory management in large collections
+		if (collectionSize > 1000 && typeof globalThis !== 'undefined' && 'gc' in globalThis) {
+			(globalThis as { gc?: () => void }).gc?.();
+		}
+	} catch (error) {
+		const errorMessage: ErrorMessage = {
+			type: 'error',
+			taskId,
+			payload: {
+				message: `Error generating item ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`
+			}
+		};
+		self.postMessage(errorMessage);
+		throw error; // Stop generation on error
+	}
+}
+
+// Send chunk completion with transferables
+async function sendChunkCompletion(
+	chunkImages: { name: string; blob: Blob }[],
+	metadata: { name: string; data: object }[],
+	chunkStart: number,
+	taskId?: TaskId
+): Promise<void> {
+	// Convert only this chunk's Blobs to ArrayBuffers for transfer
+	const chunkImagesForTransfer = await Promise.all(
+		chunkImages.map(async (image) => ({
+			name: image.name,
+			imageData: await image.blob.arrayBuffer()
+		}))
+	);
+
+	// Prepare transferables for this chunk
+	const transferables: ArrayBuffer[] = [];
+	chunkImagesForTransfer.forEach((img) => {
+		if (img.imageData instanceof ArrayBuffer) {
+			transferables.push(img.imageData);
+		}
+	});
+
+	// Extract metadata for this chunk (indices that correspond to this chunk's images)
+	const chunkStartIndex = chunkStart;
+	const chunkMetadata = metadata.slice(chunkStartIndex, chunkStartIndex + chunkImages.length);
+
+	// Send chunk completion message with transferables to avoid copying
+	const chunkCompleteMessage: CompleteMessage = {
+		type: 'complete',
+		taskId,
+		payload: {
+			images: chunkImagesForTransfer,
+			metadata: chunkMetadata
+		}
+	};
+
+	// Transfer the underlying ArrayBuffers
+	// @ts-expect-error - TS in worker env may not infer postMessage overload with transfer list
+	self.postMessage(chunkCompleteMessage, transferables);
+
+	// Force garbage collection between chunks if available to free memory immediately
+	if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
+		(globalThis as { gc?: () => void }).gc?.();
+	}
+}
+
+// Send preview for progressive rendering
+async function sendPreview(blob: Blob, index: number, taskId?: TaskId): Promise<void> {
+	// Create a small preview by converting to a small canvas to reduce data transfer
+	try {
+		const smallCanvas = new OffscreenCanvas(100, 100); // Small preview size
+		const smallCtx = smallCanvas.getContext('2d');
+		if (smallCtx) {
+			// Create image bitmap from blob and draw to small canvas
+			const imageBitmap = await createImageBitmap(blob);
+			// Scale the image to fit the small canvas
+			smallCtx.drawImage(imageBitmap, 0, 0, 100, 100);
+			imageBitmap.close();
+
+			// Convert to a small blob to reduce transfer size
+			const smallBlob = await smallCanvas.convertToBlob({
+				type: 'image/png',
+				quality: 0.5
+			});
+			const previewData = [await smallBlob.arrayBuffer()];
+
+			const previewMessage: PreviewMessage = {
+				type: 'preview',
+				taskId,
+				payload: {
+					indexes: [index],
+					previewData: previewData
+				}
+			};
+			self.postMessage(previewMessage);
+		}
+	} catch (previewError) {
+		console.warn('Failed to generate preview:', previewError);
+		// Continue generation even if preview fails
+	}
+}
+
+// Adapt chunk size based on memory usage
+function adaptChunkSize(
+	currentChunkSize: number,
+	memoryUsage: { used: number; available: number } | null
+): number {
+	if (!memoryUsage) return currentChunkSize;
+
+	const memoryUsageRatio = memoryUsage.used / memoryUsage.available;
+
+	// More granular chunk size adjustments
+	if (memoryUsageRatio > 0.9) {
+		// Critical memory pressure
+		return Math.max(5, Math.floor(currentChunkSize * 0.3));
+	} else if (memoryUsageRatio > 0.8) {
+		// High memory pressure
+		return Math.max(10, Math.floor(currentChunkSize * 0.5));
+	} else if (memoryUsageRatio > 0.7) {
+		// Medium memory pressure
+		return Math.max(15, Math.floor(currentChunkSize * 0.7));
+	} else if (memoryUsageRatio < 0.5 && currentChunkSize < 200) {
+		// Low memory usage, can increase chunk size
+		return Math.min(200, Math.floor(currentChunkSize * 1.2));
+	}
+
+	return currentChunkSize;
+}
 interface MemoryInfo {
 	usedJSHeapSize: number;
 	jsHeapSizeLimit: number;
@@ -540,19 +636,32 @@ function getMemoryUsage() {
 	return null;
 }
 
-// Cleanup function to free resources
-function cleanupResources() {
-	if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
-		(globalThis as { gc?: () => void }).gc?.();
-	}
-}
-
 // Main worker message handler
 self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
-	const { type, payload } = e.data as {
+	const {
+		type,
+		payload,
+		taskId: rawTaskId
+	} = e.data as {
 		type: string;
 		payload?: unknown;
+		taskId?: string;
 	};
+	const taskId = rawTaskId ? createTaskId(rawTaskId) : undefined;
+
+	// Handle ping messages for health checks
+	if (type === 'ping') {
+		const pingData = e.data as unknown as { pingId: string };
+		self.postMessage({ type: 'pingResponse', pingResponse: pingData.pingId });
+		return;
+	}
+
+	// Handle initialization message
+	if (type === 'initialize') {
+		// Worker is already initialized, send ready message
+		self.postMessage({ type: 'ready' });
+		return;
+	}
 
 	switch (type) {
 		case 'start':
@@ -563,11 +672,13 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 					startPayload.collectionSize,
 					startPayload.outputSize,
 					startPayload.projectName,
-					startPayload.projectDescription
+					startPayload.projectDescription,
+					taskId
 				);
 			} catch (error) {
 				const errorMessage: ErrorMessage = {
 					type: 'error',
+					taskId,
 					payload: {
 						message: error instanceof Error ? error.message : 'An unknown error occurred'
 					}
@@ -581,6 +692,7 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 		default: {
 			const errorMessage: ErrorMessage = {
 				type: 'error',
+				taskId,
 				payload: {
 					message: `Unknown message type: ${type}`
 				}
