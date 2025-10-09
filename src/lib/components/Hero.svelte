@@ -2,21 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
-	import {
-		Dialog,
-		DialogContent,
-		DialogDescription,
-		DialogHeader,
-		DialogTitle,
-		DialogTrigger
-	} from '$lib/components/ui/dialog';
 	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
 	import FloatingElement from '$lib/components/FloatingElement.svelte';
-	import FeatureItem from '$lib/components/FeatureItem.svelte';
 	import WindowControls from '$lib/components/WindowControls.svelte';
 </script>
 
-<section class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16">
+<section class="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
 	<!-- Decorative background elements -->
 	<div class="absolute inset-0 overflow-hidden">
 		<!-- Custom gradient with transparent center -->
@@ -67,39 +58,14 @@
 						>
 							Get Started
 						</Button>
-						<Dialog>
-							<DialogTrigger>
-								<Button
-									variant="outline"
-									size="lg"
-									class="border-gray-400 px-8 py-6 font-['JetBrains_Mono'] text-lg text-gray-500 hover:border-gray-300 hover:bg-gray-700 hover:text-white"
-								>
-									Learn More
-								</Button>
-							</DialogTrigger>
-							<DialogContent class="max-h-[80vh] overflow-y-auto border-gray-700 bg-gray-800">
-								<DialogHeader>
-									<DialogTitle class="font-['JetBrains_Mono'] text-2xl font-bold text-white">
-										About the NFT Generative Collection Studio
-									</DialogTitle>
-									<DialogDescription class="font-['JetBrains_Mono'] text-gray-300">
-										This tool allows you to create a generative NFT collection by uploading layers
-										of artwork, setting rarity, and generating unique combinations.
-									</DialogDescription>
-								</DialogHeader>
-								<div class="mt-4 space-y-4">
-									<h3 class="font-['JetBrains_Mono'] text-lg font-semibold text-white">
-										Key Features:
-									</h3>
-									<ul class="space-y-2 font-['JetBrains_Mono'] text-gray-300">
-										<FeatureItem text="Upload your own artwork in layers" />
-										<FeatureItem text="Adjust rarity weights for each trait" />
-										<FeatureItem text="Generate thousands of unique images and metadata" />
-										<FeatureItem text="Download your entire collection as a .zip file" />
-									</ul>
-								</div>
-							</DialogContent>
-						</Dialog>
+						<Button
+							variant="outline"
+							size="lg"
+							class="border-gray-400 px-8 py-6 font-['JetBrains_Mono'] text-lg text-gray-500 hover:border-gray-300 hover:bg-gray-700 hover:text-white"
+							onclick={() => goto('/about')}
+						>
+							Learn More
+						</Button>
 					</div>
 				</div>
 			</CardContent>

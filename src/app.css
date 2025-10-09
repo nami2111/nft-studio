@@ -197,7 +197,7 @@
 	}
 	body {
 		@apply bg-background text-foreground;
-		padding: var(--space-md);
+		padding: 0;
 		margin: 0;
 		transition:
 			background-color,
