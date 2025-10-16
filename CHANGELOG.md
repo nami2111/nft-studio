@@ -9,12 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Updated GitHub repository URL in README.md installation instructions
+
+## [0.2.1] - 2025-10-16
+
+### Added
+
 - MIT License file
 - CHANGELOG.md for version tracking
 - ICP Blockchain and Juno to Technology Stack in About page
 - Enhanced button hover effects with scale animations and solid color transitions
 - Improved navigation hover states with scale and shadow effects in About page
-- Custom modal component to replace bits-ui Dialog system
+- Custom modal component to replace bits-ui Dialog system (progress and slider components from bits-ui retained)
 - Viewport-based modal positioning for consistent centering regardless of page length
 - Visual distinction between selected and unselected traits in ruler rules with icons and colors
 - Enhanced trait selection UI with green checkmarks for allowed traits and red X marks for forbidden traits
@@ -34,17 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified modal trigger pattern (direct onclick instead of DialogTrigger)
 - Improved modal responsive sizing and mobile-friendly margins
 
-### Changed
-
-- Updated README.md with current project structure and commands
-- Enhanced documentation in docs/ directory to reflect current codebase
-- Improved onboarding guide with accurate development workflow
-- Disabled dark theme in app layout for consistent light theme experience
-- Replaced shadow-based hover effects with solid color changes for better visibility
-- Standardized button hover styles across Hero, About, and App pages
-- Updated dialog styling to use solid white backgrounds with dark borders for better contrast
-- Removed CSS overrides that were preventing button hover effects from working properly
-
 ### Fixed
 
 - Button hover visibility issues in light theme by using primary color backgrounds
@@ -53,17 +48,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Button hover styles not activating properly due to conflicting CSS overrides
 - Popup dialog transparency issues causing poor readability
 - Dialog borders and text not visible in light theme
-- Modal positioning conflicts with bits-ui Dialog causing inconsistent centering
+- Modal positioning conflicts with bits-ui Dialog causing inconsistent centering (replaced with custom modal system)
 - Modal positioning relative to page content instead of viewport causing off-screen dialogs on long pages
 - Crown icon alignment issues in trait cards (promote to ruler icon not aligned with edit/trash icons)
 - Duplicate crown icon display when trait type is ruler
 - Trait selection visual ambiguity between selected and unselected states in ruler rules
 - Modal z-index conflicts preventing proper layering above page content
 
-## [0.2.1] - 2024-10-06
+## [0.2.0] - 2025-08-13
 
 ### Added
 
+- Initial project setup
+- Basic UI framework
+- Project structure foundation
 - Svelte 5 runes implementation for reactive state management
 - Modular store architecture with single responsibility principle
 - Comprehensive error handling utilities
@@ -73,9 +71,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drag & drop file upload with progress tracking
 - PWA support with service worker
 - ICP blockchain integration with Juno hosting
+- Initial NFT generation functionality
+- Layer and trait management system
+- Real-time preview system
+- ZIP export functionality
+- Project save/load capabilities
 
 ### Changed
 
+- Complete rewrite using SvelteKit 2
+- Migrated to TypeScript strict mode
+- Updated UI component library to bits-ui
 - Migrated from Svelte stores to Svelte 5 runes ($state, $derived, $effect)
 - Refactored components into focused sub-modules
 - Enhanced project structure with better separation of concerns
@@ -93,27 +99,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 - Legacy Svelte store patterns (migrated to runes)
-
-## [0.2.0] - 2024-09-XX
-
-### Added
-
-- Initial NFT generation functionality
-- Layer and trait management system
-- Real-time preview system
-- ZIP export functionality
-- Project save/load capabilities
-
-### Changed
-
-- Complete rewrite using SvelteKit 2
-- Migrated to TypeScript strict mode
-- Updated UI component library to bits-ui
-
-## [0.1.0] - 2025-XX-XX
-
-### Added
-
-- Initial project setup
-- Basic UI framework
-- Project structure foundation

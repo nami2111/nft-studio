@@ -24,7 +24,7 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 ## Tech Stack
 
 - **Frontend**: SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS 4
-- **UI Components**: bits-ui, lucide-svelte, svelte-sonner, mode-watcher
+- **UI Components**: Custom modal system, bits-ui (progress, slider), lucide-svelte, svelte-sonner, mode-watcher
 - **State Management**: Svelte 5 runes ($state, $derived) and modular stores
 - **Image Processing**: Canvas API with Web Workers for performance
 - **Persistence**: IndexedDB for local storage, ZIP for export/import
@@ -45,7 +45,7 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/nami2111/nft-studio.git
    cd nft-studio
    ```
 
@@ -163,7 +163,7 @@ The state management system leverages Svelte 5's modern runes system:
 
 - **Layer Management**: Bulk operations, drag & drop file handling, trait filtering
 - **Preview System**: Canvas rendering, image caching, trait selection
-- **UI Components**: Comprehensive library of reusable components (buttons, dialogs, cards, etc.)
+- **UI Components**: Comprehensive library of reusable components (buttons, custom modals, cards, etc.)
 
 #### Worker Architecture
 
@@ -264,7 +264,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Built with [SvelteKit](https://kit.svelte.dev/) and Svelte 5
-- UI components from [bits-ui](https://www.bits-ui.com/)
+- Custom modal system for consistent viewport-based positioning
 - Icons from [Lucide](https://lucide.dev/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
 - Deployed on [Juno](https://juno.build/) for ICP blockchain integration
