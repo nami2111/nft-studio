@@ -338,6 +338,7 @@
 			onclick={handleGenerate}
 			disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
 			size="sm"
+			class="!hover:bg-primary !hover:text-primary-foreground transition-all"
 		>
 			{#if isGenerating}
 				<LoadingIndicator operation="generation" message="Generating..." />

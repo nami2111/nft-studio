@@ -688,12 +688,17 @@
 				size="sm"
 				onclick={randomize}
 				disabled={isRandomizing}
-				class="w-full sm:w-auto"
+				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
 			>
 				<Shuffle class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4 {isRandomizing ? 'animate-spin' : ''}" />
 				<span class="text-xs sm:text-sm">{isRandomizing ? 'Randomizing...' : 'Randomize'}</span>
 			</Button>
-			<Button variant="outline" size="sm" onclick={handleRefresh} class="w-full sm:w-auto">
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={handleRefresh}
+				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
+			>
 				<RefreshCw class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 				<span class="text-xs sm:text-sm">Refresh</span>
 			</Button>

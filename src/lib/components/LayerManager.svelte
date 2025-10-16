@@ -60,7 +60,7 @@
 				size="sm"
 				onclick={handleAddLayer}
 				disabled={isAddingLayer}
-				class="w-full sm:w-auto"
+				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
 			>
 				{#if isAddingLayer}
 					<Loader2 class="mr-1 h-3 w-3 animate-spin sm:mr-2 sm:h-4 sm:w-4" />

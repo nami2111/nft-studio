@@ -141,10 +141,11 @@
 
 <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
 	{#if projectNeedsZipLoad()}
-		<Card class="mb-2 inline-flex border border-border bg-muted p-2 text-xs sm:text-sm">
+		<Card class="border-border bg-muted mb-2 inline-flex border p-2 text-xs sm:text-sm">
 			<CardContent class="flex items-center gap-2 p-0">
 				<AlertTriangle class="text-muted-foreground h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
-				<span class="text-foreground">Don't forget to save your Project first before generate.</span>
+				<span class="text-foreground">Don't forget to save your Project first before generate.</span
+				>
 			</CardContent>
 		</Card>
 	{/if}
@@ -199,7 +200,11 @@
 					<p class="text-muted-foreground mb-3 text-xs sm:mb-4 sm:text-sm">
 						Drop a .zip project file here or select one to upload
 					</p>
-					<Button onclick={triggerFileInput} disabled={isProjectLoading}>
+					<Button
+						onclick={triggerFileInput}
+						disabled={isProjectLoading}
+						class="!hover:bg-primary !hover:text-primary-foreground transition-all disabled:hover:scale-100"
+					>
 						{#if isProjectLoading}
 							<LoadingIndicator operation="project-load" message="Loading project..." />
 						{:else}
@@ -249,7 +254,11 @@
 				<Button variant="outline" onclick={() => (saveDialogOpen = false)}>
 					<span class="text-xs sm:text-sm">Cancel</span>
 				</Button>
-				<Button onclick={handleSaveProject} disabled={isProjectSaving}>
+				<Button
+					onclick={handleSaveProject}
+					disabled={isProjectSaving}
+					class="!hover:bg-primary !hover:text-primary-foreground transition-all disabled:hover:scale-100"
+				>
 					{#if isProjectSaving}
 						<LoadingIndicator operation="project-save" message="Saving project..." />
 					{:else}
