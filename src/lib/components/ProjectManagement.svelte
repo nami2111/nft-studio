@@ -17,14 +17,7 @@
 	} from '$lib/stores';
 	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
-	import {
-		Dialog,
-		DialogTrigger,
-		DialogContent,
-		DialogHeader,
-		DialogTitle,
-		DialogDescription
-	} from '$lib/components/ui/dialog';
+	import { Modal } from '$lib/components/ui/modal';
 
 	let loadDialogOpen = $state(false);
 	let saveDialogOpen = $state(false);
@@ -150,22 +143,22 @@
 		</Card>
 	{/if}
 
-	<!-- Load Project Dialog -->
-	<Dialog bind:open={loadDialogOpen}>
-		<DialogTrigger>
-			<Button variant="outline" size="sm" class="w-full sm:w-auto">
-				<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-				<span class="xs:inline hidden">Load Project</span>
-				<span class="xs:hidden">Load</span>
-			</Button>
-		</DialogTrigger>
-		<DialogContent>
-			<DialogHeader>
-				<DialogTitle>Load Project</DialogTitle>
-				<DialogDescription>
-					Upload a previously saved project ZIP file to restore your configuration and images.
-				</DialogDescription>
-			</DialogHeader>
+	<!-- Load Project Button -->
+	<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={() => (loadDialogOpen = true)}>
+		<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+		<span class="xs:inline hidden">Load Project</span>
+		<span class="xs:hidden">Load</span>
+	</Button>
+
+	<!-- Load Project Modal -->
+	<Modal
+		bind:open={loadDialogOpen}
+		title="Load Project"
+		onClose={() => (loadDialogOpen = false)}
+	>
+			<p class="text-muted-foreground mb-4">
+				Upload a previously saved project ZIP file to restore your configuration and images.
+			</p>
 			<div class="space-y-3 sm:space-y-4">
 				<div
 					class="border-input hover:border-primary hover:border-muted-foreground/20 rounded-lg border-2 border-dashed p-4 text-center transition-colors sm:p-6 {isProjectLoading
@@ -230,26 +223,25 @@
 					Note: Loading a project will refresh the page and start fresh.
 				</p>
 			</div>
-		</DialogContent>
-	</Dialog>
+	</Modal>
 
-	<!-- Save Project Dialog -->
-	<Dialog bind:open={saveDialogOpen}>
-		<DialogTrigger>
-			<Button variant="outline" size="sm" class="w-full sm:w-auto">
-				<Download class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-				<span class="xs:inline hidden">Save Project</span>
-				<span class="xs:hidden">Save</span>
-			</Button>
-		</DialogTrigger>
-		<DialogContent>
-			<DialogHeader>
-				<DialogTitle>Save Project</DialogTitle>
-				<DialogDescription>
-					Download your project configuration and images as a ZIP file. You can load this file later
-					to continue working.
-				</DialogDescription>
-			</DialogHeader>
+	<!-- Save Project Button -->
+	<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={() => (saveDialogOpen = true)}>
+		<Download class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+		<span class="xs:inline hidden">Save Project</span>
+		<span class="xs:hidden">Save</span>
+	</Button>
+
+	<!-- Save Project Modal -->
+	<Modal
+		bind:open={saveDialogOpen}
+		title="Save Project"
+		onClose={() => (saveDialogOpen = false)}
+	>
+		<p class="text-muted-foreground mb-4">
+			Download your project configuration and images as a ZIP file. You can load this file later
+			to continue working.
+		</p>
 			<div class="flex justify-end space-x-2">
 				<Button variant="outline" onclick={() => (saveDialogOpen = false)}>
 					<span class="text-xs sm:text-sm">Cancel</span>
@@ -278,6 +270,5 @@
 					{/if}
 				{/if}
 			</div>
-		</DialogContent>
-	</Dialog>
+	</Modal>
 </div>

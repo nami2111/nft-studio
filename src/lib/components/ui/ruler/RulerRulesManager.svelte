@@ -1,13 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import {
-		Dialog,
-		DialogContent,
-		DialogHeader,
-		DialogTitle,
-		DialogTrigger
-	} from '$lib/components/ui/dialog';
+	import { Modal } from '$lib/components/ui/modal';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Plus, X, Settings } from 'lucide-svelte';
 	import type { Trait, Layer, RulerRule } from '$lib/types/layer';
@@ -85,16 +79,16 @@
 </script>
 
 {#if trait.type === 'ruler'}
-	<Dialog bind:open={isDialogOpen}>
-		<DialogTrigger>
-			<Button variant="ghost" size="icon" title="Manage Ruler Rules">
-				<Settings class="h-4 w-4" />
-			</Button>
-		</DialogTrigger>
-		<DialogContent class="max-h-[80vh] max-w-[90vw] overflow-y-auto md:max-w-3xl lg:max-w-4xl">
-			<DialogHeader>
-				<DialogTitle>Manage Ruler Rules for "{trait.name}"</DialogTitle>
-			</DialogHeader>
+	<Button variant="ghost" size="icon" title="Manage Ruler Rules" onclick={() => (isDialogOpen = true)}>
+		<Settings class="h-4 w-4" />
+	</Button>
+
+	<Modal
+		bind:open={isDialogOpen}
+		title="Manage Ruler Rules for '{trait.name}'"
+		onClose={() => (isDialogOpen = false)}
+		maxWidth="max-w-4xl"
+	>
 			<div class="space-y-4">
 				{#if availableLayers.length === 0}
 					<p class="text-muted-foreground text-sm">
@@ -331,6 +325,5 @@
 					{/if}
 				{/if}
 			</div>
-		</DialogContent>
-	</Dialog>
+	</Modal>
 {/if}
