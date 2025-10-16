@@ -509,9 +509,9 @@
 					/>
 				{:else}
 					<div class="flex items-center">
-						<h3 class="text-lg font-medium text-foreground">{layer.name}</h3>
+						<h3 class="text-foreground text-lg font-medium">{layer.name}</h3>
 						{#if layer.isOptional}
-							<span class="ml-2 rounded bg-muted px-2 py-1 text-xs text-foreground">Optional</span>
+							<span class="bg-muted text-foreground ml-2 rounded px-2 py-1 text-xs">Optional</span>
 						{/if}
 					</div>
 				{/if}
@@ -537,7 +537,7 @@
 
 		{#if isExpanded}
 			<div class="mb-4">
-				<label class="mb-1 block text-sm font-medium text-foreground" for="file-upload-{layer.id}"
+				<label class="text-foreground mb-1 block text-sm font-medium" for="file-upload-{layer.id}"
 					>Upload Traits</label
 				>
 				<div
@@ -570,15 +570,15 @@
 									/>
 								</div>
 							</div>
-							<div class="mt-2 h-2 w-full rounded-full bg-muted">
+							<div class="bg-muted mt-2 h-2 w-full rounded-full">
 								<div
-									class="h-full rounded-full bg-primary transition-all duration-300"
+									class="bg-primary h-full rounded-full transition-all duration-300"
 									style="width: {uploadProgress}%"
 								></div>
 							</div>
 						{:else}
 							<svg
-								class="mx-auto h-12 w-12 text-muted-foreground"
+								class="text-muted-foreground mx-auto h-12 w-12"
 								stroke="currentColor"
 								fill="none"
 								viewBox="0 0 48 48"
@@ -608,19 +608,19 @@
 								</label>
 								<p class="pl-1">or drag and drop</p>
 							</div>
-							<p class="text-xs text-muted-foreground">PNG, JPG, GIF, etc.</p>
+							<p class="text-muted-foreground text-xs">PNG, JPG, GIF, etc.</p>
 						{/if}
 					</div>
 				</div>
 			</div>
 			<div class="mt-4">
 				<div class="mb-2 flex items-center justify-between">
-					<h4 class="text-md font-medium text-foreground">Traits ({layer.traits.length})</h4>
+					<h4 class="text-md text-foreground font-medium">Traits ({layer.traits.length})</h4>
 					{#if layer.traits.length > 5}
 						<input
 							type="text"
 							placeholder="Search traits..."
-							class="w-32 rounded border border-input px-2 py-1 text-sm"
+							class="border-input w-32 rounded border px-2 py-1 text-sm"
 							bind:value={searchTerm}
 						/>
 					{/if}
@@ -628,7 +628,7 @@
 
 				<!-- Bulk operation controls -->
 				{#if filteredTraits.length > 1}
-					<div class="mb-2 flex items-center justify-between rounded bg-muted p-2">
+					<div class="bg-muted mb-2 flex items-center justify-between rounded p-2">
 						<div class="flex items-center space-x-2">
 							<Button variant="outline" size="sm" onclick={selectAllFiltered}>Select All</Button>
 							<Button
@@ -639,7 +639,7 @@
 							>
 								Clear
 							</Button>
-							<span class="text-sm text-muted-foreground">
+							<span class="text-muted-foreground text-sm">
 								{selectedTraits.size} selected
 							</span>
 						</div>
@@ -658,14 +658,14 @@
 					</div>
 
 					{#if selectedTraits.size > 0}
-						<div class="mb-4 rounded border border-border p-3">
+						<div class="border-border mb-4 rounded border p-3">
 							<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
 							<div class="space-y-2">
 								<div class="flex items-center space-x-2">
 									<label for="bulk-rarity-{layer.id}" class="text-sm">Rarity:</label>
 									<select
 										id="bulk-rarity-{layer.id}"
-										class="rounded border border-input px-2 py-1 text-sm"
+										class="border-input rounded border px-2 py-1 text-sm"
 										bind:value={bulkRarityWeight}
 									>
 										<option value="1">Mythic (1)</option>
@@ -682,7 +682,7 @@
 										id="bulk-rename-{layer.id}"
 										type="text"
 										placeholder="New name prefix"
-										class="w-32 rounded border border-input px-2 py-1 text-sm"
+										class="border-input w-32 rounded border px-2 py-1 text-sm"
 										bind:value={bulkNewName}
 									/>
 									<Button
@@ -713,7 +713,9 @@
 						</div>
 					{/if}
 				{:else}
-					<p class="text-sm text-muted-foreground">No traits added yet. Upload or drag images above.</p>
+					<p class="text-muted-foreground text-sm">
+						No traits added yet. Upload or drag images above.
+					</p>
 				{/if}
 			</div>
 		{/if}

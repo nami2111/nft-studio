@@ -154,21 +154,25 @@ The state management system leverages Svelte 5's modern runes system:
 ### Key Features of the Architecture
 
 #### Modern Reactivity
+
 - **Svelte 5 Runes**: Uses `$state`, `$derived`, and `$effect` for fine-grained reactivity
 - **Batch Processing**: Debounced trait updates to improve performance
 - **Resource Management**: Automatic cleanup of ObjectURLs and memory
 
 #### Component Modularity
+
 - **Layer Management**: Bulk operations, drag & drop file handling, trait filtering
 - **Preview System**: Canvas rendering, image caching, trait selection
 - **UI Components**: Comprehensive library of reusable components (buttons, dialogs, cards, etc.)
 
 #### Worker Architecture
+
 - **Generation Worker**: Multi-threaded NFT generation with canvas processing
 - **Image Loader Worker**: Background image processing and optimization
 - **Worker Pool**: Efficient task distribution across multiple workers
 
 #### Type Safety
+
 - **Branded Types**: Compile-time safety for IDs (ProjectId, LayerId, TraitId)
 - **Zod Validation**: Runtime validation for all data models
 - **Comprehensive TypeScript**: Full type coverage across the codebase
@@ -184,10 +188,12 @@ The state management system leverages Svelte 5's modern runes system:
 ## Application Structure
 
 ### Main Routes
+
 - **`/`** - Landing page with hero section and introduction
 - **`/app`** - Main application interface with project settings, layer management, and generation
 
 ### Key Components
+
 - **Hero.svelte** - Landing page with feature highlights
 - **ProjectSettings.svelte** - Project configuration (name, dimensions, description)
 - **LayerManager.svelte** - Layer and trait management interface
@@ -197,6 +203,7 @@ The state management system leverages Svelte 5's modern runes system:
 ## Common Development Tasks
 
 ### Adding a New Feature
+
 1. Define types in `src/lib/types/`
 2. Add validation schemas in `src/lib/domain/validation.ts`
 3. Implement business logic in `src/lib/domain/`
@@ -205,12 +212,14 @@ The state management system leverages Svelte 5's modern runes system:
 6. Add error handling with typed errors
 
 ### Working with Web Workers
+
 - Message types defined in `src/lib/types/worker-messages.ts`
 - Worker client: `src/lib/workers/generation.worker.client.ts`
 - Worker implementation: `src/lib/workers/generation.worker.ts`
 - Worker pool for parallel processing: `src/lib/workers/worker.pool.ts`
 
 ### Testing
+
 - Unit tests for validation: `src/lib/domain/validation.test.ts`
 - Worker pool tests: `src/lib/workers/worker.pool.test.ts`
 - Run tests with `pnpm test`, `pnpm test:watch`, or `pnpm test:coverage`

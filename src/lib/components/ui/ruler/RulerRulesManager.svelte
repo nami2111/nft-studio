@@ -109,8 +109,9 @@
 						</CardHeader>
 						<CardContent class="space-y-3">
 							<div>
-								<label class="text-sm font-medium">Target Layer</label>
+								<label for="target-layer" class="text-sm font-medium">Target Layer</label>
 								<select
+									id="target-layer"
 									bind:value={newRule.layerId}
 									class="border-input bg-background mt-1 block w-full rounded-md border px-3 py-2 text-sm"
 								>
@@ -125,11 +126,12 @@
 								{@const targetTraits = getTraitsForLayer(newRule.layerId)}
 								{#if targetTraits.length > 0}
 									<div>
-										<label class="text-sm font-medium">Allowed Traits (leave empty for all)</label>
+										<h4 class="text-sm font-medium">Allowed Traits (leave empty for all)</h4>
 										<div class="mt-1 flex flex-wrap gap-1">
 											{#each targetTraits as targetTrait (targetTrait.id)}
-												<div
-													class="cursor-pointer"
+												<button
+													type="button"
+													class="cursor-pointer border-none bg-transparent p-0"
 													onclick={() => {
 														if (newRule.allowedTraitIds.includes(targetTrait.id)) {
 															newRule.allowedTraitIds = newRule.allowedTraitIds.filter(
@@ -142,6 +144,23 @@
 															];
 														}
 													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															e.preventDefault();
+															if (newRule.allowedTraitIds.includes(targetTrait.id)) {
+																newRule.allowedTraitIds = newRule.allowedTraitIds.filter(
+																	(id) => id !== targetTrait.id
+																);
+															} else {
+																newRule.allowedTraitIds = [
+																	...newRule.allowedTraitIds,
+																	targetTrait.id
+																];
+															}
+														}
+													}}
+													aria-pressed={newRule.allowedTraitIds.includes(targetTrait.id)}
+													aria-label={`Toggle ${targetTrait.name} from allowed traits`}
 												>
 													<Badge
 														variant={newRule.allowedTraitIds.includes(targetTrait.id)
@@ -150,17 +169,18 @@
 													>
 														{targetTrait.name}
 													</Badge>
-												</div>
+												</button>
 											{/each}
 										</div>
 									</div>
 
 									<div>
-										<label class="text-sm font-medium">Forbidden Traits</label>
+										<h4 class="text-sm font-medium">Forbidden Traits</h4>
 										<div class="mt-1 flex flex-wrap gap-1">
 											{#each targetTraits as targetTrait (targetTrait.id)}
-												<div
-													class="cursor-pointer"
+												<button
+													type="button"
+													class="cursor-pointer border-none bg-transparent p-0"
 													onclick={() => {
 														if (newRule.forbiddenTraitIds.includes(targetTrait.id)) {
 															newRule.forbiddenTraitIds = newRule.forbiddenTraitIds.filter(
@@ -173,6 +193,23 @@
 															];
 														}
 													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															e.preventDefault();
+															if (newRule.forbiddenTraitIds.includes(targetTrait.id)) {
+																newRule.forbiddenTraitIds = newRule.forbiddenTraitIds.filter(
+																	(id) => id !== targetTrait.id
+																);
+															} else {
+																newRule.forbiddenTraitIds = [
+																	...newRule.forbiddenTraitIds,
+																	targetTrait.id
+																];
+															}
+														}
+													}}
+													aria-pressed={newRule.forbiddenTraitIds.includes(targetTrait.id)}
+													aria-label={`Toggle ${targetTrait.name} from forbidden traits`}
 												>
 													<Badge
 														variant={newRule.forbiddenTraitIds.includes(targetTrait.id)
@@ -181,7 +218,7 @@
 													>
 														{targetTrait.name}
 													</Badge>
-												</div>
+												</button>
 											{/each}
 										</div>
 									</div>

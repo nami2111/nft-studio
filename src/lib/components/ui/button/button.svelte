@@ -19,11 +19,13 @@
 		variants: {
 			variant: {
 				default: 'bg-primary text-primary-foreground hover:bg-primary/80 hover:scale-105',
-				destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/80 hover:scale-105',
+				destructive:
+					'bg-destructive text-destructive-foreground hover:bg-destructive/80 hover:scale-105',
 				outline:
 					'border border-input bg-background text-foreground hover:bg-gray-100 hover:text-gray-900 hover:scale-105 dark:hover:bg-gray-800 dark:hover:text-gray-100',
 				secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/70 hover:scale-105',
-				ghost: 'text-foreground hover:bg-gray-100 hover:text-gray-900 hover:scale-105 dark:hover:bg-gray-800 dark:hover:text-gray-100',
+				ghost:
+					'text-foreground hover:bg-gray-100 hover:text-gray-900 hover:scale-105 dark:hover:bg-gray-800 dark:hover:text-gray-100',
 				link: 'text-primary underline-offset-4 hover:underline'
 			},
 			size: {
