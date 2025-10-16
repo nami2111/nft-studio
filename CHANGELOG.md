@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT License file
 - CHANGELOG.md for version tracking
 - ICP Blockchain and Juno to Technology Stack in About page
-- Enhanced button hover effects with solid color transitions across all pages
+- Enhanced button hover effects with scale animations and solid color transitions
 - Improved navigation hover states with scale and shadow effects in About page
 
 ### Changed
@@ -23,12 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disabled dark theme in app layout for consistent light theme experience
 - Replaced shadow-based hover effects with solid color changes for better visibility
 - Standardized button hover styles across Hero, About, and App pages
+- Updated dialog styling to use solid white backgrounds with dark borders for better contrast
+- Removed CSS overrides that were preventing button hover effects from working properly
 
 ### Fixed
 
 - Button hover visibility issues in light theme by using primary color backgrounds
 - Inconsistent hover states between different button variants
 - Theme conflicts interfering with button hover effects in app page
+- Button hover styles not activating properly due to conflicting CSS overrides
+- Popup dialog transparency issues causing poor readability
+- Dialog borders and text not visible in light theme
 
 ## [0.2.1] - 2024-10-06
 
