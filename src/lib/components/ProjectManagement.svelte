@@ -203,7 +203,7 @@
 					<Button
 						onclick={triggerFileInput}
 						disabled={isProjectLoading}
-						class="!hover:bg-primary !hover:text-primary-foreground transition-all disabled:hover:scale-100"
+						class="transition-all disabled:hover:scale-100"
 					>
 						{#if isProjectLoading}
 							<LoadingIndicator operation="project-load" message="Loading project..." />
@@ -257,7 +257,7 @@
 				<Button
 					onclick={handleSaveProject}
 					disabled={isProjectSaving}
-					class="!hover:bg-primary !hover:text-primary-foreground transition-all disabled:hover:scale-100"
+					class="transition-all disabled:hover:scale-100"
 				>
 					{#if isProjectSaving}
 						<LoadingIndicator operation="project-save" message="Saving project..." />
