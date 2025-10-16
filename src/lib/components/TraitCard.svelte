@@ -115,8 +115,19 @@
 	});
 </script>
 
-<Card class="overflow-hidden border-2">
+<Card class="overflow-hidden border-2 relative">
 	<div class="bg-muted flex aspect-square items-center justify-center" bind:this={imageContainer}>
+		<div class="absolute top-2 right-2 flex gap-1">
+			<TraitTypeToggle {trait} {layerId} />
+			{#if trait.type === 'ruler' && currentLayer && allLayers}
+				<RulerRulesManager
+					{trait}
+					layer={currentLayer}
+					{allLayers}
+					onRulesUpdate={handleRulerRulesUpdate}
+				/>
+			{/if}
+		</div>
 		{#if isVisible && trait.imageUrl}
 			<img
 				src={trait.imageUrl}
@@ -149,26 +160,10 @@
 					<Button variant="ghost" size="icon" onclick={cancelEdit}><X class="h-4 w-4" /></Button>
 				</div>
 			{:else}
-				<div class="flex min-w-0 items-center gap-2">
-					{#if trait.type === 'ruler'}
-						<div class="h-3 w-3 flex-shrink-0" title="Ruler Trait">
-							<Crown class="text-foreground h-3 w-3" />
-						</div>
-					{/if}
-					<p class="text-card-foreground truncate text-sm font-medium" title={trait.name}>
-						{trait.name}
-					</p>
-				</div>
+				<p class="text-card-foreground truncate text-sm font-medium" title={trait.name}>
+					{trait.name}
+				</p>
 				<div class="flex gap-1">
-					<TraitTypeToggle {trait} {layerId} />
-					{#if trait.type === 'ruler' && currentLayer && allLayers}
-						<RulerRulesManager
-							{trait}
-							layer={currentLayer}
-							{allLayers}
-							onRulesUpdate={handleRulerRulesUpdate}
-						/>
-					{/if}
 					<Button variant="ghost" size="icon" onclick={() => (isEditing = true)}
 						><Edit class="h-4 w-4" /></Button
 					>

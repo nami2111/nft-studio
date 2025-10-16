@@ -11,9 +11,10 @@
 	interface Props {
 		trait: Trait;
 		layerId: string;
+		class?: string;
 	}
 
-	const { trait, layerId }: Props = $props();
+	const { trait, layerId, class: className = '' }: Props = $props();
 
 	const layerIdTyped = createLayerId(layerId);
 	const traitIdTyped = createTraitId(trait.id);
@@ -50,14 +51,13 @@
 </script>
 
 {#if currentLayer}
-	<div title={trait.type === 'ruler' ? 'Demote from ruler' : 'Promote to ruler'}>
 		<Button
-			variant={trait.type === 'ruler' ? 'default' : 'outline'}
-			size="sm"
+			variant="ghost"
+			size="icon"
+			title={trait.type === 'ruler' ? 'Demote from ruler' : 'Promote to ruler'}
 			onclick={toggleTraitType}
-			class="h-6 px-2"
+			class="{trait.type === 'ruler' ? 'text-foreground' : ''} {className}"
 		>
-			<Crown class="h-3 w-3" />
+			<Crown class="h-4 w-4" />
 		</Button>
-	</div>
 {/if}
