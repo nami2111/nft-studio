@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { type Snippet } from 'svelte';
+	import { ModeWatcher } from 'mode-watcher';
 	import '../app.css';
 
 	interface Props {
@@ -9,7 +10,8 @@
 	let { children }: Props = $props();
 </script>
 
-<div class="min-h-screen bg-gray-900 text-gray-100">
+<div class="bg-background text-foreground min-h-screen">
+	<ModeWatcher />
 	<main id="main-content" class="min-h-screen">
 		{@render children?.()}
 	</main>

@@ -52,10 +52,16 @@
 		<div
 			class="mb-2 flex flex-col gap-2 sm:mb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 md:mb-4"
 		>
-			<h2 class="text-base font-bold text-gray-800 sm:text-lg md:text-xl">
+			<h2 class="text-base font-bold sm:text-lg md:text-xl">
 				Layers ({layers.length})
 			</h2>
-			<Button size="sm" onclick={handleAddLayer} disabled={isAddingLayer} class="w-full sm:w-auto">
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={handleAddLayer}
+				disabled={isAddingLayer}
+				class="w-full sm:w-auto"
+			>
 				{#if isAddingLayer}
 					<Loader2 class="mr-1 h-3 w-3 animate-spin sm:mr-2 sm:h-4 sm:w-4" />
 					<span class="text-xs sm:text-sm">Adding...</span>
@@ -66,7 +72,7 @@
 		</div>
 
 		{#if layers.length === 0}
-			<p class="text-center text-sm text-gray-500 sm:text-base">
+			<p class="text-muted-foreground text-center text-sm sm:text-base">
 				No layers yet. Add one to get started!
 			</p>
 		{:else}

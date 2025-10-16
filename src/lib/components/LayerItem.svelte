@@ -334,10 +334,10 @@
 		root.className = 'lazy-trait-loaded';
 
 		const wrapper = document.createElement('div');
-		wrapper.className = 'overflow-hidden rounded-lg border border-gray-200';
+		wrapper.className = 'overflow-hidden rounded-lg border border-border';
 
 		const imgContainer = document.createElement('div');
-		imgContainer.className = 'flex aspect-square items-center justify-center bg-gray-100';
+		imgContainer.className = 'flex aspect-square items-center justify-center bg-muted';
 
 		if (trait.imageUrl) {
 			const img = document.createElement('img');
@@ -354,7 +354,7 @@
 			loaderDiv.className = 'flex h-full items-center justify-center';
 			const spinner = document.createElement('div');
 			spinner.className =
-				'h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600';
+				'h-6 w-6 animate-spin rounded-full border-2 border-input border-t-indigo-600';
 			loaderDiv.appendChild(spinner);
 			imgContainer.appendChild(loaderDiv);
 		}
@@ -366,7 +366,7 @@
 		header.className = 'flex items-center justify-between';
 
 		const title = document.createElement('p');
-		title.className = 'truncate text-sm font-medium text-gray-900';
+		title.className = 'truncate text-sm font-medium text-foreground';
 		title.title = trait.name;
 		title.textContent = trait.name;
 
@@ -376,10 +376,10 @@
 		controls.className = 'flex';
 		// Decorative placeholders; no onclick handlers here in lazy card (real actions are in TraitCard)
 		const btnEdit = document.createElement('button');
-		btnEdit.className = 'rounded p-1 hover:bg-gray-100';
+		btnEdit.className = 'rounded p-1 hover:bg-muted';
 		btnEdit.setAttribute('aria-label', 'Edit');
 		const btnTrash = document.createElement('button');
-		btnTrash.className = 'rounded p-1 hover:bg-gray-100';
+		btnTrash.className = 'rounded p-1 hover:bg-muted';
 		btnTrash.setAttribute('aria-label', 'Delete');
 		controls.appendChild(btnEdit);
 		controls.appendChild(btnTrash);
@@ -389,10 +389,10 @@
 		rarityBlock.className = 'mt-2';
 
 		const label = document.createElement('label');
-		label.className = 'block text-xs font-medium text-gray-700';
+		label.className = 'block text-xs font-medium text-foreground';
 		label.textContent = 'Rarity: ';
 		const rarityValue = document.createElement('span');
-		rarityValue.className = 'font-bold text-indigo-600';
+		rarityValue.className = 'font-bold text-primary';
 		// Map weight to label (approximate)
 		const labels: Record<number, string> = {
 			1: 'Mythic',
@@ -413,13 +413,13 @@
 		range.step = '1';
 		range.value = String(trait.rarityWeight);
 		range.className =
-			'thumb:bg-indigo-600 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200';
+			'thumb:bg-primary h-2 w-full cursor-pointer appearance-none rounded-lg bg-muted';
 		range.title = `Rarity: ${labels[trait.rarityWeight] ?? trait.rarityWeight} (${trait.rarityWeight})`;
 		range.disabled = true; // read-only in placeholder
 		rangeWrap.appendChild(range);
 
 		const hints = document.createElement('div');
-		hints.className = 'mt-1 flex justify-between text-xs text-gray-500';
+		hints.className = 'mt-1 flex justify-between text-xs text-muted-foreground';
 		const spanLeft = document.createElement('span');
 		spanLeft.textContent = 'Rare';
 		const spanRight = document.createElement('span');
@@ -502,16 +502,16 @@
 				{#if isEditing}
 					<input
 						type="text"
-						class="border-b border-indigo-500 bg-transparent text-lg font-medium text-gray-900 focus:outline-none"
+						class="border-primary text-foreground border-b bg-transparent text-lg font-medium focus:outline-none"
 						bind:value={layerName}
 						onchange={handleNameChange}
 						onkeydown={(e) => e.key === 'Enter' && handleNameChange()}
 					/>
 				{:else}
 					<div class="flex items-center">
-						<h3 class="text-lg font-medium text-gray-900">{layer.name}</h3>
+						<h3 class="text-lg font-medium text-foreground">{layer.name}</h3>
 						{#if layer.isOptional}
-							<span class="ml-2 rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">Optional</span>
+							<span class="ml-2 rounded bg-muted px-2 py-1 text-xs text-foreground">Optional</span>
 						{/if}
 					</div>
 				{/if}
@@ -537,13 +537,13 @@
 
 		{#if isExpanded}
 			<div class="mb-4">
-				<label class="mb-1 block text-sm font-medium text-gray-700" for="file-upload-{layer.id}"
+				<label class="mb-1 block text-sm font-medium text-foreground" for="file-upload-{layer.id}"
 					>Upload Traits</label
 				>
 				<div
 					class="flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors {isDragover
-						? 'border-indigo-600 bg-indigo-50'
-						: 'gray-300'}"
+						? 'border-primary bg-muted'
+						: 'border-border'}"
 					ondragover={(e) => {
 						e.preventDefault();
 						isDragover = true;
@@ -570,15 +570,15 @@
 									/>
 								</div>
 							</div>
-							<div class="mt-2 h-2 w-full rounded-full bg-gray-200">
+							<div class="mt-2 h-2 w-full rounded-full bg-muted">
 								<div
-									class="h-full rounded-full bg-indigo-600 transition-all duration-300"
+									class="h-full rounded-full bg-primary transition-all duration-300"
 									style="width: {uploadProgress}%"
 								></div>
 							</div>
 						{:else}
 							<svg
-								class="mx-auto h-12 w-12 text-gray-400"
+								class="mx-auto h-12 w-12 text-muted-foreground"
 								stroke="currentColor"
 								fill="none"
 								viewBox="0 0 48 48"
@@ -591,10 +591,10 @@
 									stroke-linejoin="round"
 								/>
 							</svg>
-							<div class="flex text-sm text-gray-600">
+							<div class="text-muted-foreground flex text-sm">
 								<label
 									for="file-upload-{layer.id}"
-									class="relative cursor-pointer rounded-md bg-white font-medium text-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:text-indigo-500"
+									class="bg-background text-primary focus-within:ring-ring hover:text-primary/80 relative cursor-pointer rounded-md font-medium focus-within:ring-2 focus-within:ring-offset-2"
 								>
 									<span>Upload files</span>
 									<input
@@ -608,19 +608,19 @@
 								</label>
 								<p class="pl-1">or drag and drop</p>
 							</div>
-							<p class="text-xs text-gray-500">PNG, JPG, GIF, etc.</p>
+							<p class="text-xs text-muted-foreground">PNG, JPG, GIF, etc.</p>
 						{/if}
 					</div>
 				</div>
 			</div>
 			<div class="mt-4">
 				<div class="mb-2 flex items-center justify-between">
-					<h4 class="text-md font-medium text-gray-700">Traits ({layer.traits.length})</h4>
+					<h4 class="text-md font-medium text-foreground">Traits ({layer.traits.length})</h4>
 					{#if layer.traits.length > 5}
 						<input
 							type="text"
 							placeholder="Search traits..."
-							class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+							class="w-32 rounded border border-input px-2 py-1 text-sm"
 							bind:value={searchTerm}
 						/>
 					{/if}
@@ -628,7 +628,7 @@
 
 				<!-- Bulk operation controls -->
 				{#if filteredTraits.length > 1}
-					<div class="mb-2 flex items-center justify-between rounded bg-gray-100 p-2">
+					<div class="mb-2 flex items-center justify-between rounded bg-muted p-2">
 						<div class="flex items-center space-x-2">
 							<Button variant="outline" size="sm" onclick={selectAllFiltered}>Select All</Button>
 							<Button
@@ -639,7 +639,7 @@
 							>
 								Clear
 							</Button>
-							<span class="text-sm text-gray-600">
+							<span class="text-sm text-muted-foreground">
 								{selectedTraits.size} selected
 							</span>
 						</div>
@@ -658,14 +658,14 @@
 					</div>
 
 					{#if selectedTraits.size > 0}
-						<div class="mb-4 rounded border border-gray-200 p-3">
+						<div class="mb-4 rounded border border-border p-3">
 							<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
 							<div class="space-y-2">
 								<div class="flex items-center space-x-2">
 									<label for="bulk-rarity-{layer.id}" class="text-sm">Rarity:</label>
 									<select
 										id="bulk-rarity-{layer.id}"
-										class="rounded border border-gray-300 px-2 py-1 text-sm"
+										class="rounded border border-input px-2 py-1 text-sm"
 										bind:value={bulkRarityWeight}
 									>
 										<option value="1">Mythic (1)</option>
@@ -682,7 +682,7 @@
 										id="bulk-rename-{layer.id}"
 										type="text"
 										placeholder="New name prefix"
-										class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+										class="w-32 rounded border border-input px-2 py-1 text-sm"
 										bind:value={bulkNewName}
 									/>
 									<Button
@@ -713,7 +713,7 @@
 						</div>
 					{/if}
 				{:else}
-					<p class="text-sm text-gray-500">No traits added yet. Upload or drag images above.</p>
+					<p class="text-sm text-muted-foreground">No traits added yet. Upload or drag images above.</p>
 				{/if}
 			</div>
 		{/if}

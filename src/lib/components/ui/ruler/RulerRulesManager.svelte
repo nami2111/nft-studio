@@ -98,7 +98,9 @@
 			</DialogHeader>
 			<div class="space-y-4">
 				{#if availableLayers.length === 0}
-					<p class="text-sm text-gray-500">No other layers available to create rules for.</p>
+					<p class="text-muted-foreground text-sm">
+						No other layers available to create rules for.
+					</p>
 				{:else}
 					<!-- Add New Rule -->
 					<Card>
@@ -110,7 +112,7 @@
 								<label class="text-sm font-medium">Target Layer</label>
 								<select
 									bind:value={newRule.layerId}
-									class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+									class="border-input bg-background mt-1 block w-full rounded-md border px-3 py-2 text-sm"
 								>
 									<option value="">Select a layer...</option>
 									{#each availableLayers as availableLayer (availableLayer.id)}
@@ -184,12 +186,12 @@
 										</div>
 									</div>
 
-									<Button onclick={addRule} size="sm" class="w-full">
+									<Button variant="outline" onclick={addRule} size="sm" class="w-full">
 										<Plus class="mr-1 h-3 w-3" />
 										Add Rule
 									</Button>
 								{:else}
-									<p class="text-sm text-gray-500">No traits available in this layer.</p>
+									<p class="text-muted-foreground text-sm">No traits available in this layer.</p>
 								{/if}
 							{/if}
 						</CardContent>
@@ -208,7 +210,7 @@
 
 												{#if rule.allowedTraitIds.length > 0}
 													<div>
-														<span class="text-xs text-gray-500">Allowed:</span>
+														<span class="text-muted-foreground text-xs">Allowed:</span>
 														<div class="mt-1 flex flex-wrap gap-1">
 															{#each rule.allowedTraitIds as traitId (traitId)}
 																<Badge variant="default" class="text-xs"
@@ -218,12 +220,12 @@
 														</div>
 													</div>
 												{:else}
-													<div class="text-xs text-gray-500">All traits allowed</div>
+													<div class="text-muted-foreground text-xs">All traits allowed</div>
 												{/if}
 
 												{#if rule.forbiddenTraitIds.length > 0}
 													<div>
-														<span class="text-xs text-gray-500">Forbidden:</span>
+														<span class="text-muted-foreground text-xs">Forbidden:</span>
 														<div class="mt-1 flex flex-wrap gap-1">
 															{#each rule.forbiddenTraitIds as traitId (traitId)}
 																<Badge variant="destructive" class="text-xs"
@@ -248,7 +250,7 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="text-sm text-gray-500">
+						<p class="text-muted-foreground text-sm">
 							No rules defined yet. Add a rule to restrict trait combinations.
 						</p>
 					{/if}

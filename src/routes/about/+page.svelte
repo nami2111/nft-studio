@@ -36,9 +36,9 @@
 	/>
 </svelte:head>
 
-<div class="min-h-screen bg-white">
+<div class="bg-background min-h-screen">
 	<!-- Fixed Side Navigation -->
-	<div class="fixed top-0 left-0 z-10 h-screen w-64 border-r border-gray-200 bg-white">
+	<div class="border-border bg-card fixed top-0 left-0 z-10 h-screen w-64 border-r">
 		<div class="p-6">
 			<!-- Back Button -->
 			<div class="mb-8">
@@ -77,17 +77,10 @@
 			<!-- Quick Actions -->
 			<div class="mt-8 border-t border-gray-200 pt-8">
 				<div class="space-y-2">
-					<Button
-						class="w-full bg-gray-900 text-white hover:bg-gray-800"
-						onclick={() => (window.location.href = '/app')}
-					>
+					<Button class="w-full" onclick={() => (window.location.href = '/app')}>
 						Launch Studio
 					</Button>
-					<Button
-						variant="outline"
-						class="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
-						onclick={() => (window.location.href = '/')}
-					>
+					<Button variant="outline" class="w-full" onclick={() => (window.location.href = '/')}>
 						Homepage
 					</Button>
 				</div>

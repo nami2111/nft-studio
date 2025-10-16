@@ -115,11 +115,8 @@
 	});
 </script>
 
-<Card class="overflow-hidden">
-	<div
-		class="flex aspect-square items-center justify-center bg-gray-100"
-		bind:this={imageContainer}
-	>
+<Card class="overflow-hidden border-2">
+	<div class="bg-muted flex aspect-square items-center justify-center" bind:this={imageContainer}>
 		{#if isVisible && trait.imageUrl}
 			<img
 				src={trait.imageUrl}
@@ -130,19 +127,19 @@
 		{:else if !trait.imageUrl}
 			<div class="flex h-full items-center justify-center">
 				<div
-					class="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"
+					class="border-muted-foreground border-t-foreground h-6 w-6 animate-spin rounded-full border-2"
 				></div>
 			</div>
 		{:else}
-			<span class="text-gray-500">No image</span>
+			<span class="text-muted-foreground">No image</span>
 		{/if}
 	</div>
-	<CardContent class="p-2">
+	<CardContent class="p-3">
 		<div class="flex items-center justify-between">
 			{#if isEditing}
 				<input
 					bind:value={traitName}
-					class="w-full border-b bg-transparent text-sm font-medium focus:outline-none"
+					class="border-foreground w-full border-b-2 bg-transparent text-sm font-medium focus:outline-none"
 					onkeydown={(e) => e.key === 'Enter' && handleUpdateName()}
 				/>
 				<div class="flex">
@@ -155,10 +152,12 @@
 				<div class="flex min-w-0 items-center gap-2">
 					{#if trait.type === 'ruler'}
 						<div class="h-3 w-3 flex-shrink-0" title="Ruler Trait">
-							<Crown class="h-3 w-3 text-yellow-500" />
+							<Crown class="text-foreground h-3 w-3" />
 						</div>
 					{/if}
-					<p class="truncate text-sm font-medium text-gray-900" title={trait.name}>{trait.name}</p>
+					<p class="text-card-foreground truncate text-sm font-medium" title={trait.name}>
+						{trait.name}
+					</p>
 				</div>
 				<div class="flex gap-1">
 					<TraitTypeToggle {trait} {layerId} />
@@ -174,7 +173,7 @@
 						><Edit class="h-4 w-4" /></Button
 					>
 					<Button variant="ghost" size="icon" onclick={handleRemoveTrait}
-						><Trash2 class="h-4 w-4 text-red-500" /></Button
+						><Trash2 class="text-destructive h-4 w-4" /></Button
 					>
 				</div>
 			{/if}

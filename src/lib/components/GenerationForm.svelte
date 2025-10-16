@@ -296,30 +296,28 @@
 	}
 </script>
 
-<div class="space-y-4">
-	<div class="grid gap-3 py-3 sm:gap-4 sm:py-4">
-		<div class="grid grid-cols-4 items-center gap-3 sm:gap-4">
-			<label class="text-right text-xs text-gray-700 sm:text-sm" for="collectionSize"
-				>Collection Size</label
-			>
+<div class="space-y-6">
+	<div class="grid gap-4 py-4">
+		<div class="grid grid-cols-4 items-center gap-4">
+			<label class="text-right text-sm font-medium" for="collectionSize">Collection Size</label>
 			<input
 				id="collectionSize"
 				type="number"
 				min="1"
 				max="10000"
-				class="col-span-3 rounded border p-1.5 text-xs text-gray-700 sm:p-2 sm:text-sm"
+				class="border-input bg-background focus:border-ring focus:ring-ring col-span-3 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 				bind:value={collectionSize}
 				disabled={isGenerating}
 			/>
 		</div>
 
-		<div class="grid grid-cols-4 items-center gap-3 sm:gap-4">
-			<label class="text-right text-xs text-gray-700 sm:text-sm" for="gen-progress">Progress</label>
-			<div class="col-span-3">
+		<div class="grid grid-cols-4 items-center gap-4">
+			<label class="text-right text-sm font-medium" for="gen-progress">Progress</label>
+			<div class="col-span-3 space-y-2">
 				<Progress value={progress} max={100} class="w-full" />
-				<p class="mt-1 text-xs text-gray-600 sm:text-sm">{statusText}</p>
+				<p class="text-muted-foreground text-sm">{statusText}</p>
 				{#if memoryUsage}
-					<p class="mt-1 text-xs text-gray-500">
+					<p class="text-muted-foreground text-sm">
 						Memory: {Math.round(memoryUsage.used / 1024 / 1024)}MB / {Math.round(
 							memoryUsage.available / 1024 / 1024
 						)}MB
@@ -329,13 +327,14 @@
 		</div>
 	</div>
 
-	<div class="flex justify-end space-x-2">
+	<div class="flex justify-end gap-2">
 		{#if isGenerating}
 			<Button variant="outline" onclick={handleCancel} size="sm">
 				<LoadingIndicator operation="generation" message="Canceling..." />
 			</Button>
 		{/if}
 		<Button
+			variant="outline"
 			onclick={handleGenerate}
 			disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
 			size="sm"
@@ -343,8 +342,8 @@
 			{#if isGenerating}
 				<LoadingIndicator operation="generation" message="Generating..." />
 			{:else}
-				<Play class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-				<span class="text-xs sm:text-sm">Generate</span>
+				<Play class="mr-2 h-4 w-4" />
+				<span class="text-sm">Generate</span>
 			{/if}
 		</Button>
 	</div>

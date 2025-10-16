@@ -17,9 +17,9 @@
 		<!-- Left Column: Project Settings and Layer Manager -->
 		<div class="space-y-3 sm:space-y-4 lg:col-span-8">
 			<!-- Project Settings Card -->
-			<div class="rounded-lg border border-gray-200 bg-white/90 shadow-sm backdrop-blur-sm">
-				<div class="border-b border-gray-200 px-3 py-2 sm:px-4 sm:py-3">
-					<h2 class="text-base font-semibold text-gray-800 sm:text-lg">Project Settings</h2>
+			<div class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
+				<div class="border-b px-3 py-2 sm:px-4 sm:py-3">
+					<h2 class="text-base font-semibold sm:text-lg">Project Settings</h2>
 				</div>
 				<div class="p-3 sm:p-4">
 					<ProjectSettings />
@@ -40,9 +40,9 @@
 			</div>
 
 			<!-- Generation Card -->
-			<div class="rounded-lg border border-gray-200 bg-white/90 shadow-sm backdrop-blur-sm">
-				<div class="border-b border-gray-200 px-3 py-2 sm:px-4 sm:py-3">
-					<h2 class="text-base font-semibold text-gray-800 sm:text-lg">Generate Collection</h2>
+			<div class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
+				<div class="border-b px-3 py-2 sm:px-4 sm:py-3">
+					<h2 class="text-base font-semibold sm:text-lg">Generate Collection</h2>
 				</div>
 				<div class="p-3 sm:p-4">
 					<div class="flex justify-center">
