@@ -58,6 +58,38 @@
 
 	// Generate aria attributes for accessibility
 	let ariaModal = $derived(modal ? true : undefined);
+
+	// Ensure dialog stays within viewport bounds
+	$effect(() => {
+		if (ref) {
+			// Small delay to ensure dialog is rendered
+			const timer = setTimeout(() => {
+				if (ref) {
+					const rect = ref.getBoundingClientRect();
+					const viewportHeight = window.innerHeight;
+					const viewportWidth = window.innerWidth;
+
+					// Check if dialog extends beyond viewport
+					if (
+						rect.top < 0 ||
+						rect.bottom > viewportHeight ||
+						rect.left < 0 ||
+						rect.right > viewportWidth
+					) {
+						// Force center positioning
+						ref.style.position = 'fixed';
+						ref.style.top = '50%';
+						ref.style.left = '50%';
+						ref.style.transform = 'translate(-50%, -50%)';
+						ref.style.maxHeight = '85vh';
+						ref.style.overflowY = 'auto';
+					}
+				}
+			}, 100);
+
+			return () => clearTimeout(timer);
+		}
+	});
 </script>
 
 <Dialog.Portal {...portalProps}>
@@ -66,7 +98,7 @@
 		bind:ref
 		data-slot="dialog-content"
 		class={cn(
-			'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
+			'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
 			className
 		)}
 		aria-label={ariaLabel}

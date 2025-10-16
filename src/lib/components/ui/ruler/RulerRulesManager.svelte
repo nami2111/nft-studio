@@ -92,7 +92,7 @@
 				Ruler Rules ({rules.length})
 			</Button>
 		</DialogTrigger>
-		<DialogContent class="max-h-[90vh] max-w-4xl overflow-y-auto" style="margin: 0 !important;">
+		<DialogContent class="max-h-[80vh] max-w-[90vw] overflow-y-auto md:max-w-3xl lg:max-w-4xl">
 			<DialogHeader>
 				<DialogTitle>Manage Ruler Rules for "{trait.name}"</DialogTitle>
 			</DialogHeader>
