@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, type Snippet } from 'svelte';
 	// import { initSatellite } from '@junobuild/core';
+	import { ModeWatcher } from 'mode-watcher';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import AutoSave from '$lib/components/AutoSave.svelte';
@@ -50,6 +51,7 @@
 </script>
 
 <div class="bg-background text-foreground relative min-h-screen overflow-x-hidden">
+	<ModeWatcher />
 	<!-- Simplified decorative background elements -->
 	<div class="pointer-events-none absolute inset-0 overflow-hidden">
 		<!-- Subtle high contrast pattern - hidden on mobile for performance -->
