@@ -62,10 +62,10 @@
 			<nav class="space-y-1">
 				{#each sections as section (section.id)}
 					<button
-						class="flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-left transition-colors {activeSection ===
+						class="flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-left transition-all duration-200 {activeSection ===
 						section.id
-							? 'bg-muted text-foreground'
-							: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+							? 'bg-primary text-primary-foreground scale-[1.02] shadow-sm'
+							: 'text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-[1.01]'}"
 						onclick={() => showSection(section.id)}
 					>
 						<svelte:component this={section.icon} class="h-4 w-4" />
@@ -80,7 +80,7 @@
 					<Button
 						variant="outline"
 						size="lg"
-						class="w-full"
+						class="w-full transition-all hover:scale-105 hover:shadow-lg"
 						onclick={() => (window.location.href = '/app')}
 					>
 						Launch Studio
@@ -88,7 +88,7 @@
 					<Button
 						variant="outline"
 						size="lg"
-						class="w-full"
+						class="w-full transition-all hover:scale-105 hover:shadow-lg"
 						onclick={() => (window.location.href = '/')}
 					>
 						Homepage
