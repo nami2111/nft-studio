@@ -4,6 +4,7 @@
  */
 
 import type { Project, Layer, Trait } from '$lib/types/project';
+import type { LayerId, TraitId } from '$lib/types/ids';
 import { fileToArrayBuffer } from '$lib/utils';
 import { validateImportedProject } from '$lib/domain/validation';
 import { handleFileError } from '$lib/utils/error-handler';
@@ -30,7 +31,9 @@ export async function saveProjectToZip(project: Project): Promise<ArrayBuffer> {
 			traits: layer.traits.map((trait: Trait) => ({
 				id: trait.id,
 				name: trait.name,
-				rarityWeight: trait.rarityWeight
+				rarityWeight: trait.rarityWeight,
+				type: trait.type,
+				rulerRules: trait.rulerRules
 			}))
 		}))
 	};
@@ -116,6 +119,23 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 				} else {
 					// Create empty image data if file not found
 					trait.imageData = new ArrayBuffer(0);
+				}
+			}
+		}
+
+		// Update ruler rules to reference new layer IDs
+		for (const layer of storedProject.layers) {
+			for (const trait of layer.traits) {
+				if (trait.rulerRules) {
+					trait.rulerRules = trait.rulerRules.map((rule) => ({
+						layerId: (originalLayerIds.get(rule.layerId) || rule.layerId) as LayerId,
+						allowedTraitIds: rule.allowedTraitIds.map(
+							(traitId) => (originalTraitIds.get(traitId) || traitId) as TraitId
+						),
+						forbiddenTraitIds: rule.forbiddenTraitIds.map(
+							(traitId) => (originalTraitIds.get(traitId) || traitId) as TraitId
+						)
+					}));
 				}
 			}
 		}

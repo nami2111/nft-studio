@@ -86,21 +86,6 @@
 			// Small delay to ensure modal is rendered
 			setTimeout(() => {
 				focusModal();
-				// Force positioning with JavaScript as backup
-				if (modalElement) {
-					modalElement.style.setProperty('position', 'fixed', 'important');
-					modalElement.style.setProperty('top', '50%', 'important');
-					modalElement.style.setProperty('left', '50%', 'important');
-					modalElement.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
-					modalElement.style.setProperty('z-index', '10000', 'important');
-				}
-				if (overlayElement) {
-					overlayElement.style.setProperty('position', 'fixed', 'important');
-					overlayElement.style.setProperty('top', '0', 'important');
-					overlayElement.style.setProperty('left', '0', 'important');
-					overlayElement.style.setProperty('width', '100vw', 'important');
-					overlayElement.style.setProperty('height', '100vh', 'important');
-				}
 			}, 10);
 		}
 	});
@@ -113,8 +98,7 @@
 {#if open}
 	<div
 		bind:this={overlayElement}
-		class="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm"
-		style="position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; margin: 0 !important; padding: 0 !important;"
+		class="fixed inset-0 z-50 bg-black/50"
 		onclick={handleOverlayClick}
 		onkeydown={handleKeydown}
 		role="dialog"
@@ -125,11 +109,10 @@
 		<div
 			bind:this={modalElement}
 			class={cn(
-				'flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl dark:border-gray-200 dark:bg-gray-900',
+				'fixed top-1/2 left-1/2 z-50 max-h-[80vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl dark:border-gray-200 dark:bg-gray-900',
 				maxWidth,
 				className
 			)}
-			style="position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; margin: 0 !important; z-index: 10000 !important;"
 			{...restProps}
 		>
 			<!-- Modal Header -->

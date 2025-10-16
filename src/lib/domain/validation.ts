@@ -72,7 +72,10 @@ export const ImportedTraitSchema = z.object({
 	rarityWeight: RarityWeightSchema.optional(),
 	// imageData may be missing in imports/exports
 	imageData: z.instanceof(ArrayBuffer).optional(),
-	imageUrl: z.string().optional()
+	imageUrl: z.string().optional(),
+	// Ruler trait fields
+	type: TraitTypeSchema.optional(),
+	rulerRules: z.array(RulerRuleSchema).optional()
 });
 
 export const ImportedLayerSchema = z.object({

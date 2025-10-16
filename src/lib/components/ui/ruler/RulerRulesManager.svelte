@@ -338,14 +338,9 @@
 
 								{@const hasCurrentConflicts = hasConflicts(newRule)}
 								{@const buttonClass = hasCurrentConflicts
-									? "w-full border-amber-300 bg-amber-50 text-amber-700"
-									: "w-full"}
-								<Button
-									variant="outline"
-									onclick={addRule}
-									size="sm"
-									class={buttonClass}
-								>
+									? 'w-full border-amber-300 bg-amber-50 text-amber-700'
+									: 'w-full'}
+								<Button variant="outline" onclick={addRule} size="sm" class={buttonClass}>
 									<Plus class="mr-1 h-3 w-3" />
 									Add Rule
 									{#if hasCurrentConflicts}
