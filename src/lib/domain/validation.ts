@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import type { Project, Layer, Trait } from '$lib/types/project';
 import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
+import type { TraitType, RulerRule } from '$lib/types/layer';
 
 // Validation result interface
 export interface ValidationResult {
@@ -24,6 +25,14 @@ export const NameSchema = z
 export const DescriptionSchema = z.string().max(500).optional();
 export const RarityWeightSchema = z.number().int().min(1).max(5);
 
+// Ruler trait schemas
+export const TraitTypeSchema = z.enum(['normal', 'ruler']).default('normal');
+export const RulerRuleSchema = z.object({
+	layerId: IdSchema,
+	allowedTraitIds: z.array(IdSchema).default([]),
+	forbiddenTraitIds: z.array(IdSchema).default([])
+});
+
 // Project schemas
 export const ProjectDimensionsSchema = z.object({
 	width: z.number().int().min(1).max(10000),
@@ -35,7 +44,9 @@ export const TraitSchema = z.object({
 	name: NameSchema,
 	imageData: z.instanceof(ArrayBuffer),
 	imageUrl: z.string().optional(),
-	rarityWeight: RarityWeightSchema.optional()
+	rarityWeight: RarityWeightSchema.optional(),
+	type: TraitTypeSchema.optional(),
+	rulerRules: z.array(RulerRuleSchema).optional()
 });
 
 export const LayerSchema = z.object({
@@ -369,6 +380,130 @@ export function createValidatedTrait(overrides: Partial<Trait> = {}): Trait {
 	}
 
 	return trait;
+}
+
+// Ruler trait compatibility validation functions
+
+/**
+ * Check if a trait combination is compatible based on ruler rules
+ */
+export function validateTraitCompatibility(
+	selectedTraits: { traitId: TraitId; layerId: LayerId }[],
+	layers: Layer[]
+): ValidationResult {
+	try {
+		const rulerTraits = selectedTraits.filter(({ traitId }) => {
+			for (const layer of layers) {
+				const trait = layer.traits.find((t) => t.id === traitId);
+				if (trait && trait.type === 'ruler') {
+					return true;
+				}
+			}
+			return false;
+		});
+
+		for (const rulerTrait of rulerTraits) {
+			const rulerLayer = layers.find((layer) =>
+				layer.traits.some((trait) => trait.id === rulerTrait.traitId)
+			);
+			const rulerTraitData = rulerLayer?.traits.find((t) => t.id === rulerTrait.traitId);
+
+			if (!rulerTraitData?.rulerRules) continue;
+
+			for (const rule of rulerTraitData.rulerRules) {
+				const conflictingTrait = selectedTraits.find(
+					({ traitId, layerId }) =>
+						layerId === rule.layerId && rule.forbiddenTraitIds.includes(traitId)
+				);
+
+				if (conflictingTrait) {
+					return {
+						success: false,
+						error: `Trait "${rulerTraitData.name}" (ruler) is incompatible with the selected trait in layer "${layers.find((l) => l.id === rule.layerId)?.name}"`
+					};
+				}
+
+				const allowedTraitInLayer = selectedTraits.find(({ layerId }) => layerId === rule.layerId);
+
+				if (
+					allowedTraitInLayer &&
+					rule.allowedTraitIds.length > 0 &&
+					!rule.allowedTraitIds.includes(allowedTraitInLayer.traitId)
+				) {
+					return {
+						success: false,
+						error: `Trait "${rulerTraitData.name}" (ruler) only allows specific traits in layer "${layers.find((l) => l.id === rule.layerId)?.name}"`
+					};
+				}
+			}
+		}
+
+		return { success: true };
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'Unknown compatibility validation error'
+		};
+	}
+}
+
+/**
+ * Get compatible traits for a layer based on current selection
+ */
+export function getCompatibleTraits(
+	layerId: LayerId,
+	selectedTraits: { traitId: TraitId; layerId: LayerId }[],
+	layers: Layer[]
+): TraitId[] {
+	try {
+		const layer = layers.find((l) => l.id === layerId);
+		if (!layer) return [];
+
+		let compatibleTraitIds = layer.traits.map((t) => t.id);
+
+		for (const { traitId } of selectedTraits) {
+			const sourceLayer = layers.find((l) => l.traits.some((t) => t.id === traitId));
+			const sourceTrait = sourceLayer?.traits.find((t) => t.id === traitId);
+
+			if (sourceTrait?.type === 'ruler' && sourceTrait.rulerRules) {
+				const rule = sourceTrait.rulerRules.find((r) => r.layerId === layerId);
+				if (rule) {
+					if (rule.allowedTraitIds.length > 0) {
+						compatibleTraitIds = compatibleTraitIds.filter((id) =>
+							rule.allowedTraitIds.includes(id)
+						);
+					}
+					compatibleTraitIds = compatibleTraitIds.filter(
+						(id) => !rule.forbiddenTraitIds.includes(id)
+					);
+				}
+			}
+		}
+
+		return compatibleTraitIds;
+	} catch (error) {
+		console.error('Error getting compatible traits:', error);
+		return [];
+	}
+}
+
+/**
+ * Validate ruler rule structure
+ */
+export function validateRulerRule(rule: unknown): ValidationResult {
+	try {
+		const result = RulerRuleSchema.safeParse(rule);
+		return {
+			success: result.success,
+			error: result.success ? undefined : 'Invalid ruler rule structure',
+			data: result.success ? result.data : undefined
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'Unknown validation error'
+		};
+	}
 }
 
 // Safe validation wrapper that never throws

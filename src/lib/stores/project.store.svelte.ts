@@ -151,7 +151,7 @@ export function reorderLayers(layerIds: LayerId[]): void {
 }
 
 // Batch loading state to prevent multiple rapid updates
-let pendingTraitUpdates = new Map<string, { trait: Trait; layer: Layer; file: File }>();
+const pendingTraitUpdates = new Map<string, { trait: Trait; layer: Layer; file: File }>();
 
 // Process pending trait updates in batches
 function processPendingTraitUpdates() {

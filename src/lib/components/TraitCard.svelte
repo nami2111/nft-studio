@@ -6,8 +6,11 @@
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
-	import { Edit, Trash2, Check, X } from 'lucide-svelte';
+	import { Edit, Trash2, Check, X, Crown } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
+	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
+	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
+	import { project } from '$lib/stores';
 
 	interface Props {
 		trait: Trait;
@@ -22,6 +25,10 @@
 	let isEditing = $state(false);
 	let isVisible = $state(false);
 	let observer: IntersectionObserver | null = $state(null);
+
+	// Get current layer and all layers for ruler rules manager
+	let currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
+	let allLayers = $derived(project.layers);
 
 	function handleRemoveTrait() {
 		toast.warning(`Are you sure you want to delete "${trait.name}"?`, {
@@ -55,6 +62,16 @@
 		updateTraitName(layerIdTyped, traitIdTyped, traitName);
 		toast.success('Trait name updated.');
 		isEditing = false;
+	}
+
+	// Handle ruler rules update
+	function handleRulerRulesUpdate(rules: import('$lib/types/layer').RulerRule[]) {
+		if (!currentLayer) return;
+
+		const traitIndex = currentLayer.traits.findIndex((t) => t.id === traitIdTyped);
+		if (traitIndex !== -1) {
+			currentLayer.traits[traitIndex].rulerRules = rules;
+		}
 	}
 
 	function cancelEdit() {
@@ -135,8 +152,24 @@
 					<Button variant="ghost" size="icon" onclick={cancelEdit}><X class="h-4 w-4" /></Button>
 				</div>
 			{:else}
-				<p class="truncate text-sm font-medium text-gray-900" title={trait.name}>{trait.name}</p>
-				<div class="flex">
+				<div class="flex min-w-0 items-center gap-2">
+					{#if trait.type === 'ruler'}
+						<div class="h-3 w-3 flex-shrink-0" title="Ruler Trait">
+							<Crown class="h-3 w-3 text-yellow-500" />
+						</div>
+					{/if}
+					<p class="truncate text-sm font-medium text-gray-900" title={trait.name}>{trait.name}</p>
+				</div>
+				<div class="flex gap-1">
+					<TraitTypeToggle {trait} {layerId} />
+					{#if trait.type === 'ruler' && currentLayer && allLayers}
+						<RulerRulesManager
+							{trait}
+							layer={currentLayer}
+							{allLayers}
+							onRulesUpdate={handleRulerRulesUpdate}
+						/>
+					{/if}
 					<Button variant="ghost" size="icon" onclick={() => (isEditing = true)}
 						><Edit class="h-4 w-4" /></Button
 					>

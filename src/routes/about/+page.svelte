@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { ArrowLeft, FileText, Zap, Layers, Cpu, BarChart3, Github, Twitter } from 'lucide-svelte';
+	import {
+		ArrowLeft,
+		FileText,
+		Zap,
+		Layers,
+		Cpu,
+		BarChart3,
+		Github,
+		Twitter,
+		Crown
+	} from 'lucide-svelte';
 
 	let activeSection = 'overview';
 
@@ -8,6 +18,7 @@
 		{ id: 'overview', label: 'Overview', icon: FileText },
 		{ id: 'quick-start', label: 'Quick Start', icon: Zap },
 		{ id: 'advanced-features', label: 'Features', icon: Layers },
+		{ id: 'ruler-traits', label: 'Ruler Traits', icon: Crown },
 		{ id: 'technical-details', label: 'Technical', icon: Cpu },
 		{ id: 'performance', label: 'Performance', icon: BarChart3 }
 	];
@@ -49,7 +60,7 @@
 
 			<!-- Navigation Menu -->
 			<nav class="space-y-1">
-				{#each sections as section}
+				{#each sections as section (section.id)}
 					<button
 						class="flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-left transition-colors {activeSection ===
 						section.id
@@ -490,6 +501,164 @@
 										<div>
 											<strong class="text-gray-800">Progressive Loading:</strong>
 											<p class="text-gray-600">Real-time preview during generation</p>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</section>
+				{/if}
+
+				<!-- Ruler Traits Section -->
+				{#if activeSection === 'ruler-traits'}
+					<section class="animate-in fade-in duration-300">
+						<div class="rounded-lg border border-gray-200 bg-white">
+							<div class="border-b border-gray-200 px-6 py-4">
+								<h2 class="text-xl font-semibold text-gray-900">Ruler Traits</h2>
+							</div>
+							<div class="px-6 py-6">
+								<div class="space-y-8">
+									<div>
+										<h3 class="mb-4 font-semibold text-gray-900">What are Ruler Traits?</h3>
+										<p class="mb-4 text-gray-600">
+											Ruler traits are special traits that control which other traits can be
+											combined together in your NFTs. They act as "rules" that enforce compatibility
+											between different trait categories, allowing you to create more sophisticated
+											and logical trait combinations.
+										</p>
+										<div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
+											<p class="text-sm text-blue-800">
+												<strong>Example:</strong> A "Background" ruler trait might specify that "Forest"
+												backgrounds only work with "Nature" themed traits, while "City" backgrounds work
+												with "Urban" themed traits.
+											</p>
+										</div>
+									</div>
+
+									<div>
+										<h3 class="mb-4 font-semibold text-gray-900">Creating Ruler Traits</h3>
+										<p class="mb-4 text-gray-600">
+											Convert any existing trait into a ruler trait and configure its compatibility
+											rules.
+										</p>
+										<ol class="ml-6 list-decimal space-y-2 text-gray-600">
+											<li>Navigate to your project's trait layers</li>
+											<li>Find the trait you want to make a ruler</li>
+											<li>Click the ruler icon (👑) next to the trait name</li>
+											<li>The trait will be marked as a ruler type (blue badge)</li>
+											<li>Click "Manage Rules" to configure compatibility</li>
+										</ol>
+									</div>
+
+									<div>
+										<h3 class="mb-4 font-semibold text-gray-900">Setting Up Compatibility Rules</h3>
+										<p class="mb-4 text-gray-600">
+											Configure which traits can work together with your ruler trait.
+										</p>
+										<div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+											<h4 class="mb-2 font-semibold text-gray-900">Rule Configuration Steps:</h4>
+											<ol class="ml-4 list-decimal space-y-1 text-sm text-gray-600">
+												<li>Select the ruler trait you want to configure</li>
+												<li>Choose a trait category from the dropdown</li>
+												<li>Select specific traits that are compatible</li>
+												<li>Add multiple rules for different categories</li>
+												<li>Save your configuration</li>
+											</ol>
+										</div>
+										<div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+											<p class="text-sm text-amber-800">
+												<strong>💡 Pro Tip:</strong> You can create multiple compatibility rules for
+												the same ruler trait, covering different trait categories. This gives you fine-grained
+												control over trait combinations.
+											</p>
+										</div>
+									</div>
+
+									<div>
+										<h3 class="mb-4 font-semibold text-gray-900">Use Cases</h3>
+										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+											<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+												<h4 class="mb-2 font-semibold text-gray-900">Thematic Consistency</h4>
+												<p class="text-sm text-gray-600">
+													Ensure that traits match thematically (e.g., "Medieval" backgrounds only
+													with "Fantasy" accessories).
+												</p>
+											</div>
+											<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+												<h4 class="mb-2 font-semibold text-gray-900">Rarity Control</h4>
+												<p class="text-sm text-gray-600">
+													Create ultra-rare combinations by restricting certain traits to only work
+													with specific rulers.
+												</p>
+											</div>
+											<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+												<h4 class="mb-2 font-semibold text-gray-900">Storytelling</h4>
+												<p class="text-sm text-gray-600">
+													Build narrative logic where certain character backgrounds determine
+													available traits.
+												</p>
+											</div>
+											<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+												<h4 class="mb-2 font-semibold text-gray-900">Collection Structure</h4>
+												<p class="text-sm text-gray-600">
+													Create sub-collections within your main collection based on ruler trait
+													combinations.
+												</p>
+											</div>
+										</div>
+									</div>
+
+									<div>
+										<h3 class="mb-4 font-semibold text-gray-900">Best Practices</h3>
+										<ul class="ml-6 list-disc space-y-2 text-gray-600">
+											<li>
+												<strong>Plan Ahead:</strong> Design your ruler system before importing large
+												numbers of traits
+											</li>
+											<li>
+												<strong>Test Combinations:</strong> Use the preview feature to verify compatibility
+												rules work as expected
+											</li>
+											<li>
+												<strong>Document Rules:</strong> Keep track of your ruler logic for future reference
+											</li>
+											<li>
+												<strong>Start Simple:</strong> Begin with basic ruler rules and gradually add
+												complexity
+											</li>
+											<li>
+												<strong>Validate Generation:</strong> Always run a small test generation before
+												creating large collections
+											</li>
+										</ul>
+									</div>
+
+									<div>
+										<h3 class="mb-4 font-semibold text-gray-900">Visual Indicators</h3>
+										<p class="mb-4 text-gray-600">
+											The UI provides clear visual cues for ruler traits and their status:
+										</p>
+										<div class="space-y-2">
+											<div class="flex items-center space-x-3">
+												<span class="text-blue-500">👑</span>
+												<span class="text-gray-600"
+													>Ruler icon - indicates a trait is a ruler type</span
+												>
+											</div>
+											<div class="flex items-center space-x-3">
+												<span
+													class="rounded border border-blue-200 bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800"
+													>RULER</span
+												>
+												<span class="text-gray-600">Blue badge - ruler trait type indicator</span>
+											</div>
+											<div class="flex items-center space-x-3">
+												<span
+													class="rounded border border-gray-200 bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800"
+													>NORMAL</span
+												>
+												<span class="text-gray-600">Gray badge - normal trait type</span>
+											</div>
 										</div>
 									</div>
 								</div>
