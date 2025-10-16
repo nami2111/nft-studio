@@ -46,12 +46,15 @@
 					<div class="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
 						<div class="inline-flex">
 							<button
-								class="ring-offset-background focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md bg-white px-8 text-lg font-medium whitespace-nowrap text-black transition-colors hover:bg-white/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+								class="ring-offset-background focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md bg-white px-8 text-lg font-medium whitespace-nowrap text-black transition-all hover:scale-105 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
 								onclick={() => goto(resolve('/app'))}>Get Started</button
 							>
 						</div>
-						<Button variant="outline" size="lg" onclick={() => goto(resolve('/about'))}
-							>Learn More</Button
+						<Button
+							variant="outline"
+							size="lg"
+							class="transition-all hover:scale-105 hover:shadow-lg"
+							onclick={() => goto(resolve('/about'))}>Learn More</Button
 						>
 					</div>
 				</div>
