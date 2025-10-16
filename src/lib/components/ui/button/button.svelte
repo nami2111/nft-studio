@@ -57,6 +57,8 @@
 		type?: 'button' | 'submit' | 'reset';
 		/** Loading state */
 		loading?: boolean;
+		/** Tooltip text */
+		title?: string;
 		/** ARIA label for accessibility */
 		'aria-label'?: string;
 	}
@@ -70,6 +72,7 @@
 		disabled,
 		type = 'button',
 		loading = false,
+		title,
 		'aria-label': ariaLabel,
 		...restProps
 	}: Props = $props();
@@ -80,6 +83,7 @@
 	{onclick}
 	{disabled}
 	{type}
+	{title}
 	aria-busy={loading}
 	aria-label={ariaLabel}
 	{...restProps}

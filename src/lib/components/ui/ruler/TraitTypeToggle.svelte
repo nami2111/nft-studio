@@ -51,13 +51,13 @@
 </script>
 
 {#if currentLayer}
-		<Button
-			variant="ghost"
-			size="icon"
-			title={trait.type === 'ruler' ? 'Demote from ruler' : 'Promote to ruler'}
-			onclick={toggleTraitType}
-			class="{trait.type === 'ruler' ? 'text-foreground' : ''} {className}"
-		>
-			<Crown class="h-4 w-4" />
-		</Button>
+	<Button
+		variant="ghost"
+		size="icon"
+		title={trait.type === 'ruler' ? 'Demote from ruler' : 'Promote to ruler'}
+		onclick={toggleTraitType}
+		class="{trait.type === 'ruler' ? 'text-foreground' : ''} {className}"
+	>
+		<Crown class="h-4 w-4" />
+	</Button>
 {/if}

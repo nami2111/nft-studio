@@ -115,7 +115,7 @@
 	});
 </script>
 
-<Card class="overflow-hidden border-2 relative">
+<Card class="relative overflow-hidden border-2">
 	<div class="bg-muted flex aspect-square items-center justify-center" bind:this={imageContainer}>
 		<div class="absolute top-2 right-2 flex gap-1">
 			<TraitTypeToggle {trait} {layerId} />

@@ -58,9 +58,7 @@
 
 	// Generate aria attributes for accessibility
 	let ariaModal = $derived(modal ? true : undefined);
-
-	
-	</script>
+</script>
 
 <Dialog.Portal {...portalProps}>
 	<Dialog.Overlay />
@@ -75,7 +73,7 @@
 		aria-describedby={ariaDescribedBy}
 		aria-modal={ariaModal ? 'true' : undefined}
 		role="dialog"
-				{...filteredRestProps}
+		{...filteredRestProps}
 	>
 		{@render children?.()}
 		{#if showCloseButton}
