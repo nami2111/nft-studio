@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy, type Snippet } from 'svelte';
 	// import { initSatellite } from '@junobuild/core';
-	import { ModeWatcher } from 'mode-watcher';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import AutoSave from '$lib/components/AutoSave.svelte';
-	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { cleanupAllResources } from '$lib/stores';
 	import '../../app.css';
 
@@ -50,13 +48,12 @@
 	});
 </script>
 
-<div class="bg-background text-foreground relative min-h-screen overflow-x-hidden">
-	<ModeWatcher />
+<div class="relative min-h-screen overflow-x-hidden bg-white text-black">
 	<!-- Simplified decorative background elements -->
 	<div class="pointer-events-none absolute inset-0 overflow-hidden">
 		<!-- Subtle high contrast pattern - hidden on mobile for performance -->
 		<div
-			class="absolute inset-0 hidden bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.05)_0%,rgba(255,255,255,0)_70%)] sm:block dark:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,rgba(0,0,0,0)_70%)]"
+			class="absolute inset-0 hidden bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.05)_0%,rgba(255,255,255,0)_70%)] sm:block"
 		></div>
 
 		<!-- Minimal floating lines - hidden on mobile -->
@@ -80,9 +77,6 @@
 						<div class="ml-2 text-xs font-medium sm:ml-3 sm:text-sm md:ml-4 md:text-base">
 							NFT Studio
 						</div>
-					</div>
-					<div class="flex items-center">
-						<ThemeToggle />
 					</div>
 				</div>
 			</div>
