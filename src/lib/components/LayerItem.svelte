@@ -670,7 +670,7 @@
 								layerId={layer.id}
 								{searchTerm}
 								{selectedTraits}
-								onToggleSelection={(traitId) => toggleTraitSelection(createTraitId(traitId))}
+								onToggleSelection={(traitId: string) => toggleTraitSelection(createTraitId(traitId))}
 								showSelection={filteredTraits.length > 1}
 							/>
 						</div>
