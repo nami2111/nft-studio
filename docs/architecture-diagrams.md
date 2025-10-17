@@ -10,7 +10,7 @@ NFT Studio follows a layered architecture pattern with clear separation of conce
   - Layer management (LayerManager, LayerItem)
   - Trait management (TraitCard, VirtualTraitList)
   - Project management (ProjectManagement, ProjectSettings)
-  - Generation workflow (GenerationModal, Preview)
+  - Generation workflow (custom GenerationModal, Preview)
   - UI utilities (LoadingIndicator, ErrorBoundary)
 - **Stores**: Reactive state management using Svelte 5 runes stores in src/lib/stores/
   - Project state (project.store.svelte.ts)

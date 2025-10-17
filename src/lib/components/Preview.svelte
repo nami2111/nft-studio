@@ -673,21 +673,32 @@
 
 <Card class="sticky top-3 sm:top-4">
 	<CardContent class="p-3 sm:p-4">
-		<h2 class="mb-2 text-base font-bold text-gray-800 sm:mb-3 sm:text-lg">Preview</h2>
+		<h2 class="mb-2 text-base font-bold sm:mb-3 sm:text-lg">Preview</h2>
 		<div
 			bind:this={container}
-			class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md bg-gray-100"
+			class="border-input bg-muted flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border"
 		>
 			<canvas bind:this={canvas} class="block max-h-full max-w-full"></canvas>
 		</div>
 		<div
 			class="mt-2 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:justify-center sm:gap-0 sm:space-x-2"
 		>
-			<Button size="sm" onclick={randomize} disabled={isRandomizing} class="w-full sm:w-auto">
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={randomize}
+				disabled={isRandomizing}
+				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
+			>
 				<Shuffle class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4 {isRandomizing ? 'animate-spin' : ''}" />
 				<span class="text-xs sm:text-sm">{isRandomizing ? 'Randomizing...' : 'Randomize'}</span>
 			</Button>
-			<Button variant="outline" size="sm" onclick={handleRefresh} class="w-full sm:w-auto">
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={handleRefresh}
+				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
+			>
 				<RefreshCw class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 				<span class="text-xs sm:text-sm">Refresh</span>
 			</Button>

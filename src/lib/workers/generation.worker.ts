@@ -13,8 +13,47 @@ import type {
 } from '$lib/types/worker-messages';
 import { createTaskId, type TaskId } from '$lib/types/ids';
 
-// Rarity algorithm
-function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
+// Check if a trait is compatible with currently selected traits
+function isTraitCompatible(
+	trait: TransferrableTrait,
+	layerId: string,
+	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
+	layers: TransferrableLayer[]
+): boolean {
+	// Check if any selected ruler traits forbid this trait
+	for (const selected of selectedTraits) {
+		if (selected.trait.type === 'ruler' && selected.trait.rulerRules) {
+			const rule = selected.trait.rulerRules.find((r) => r.layerId === layerId);
+			if (rule) {
+				// Check if trait is in forbidden list
+				if (rule.forbiddenTraitIds.includes(trait.id)) {
+					return false;
+				}
+				// Check if trait is in allowed list (if allowed list is not empty)
+				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(trait.id)) {
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
+// Get compatible traits for a layer based on current selection
+function getCompatibleTraits(
+	layer: TransferrableLayer,
+	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
+	layers: TransferrableLayer[]
+): TransferrableTrait[] {
+	return layer.traits.filter((trait) => isTraitCompatible(trait, layer.id, selectedTraits, layers));
+}
+
+// Rarity algorithm with compatibility checking
+function selectTrait(
+	layer: TransferrableLayer,
+	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
+	layers: TransferrableLayer[]
+): TransferrableTrait | null {
 	// Handle optional layers first
 	if (layer.isOptional) {
 		const skipChance = 0.3; // 30% chance to skip optional layer
@@ -23,14 +62,20 @@ function selectTrait(layer: TransferrableLayer): TransferrableTrait | null {
 		}
 	}
 
-	const totalWeight = layer.traits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
+	// Get compatible traits based on current selection
+	const compatibleTraits = getCompatibleTraits(layer, selectedTraits, layers);
+	if (compatibleTraits.length === 0) {
+		return null; // No compatible traits available
+	}
+
+	const totalWeight = compatibleTraits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
 	if (totalWeight === 0) {
-		return null; // No traits available
+		return null;
 	}
 
 	let randomNum = Math.random() * totalWeight;
 
-	for (const trait of layer.traits) {
+	for (const trait of compatibleTraits) {
 		if (randomNum < trait.rarityWeight) {
 			return trait;
 		}
@@ -359,7 +404,7 @@ async function generateAndStreamItem(
 		ctx.clearRect(0, 0, targetWidth, targetHeight);
 
 		// Selected traits for this NFT
-		const selectedTraits = [];
+		const selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[] = [];
 
 		// Iterate through the layers in their specified order
 		for (const layer of layers) {
@@ -368,16 +413,15 @@ async function generateAndStreamItem(
 				continue;
 			}
 
-			// Select a trait based on the rarity algorithm
-			const selectedTrait = selectTrait(layer);
+			// Select a trait based on the rarity algorithm with compatibility checking
+			const selectedTrait = selectTrait(layer, selectedTraits, layers);
 
 			// If a trait is selected, draw it
 			if (selectedTrait) {
 				selectedTraits.push({
-					layerId: layer.id,
-					layerName: layer.name,
 					traitId: selectedTrait.id,
-					traitName: selectedTrait.name
+					layerId: layer.id,
+					trait: selectedTrait
 				});
 
 				// Create ImageBitmap from the trait's image data with resizing for memory efficiency
@@ -402,9 +446,9 @@ async function generateAndStreamItem(
 		});
 
 		// Create metadata using selected traits
-		const attributes = selectedTraits.map((trait) => ({
-			trait_type: trait.layerName,
-			value: trait.traitName
+		const attributes = selectedTraits.map((selected) => ({
+			trait_type: layers.find((l) => l.id === selected.layerId)?.name || 'Unknown',
+			value: selected.trait.name
 		}));
 
 		const metadataObj = {

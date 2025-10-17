@@ -17,6 +17,23 @@ export interface Layer {
 }
 
 /**
+ * Trait type enumeration
+ */
+export type TraitType = 'normal' | 'ruler';
+
+/**
+ * Ruler rule interface for trait compatibility
+ */
+export interface RulerRule {
+	/** Target layer ID this rule applies to */
+	layerId: LayerId;
+	/** List of trait IDs that are allowed when this ruler is active */
+	allowedTraitIds: TraitId[];
+	/** List of trait IDs that are forbidden when this ruler is active */
+	forbiddenTraitIds: TraitId[];
+}
+
+/**
  * Trait interface representing an individual image/attribute
  */
 export interface Trait {
@@ -25,6 +42,10 @@ export interface Trait {
 	imageData: ArrayBuffer;
 	imageUrl?: string;
 	rarityWeight: number;
+	/** Type of trait - normal or ruler */
+	type?: TraitType;
+	/** Compatibility rules for ruler traits */
+	rulerRules?: RulerRule[];
 }
 
 /**

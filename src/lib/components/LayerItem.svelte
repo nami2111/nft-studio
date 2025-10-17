@@ -24,7 +24,6 @@
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-
 	interface Props {
 		layer: Layer;
 	}
@@ -49,17 +48,16 @@
 
 	// Bulk operation states
 	let selectedTraits = new SvelteSet<TraitId>();
-	let bulkRarityWeight = $state(3);
 	let bulkNewName = $state('');
 
 	// Toggle trait selection
-	// function toggleTraitSelection(traitId: TraitId) {
-	// 	if (selectedTraits.has(traitId)) {
-	// 		selectedTraits.delete(traitId);
-	// 	} else {
-	// 		selectedTraits.add(traitId);
-	// 	}
-	// }
+	function toggleTraitSelection(traitId: TraitId) {
+		if (selectedTraits.has(traitId)) {
+			selectedTraits.delete(traitId);
+		} else {
+			selectedTraits.add(traitId);
+		}
+	}
 
 	// Select all filtered traits
 	function selectAllFiltered() {
@@ -75,41 +73,22 @@
 	function bulkDelete() {
 		if (selectedTraits.size === 0) return;
 
-		// Show confirmation dialog
-		toast.warning(`Are you sure you want to delete ${selectedTraits.size} trait(s)?`, {
-			action: {
-				label: 'Delete',
-				onClick: () => {
-					// Delete all selected traits
-					selectedTraits.forEach((traitId) => {
-						removeTrait(layer.id, traitId);
-					});
-					toast.success(`${selectedTraits.size} trait(s) deleted successfully.`);
-					clearSelection();
-				}
-			},
-			cancel: {
-				label: 'Cancel',
-				onClick: () => {}
+		// Simple confirmation dialog
+		if (confirm(`Are you sure you want to delete ${selectedTraits.size} trait(s)?`)) {
+			try {
+				// Delete all selected traits
+				let deletedCount = 0;
+				selectedTraits.forEach((traitId) => {
+					removeTrait(layer.id, traitId);
+					deletedCount++;
+				});
+				toast.success(`${deletedCount} trait(s) deleted successfully.`);
+				clearSelection();
+			} catch (error) {
+				console.error('Failed to delete traits:', error);
+				toast.error('Failed to delete some traits. Please try again.');
 			}
-		});
-	}
-
-	// Bulk update rarity
-	function bulkUpdateRarity() {
-		if (selectedTraits.size === 0) return;
-
-		// Validate bulkRarityWeight is a valid integer between 1 and 5
-		if (!Number.isInteger(bulkRarityWeight) || bulkRarityWeight < 1 || bulkRarityWeight > 5) {
-			toast.error('Invalid rarity weight: must be an integer between 1 and 5');
-			return;
 		}
-
-		// Update rarity for all selected traits
-		selectedTraits.forEach((traitId) => {
-			updateTraitRarity(layer.id, traitId, bulkRarityWeight);
-		});
-		toast.success(`Rarity updated for ${selectedTraits.size} trait(s).`);
 	}
 
 	// Bulk rename traits
@@ -334,10 +313,10 @@
 		root.className = 'lazy-trait-loaded';
 
 		const wrapper = document.createElement('div');
-		wrapper.className = 'overflow-hidden rounded-lg border border-gray-200';
+		wrapper.className = 'overflow-hidden rounded-lg border border-border';
 
 		const imgContainer = document.createElement('div');
-		imgContainer.className = 'flex aspect-square items-center justify-center bg-gray-100';
+		imgContainer.className = 'flex aspect-square items-center justify-center bg-muted';
 
 		if (trait.imageUrl) {
 			const img = document.createElement('img');
@@ -354,7 +333,7 @@
 			loaderDiv.className = 'flex h-full items-center justify-center';
 			const spinner = document.createElement('div');
 			spinner.className =
-				'h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600';
+				'h-6 w-6 animate-spin rounded-full border-2 border-input border-t-indigo-600';
 			loaderDiv.appendChild(spinner);
 			imgContainer.appendChild(loaderDiv);
 		}
@@ -366,7 +345,7 @@
 		header.className = 'flex items-center justify-between';
 
 		const title = document.createElement('p');
-		title.className = 'truncate text-sm font-medium text-gray-900';
+		title.className = 'truncate text-sm font-medium text-foreground';
 		title.title = trait.name;
 		title.textContent = trait.name;
 
@@ -376,10 +355,10 @@
 		controls.className = 'flex';
 		// Decorative placeholders; no onclick handlers here in lazy card (real actions are in TraitCard)
 		const btnEdit = document.createElement('button');
-		btnEdit.className = 'rounded p-1 hover:bg-gray-100';
+		btnEdit.className = 'rounded p-1 hover:bg-muted';
 		btnEdit.setAttribute('aria-label', 'Edit');
 		const btnTrash = document.createElement('button');
-		btnTrash.className = 'rounded p-1 hover:bg-gray-100';
+		btnTrash.className = 'rounded p-1 hover:bg-muted';
 		btnTrash.setAttribute('aria-label', 'Delete');
 		controls.appendChild(btnEdit);
 		controls.appendChild(btnTrash);
@@ -389,10 +368,10 @@
 		rarityBlock.className = 'mt-2';
 
 		const label = document.createElement('label');
-		label.className = 'block text-xs font-medium text-gray-700';
+		label.className = 'block text-xs font-medium text-foreground';
 		label.textContent = 'Rarity: ';
 		const rarityValue = document.createElement('span');
-		rarityValue.className = 'font-bold text-indigo-600';
+		rarityValue.className = 'font-bold text-primary';
 		// Map weight to label (approximate)
 		const labels: Record<number, string> = {
 			1: 'Mythic',
@@ -413,13 +392,13 @@
 		range.step = '1';
 		range.value = String(trait.rarityWeight);
 		range.className =
-			'thumb:bg-indigo-600 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200';
+			'thumb:bg-primary h-2 w-full cursor-pointer appearance-none rounded-lg bg-muted';
 		range.title = `Rarity: ${labels[trait.rarityWeight] ?? trait.rarityWeight} (${trait.rarityWeight})`;
 		range.disabled = true; // read-only in placeholder
 		rangeWrap.appendChild(range);
 
 		const hints = document.createElement('div');
-		hints.className = 'mt-1 flex justify-between text-xs text-gray-500';
+		hints.className = 'mt-1 flex justify-between text-xs text-muted-foreground';
 		const spanLeft = document.createElement('span');
 		spanLeft.textContent = 'Rare';
 		const spanRight = document.createElement('span');
@@ -502,16 +481,16 @@
 				{#if isEditing}
 					<input
 						type="text"
-						class="border-b border-indigo-500 bg-transparent text-lg font-medium text-gray-900 focus:outline-none"
+						class="border-primary text-foreground border-b bg-transparent text-lg font-medium focus:outline-none"
 						bind:value={layerName}
 						onchange={handleNameChange}
 						onkeydown={(e) => e.key === 'Enter' && handleNameChange()}
 					/>
 				{:else}
 					<div class="flex items-center">
-						<h3 class="text-lg font-medium text-gray-900">{layer.name}</h3>
+						<h3 class="text-foreground text-lg font-medium">{layer.name}</h3>
 						{#if layer.isOptional}
-							<span class="ml-2 rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">Optional</span>
+							<span class="bg-muted text-foreground ml-2 rounded px-2 py-1 text-xs">Optional</span>
 						{/if}
 					</div>
 				{/if}
@@ -537,13 +516,13 @@
 
 		{#if isExpanded}
 			<div class="mb-4">
-				<label class="mb-1 block text-sm font-medium text-gray-700" for="file-upload-{layer.id}"
+				<label class="text-foreground mb-1 block text-sm font-medium" for="file-upload-{layer.id}"
 					>Upload Traits</label
 				>
 				<div
 					class="flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors {isDragover
-						? 'border-indigo-600 bg-indigo-50'
-						: 'gray-300'}"
+						? 'border-primary bg-muted'
+						: 'border-border'}"
 					ondragover={(e) => {
 						e.preventDefault();
 						isDragover = true;
@@ -570,15 +549,15 @@
 									/>
 								</div>
 							</div>
-							<div class="mt-2 h-2 w-full rounded-full bg-gray-200">
+							<div class="bg-muted mt-2 h-2 w-full rounded-full">
 								<div
-									class="h-full rounded-full bg-indigo-600 transition-all duration-300"
+									class="bg-primary h-full rounded-full transition-all duration-300"
 									style="width: {uploadProgress}%"
 								></div>
 							</div>
 						{:else}
 							<svg
-								class="mx-auto h-12 w-12 text-gray-400"
+								class="text-muted-foreground mx-auto h-12 w-12"
 								stroke="currentColor"
 								fill="none"
 								viewBox="0 0 48 48"
@@ -591,10 +570,10 @@
 									stroke-linejoin="round"
 								/>
 							</svg>
-							<div class="flex text-sm text-gray-600">
+							<div class="text-muted-foreground flex text-sm">
 								<label
 									for="file-upload-{layer.id}"
-									class="relative cursor-pointer rounded-md bg-white font-medium text-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:text-indigo-500"
+									class="bg-background text-primary focus-within:ring-ring hover:text-primary/80 relative cursor-pointer rounded-md font-medium focus-within:ring-2 focus-within:ring-offset-2"
 								>
 									<span>Upload files</span>
 									<input
@@ -608,19 +587,19 @@
 								</label>
 								<p class="pl-1">or drag and drop</p>
 							</div>
-							<p class="text-xs text-gray-500">PNG, JPG, GIF, etc.</p>
+							<p class="text-muted-foreground text-xs">PNG, JPG, GIF, etc.</p>
 						{/if}
 					</div>
 				</div>
 			</div>
 			<div class="mt-4">
 				<div class="mb-2 flex items-center justify-between">
-					<h4 class="text-md font-medium text-gray-700">Traits ({layer.traits.length})</h4>
+					<h4 class="text-md text-foreground font-medium">Traits ({layer.traits.length})</h4>
 					{#if layer.traits.length > 5}
 						<input
 							type="text"
 							placeholder="Search traits..."
-							class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
+							class="border-input w-32 rounded border px-2 py-1 text-sm"
 							bind:value={searchTerm}
 						/>
 					{/if}
@@ -628,7 +607,7 @@
 
 				<!-- Bulk operation controls -->
 				{#if filteredTraits.length > 1}
-					<div class="mb-2 flex items-center justify-between rounded bg-gray-100 p-2">
+					<div class="bg-muted mb-2 flex items-center justify-between rounded p-2">
 						<div class="flex items-center space-x-2">
 							<Button variant="outline" size="sm" onclick={selectAllFiltered}>Select All</Button>
 							<Button
@@ -639,7 +618,7 @@
 							>
 								Clear
 							</Button>
-							<span class="text-sm text-gray-600">
+							<span class="text-muted-foreground text-sm">
 								{selectedTraits.size} selected
 							</span>
 						</div>
@@ -658,42 +637,25 @@
 					</div>
 
 					{#if selectedTraits.size > 0}
-						<div class="mb-4 rounded border border-gray-200 p-3">
-							<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
-							<div class="space-y-2">
-								<div class="flex items-center space-x-2">
-									<label for="bulk-rarity-{layer.id}" class="text-sm">Rarity:</label>
-									<select
-										id="bulk-rarity-{layer.id}"
-										class="rounded border border-gray-300 px-2 py-1 text-sm"
-										bind:value={bulkRarityWeight}
-									>
-										<option value="1">Mythic (1)</option>
-										<option value="2">Legendary (2)</option>
-										<option value="3">Epic (3)</option>
-										<option value="4">Rare (4)</option>
-										<option value="5">Common (5)</option>
-									</select>
-									<Button variant="outline" size="sm" onclick={bulkUpdateRarity}>Update</Button>
-								</div>
-								<div class="flex items-center space-x-2">
-									<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
-									<input
-										id="bulk-rename-{layer.id}"
-										type="text"
-										placeholder="New name prefix"
-										class="w-32 rounded border border-gray-300 px-2 py-1 text-sm"
-										bind:value={bulkNewName}
-									/>
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={bulkRename}
-										disabled={!bulkNewName.trim()}
-									>
-										Rename
-									</Button>
-								</div>
+						<div class="border-border mb-4 rounded border p-3">
+							<h5 class="mb-2 text-sm font-medium">Bulk Rename</h5>
+							<div class="flex items-center space-x-2">
+								<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
+								<input
+									id="bulk-rename-{layer.id}"
+									type="text"
+									placeholder="New name prefix"
+									class="border-input w-32 rounded border px-2 py-1 text-sm"
+									bind:value={bulkNewName}
+								/>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={bulkRename}
+									disabled={!bulkNewName.trim()}
+								>
+									Rename
+								</Button>
 							</div>
 						</div>
 					{/if}
@@ -703,17 +665,32 @@
 					{#if layer.traits.length > 100}
 						<!-- Use virtual scrolling for large trait lists -->
 						<div class="h-96">
-							<VirtualTraitList traits={filteredTraits} layerId={layer.id} {searchTerm} />
+							<VirtualTraitList
+								traits={filteredTraits}
+								layerId={layer.id}
+								{searchTerm}
+								{selectedTraits}
+								onToggleSelection={(traitId) => toggleTraitSelection(createTraitId(traitId))}
+								showSelection={filteredTraits.length > 1}
+							/>
 						</div>
 					{:else}
 						<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
 							{#each filteredTraits as trait (trait.id)}
-								<TraitCard {trait} layerId={layer.id} />
+								<TraitCard
+									{trait}
+									layerId={layer.id}
+									selected={selectedTraits.has(createTraitId(trait.id))}
+									onToggleSelection={() => toggleTraitSelection(createTraitId(trait.id))}
+									showSelection={filteredTraits.length > 1}
+								/>
 							{/each}
 						</div>
 					{/if}
 				{:else}
-					<p class="text-sm text-gray-500">No traits added yet. Upload or drag images above.</p>
+					<p class="text-muted-foreground text-sm">
+						No traits added yet. Upload or drag images above.
+					</p>
 				{/if}
 			</div>
 		{/if}

@@ -19,7 +19,7 @@ Before generating your collection:
 
 ### 2. Generation Settings
 
-Access the generation modal to configure your collection:
+Access the custom generation modal to configure your collection:
 
 #### Collection Size
 
@@ -32,7 +32,7 @@ Access the generation modal to configure your collection:
 ### 3. Starting Generation
 
 1. **Click "Generate Collection"** in the main interface
-2. **Review settings** in the generation modal
+2. **Review settings** in the custom generation modal
 3. **Set collection size** based on your needs
 4. **Click "Start Generation"** to begin the process
 

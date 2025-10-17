@@ -1,6 +1,7 @@
 // src/lib/types/worker-messages.ts
 
 import type { LayerId, TraitId, TaskId } from './ids';
+import type { TraitType, RulerRule } from './layer';
 
 // Worker message interfaces for generation worker
 export interface TransferrableTrait {
@@ -11,6 +12,9 @@ export interface TransferrableTrait {
 	// Add width/height for better memory management
 	width?: number;
 	height?: number;
+	// Ruler trait properties
+	type?: TraitType;
+	rulerRules?: RulerRule[];
 }
 
 export interface TransferrableLayer {

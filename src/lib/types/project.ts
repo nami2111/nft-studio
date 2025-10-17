@@ -22,6 +22,10 @@ export interface Trait {
 	imageData: ArrayBuffer;
 	imageUrl?: string;
 	rarityWeight: number;
+	/** Type of trait - normal or ruler */
+	type?: import('./layer').TraitType;
+	/** Compatibility rules for ruler traits */
+	rulerRules?: import('./layer').RulerRule[];
 }
 
 /**

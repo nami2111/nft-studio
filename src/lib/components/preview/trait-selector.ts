@@ -5,6 +5,7 @@
 
 import type { Layer } from '$lib/types/layer';
 import type { TraitId } from '$lib/types/ids';
+import { validateTraitCompatibility, getCompatibleTraits } from '$lib/domain/validation';
 
 export class TraitSelector {
 	private selectedTraitIds: (TraitId | '')[] = [];
@@ -108,6 +109,43 @@ export class TraitSelector {
 			if (layer.traits.length === 0) return true; // Empty layer is OK
 			return this.selectedTraitIds[i] !== '';
 		});
+	}
+
+	/**
+	 * Check if current selection is compatible based on ruler rules
+	 */
+	checkCompatibility(layers: Layer[]): { isCompatible: boolean; error?: string } {
+		const selectedTraits = layers
+			.map((layer, i) => {
+				const traitId = this.selectedTraitIds[i];
+				if (!traitId) return null;
+				return { traitId, layerId: layer.id };
+			})
+			.filter((selection) => selection !== null) as { traitId: TraitId; layerId: any }[];
+
+		const validation = validateTraitCompatibility(selectedTraits, layers);
+		return {
+			isCompatible: validation.success,
+			error: validation.error
+		};
+	}
+
+	/**
+	 * Get compatible traits for a specific layer based on current selection
+	 */
+	getCompatibleTraitsForLayer(layerIndex: number, layers: Layer[]): TraitId[] {
+		if (layerIndex < 0 || layerIndex >= layers.length) return [];
+
+		const layer = layers[layerIndex];
+		const selectedTraits = layers
+			.map((l, i) => {
+				const traitId = this.selectedTraitIds[i];
+				if (!traitId || i === layerIndex) return null; // Exclude current layer
+				return { traitId, layerId: l.id };
+			})
+			.filter((selection) => selection !== null) as { traitId: TraitId; layerId: any }[];
+
+		return getCompatibleTraits(layer.id, selectedTraits, layers);
 	}
 
 	/**
