@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rarity slider track visibility issue where slider lines were not visible in light mode
 - Changed slider track background from `bg-muted` to `bg-gray-200` for better contrast and visibility
 
+### Fixed
+
+- Individual trait delete button (trash icon) not responding to clicks
+- Replaced complex toast confirmation dialog with simple confirm() dialog for better reliability
+- Added proper error handling for trait deletion with user feedback
+- Bulk delete functionality not working due to toast confirmation dialog issues
+- Replaced bulk delete toast notification with simple confirm() dialog for consistency
+
+### Added
+
+- Individual trait selection checkboxes for bulk operations
+- Visual selection feedback with primary ring border around selected trait cards
+- Smart checkbox display (only shows when multiple traits are available)
+- Individual selection functionality in both grid view and virtual scrolling view
+- Enhanced bulk operations with individual trait selection alongside "Select All" and "Clear" options
+
 ### Removed
 
 - Bulk rarity update functionality from trait management interface

@@ -51,13 +51,13 @@
 	let bulkNewName = $state('');
 
 	// Toggle trait selection
-	// function toggleTraitSelection(traitId: TraitId) {
-	// 	if (selectedTraits.has(traitId)) {
-	// 		selectedTraits.delete(traitId);
-	// 	} else {
-	// 		selectedTraits.add(traitId);
-	// 	}
-	// }
+	function toggleTraitSelection(traitId: TraitId) {
+		if (selectedTraits.has(traitId)) {
+			selectedTraits.delete(traitId);
+		} else {
+			selectedTraits.add(traitId);
+		}
+	}
 
 	// Select all filtered traits
 	function selectAllFiltered() {
@@ -73,24 +73,22 @@
 	function bulkDelete() {
 		if (selectedTraits.size === 0) return;
 
-		// Show confirmation dialog
-		toast.warning(`Are you sure you want to delete ${selectedTraits.size} trait(s)?`, {
-			action: {
-				label: 'Delete',
-				onClick: () => {
-					// Delete all selected traits
-					selectedTraits.forEach((traitId) => {
-						removeTrait(layer.id, traitId);
-					});
-					toast.success(`${selectedTraits.size} trait(s) deleted successfully.`);
-					clearSelection();
-				}
-			},
-			cancel: {
-				label: 'Cancel',
-				onClick: () => {}
+		// Simple confirmation dialog
+		if (confirm(`Are you sure you want to delete ${selectedTraits.size} trait(s)?`)) {
+			try {
+				// Delete all selected traits
+				let deletedCount = 0;
+				selectedTraits.forEach((traitId) => {
+					removeTrait(layer.id, traitId);
+					deletedCount++;
+				});
+				toast.success(`${deletedCount} trait(s) deleted successfully.`);
+				clearSelection();
+			} catch (error) {
+				console.error('Failed to delete traits:', error);
+				toast.error('Failed to delete some traits. Please try again.');
 			}
-		});
+		}
 	}
 
 	// Bulk rename traits
@@ -667,12 +665,25 @@
 					{#if layer.traits.length > 100}
 						<!-- Use virtual scrolling for large trait lists -->
 						<div class="h-96">
-							<VirtualTraitList traits={filteredTraits} layerId={layer.id} {searchTerm} />
+							<VirtualTraitList
+								traits={filteredTraits}
+								layerId={layer.id}
+								{searchTerm}
+								{selectedTraits}
+								onToggleSelection={(traitId) => toggleTraitSelection(createTraitId(traitId))}
+								showSelection={filteredTraits.length > 1}
+							/>
 						</div>
 					{:else}
 						<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
 							{#each filteredTraits as trait (trait.id)}
-								<TraitCard {trait} layerId={layer.id} />
+								<TraitCard
+									{trait}
+									layerId={layer.id}
+									selected={selectedTraits.has(createTraitId(trait.id))}
+									onToggleSelection={() => toggleTraitSelection(createTraitId(trait.id))}
+									showSelection={filteredTraits.length > 1}
+								/>
 							{/each}
 						</div>
 					{/if}

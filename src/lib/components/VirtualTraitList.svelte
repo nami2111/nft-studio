@@ -9,7 +9,14 @@
 	// 	searchTerm?: string;
 	// // }
 
-	const { traits = [], layerId, searchTerm = '' } = $props();
+	const {
+		traits = [],
+		layerId,
+		searchTerm = '',
+		selectedTraits = new Set(),
+		onToggleSelection = (traitId: string) => {},
+		showSelection = false
+	} = $props();
 
 	// Virtual scrolling parameters
 	const ITEM_HEIGHT = 200; // Approximate height of each trait card in pixels
@@ -94,7 +101,13 @@
 			style="transform: translateY({offsetY}px);"
 		>
 			{#each visibleTraits as trait (trait.id)}
-				<TraitCard {trait} {layerId} />
+				<TraitCard
+					{trait}
+					{layerId}
+					selected={selectedTraits.has(trait.id)}
+					onToggleSelection={() => onToggleSelection(trait.id)}
+					{showSelection}
+				/>
 			{/each}
 		</div>
 	</div>

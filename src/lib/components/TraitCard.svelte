@@ -15,9 +15,18 @@
 	interface Props {
 		trait: Trait;
 		layerId: string;
+		selected?: boolean;
+		onToggleSelection?: () => void;
+		showSelection?: boolean;
 	}
 
-	const { trait, layerId }: Props = $props();
+	const {
+		trait,
+		layerId,
+		selected = false,
+		onToggleSelection,
+		showSelection = false
+	}: Props = $props();
 	const layerIdTyped = createLayerId(layerId);
 	const traitIdTyped = createTraitId(trait.id);
 
@@ -112,8 +121,19 @@
 	});
 </script>
 
-<Card class="relative overflow-hidden border-2">
+<Card class="relative overflow-hidden border-2 {selected ? 'ring-primary ring-2' : ''}">
 	<div class="bg-muted flex aspect-square items-center justify-center" bind:this={imageContainer}>
+		{#if showSelection}
+			<div class="absolute top-2 left-2 z-10">
+				<input
+					type="checkbox"
+					checked={selected}
+					onchange={onToggleSelection}
+					class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300 focus:ring-offset-0"
+					aria-label="Select trait"
+				/>
+			</div>
+		{/if}
 		<div class="absolute top-2 right-2 flex gap-1">
 			<TraitTypeToggle {trait} {layerId} />
 			{#if trait.type === 'ruler' && currentLayer && allLayers}
