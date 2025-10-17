@@ -9,7 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Updated GitHub repository URL in README.md installation instructions
+- Ruler trait conflict prevention system with automatic conflict resolution
+- Visual feedback for conflicted ruler traits with amber coloring and auto-fix indicators
+- Ruler configuration persistence in project save/load functionality
+- Mutual exclusion logic preventing traits from being in both allowed and forbidden lists
+- Enhanced modal overlay with full screen coverage and proper z-index layering
+- Clean modal overlay without blur effects for better visibility
+- Dynamic window dimension tracking for responsive modal positioning
+
+### Fixed
+
+- Ruler trait conflicts where traits could be selected in both allowed and forbidden lists
+- Modal overlay not covering entire screen regardless of scroll position
+- Modal content appearing behind overlay layer
+- Modal blur effect causing background visibility issues
+- Project save/load not preserving ruler trait configurations
+- Ruler rule ID references breaking after project import
+- Modal positioning conflicts on pages with scroll content
+- TypeScript errors related to branded types in modal components
+
+### Changed
+
+- Simplified modal positioning logic using standard CSS fixed positioning
+- Updated validation schemas to include ruler trait fields in import/export
+- Enhanced file operations to handle ruler rule ID remapping during project load
+- Improved modal z-index hierarchy for consistent layering across all screen sizes
 
 ## [0.2.1] - 2025-10-16
 
