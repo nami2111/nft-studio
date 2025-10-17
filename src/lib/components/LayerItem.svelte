@@ -24,7 +24,6 @@
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-
 	interface Props {
 		layer: Layer;
 	}
@@ -49,7 +48,6 @@
 
 	// Bulk operation states
 	let selectedTraits = new SvelteSet<TraitId>();
-	let bulkRarityWeight = $state(3);
 	let bulkNewName = $state('');
 
 	// Toggle trait selection
@@ -93,23 +91,6 @@
 				onClick: () => {}
 			}
 		});
-	}
-
-	// Bulk update rarity
-	function bulkUpdateRarity() {
-		if (selectedTraits.size === 0) return;
-
-		// Validate bulkRarityWeight is a valid integer between 1 and 5
-		if (!Number.isInteger(bulkRarityWeight) || bulkRarityWeight < 1 || bulkRarityWeight > 5) {
-			toast.error('Invalid rarity weight: must be an integer between 1 and 5');
-			return;
-		}
-
-		// Update rarity for all selected traits
-		selectedTraits.forEach((traitId) => {
-			updateTraitRarity(layer.id, traitId, bulkRarityWeight);
-		});
-		toast.success(`Rarity updated for ${selectedTraits.size} trait(s).`);
 	}
 
 	// Bulk rename traits
@@ -659,41 +640,24 @@
 
 					{#if selectedTraits.size > 0}
 						<div class="border-border mb-4 rounded border p-3">
-							<h5 class="mb-2 text-sm font-medium">Bulk Operations</h5>
-							<div class="space-y-2">
-								<div class="flex items-center space-x-2">
-									<label for="bulk-rarity-{layer.id}" class="text-sm">Rarity:</label>
-									<select
-										id="bulk-rarity-{layer.id}"
-										class="border-input rounded border px-2 py-1 text-sm"
-										bind:value={bulkRarityWeight}
-									>
-										<option value="1">Mythic (1)</option>
-										<option value="2">Legendary (2)</option>
-										<option value="3">Epic (3)</option>
-										<option value="4">Rare (4)</option>
-										<option value="5">Common (5)</option>
-									</select>
-									<Button variant="outline" size="sm" onclick={bulkUpdateRarity}>Update</Button>
-								</div>
-								<div class="flex items-center space-x-2">
-									<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
-									<input
-										id="bulk-rename-{layer.id}"
-										type="text"
-										placeholder="New name prefix"
-										class="border-input w-32 rounded border px-2 py-1 text-sm"
-										bind:value={bulkNewName}
-									/>
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={bulkRename}
-										disabled={!bulkNewName.trim()}
-									>
-										Rename
-									</Button>
-								</div>
+							<h5 class="mb-2 text-sm font-medium">Bulk Rename</h5>
+							<div class="flex items-center space-x-2">
+								<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
+								<input
+									id="bulk-rename-{layer.id}"
+									type="text"
+									placeholder="New name prefix"
+									class="border-input w-32 rounded border px-2 py-1 text-sm"
+									bind:value={bulkNewName}
+								/>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={bulkRename}
+									disabled={!bulkNewName.trim()}
+								>
+									Rename
+								</Button>
 							</div>
 						</div>
 					{/if}

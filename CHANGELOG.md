@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Rarity slider track visibility issue where slider lines were not visible in light mode
+- Changed slider track background from `bg-muted` to `bg-gray-200` for better contrast and visibility
+
+### Removed
+
+- Bulk rarity update functionality from trait management interface
+- Simplified bulk operations to focus on renaming only
+- Removed bulk rarity weight selection dropdown and update controls
+
 ### Added
 
 - Ruler trait conflict prevention system with automatic conflict resolution
