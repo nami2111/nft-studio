@@ -31,19 +31,16 @@
 	let allLayers = $derived(project.layers);
 
 	function handleRemoveTrait() {
-		toast.warning(`Are you sure you want to delete "${trait.name}"?`, {
-			action: {
-				label: 'Delete',
-				onClick: () => {
-					removeTrait(layerIdTyped, traitIdTyped);
-					toast.success(`Trait "${trait.name}" has been deleted.`);
-				}
-			},
-			cancel: {
-				label: 'Cancel',
-				onClick: () => {}
+		// Simple confirmation dialog
+		if (confirm(`Are you sure you want to delete "${trait.name}"?`)) {
+			try {
+				removeTrait(layerIdTyped, traitIdTyped);
+				toast.success(`Trait "${trait.name}" has been deleted.`);
+			} catch (error) {
+				console.error('Failed to delete trait:', error);
+				toast.error('Failed to delete trait. Please try again.');
 			}
-		});
+		}
 	}
 
 	function handleUpdateName() {
