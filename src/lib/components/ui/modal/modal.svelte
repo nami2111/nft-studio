@@ -53,19 +53,32 @@
 		if (modalElement && open) {
 			const viewportHeight = window.visualViewport?.height || window.innerHeight;
 			const modalHeight = modalElement.offsetHeight;
-			const availableSpace = viewportHeight * 0.9;
+			const isMobile = viewportHeight < 768; // Mobile breakpoint
+			const maxMobileHeight = viewportHeight * 0.85; // More space on mobile
+			const maxDesktopHeight = viewportHeight * 0.9; // Slightly less on desktop
+			const availableSpace = isMobile ? maxMobileHeight : maxDesktopHeight;
+
+			// Clear any existing styles first
+			modalElement.style.marginTop = '';
+			modalElement.style.maxHeight = '';
+			modalElement.style.overflowY = '';
 
 			// If modal is too tall for viewport, adjust positioning
 			if (modalHeight > availableSpace) {
 				modalElement.style.maxHeight = `${availableSpace}px`;
 				modalElement.style.overflowY = 'auto';
-				modalElement.style.marginTop = '0';
+
+				// On mobile, give some space from the top
+				if (isMobile) {
+					modalElement.style.marginTop = '2rem';
+				}
 			} else {
 				// Center the modal vertically if it fits
 				const topMargin = Math.max(0, (viewportHeight - modalHeight) / 2);
-				modalElement.style.marginTop = `${topMargin}px`;
-				modalElement.style.maxHeight = '';
-				modalElement.style.overflowY = '';
+
+				// Ensure minimum top margin on mobile
+				const finalMargin = isMobile ? Math.max(topMargin, 16) : topMargin;
+				modalElement.style.marginTop = `${finalMargin}px`;
 			}
 		}
 	}
@@ -139,7 +152,7 @@
 {#if open}
 	<div
 		bind:this={overlayElement}
-		class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[10vh]"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 sm:p-6"
 		onclick={handleOverlayClick}
 		onkeydown={handleKeydown}
 		role="dialog"
@@ -150,7 +163,7 @@
 		<div
 			bind:this={modalElement}
 			class={cn(
-				'z-50 my-auto max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl transition-all duration-200 sm:max-h-[85vh] dark:border-gray-200 dark:bg-gray-900',
+				'z-50 max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl transition-all duration-200 sm:max-h-[90vh] dark:border-gray-200 dark:bg-gray-900',
 				maxWidth,
 				className
 			)}
@@ -158,9 +171,12 @@
 		>
 			<!-- Modal Header -->
 			<div
-				class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700"
+				class="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 dark:border-gray-700"
 			>
-				<h2 id="modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">
+				<h2
+					id="modal-title"
+					class="text-base font-semibold text-gray-900 sm:text-lg dark:text-white"
+				>
 					{title}
 				</h2>
 				<button
@@ -169,12 +185,12 @@
 					onclick={onClose}
 					aria-label="Close modal"
 				>
-					<XIcon class="h-5 w-5" />
+					<XIcon class="h-4 w-4 sm:h-5 sm:w-5" />
 				</button>
 			</div>
 
 			<!-- Modal Content -->
-			<div class="flex-1 overflow-y-auto px-6 py-4">
+			<div class="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
 				{@render children()}
 			</div>
 		</div>
