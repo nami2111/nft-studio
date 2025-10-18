@@ -607,45 +607,50 @@
 
 				<!-- Bulk operation controls -->
 				{#if filteredTraits.length > 1}
-					<div class="bg-muted mb-2 flex items-center justify-between rounded p-2">
-						<div class="flex items-center space-x-2">
-							<Button variant="outline" size="sm" onclick={selectAllFiltered}>Select All</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={clearSelection}
-								disabled={selectedTraits.size === 0}
-							>
-								Clear
-							</Button>
-							<span class="text-muted-foreground text-sm">
-								{selectedTraits.size} selected
-							</span>
-						</div>
-						{#if selectedTraits.size > 0}
-							<div class="flex space-x-2">
+					<div class="bg-muted mb-3 rounded p-2 sm:mb-2">
+						<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+							<div class="flex flex-wrap items-center gap-1 sm:gap-2">
+								<Button variant="outline" size="sm" onclick={selectAllFiltered} class="text-xs"
+									>Select All</Button
+								>
 								<Button
 									variant="outline"
 									size="sm"
-									onclick={bulkDelete}
-									class="text-red-600 hover:text-red-700"
+									onclick={clearSelection}
+									disabled={selectedTraits.size === 0}
+									class="text-xs"
 								>
-									<Trash2 class="h-4 w-4" />
+									Clear
 								</Button>
+								<span class="text-muted-foreground text-xs sm:text-sm">
+									{selectedTraits.size} selected
+								</span>
 							</div>
-						{/if}
+							{#if selectedTraits.size > 0}
+								<div class="flex justify-end sm:justify-start">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={bulkDelete}
+										class="text-xs text-red-600 hover:text-red-700"
+									>
+										<Trash2 class="h-3 w-3 sm:h-4 sm:w-4" />
+									</Button>
+								</div>
+							{/if}
+						</div>
 					</div>
 
 					{#if selectedTraits.size > 0}
 						<div class="border-border mb-4 rounded border p-3">
 							<h5 class="mb-2 text-sm font-medium">Bulk Rename</h5>
-							<div class="flex items-center space-x-2">
+							<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:space-x-2">
 								<label for="bulk-rename-{layer.id}" class="text-sm">Rename:</label>
 								<input
 									id="bulk-rename-{layer.id}"
 									type="text"
 									placeholder="New name prefix"
-									class="border-input w-32 rounded border px-2 py-1 text-sm"
+									class="border-input w-full rounded border px-2 py-1 text-sm sm:w-32"
 									bind:value={bulkNewName}
 								/>
 								<Button
@@ -653,6 +658,7 @@
 									size="sm"
 									onclick={bulkRename}
 									disabled={!bulkNewName.trim()}
+									class="w-full sm:w-auto"
 								>
 									Rename
 								</Button>
@@ -670,12 +676,15 @@
 								layerId={layer.id}
 								{searchTerm}
 								{selectedTraits}
-								onToggleSelection={(traitId: string) => toggleTraitSelection(createTraitId(traitId))}
+								onToggleSelection={(traitId: string) =>
+									toggleTraitSelection(createTraitId(traitId))}
 								showSelection={filteredTraits.length > 1}
 							/>
 						</div>
 					{:else}
-						<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+						<div
+							class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4"
+						>
 							{#each filteredTraits as trait (trait.id)}
 								<TraitCard
 									{trait}

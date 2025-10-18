@@ -8,17 +8,17 @@
 </script>
 
 <section
-	class="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#002859] px-4"
+	class="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#002859]"
 >
 	<!-- Decorative background elements -->
 	<div class="absolute inset-0 overflow-hidden">
 		<!-- Blockchain element centered -->
-		<div class="absolute inset-0 flex items-center justify-center">
+		<div class="absolute inset-0 flex items-center justify-center overflow-hidden">
 			<img
 				src="/blockchain-element.webp"
 				alt="Blockchain element"
-				class="z-0 opacity-60"
-				style="max-width: 2000px; width: 250%; height: auto; filter: contrast(1.2);"
+				class="z-0 h-full w-full object-cover opacity-60 md:h-auto md:w-auto md:max-w-[2000px]"
+				style="filter: contrast(1.2); min-width: 100%; min-height: 100%;"
 			/>
 			<!-- Gradient overlay -->
 			<div
@@ -27,7 +27,7 @@
 		</div>
 	</div>
 
-	<div class="relative z-20 mx-auto w-full max-w-4xl">
+	<div class="relative z-20 mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
 		<!-- High contrast card -->
 		<Card class="text-white shadow-2xl backdrop-blur-sm">
 			<CardHeader class="px-6 py-4">
@@ -43,19 +43,24 @@
 						Design, generate, and manage your NFT collections with our powerful studio tools.
 						Perfect for artists, creators, and collectors.
 					</p>
-					<div class="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
-						<div class="inline-flex">
-							<button
-								class="ring-offset-background focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md bg-white px-8 text-lg font-medium whitespace-nowrap text-black transition-all hover:scale-105 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-								onclick={() => goto(resolve('/app'))}>Get Started</button
-							>
-						</div>
+					<div
+						class="mt-10 flex flex-col justify-center gap-4 sm:flex-row sm:items-center sm:justify-center"
+					>
+						<Button
+							size="lg"
+							class="w-full bg-white text-black transition-all hover:scale-105 hover:bg-gray-100 hover:shadow-lg sm:w-auto"
+							onclick={() => goto(resolve('/app'))}
+						>
+							Get Started
+						</Button>
 						<Button
 							variant="outline"
 							size="lg"
-							class="transition-all hover:scale-105 hover:shadow-lg"
-							onclick={() => goto(resolve('/about'))}>Learn More</Button
+							class="w-full transition-all hover:scale-105 hover:shadow-lg sm:w-auto"
+							onclick={() => goto(resolve('/about'))}
 						>
+							Learn More
+						</Button>
 					</div>
 				</div>
 			</CardContent>

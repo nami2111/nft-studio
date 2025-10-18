@@ -296,26 +296,28 @@
 	}
 </script>
 
-<div class="space-y-6">
-	<div class="grid gap-4 py-4">
-		<div class="grid grid-cols-4 items-center gap-4">
-			<label class="text-right text-sm font-medium" for="collectionSize">Collection Size</label>
+<div class="space-y-4 sm:space-y-6">
+	<div class="space-y-4 py-4">
+		<!-- Collection Size Input - Responsive Layout -->
+		<div class="grid gap-2 sm:grid-cols-[1fr_3fr] sm:items-center sm:gap-4">
+			<label class="text-sm font-medium sm:text-right" for="collectionSize">Collection Size</label>
 			<input
 				id="collectionSize"
 				type="number"
 				min="1"
 				max="10000"
-				class="border-input bg-background focus:border-ring focus:ring-ring col-span-3 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+				class="border-input bg-background focus:border-ring focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 				bind:value={collectionSize}
 				disabled={isGenerating}
 			/>
 		</div>
 
-		<div class="grid grid-cols-4 items-center gap-4">
-			<label class="text-right text-sm font-medium" for="gen-progress">Progress</label>
-			<div class="col-span-3 space-y-2">
+		<!-- Progress Section - Responsive Layout -->
+		<div class="grid gap-2 sm:grid-cols-[1fr_3fr] sm:items-center sm:gap-4">
+			<label class="text-sm font-medium sm:text-right" for="gen-progress">Progress</label>
+			<div class="space-y-2">
 				<Progress value={progress} max={100} class="w-full" />
-				<p class="text-muted-foreground text-sm">{statusText}</p>
+				<p class="text-muted-foreground text-sm break-words">{statusText}</p>
 				{#if memoryUsage}
 					<p class="text-muted-foreground text-sm">
 						Memory: {Math.round(memoryUsage.used / 1024 / 1024)}MB / {Math.round(
@@ -327,9 +329,10 @@
 		</div>
 	</div>
 
-	<div class="flex justify-end gap-2">
+	<!-- Action Buttons - Responsive Layout -->
+	<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
 		{#if isGenerating}
-			<Button variant="outline" onclick={handleCancel} size="sm">
+			<Button variant="outline" onclick={handleCancel} size="sm" class="w-full sm:w-auto">
 				<LoadingIndicator operation="generation" message="Canceling..." />
 			</Button>
 		{/if}
@@ -338,7 +341,7 @@
 			onclick={handleGenerate}
 			disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
 			size="sm"
-			class="transition-all"
+			class="w-full transition-all sm:w-auto"
 		>
 			{#if isGenerating}
 				<LoadingIndicator operation="generation" message="Generating..." />

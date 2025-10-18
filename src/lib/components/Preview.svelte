@@ -676,7 +676,7 @@
 		<h2 class="mb-2 text-base font-bold sm:mb-3 sm:text-lg">Preview</h2>
 		<div
 			bind:this={container}
-			class="border-input bg-muted flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border"
+			class="border-input bg-muted flex aspect-square w-full max-w-full items-center justify-center overflow-hidden rounded-md border"
 		>
 			<canvas bind:this={canvas} class="block max-h-full max-w-full"></canvas>
 		</div>
