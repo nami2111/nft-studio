@@ -48,6 +48,28 @@
 		}
 	}
 
+	// Handle viewport height changes for mobile keyboards
+	function handleViewportChange() {
+		if (modalElement && open) {
+			const viewportHeight = window.visualViewport?.height || window.innerHeight;
+			const modalHeight = modalElement.offsetHeight;
+			const availableSpace = viewportHeight * 0.9;
+
+			// If modal is too tall for viewport, adjust positioning
+			if (modalHeight > availableSpace) {
+				modalElement.style.maxHeight = `${availableSpace}px`;
+				modalElement.style.overflowY = 'auto';
+				modalElement.style.marginTop = '0';
+			} else {
+				// Center the modal vertically if it fits
+				const topMargin = Math.max(0, (viewportHeight - modalHeight) / 2);
+				modalElement.style.marginTop = `${topMargin}px`;
+				modalElement.style.maxHeight = '';
+				modalElement.style.overflowY = '';
+			}
+		}
+	}
+
 	// Focus management
 	function focusModal() {
 		if (modalElement && open) {
@@ -73,8 +95,22 @@
 	// Set up event listeners
 	onMount(() => {
 		document.addEventListener('keydown', handleKeydown);
+
+		// Handle viewport changes for mobile keyboards
+		if (window.visualViewport) {
+			window.visualViewport.addEventListener('resize', handleViewportChange);
+		} else {
+			// Fallback for browsers that don't support Visual Viewport API
+			window.addEventListener('resize', handleViewportChange);
+		}
+
 		return () => {
 			document.removeEventListener('keydown', handleKeydown);
+			if (window.visualViewport) {
+				window.visualViewport.removeEventListener('resize', handleViewportChange);
+			} else {
+				window.removeEventListener('resize', handleViewportChange);
+			}
 			document.body.style.overflow = '';
 		};
 	});
@@ -86,6 +122,11 @@
 			// Small delay to ensure modal is rendered
 			setTimeout(() => {
 				focusModal();
+				handleViewportChange();
+				// Additional delay to ensure modal dimensions are calculated correctly
+				setTimeout(() => {
+					handleViewportChange();
+				}, 50);
 			}, 10);
 		}
 	});
@@ -98,7 +139,7 @@
 {#if open}
 	<div
 		bind:this={overlayElement}
-		class="fixed inset-0 z-50 bg-black/50"
+		class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[10vh]"
 		onclick={handleOverlayClick}
 		onkeydown={handleKeydown}
 		role="dialog"
@@ -109,7 +150,7 @@
 		<div
 			bind:this={modalElement}
 			class={cn(
-				'fixed top-1/2 left-1/2 z-50 max-h-[80vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl dark:border-gray-200 dark:bg-gray-900',
+				'z-50 my-auto max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl transition-all duration-200 sm:max-h-[85vh] dark:border-gray-200 dark:bg-gray-900',
 				maxWidth,
 				className
 			)}
