@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Content width issues on ultra-wide displays (> 1920px)
 - Button size inconsistencies in Hero section on mobile screens
 - Modal popup positioning issues on long pages and mobile devices
+- About page side panel transparency issues causing poor text visibility on mobile devices
 
 ### Changed
 
