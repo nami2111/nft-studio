@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2025-01-18
+
+### Fixed
+
+- Responsive layout issues across small and large screen sizes
+- Hero section background image overflow on mobile devices
+- Generation form grid layout not adapting properly on mobile screens
+- Layer manager trait grid responsiveness on different screen sizes
+- Preview component canvas container aspect ratio handling
+- Project management button layouts on mobile devices
+- Content width issues on ultra-wide displays (> 1920px)
+- Button size inconsistencies in Hero section on mobile screens
+- Modal popup positioning issues on long pages and mobile devices
+
+### Changed
+
+- Hero background image from fixed width to responsive `object-cover` with proper containment
+- Generation form from 4-column grid to responsive layout with stacked elements on mobile
+- Layer trait grid from `grid-cols-2` to `grid-cols-1` on mobile with progressive enhancement
+- Modal overlay positioning from CSS transforms to flexbox centering with viewport awareness
+- Modal container to use mobile-first responsive design with proper spacing
+- App layout grid proportions for better balance on ultra-wide displays (xl:col-span-7/5)
+- Button components in Hero section to use consistent sizing and responsive behavior
+- Added container width constraints to prevent content from becoming too wide on large displays
+- Enhanced modal positioning with dynamic viewport height calculations for mobile keyboards
+- Improved modal header and content spacing for mobile devices (smaller padding, text sizes)
+
+### Added
+
+- Responsive utility classes for consistent behavior across screen sizes
+- Mobile-aware viewport change detection with Visual Viewport API support
+- Dynamic modal height management with different constraints for mobile (85%) and desktop (90%)
+- Minimum margin enforcement for mobile modals to prevent edge touching
+- Content max-width constraints for ultra-wide displays (max-w-[1800px])
+- Breakpoint-specific spacing and typography improvements throughout the application
+
 ## [0.3.1] - 2025-10-17
 
 ### Fixed
