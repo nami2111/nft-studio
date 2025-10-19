@@ -88,7 +88,9 @@
 				onclick={closeMobileMenu}
 				onkeydown={(e) => e.key === 'Enter' && closeMobileMenu()}
 			></div>
-			<div class="border-border bg-card fixed top-0 left-0 h-full w-80 border-r shadow-xl bg-white dark:bg-gray-900 backdrop-blur-sm">
+			<div
+				class="border-border bg-card fixed top-0 left-0 h-full w-80 border-r bg-white shadow-xl backdrop-blur-sm dark:bg-gray-900"
+			>
 				<div class="p-4">
 					<div class="mb-6 flex items-center justify-between">
 						<div>
@@ -177,7 +179,9 @@
 	{/if}
 
 	<!-- Desktop Side Navigation -->
-	<div class="border-border bg-card fixed top-0 left-0 z-10 hidden h-screen w-64 border-r bg-white dark:bg-gray-900 sm:block">
+	<div
+		class="border-border bg-card fixed top-0 left-0 z-10 hidden h-screen w-64 border-r bg-white sm:block dark:bg-gray-900"
+	>
 		<div class="p-6">
 			<!-- Back Button -->
 			<div class="mb-8">
@@ -689,9 +693,12 @@
 										<ol class="text-muted-foreground ml-6 list-decimal space-y-2">
 											<li>Navigate to your project's trait layers</li>
 											<li>Find the trait you want to make a ruler</li>
-											<li>Click the ruler icon (👑) next to the trait name</li>
-											<li>The trait will be marked as a ruler type (blue badge)</li>
-											<li>Click "Manage Rules" to configure compatibility</li>
+											<li>Click the crown icon (👑) in the top-right corner of the trait card</li>
+											<li>The trait is converted to ruler type (crown icon becomes highlighted)</li>
+											<li>
+												Click the settings (⚙️) icon that appears next to ruler traits to manage
+												rules
+											</li>
 										</ol>
 									</div>
 
@@ -705,11 +712,11 @@
 										<div class="border-border bg-muted mb-4 rounded-lg border p-4">
 											<h4 class="text-foreground mb-2 font-semibold">Rule Configuration Steps:</h4>
 											<ol class="text-muted-foreground ml-4 list-decimal space-y-1 text-sm">
-												<li>Select the ruler trait you want to configure</li>
-												<li>Choose a trait category from the dropdown</li>
-												<li>Select specific traits that are compatible</li>
-												<li>Add multiple rules for different categories</li>
-												<li>Save your configuration</li>
+												<li>Click the settings (⚙️) icon on your ruler trait</li>
+												<li>Select a target layer from the dropdown menu</li>
+												<li>Click traits to mark them as allowed (green badges)</li>
+												<li>Click traits to mark them as forbidden (red badges)</li>
+												<li>Click "Add Rule" to save your configuration</li>
 											</ol>
 										</div>
 										<div class="border-border bg-muted rounded-lg border p-4">
@@ -789,24 +796,35 @@
 											<div class="flex items-center space-x-3">
 												<span class="text-blue-500">👑</span>
 												<span class="text-muted-foreground"
-													>Ruler icon - indicates a trait is a ruler type</span
+													>Crown icon - click to toggle trait between normal and ruler type</span
+												>
+											</div>
+											<div class="flex items-center space-x-3">
+												<span class="text-blue-500">⚙️</span>
+												<span class="text-muted-foreground"
+													>Settings icon - appears only for ruler traits, click to manage
+													compatibility rules</span
 												>
 											</div>
 											<div class="flex items-center space-x-3">
 												<span
-													class="text-foreground rounded border border-blue-200 bg-blue-100 px-2 py-1 text-xs font-medium"
-													>RULER</span
+													class="rounded border border-green-600 bg-green-600 px-2 py-1 text-xs font-medium text-white"
+												>
+													✓ Trait</span
 												>
 												<span class="text-muted-foreground"
-													>Blue badge - ruler trait type indicator</span
+													>Green badge - allowed traits in rule configuration</span
 												>
 											</div>
 											<div class="flex items-center space-x-3">
 												<span
-													class="border-border text-foreground rounded border bg-gray-100 px-2 py-1 text-xs font-medium"
-													>NORMAL</span
+													class="rounded border border-red-600 bg-red-600 px-2 py-1 text-xs font-medium text-white"
 												>
-												<span class="text-muted-foreground">Gray badge - normal trait type</span>
+													✗ Trait</span
+												>
+												<span class="text-muted-foreground"
+													>Red badge - forbidden traits in rule configuration</span
+												>
 											</div>
 										</div>
 									</div>
