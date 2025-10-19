@@ -67,19 +67,8 @@
 			if (modalHeight > availableSpace) {
 				modalElement.style.maxHeight = `${availableSpace}px`;
 				modalElement.style.overflowY = 'auto';
-
-				// On mobile, give some space from the top
-				if (isMobile) {
-					modalElement.style.marginTop = '2rem';
-				}
-			} else {
-				// Center the modal vertically if it fits
-				const topMargin = Math.max(0, (viewportHeight - modalHeight) / 2);
-
-				// Ensure minimum top margin on mobile
-				const finalMargin = isMobile ? Math.max(topMargin, 16) : topMargin;
-				modalElement.style.marginTop = `${finalMargin}px`;
 			}
+			// Don't apply any margin - let flexbox handle centering naturally
 		}
 	}
 
@@ -136,11 +125,7 @@
 			setTimeout(() => {
 				focusModal();
 				handleViewportChange();
-				// Additional delay to ensure modal dimensions are calculated correctly
-				setTimeout(() => {
-					handleViewportChange();
-				}, 50);
-			}, 10);
+			}, 50);
 		}
 	});
 
@@ -152,7 +137,7 @@
 {#if open}
 	<div
 		bind:this={overlayElement}
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 sm:p-6"
+		class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[10vh] sm:p-6 sm:pt-[8vh]"
 		onclick={handleOverlayClick}
 		onkeydown={handleKeydown}
 		role="dialog"
