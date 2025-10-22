@@ -112,7 +112,7 @@ export function sanitizeString(input: string): string {
 	return input
 		.trim()
 		.replace(/\0/g, '') // Remove null bytes
-		.replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+		.replace(/[\\x00-\\x1F\\x7F-\\x9F]/g, '') // Remove control characters
 		.slice(0, 100); // Limit length
 }
 

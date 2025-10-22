@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2025-01-22
+
+### Added
+
+- **Automatic State Persistence**: Projects are now automatically saved to localStorage when changes occur
+- **Project Recovery**: Automatically restores previously worked on projects when the application starts
+- **Smart Data Storage**: Selective persistence that stores project structure and metadata while excluding large binary data
+- **Persistence Management**: Functions to manually clear persisted data and check persistence status
+- **Project Reset**: Complete project reset functionality that clears both application state and persisted data
+
+### Added
+
+- **Enhanced Error Recovery**: Comprehensive retry mechanisms with exponential backoff for failed operations
+- **Specialized Recovery Functions**: Dedicated error recovery for different operation types:
+  - Storage operations with quota management and availability handling
+  - File operations with permission and busy state retry logic
+  - Worker operations with initialization and execution error recovery
+  - Generation operations with memory and execution error handling
+  - Network operations with standard network retry conditions
+- **Smart Retry Logic**: Automatic detection of recoverable errors with configurable retry strategies
+- **Operation-Specific Configurations**: Different retry parameters optimized for each operation type
+- **User-Friendly Error Handling**: Enhanced error messages with automatic retry options for users
+
+### Changed
+
+- **Domain Services**: Enhanced core services with automatic error recovery:
+  - `startGeneration()` now includes retry logic for both layer preparation and worker execution
+  - `addTrait()` includes automatic retry for file processing operations
+  - `saveProjectToZip()` and `loadProjectFromZip()` include retry mechanisms for ZIP operations
+- **Error Handler**: Expanded with recoverable operation wrappers and specialized retry conditions
+- **File Operations**: Enhanced ZIP import/export with automatic retry on temporary failures
+
+### Fixed
+
+- **Implicit Any Types**: Fixed TypeScript implicit any type issues in worker pool message handling
+- **Type Safety**: Added explicit typing for all error recovery operations and retry configurations
+
+### Added
+
+- **Comprehensive Performance Monitoring**: Real-time performance tracking and metrics collection system
+- **Performance Monitor Class**: Core monitoring engine with automatic metrics collection, statistical analysis, and memory management
+- **Reactive Performance Store**: Svelte 5 runes-based reactive state with real-time updates and derived statistics
+- **Performance Dashboard UI**: Complete monitoring component showing summary stats, slowest/frequent operations, and detailed metrics
+- **Automatic Timing**: Enhanced worker pool operations, generation functions, and file operations with built-in performance tracking
+- **Slow Operation Detection**: Automatic logging of operations taking >5 seconds for performance optimization
+- **Time-Range Analysis**: Filter and analyze performance metrics within specific time periods
+- **Performance Reports**: Comprehensive JSON export with detailed operation statistics and summaries
+- **Developer Tools**: Decorator support, utility functions, and console logging for debugging performance issues
+- **Real-time Updates**: Live performance metrics with automatic updates every second
+- **Memory Efficient**: Limited metric storage with automatic cleanup to prevent memory leaks
+
+### Changed
+
+- **Worker Pool**: Enhanced `initializeWorkerPool()` and `postMessageToPool()` with performance timing and metadata tracking
+- **Generation Client**: Enhanced `startGeneration()` with comprehensive performance monitoring and error tracking
+- **File Operations**: Enhanced `saveProjectToZip()` and `loadProjectFromZip()` with automatic performance measurement
+- **Project Store**: Enhanced save operations with timing and error context tracking
+- **Error Handling**: Integrated performance metrics with error recovery for comprehensive debugging
+
 ## [0.3.2] - 2025-01-18
 
 ### Fixed

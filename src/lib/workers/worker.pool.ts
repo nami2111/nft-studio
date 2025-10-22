@@ -9,6 +9,7 @@ import type {
 	ProgressMessage,
 	PreviewMessage
 } from '$lib/types/worker-messages';
+import { performanceMonitor, timed, withTiming } from '$lib/utils/performance-monitor';
 
 // Task complexity levels
 enum TaskComplexity {
@@ -825,7 +826,7 @@ function processNextTask(): void {
 		// Only include payload if it exists (not all message types have payload)
 		// Create a deep copy of the payload to ensure it's clean of any non-serializable references
 		// We need to handle ArrayBuffers specially since JSON serialization loses them
-		let messageToSend;
+		let messageToSend: { type: string; taskId: string; payload?: unknown };
 		if ('payload' in task.message) {
 			// For deep cloning that preserves ArrayBuffers, we need a custom approach
 			// Create a structured clone by serializing and deserializing only the non-ArrayBuffer parts
@@ -859,91 +860,99 @@ function processNextTask(): void {
  * Initialize the worker pool with enhanced features
  */
 export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<void> {
-	if (workerPool) {
-		console.warn('Worker pool already initialized');
-		return;
-	}
+	const timerId = performanceMonitor.startTimer('worker.initializeWorkerPool');
+	try {
+		if (workerPool) {
+			console.warn('Worker pool already initialized');
+			return;
+		}
 
-	const optimalWorkerCount = calculateOptimalWorkerCount();
-	const maxWorkers = config?.maxWorkers || optimalWorkerCount;
-	const workerInitializationTimeout = config?.workerInitializationTimeout || 5000;
-	const minWorkers = config?.minWorkers || 1;
-	const healthCheckInterval = config?.healthCheckInterval || 30000; // 30 seconds
+		const optimalWorkerCount = calculateOptimalWorkerCount();
+		const maxWorkers = config?.maxWorkers || optimalWorkerCount;
+		const workerInitializationTimeout = config?.workerInitializationTimeout || 5000;
+		const minWorkers = config?.minWorkers || 1;
+		const healthCheckInterval = config?.healthCheckInterval || 30000; // 30 seconds
 
-	workerPool = {
-		workers: [],
-		taskQueue: [],
-		activeTasks: new Map(),
-		workerStatus: [],
-		workerHealth: [],
-		workerStats: [],
-		config: {
-			maxWorkers,
-			maxConcurrentTasks: config?.maxConcurrentTasks || maxWorkers,
-			workerInitializationTimeout,
-			minWorkers,
-			taskComplexityBasedScaling: config?.taskComplexityBasedScaling ?? true,
-			healthCheckInterval,
-			maxRestarts: config?.maxRestarts || 3
-		},
-		workerInitializationPromises: [],
-		healthCheckInterval: null,
-		scalingInterval: null
-	};
+		workerPool = {
+			workers: [],
+			taskQueue: [],
+			activeTasks: new Map(),
+			workerStatus: [],
+			workerHealth: [],
+			workerStats: [],
+			config: {
+				maxWorkers,
+				maxConcurrentTasks: config?.maxConcurrentTasks || maxWorkers,
+				workerInitializationTimeout,
+				minWorkers,
+				taskComplexityBasedScaling: config?.taskComplexityBasedScaling ?? true,
+				healthCheckInterval,
+				maxRestarts: config?.maxRestarts || 3
+			},
+			workerInitializationPromises: [],
+			healthCheckInterval: null,
+			scalingInterval: null
+		};
 
-	// Initialize worker arrays
-	for (let i = 0; i < maxWorkers; i++) {
-		workerPool.workerHealth.push(WorkerHealth.HEALTHY);
-		workerPool.workerStats.push({
-			startTime: Date.now(),
-			taskCount: 0,
-			errorCount: 0,
-			averageTaskTime: 0,
-			lastActivity: Date.now(),
-			restartCount: 0
-		});
-	}
-
-	// Create the workers with proper error handling
-	const workerPromises: Promise<Worker>[] = [];
-	for (let i = 0; i < maxWorkers; i++) {
-		const workerPromise = createWorker(workerInitializationTimeout);
-		workerPromises.push(workerPromise);
-
-		workerPromise
-			.then((worker) => {
-				workerPool!.workers.push(worker);
-				workerPool!.workerStatus.push(true); // Mark as available
-
-				// Set up message handler for each worker
-				worker.onmessage = (e: MessageEvent) => {
-					handleWorkerMessage(e, workerPool!.workers.length - 1);
-				};
-
-				console.log(`Worker ${workerPool!.workers.length - 1} initialized successfully`);
-
-				// Process any queued tasks now that we have an available worker
-				processNextTask();
-			})
-			.catch((error) => {
-				console.error(`Failed to initialize worker ${i}:`, error);
-				// Add a placeholder to maintain index consistency
-				workerPool!.workers.push(null as unknown as Worker);
-				workerPool!.workerStatus.push(false); // Mark as unavailable
-				workerPool!.workerHealth[i] = WorkerHealth.ERROR; // Mark as failed
+		// Initialize worker arrays
+		for (let i = 0; i < maxWorkers; i++) {
+			workerPool.workerHealth.push(WorkerHealth.HEALTHY);
+			workerPool.workerStats.push({
+				startTime: Date.now(),
+				taskCount: 0,
+				errorCount: 0,
+				averageTaskTime: 0,
+				lastActivity: Date.now(),
+				restartCount: 0
 			});
+		}
+
+		// Create the workers with proper error handling
+		const workerPromises: Promise<Worker>[] = [];
+		for (let i = 0; i < maxWorkers; i++) {
+			const workerPromise = createWorker(workerInitializationTimeout);
+			workerPromises.push(workerPromise);
+
+			workerPromise
+				.then((worker) => {
+					workerPool!.workers.push(worker);
+					workerPool!.workerStatus.push(true); // Mark as available
+
+					// Set up message handler for each worker
+					worker.onmessage = (e: MessageEvent) => {
+						handleWorkerMessage(e, workerPool!.workers.length - 1);
+					};
+
+					console.log(`Worker ${workerPool!.workers.length - 1} initialized successfully`);
+
+					// Process any queued tasks now that we have an available worker
+					processNextTask();
+				})
+				.catch((error) => {
+					console.error(`Failed to initialize worker ${i}:`, error);
+					// Add a placeholder to maintain index consistency
+					workerPool!.workers.push(null as unknown as Worker);
+					workerPool!.workerStatus.push(false); // Mark as unavailable
+					workerPool!.workerHealth[i] = WorkerHealth.ERROR; // Mark as failed
+				});
+		}
+
+		// Wait for all workers to initialize
+		await Promise.allSettled(workerPromises);
+
+		const successfulWorkers = workerPool.workers.filter(
+			(worker) => worker !== (null as unknown as Worker)
+		).length;
+		console.log(`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers`);
+
+		performanceMonitor.stopTimer(timerId);
+
+		// Start health checks and dynamic scaling
+		startBackgroundProcesses(healthCheckInterval);
+	} catch (error) {
+		performanceMonitor.stopTimer(timerId, { error: String(error) });
+		throw error;
 	}
-
-	// Wait for all workers to initialize
-	await Promise.allSettled(workerPromises);
-
-	const successfulWorkers = workerPool.workers.filter(
-		(worker) => worker !== (null as unknown as Worker)
-	).length;
-	console.log(`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers`);
-
-	// Start health checks and dynamic scaling
-	startBackgroundProcesses(healthCheckInterval);
 }
 
 /**
@@ -980,11 +989,13 @@ function performHealthChecks(): void {
 	}
 }
 export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<T> {
+	const timerId = performanceMonitor.startTimer('worker.postMessageToPool', message.type);
 	console.log('WorkerPool: postMessageToPool called with message:', message);
 	if (!workerPool) {
 		throw new Error('Worker pool not initialized. Call initializeWorkerPool() first.');
 	}
 
+	performanceMonitor.stopTimer(timerId);
 	return new Promise<T>((resolve, reject) => {
 		const taskId = `${Date.now()}-${Math.random()}`;
 

@@ -13,9 +13,14 @@ import {
 	WorkerError,
 	GenerationError,
 	NetworkError,
+	WorkerInitializationError,
+	WorkerTimeoutError,
+	GenerationExecutionError,
+	GenerationValidationError,
 	getErrorInfo,
 	isRecoverableError
 } from './typed-errors';
+import { retry, retryWithErrorHandling, RetryConfigs, type RetryConfig } from './retry';
 
 export interface ErrorHandlerOptions extends ErrorOptions {
 	context?: ErrorContext;
@@ -23,6 +28,8 @@ export interface ErrorHandlerOptions extends ErrorOptions {
 	silent?: boolean;
 	fallbackValue?: unknown;
 	operation?: string; // Specific operation that failed
+	enableRetry?: boolean; // Enable automatic retry for recoverable errors
+	retryConfig?: Partial<RetryConfig>; // Custom retry configuration
 }
 
 /**
@@ -285,4 +292,240 @@ export function createTypedError(error: unknown, context?: Record<string, unknow
 
 	const errorInfo = getErrorInfo(error);
 	return new AppError(errorInfo.message, 'CONVERTED_ERROR', context, true);
+}
+
+/**
+ * Enhanced error recovery with exponential backoff retry logic
+ */
+export async function recoverableOperation<T>(
+	operation: () => Promise<T>,
+	options: ErrorHandlerOptions = {}
+): Promise<T> {
+	const { enableRetry = true, retryConfig = RetryConfigs.default, ...handlerOptions } = options;
+
+	if (!enableRetry) {
+		return withErrorHandling(operation, handlerOptions);
+	}
+
+	// Define retry condition based on error recoverability
+	const customRetryConfig: Partial<RetryConfig> = {
+		...retryConfig,
+		retryCondition: (error: unknown) => {
+			// Use provided retry condition if available
+			if (retryConfig.retryCondition) {
+				return retryConfig.retryCondition(error);
+			}
+			// Default to checking if error is recoverable
+			return isRecoverableError(error);
+		}
+	};
+
+	try {
+		return await retryWithErrorHandling(
+			operation,
+			customRetryConfig,
+			{
+				operation: handlerOptions.operation,
+				additionalData: {
+					enableRetry: true,
+					...(handlerOptions.context as any)?.additionalData
+				}
+			} as any, // Type assertion needed due to ErrorContext type mismatch
+			`Operation "${handlerOptions.operation || 'unknown'}" failed after multiple attempts`
+		);
+	} catch (error) {
+		// Final error handling with user notification
+		await handleError(error, {
+			...handlerOptions,
+			title: handlerOptions.title || 'Operation Failed',
+			description:
+				handlerOptions.description ||
+				`The operation failed after multiple attempts. Please try again.`,
+			action: {
+				label: 'Retry',
+				onClick: () => recoverableOperation(operation, options)
+			}
+		});
+		throw error;
+	}
+}
+
+/**
+ * Recoverable storage operations with specialized retry logic
+ */
+export async function recoverableStorageOperation<T>(
+	operation: () => Promise<T>,
+	options: ErrorHandlerOptions = {}
+): Promise<T> {
+	return recoverableOperation(operation, {
+		...options,
+		retryConfig: {
+			...RetryConfigs.default,
+			maxAttempts: 5,
+			initialDelayMs: 500,
+			maxDelayMs: 5000,
+			backoffFactor: 2,
+			jitter: false, // Storage operations don't need jitter
+			retryCondition: (error: unknown) => {
+				// Retry on storage-related issues
+				if (error instanceof StorageError) {
+					return true;
+				}
+				// Retry on quota exceeded errors
+				if (error instanceof Error && error.name === 'QuotaExceededError') {
+					return true;
+				}
+				// Retry on general storage unavailable errors
+				if (
+					error instanceof Error &&
+					(error.message.includes('storage') ||
+						error.message.includes('quota') ||
+						error.message.includes('unavailable'))
+				) {
+					return true;
+				}
+				return false;
+			},
+			...options.retryConfig
+		},
+		title: 'Storage Operation Failed',
+		description: 'Failed to access storage. Retrying...'
+	});
+}
+
+/**
+ * Recoverable file operations with specialized retry logic
+ */
+export async function recoverableFileOperation<T>(
+	operation: () => Promise<T>,
+	options: ErrorHandlerOptions = {}
+): Promise<T> {
+	return recoverableOperation(operation, {
+		...options,
+		retryConfig: {
+			...RetryConfigs.file,
+			retryCondition: (error: unknown) => {
+				// Retry on file-related issues
+				if (error instanceof FileError) {
+					return true;
+				}
+				// Retry on file system temporary unavailability
+				if (error instanceof Error && error.message.includes('busy')) {
+					return true;
+				}
+				// Retry on file access denied (might be temporary)
+				if (
+					error instanceof Error &&
+					(error.message.includes('access denied') || error.message.includes('permission denied'))
+				) {
+					return true;
+				}
+				return false;
+			},
+			...options.retryConfig
+		},
+		title: 'File Operation Failed',
+		description: 'Failed to process file. Retrying...'
+	});
+}
+
+/**
+ * Recoverable worker operations with specialized retry logic
+ */
+export async function recoverableWorkerOperation<T>(
+	operation: () => Promise<T>,
+	options: ErrorHandlerOptions = {}
+): Promise<T> {
+	return recoverableOperation(operation, {
+		...options,
+		retryConfig: {
+			...RetryConfigs.server,
+			maxAttempts: 3,
+			initialDelayMs: 2000,
+			maxDelayMs: 10000,
+			retryCondition: (error: unknown) => {
+				// Retry on worker initialization errors
+				if (error instanceof WorkerInitializationError) {
+					return true;
+				}
+				// Retry on worker timeout errors
+				if (error instanceof WorkerTimeoutError) {
+					return true;
+				}
+				// Retry on general worker errors that might be temporary
+				if (error instanceof WorkerError) {
+					return true;
+				}
+				// Retry on worker not defined errors (happens in test environments)
+				if (error instanceof Error && error.message.includes('Worker is not defined')) {
+					return false; // Don't retry this, it's an environment issue
+				}
+				return false;
+			},
+			...options.retryConfig
+		},
+		title: 'Worker Operation Failed',
+		description: 'Failed to execute worker operation. Retrying...'
+	});
+}
+
+/**
+ * Recoverable generation operations with specialized retry logic
+ */
+export async function recoverableGenerationOperation<T>(
+	operation: () => Promise<T>,
+	options: ErrorHandlerOptions = {}
+): Promise<T> {
+	return recoverableOperation(operation, {
+		...options,
+		retryConfig: {
+			...RetryConfigs.server,
+			maxAttempts: 2, // Generation is expensive, limit retries
+			initialDelayMs: 5000,
+			maxDelayMs: 15000,
+			retryCondition: (error: unknown) => {
+				// Retry on generation execution errors
+				if (error instanceof GenerationExecutionError) {
+					return true;
+				}
+				// Retry on memory issues that might be temporary
+				if (
+					error instanceof Error &&
+					(error.message.includes('memory') || error.message.includes('out of memory'))
+				) {
+					return true;
+				}
+				// Don't retry on validation errors
+				if (error instanceof GenerationValidationError) {
+					return false;
+				}
+				return false;
+			},
+			...options.retryConfig
+		},
+		title: 'Generation Failed',
+		description: 'Failed to generate NFTs. Retrying...'
+	});
+}
+
+/**
+ * Recoverable network operations with specialized retry logic
+ */
+export async function recoverableNetworkOperation<T>(
+	operation: () => Promise<T>,
+	options: ErrorHandlerOptions = {}
+): Promise<T> {
+	return recoverableOperation(operation, {
+		...options,
+		retryConfig: {
+			...RetryConfigs.network,
+			retryCondition: (error: unknown) => {
+				// Use existing network retry conditions
+				return RetryConfigs.network.retryCondition?.(error) || false;
+			},
+			...options.retryConfig
+		},
+		title: 'Network Operation Failed',
+		description: 'Failed to complete network operation. Retrying...'
+	});
 }

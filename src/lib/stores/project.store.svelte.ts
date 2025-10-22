@@ -4,7 +4,7 @@
  */
 
 import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
-import type { LayerId, TraitId } from '$lib/types/ids';
+import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
 import { fileToArrayBuffer } from '$lib/utils';
 import {
 	validateDimensions,
@@ -20,9 +20,121 @@ import {
 	loadProjectFromZip as loadProjectFromZipImpl
 } from './file-operations';
 import { loadingStateManager } from './loading-state';
+import { performanceMonitor, timed } from '$lib/utils/performance-monitor';
 
 // Local storage key
-// const PROJECT_STORAGE_KEY = 'nft-studio-project';
+const PROJECT_STORAGE_KEY = 'nft-studio-project';
+
+// State persistence functions
+interface PersistedTrait {
+	id: string;
+	name: string;
+	rarityWeight: number;
+	type?: import('$lib/types/layer').TraitType;
+	rulerRules?: import('$lib/types/layer').RulerRule[];
+}
+
+interface PersistedLayer {
+	id: string;
+	name: string;
+	order: number;
+	isOptional?: boolean;
+	traits: PersistedTrait[];
+}
+
+interface PersistedProject {
+	id: string;
+	name: string;
+	description: string;
+	outputSize: { width: number; height: number };
+	layers: PersistedLayer[];
+	_needsProperLoad: boolean;
+}
+
+function persistProject(projectToPersist: Project): void {
+	try {
+		// Create a clean version for storage (remove non-serializable data)
+		const cleanProject: PersistedProject = {
+			id: projectToPersist.id,
+			name: projectToPersist.name,
+			description: projectToPersist.description,
+			outputSize: projectToPersist.outputSize,
+			layers: projectToPersist.layers.map((layer) => ({
+				id: layer.id,
+				name: layer.name,
+				order: layer.order,
+				isOptional: layer.isOptional,
+				traits: layer.traits.map((trait) => ({
+					id: trait.id,
+					name: trait.name,
+					rarityWeight: trait.rarityWeight,
+					type: trait.type,
+					rulerRules: trait.rulerRules
+					// Note: imageData and imageUrl are not persisted due to size/URL limitations
+				}))
+			})),
+			_needsProperLoad: true
+		};
+
+		localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(cleanProject));
+	} catch (error) {
+		console.warn('Failed to persist project:', error);
+	}
+}
+
+function loadPersistedProject(): Project | null {
+	try {
+		const persisted = localStorage.getItem(PROJECT_STORAGE_KEY);
+		if (!persisted) {
+			return null;
+		}
+
+		const parsedProject = JSON.parse(persisted) as PersistedProject;
+
+		// Validate that we have the required structure
+		if (!parsedProject.id || !parsedProject.name || !Array.isArray(parsedProject.layers)) {
+			console.warn('Invalid persisted project structure');
+			return null;
+		}
+
+		// Convert persisted data back to full Project type
+		// Note: imageData will be empty arrays, traits will need to be reloaded
+		const fullProject: Project = {
+			id: parsedProject.id as ProjectId,
+			name: parsedProject.name,
+			description: parsedProject.description,
+			outputSize: parsedProject.outputSize,
+			layers: parsedProject.layers.map((layer) => ({
+				id: layer.id as LayerId,
+				name: layer.name,
+				order: layer.order,
+				isOptional: layer.isOptional,
+				traits: layer.traits.map((trait) => ({
+					id: trait.id as TraitId,
+					name: trait.name,
+					imageData: new ArrayBuffer(0), // Empty - needs to be reloaded
+					rarityWeight: trait.rarityWeight,
+					type: trait.type,
+					rulerRules: trait.rulerRules
+				}))
+			})),
+			_needsProperLoad: true
+		};
+
+		return fullProject;
+	} catch (error) {
+		console.warn('Failed to load persisted project:', error);
+		return null;
+	}
+}
+
+function clearPersistedProject(): void {
+	try {
+		localStorage.removeItem(PROJECT_STORAGE_KEY);
+	} catch (error) {
+		console.warn('Failed to clear persisted project:', error);
+	}
+}
 
 // Default project
 function defaultProject(): Project {
@@ -39,8 +151,16 @@ function defaultProject(): Project {
 	};
 }
 
-// Reactive state using Svelte 5 runes
-export const project = $state<Project>(defaultProject());
+// Initialize project with persisted data or default
+const persistedProject = loadPersistedProject();
+export const project = $state<Project>(persistedProject || defaultProject());
+
+// Auto-persist project when it changes
+$effect(() => {
+	// Persist project whenever it changes
+	// This will run on initialization and any subsequent changes
+	persistProject(project);
+});
 
 import type { LoadingState } from './loading-state';
 
@@ -313,6 +433,7 @@ export function getDetailedLoadingState(operation: string): LoadingState | undef
 
 // Project persistence - delegated to file operations module
 export async function saveProjectToZip(): Promise<ArrayBuffer> {
+	const timerId = performanceMonitor.startTimer('project.saveProjectToZip');
 	startLoading('project-save');
 	startDetailedLoading('project-save', 100);
 
@@ -322,10 +443,12 @@ export async function saveProjectToZip(): Promise<ArrayBuffer> {
 
 		stopDetailedLoading('project-save');
 		stopLoading('project-save');
+		performanceMonitor.stopTimer(timerId);
 		return result;
 	} catch (error) {
 		stopDetailedLoading('project-save', false);
 		stopLoading('project-save');
+		performanceMonitor.stopTimer(timerId, { error: String(error) });
 		throw error;
 	}
 }
@@ -349,6 +472,8 @@ export async function loadProjectFromZip(file: File): Promise<void> {
 		project.layers = loadedProject.layers;
 		project._needsProperLoad = false;
 
+		// Persistence is handled automatically by the $effect
+
 		stopDetailedLoading('project-load');
 		stopLoading('project-load');
 	} catch (error) {
@@ -365,4 +490,34 @@ export function markProjectAsLoaded(): void {
 // Cleanup
 export function cleanupAllResources(): void {
 	globalResourceManager.cleanup();
+}
+
+// Persistence management
+export function clearPersistedData(): void {
+	clearPersistedProject();
+}
+
+export function hasPersistedData(): boolean {
+	try {
+		return localStorage.getItem(PROJECT_STORAGE_KEY) !== null;
+	} catch {
+		return false;
+	}
+}
+
+export function resetProject(): void {
+	// Clear existing resources
+	globalResourceManager.cleanup();
+
+	// Clear persisted data
+	clearPersistedProject();
+
+	// Reset to default project
+	const newProject = defaultProject();
+	project.id = newProject.id;
+	project.name = newProject.name;
+	project.description = newProject.description;
+	project.outputSize = newProject.outputSize;
+	project.layers = newProject.layers;
+	project._needsProperLoad = newProject._needsProperLoad;
 }

@@ -10,7 +10,8 @@ import {
 	validateRarityWeight,
 	validateImportedProject
 } from './validation';
-import { handleFileError } from '$lib/utils/error-handler';
+import { recoverableFileOperation, recoverableStorageOperation } from '$lib/utils/error-handler';
+import { withTiming, measureOperation } from '$lib/utils/performance-monitor';
 import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 
 /**
@@ -122,33 +123,43 @@ export async function addTrait(
 		throw new Error(`Layer with id ${layerId} not found`);
 	}
 
-	try {
-		const arrayBuffer = await fileToArrayBuffer(file);
+	return recoverableFileOperation(
+		async () => {
+			const arrayBuffer = await fileToArrayBuffer(file);
 
-		const newTrait: Trait = {
-			id: createTraitId(crypto.randomUUID()),
-			name: traitName,
-			imageData: arrayBuffer,
-			rarityWeight: 1
-		};
+			const newTrait: Trait = {
+				id: createTraitId(crypto.randomUUID()),
+				name: traitName,
+				imageData: arrayBuffer,
+				rarityWeight: 1
+			};
 
-		return {
-			...project,
-			layers: project.layers.map((l) =>
-				l.id === layerId
-					? {
-							...l,
-							traits: [...l.traits, newTrait]
-						}
-					: l
-			)
-		};
-	} catch (error) {
-		await handleFileError(error, {
-			operation: 'addTrait'
-		});
-		throw error;
-	}
+			return {
+				...project,
+				layers: project.layers.map((l) =>
+					l.id === layerId
+						? {
+								...l,
+								traits: [...l.traits, newTrait]
+							}
+						: l
+				)
+			};
+		},
+		{
+			operation: 'addTrait',
+			enableRetry: true,
+			retryConfig: {
+				maxAttempts: 3,
+				initialDelayMs: 500,
+				maxDelayMs: 3000,
+				backoffFactor: 2,
+				jitter: false
+			},
+			title: 'Failed to Add Trait',
+			description: 'Could not process the image file. Please check the file and try again.'
+		}
+	);
 }
 
 /**
