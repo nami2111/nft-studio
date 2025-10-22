@@ -21,7 +21,7 @@ export const NameSchema = z
 	.string()
 	.min(1)
 	.max(100)
-	.regex(/^[a-zA-Z0-9\s\-_]+$/);
+	.regex(/^[a-zA-Z0-9\s\-_()]+$/);
 export const DescriptionSchema = z.string().max(500).optional();
 export const RarityWeightSchema = z.number().int().min(1).max(5);
 
@@ -112,7 +112,7 @@ export function sanitizeString(input: string): string {
 	return input
 		.trim()
 		.replace(/\0/g, '') // Remove null bytes
-		.replace(/[\\x00-\\x1F\\x7F-\\x9F]/g, '') // Remove control characters
+		.replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
 		.slice(0, 100); // Limit length
 }
 
