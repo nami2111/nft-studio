@@ -318,15 +318,58 @@
 		const imgContainer = document.createElement('div');
 		imgContainer.className = 'flex aspect-square items-center justify-center bg-muted';
 
-		if (trait.imageUrl) {
+		// Check if trait has valid image data
+		const hasValidImageData = trait.imageData && trait.imageData.byteLength > 0;
+		const hasImageUrl = !!trait.imageUrl;
+
+		if (hasImageUrl && hasValidImageData) {
+			// Has both imageUrl and valid imageData
 			const img = document.createElement('img');
 			img.className = 'h-full w-full object-contain';
-			// Use loading="lazy" for native lazy loading as fallback
 			img.loading = 'lazy';
-			// Only assign to src; do not inject HTML
-			img.src = trait.imageUrl;
+			img.src = trait.imageUrl!;
 			img.alt = trait.name;
+
+			// Handle broken image URLs (e.g., from persisted projects)
+			img.onerror = () => {
+				if (hasValidImageData) {
+					try {
+						const blob = new Blob([trait.imageData], { type: 'image/png' });
+						const newUrl = URL.createObjectURL(blob);
+						img.src = newUrl;
+						trait.imageUrl = newUrl;
+					} catch (error) {
+						console.error('Failed to recreate image URL:', error);
+						img.style.display = 'none';
+						showNeedsReupload(imgContainer);
+					}
+				} else {
+					img.style.display = 'none';
+					showNeedsReupload(imgContainer);
+				}
+			};
+
 			imgContainer.appendChild(img);
+		} else if (hasValidImageData && !trait.imageUrl) {
+			// Has imageData but no imageUrl, create it
+			const img = document.createElement('img');
+			img.className = 'h-full w-full object-contain';
+			img.loading = 'lazy';
+			img.alt = trait.name;
+
+			try {
+				const blob = new Blob([trait.imageData], { type: 'image/png' });
+				const url = URL.createObjectURL(blob);
+				img.src = url;
+				trait.imageUrl = url;
+				imgContainer.appendChild(img);
+			} catch (error) {
+				console.error('Failed to create image URL:', error);
+				showNeedsReupload(imgContainer);
+			}
+		} else if (trait.imageUrl && (!trait.imageData || trait.imageData.byteLength === 0)) {
+			// Likely from persisted project - show needs re-upload indicator
+			showNeedsReupload(imgContainer);
 		} else {
 			// Show loading spinner while image is being processed
 			const loaderDiv = document.createElement('div');
@@ -336,6 +379,21 @@
 				'h-6 w-6 animate-spin rounded-full border-2 border-input border-t-indigo-600';
 			loaderDiv.appendChild(spinner);
 			imgContainer.appendChild(loaderDiv);
+		}
+
+		// Helper function to show "needs re-upload" indicator
+		function showNeedsReupload(container: HTMLElement) {
+			const needsReuploadDiv = document.createElement('div');
+			needsReuploadDiv.className = 'flex h-full flex-col items-center justify-center p-2 text-center';
+			needsReuploadDiv.innerHTML = `
+				<div class="text-muted-foreground mb-2">
+					<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+					</svg>
+				</div>
+				<span class="text-muted-foreground text-xs">Image needs re-upload</span>
+			`;
+			container.appendChild(needsReuploadDiv);
 		}
 
 		const body = document.createElement('div');

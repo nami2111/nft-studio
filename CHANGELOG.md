@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Performance Metrics System**: Detailed cache performance tracking with periodic summaries and clean logging
 - **Memory Management**: Intelligent memory usage tracking with automatic size limits and eviction strategies
 - **Clean Console Logging**: Professional cache statistics with periodic performance summaries
+- **Smart Project Persistence**: Intelligent persistence strategy that prevents broken image states on page refresh
 
 ### Performance Results Achieved
 
@@ -47,9 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Worker Performance**: Removed WASM complexity calculations and multipliers from worker pool task distribution
 - **Generation Worker**: Streamlined image processing to use single, optimized Canvas API approach
 - **Cache Strategy**: Evolved from ImageBitmap caching to ArrayBuffer caching to resolve detached ImageBitmap issues in worker contexts
+- **Project Persistence Behavior**: Only persists projects without traits; projects with images start fresh on refresh to prevent broken states
 - **Code Simplicity**: Eliminated fallback complexity and module loading overhead
 - **Bundle Size**: Reduced bundle size by removing unused WASM dependencies and configuration
 - **Console Output**: Clean, professional logging with periodic performance summaries instead of verbose output
+- **Page Refresh Experience**: Clean, silent fresh start when projects contain uploaded images
 
 ### Performance Impact
 
@@ -59,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Faster Initialization**: No WASM module loading delays
 - **Memory Efficiency**: Reduced memory usage without additional WASM runtime
 - **Scalability**: Cache system performs excellently at enterprise scale with 10,000+ items
+- **Clean Refresh Experience**: No broken images or error states on page refresh
 
 ### Technical Decision & WASM Journey
 
@@ -85,6 +89,7 @@ After implementing WASM integration with @jsquash libraries, discovered that:
 - Direct Canvas API `createImageBitmap` for optimal image processing
 - Advanced LRU caching with TTL and performance monitoring
 - ArrayBuffer caching strategy to resolve worker context issues
+- Smart project persistence that ensures clean refresh behavior
 - Clean, maintainable codebase with excellent performance characteristics
 
 ## [0.3.3] - 2025-01-22

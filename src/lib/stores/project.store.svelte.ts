@@ -53,6 +53,15 @@ interface PersistedProject {
 
 function persistProject(projectToPersist: Project): void {
 	try {
+		// Check if project has any traits - only persist projects without traits
+		const totalTraits = projectToPersist.layers.reduce((sum, layer) => sum + layer.traits.length, 0);
+		if (totalTraits > 0) {
+			// Don't persist projects with traits to avoid broken image references on refresh
+			// Also clear any existing persisted data
+			localStorage.removeItem(PROJECT_STORAGE_KEY);
+			return;
+		}
+
 		// Create a clean version for storage (remove non-serializable data)
 		const cleanProject: PersistedProject = {
 			id: projectToPersist.id,
@@ -64,14 +73,7 @@ function persistProject(projectToPersist: Project): void {
 				name: layer.name,
 				order: layer.order,
 				isOptional: layer.isOptional,
-				traits: layer.traits.map((trait) => ({
-					id: trait.id,
-					name: trait.name,
-					rarityWeight: trait.rarityWeight,
-					type: trait.type,
-					rulerRules: trait.rulerRules
-					// Note: imageData and imageUrl are not persisted due to size/URL limitations
-				}))
+				traits: [] // No traits for projects without images
 			})),
 			_needsProperLoad: true
 		};
@@ -97,8 +99,16 @@ function loadPersistedProject(): Project | null {
 			return null;
 		}
 
+		// Check if project has any traits - if so, don't restore it to avoid broken image references
+		const totalTraits = parsedProject.layers.reduce((sum, layer) => sum + layer.traits.length, 0);
+		if (totalTraits > 0) {
+			// Clear the persisted data since it can't be properly restored
+			localStorage.removeItem(PROJECT_STORAGE_KEY);
+			return null;
+		}
+
 		// Convert persisted data back to full Project type
-		// Note: imageData will be empty arrays, traits will need to be reloaded
+		// Only restore projects without traits to avoid broken image references
 		const fullProject: Project = {
 			id: parsedProject.id as ProjectId,
 			name: parsedProject.name,
