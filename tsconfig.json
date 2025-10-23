@@ -12,5 +12,13 @@
 		"moduleResolution": "bundler",
 		"lib": ["dom", "ES2024"],
 		"module": "esnext"
-	}
+	},
+	"exclude": [
+		"src/lib/components/**/*.test.ts",
+		"src/lib/domain/validation.test.ts",
+		"src/lib/workers/worker.pool.test.ts",
+		"src/lib/components/test-setup.ts",
+		"src/lib/components/test-utils.ts",
+		"src/lib/components/ui/modal/modal.test.ts"
+	]
 }

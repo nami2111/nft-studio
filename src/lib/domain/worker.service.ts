@@ -46,7 +46,7 @@ export async function startGeneration(
 			);
 
 			// Start generation using the worker client (with error recovery)
-			return new Promise<void>((resolve, reject) => {
+			return new Promise<void>(async (resolve, reject) => {
 				const cleanup = () => {
 					// Cleanup function to cancel generation if promise is rejected
 					try {
@@ -57,7 +57,7 @@ export async function startGeneration(
 				};
 
 				try {
-					startWorkerGeneration(
+					await startWorkerGeneration(
 						transferrableLayers,
 						collectionSize,
 						outputSize,

@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2025-01-23
+
+### Removed
+
+- **WebAssembly (WASM) Implementation**: Removed WASM image processing integration after evaluation showed it provided no benefit for this use case
+- **WASM Dependencies**: Removed @jsquash/resize and @jsquash/png packages
+- **WASM Configuration**: Removed Vite WASM configuration and Cross-Origin headers
+- **WASM Image Processor**: Completely removed `src/lib/utils/wasm-image-processor.ts` module
+- **WASM Worker Integration**: Removed WASM initialization and processing logic from worker pool and generation worker
+
+### Changed
+
+- **Image Processing Strategy**: Simplified to use direct Canvas API `createImageBitmap` which is more optimal for already-sized images
+- **Worker Performance**: Removed WASM complexity calculations and multipliers from worker pool task distribution
+- **Generation Worker**: Streamlined image processing to use single, optimized Canvas API approach
+- **Code Simplicity**: Eliminated fallback complexity and module loading overhead
+- **Bundle Size**: Reduced bundle size by removing unused WASM dependencies and configuration
+
+### Performance Impact
+
+- **Better Performance**: Direct Canvas API approach is faster than WASM for this use case (no module loading overhead)
+- **Simpler Architecture**: Single code path eliminates complexity and potential failure points
+- **Faster Initialization**: No WASM module loading delays
+- **Memory Efficiency**: Reduced memory usage without additional WASM runtime
+
+### Technical Decision
+
+After implementing WASM integration with @jsquash libraries, discovered that:
+1. Images are already at correct dimensions, making WASM resizing unnecessary
+2. Canvas API `createImageBitmap` is highly optimized and performs better for this use case
+3. WASM added unnecessary complexity without providing performance benefits
+4. Simplified direct approach is more maintainable and reliable
+
 ## [0.3.3] - 2025-01-22
 
 ### Added

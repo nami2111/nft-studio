@@ -13,6 +13,8 @@ import type {
 } from '$lib/types/worker-messages';
 import { createTaskId, type TaskId } from '$lib/types/ids';
 
+// No WASM imports needed - using direct Canvas API for optimal performance
+
 // Check if a trait is compatible with currently selected traits
 function isTraitCompatible(
 	trait: TransferrableTrait,
@@ -84,8 +86,7 @@ function selectTrait(
 	return null;
 }
 
-// Create an ImageBitmap from ArrayBuffer without intermediate Object URLs
-// Optimized version with better memory management
+// Create an ImageBitmap from ArrayBuffer - optimized for performance
 async function createImageBitmapFromBuffer(
 	buffer: ArrayBuffer,
 	traitName: string,
@@ -96,6 +97,7 @@ async function createImageBitmapFromBuffer(
 	}
 
 	try {
+		// Use direct Canvas API - images are already correct size, no resizing needed
 		const blob = new Blob([buffer], { type: 'image/png' });
 
 		// Use ImageBitmap options for better memory efficiency
@@ -133,6 +135,77 @@ function cleanupResources() {
 	if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
 		(globalThis as { gc?: () => void }).gc?.();
 	}
+}
+
+// Optimized image composition for multiple layers
+async function compositeTraits(
+	selectedTraits: { trait: TransferrableTrait }[],
+	targetWidth: number,
+	targetHeight: number
+): Promise<ImageData> {
+	try {
+		// Collect all trait image data
+		const traitImageData: ImageData[] = [];
+
+		for (const { trait } of selectedTraits) {
+			// Create temporary canvas for each trait
+			const tempCanvas = new OffscreenCanvas(targetWidth, targetHeight);
+			const tempCtx = tempCanvas.getContext('2d');
+
+			if (!tempCtx) continue;
+
+			// Create ImageBitmap from trait data (optimized by createImageBitmapFromBuffer)
+			const imageBitmap = await createImageBitmapFromBuffer(
+				trait.imageData,
+				trait.name,
+				{ resizeWidth: targetWidth, resizeHeight: targetHeight }
+			);
+
+			// Draw to temporary canvas
+			tempCtx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+			const imageData = tempCtx.getImageData(0, 0, targetWidth, targetHeight);
+			traitImageData.push(imageData);
+		}
+
+		// If only one trait, return it directly
+		if (traitImageData.length === 1) {
+			return traitImageData[0];
+		}
+
+		// Use Canvas composition for multiple traits
+		return await compositeImagesCanvas(traitImageData, targetWidth, targetHeight);
+
+	} catch (error) {
+		console.warn('Image composition failed:', error);
+		throw error;
+	}
+}
+
+// Canvas-based composition fallback
+async function compositeImagesCanvas(
+	imageDataArray: ImageData[],
+	targetWidth: number,
+	targetHeight: number
+): Promise<ImageData> {
+	const canvas = new OffscreenCanvas(targetWidth, targetHeight);
+	const ctx = canvas.getContext('2d');
+
+	if (!ctx) {
+		throw new Error('Could not get composition canvas context');
+	}
+
+	// Composite each image data layer
+	for (const imageData of imageDataArray) {
+		const tempCanvas = new OffscreenCanvas(imageData.width, imageData.height);
+		const tempCtx = tempCanvas.getContext('2d');
+
+		if (tempCtx) {
+			tempCtx.putImageData(imageData, 0, 0);
+			ctx.drawImage(tempCanvas, 0, 0, targetWidth, targetHeight);
+		}
+	}
+
+	return ctx.getImageData(0, 0, targetWidth, targetHeight);
 }
 
 // Detect device capabilities for optimal performance

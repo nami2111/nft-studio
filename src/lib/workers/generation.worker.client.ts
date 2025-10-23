@@ -33,7 +33,7 @@ setMessageCallback((data) => {
 	}
 });
 
-export function startGeneration(
+export async function startGeneration(
 	layers: TransferrableLayer[],
 	collectionSize: number,
 	outputSize: { width: number; height: number },
@@ -42,10 +42,11 @@ export function startGeneration(
 	onMessage?: (
 		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
 	) => void
-): void {
+): Promise<void> {
 	const timerId = performanceMonitor.startTimer('generation.startGeneration');
-	// Initialize worker pool on demand
-	initializeWorkerPool();
+
+	// Initialize worker pool on demand and wait for it to be ready
+	await initializeWorkerPool();
 
 	// Set message handler for this generation session
 	messageHandler = onMessage || null;

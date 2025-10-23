@@ -155,12 +155,43 @@ function defaultProject(): Project {
 const persistedProject = loadPersistedProject();
 export const project = $state<Project>(persistedProject || defaultProject());
 
-// Auto-persist project when it changes
-$effect(() => {
-	// Persist project whenever it changes
-	// This will run on initialization and any subsequent changes
-	persistProject(project);
-});
+// Auto-persist project when it changes using a proxy approach
+let persistTimeout: number | null = null;
+
+function schedulePersist() {
+	if (persistTimeout) {
+		clearTimeout(persistTimeout);
+	}
+	persistTimeout = setTimeout(() => {
+		persistProject(project);
+		persistTimeout = null;
+	}, 500); // Debounce persistence to avoid excessive writes
+}
+
+// Enhanced state setters with automatic persistence
+export function updateProject(updates: Partial<Project>): void {
+	Object.assign(project, updates);
+	schedulePersist();
+}
+
+export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void {
+	const layerIndex = project.layers.findIndex((l) => l.id === layerId);
+	if (layerIndex !== -1) {
+		Object.assign(project.layers[layerIndex], updates);
+		schedulePersist();
+	}
+}
+
+export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial<Trait>): void {
+	const layer = project.layers.find((l) => l.id === layerId);
+	if (layer) {
+		const traitIndex = layer.traits.findIndex((t) => t.id === traitId);
+		if (traitIndex !== -1) {
+			Object.assign(layer.traits[traitIndex], updates);
+			schedulePersist();
+		}
+	}
+}
 
 import type { LoadingState } from './loading-state';
 
@@ -192,10 +223,12 @@ export function updateProjectName(name: string): void {
 		throw new Error(result.error);
 	}
 	project.name = name;
+	schedulePersist();
 }
 
 export function updateProjectDescription(description: string): void {
 	project.description = description;
+	schedulePersist();
 }
 
 export function updateProjectDimensions(dimensions: ProjectDimensions): void {
@@ -204,6 +237,7 @@ export function updateProjectDimensions(dimensions: ProjectDimensions): void {
 		throw new Error(result.error);
 	}
 	project.outputSize = dimensions;
+	schedulePersist();
 }
 
 // Layer management functions
@@ -221,6 +255,7 @@ export function addLayer(name: string): void {
 	};
 
 	project.layers.push(newLayer);
+	schedulePersist();
 }
 
 export function removeLayer(layerId: LayerId): void {
@@ -242,6 +277,8 @@ export function removeLayer(layerId: LayerId): void {
 	project.layers.forEach((layer: Layer, index: number) => {
 		layer.order = index;
 	});
+
+	schedulePersist();
 }
 
 export function updateLayerName(layerId: LayerId, name: string): void {
@@ -254,6 +291,7 @@ export function updateLayerName(layerId: LayerId, name: string): void {
 	if (!layer) return;
 
 	layer.name = name;
+	schedulePersist();
 }
 
 export function reorderLayers(layerIds: LayerId[]): void {
@@ -268,6 +306,7 @@ export function reorderLayers(layerIds: LayerId[]): void {
 	});
 
 	project.layers = newLayers;
+	schedulePersist();
 }
 
 // Batch loading state to prevent multiple rapid updates
@@ -354,6 +393,7 @@ export function addTrait(layerId: LayerId, file: File): void {
 	// Add to pending updates for batch processing
 	pendingTraitUpdates.set(newTrait.id, { trait: newTrait, layer, file });
 	scheduleBatchUpdate();
+	schedulePersist();
 }
 
 export function removeTrait(layerId: LayerId, traitId: TraitId): void {
@@ -370,6 +410,7 @@ export function removeTrait(layerId: LayerId, traitId: TraitId): void {
 	}
 
 	layer.traits.splice(traitIndex, 1);
+	schedulePersist();
 }
 
 export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string): void {
@@ -385,6 +426,7 @@ export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string
 	}
 
 	trait.name = name;
+	schedulePersist();
 }
 
 export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeight: number): void {
@@ -400,6 +442,7 @@ export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeig
 	}
 
 	trait.rarityWeight = rarityWeight;
+	schedulePersist();
 }
 
 // Loading state management - delegated to loading state manager
@@ -472,7 +515,8 @@ export async function loadProjectFromZip(file: File): Promise<void> {
 		project.layers = loadedProject.layers;
 		project._needsProperLoad = false;
 
-		// Persistence is handled automatically by the $effect
+		// Schedule persistence
+		schedulePersist();
 
 		stopDetailedLoading('project-load');
 		stopLoading('project-load');

@@ -165,7 +165,6 @@ function calculateTaskComplexity(
 ): TaskComplexity {
 	const layerCount = Array.isArray(layers) ? layers.length : 1;
 	const totalPixels = _size.width * _size.height;
-	// const totalOperations = collectionSize * layerCount; // Not used currently
 
 	// Calculate complexity score
 	let complexityScore = 0;
@@ -223,7 +222,6 @@ function calculateOptimalWorkerCount(
 	activeWorkers = 0
 ): number {
 	const { coreCount, memoryGB, isMobile } = getDeviceCapabilities();
-
 	// Base calculation considering memory and cores
 	let workerCount = Math.min(
 		Math.floor(coreCount * 0.75), // Use 75% of cores to avoid overloading
