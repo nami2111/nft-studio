@@ -15,6 +15,7 @@
 	} from '$lib/types/worker-messages';
 	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
+	import { trackGenerationCompleted } from '$lib/utils/analytics';
 
 	// State
 	let collectionSize = $state(100);
@@ -28,6 +29,8 @@
 	let previews = $state([] as { index: number; url: string }[]);
 	// Track if we've started packaging to prevent duplicate calls
 	let isPackaging = $state(false);
+	// Track generation start time for analytics
+	let generationStartTime = $state<number | null>(null);
 
 	// Progress update function
 	function updateProgress(
@@ -60,6 +63,7 @@
 		allMetadata = [];
 		isPackaging = false;
 		memoryUsage = null;
+		generationStartTime = null;
 		previews.forEach((p) => URL.revokeObjectURL(p.url));
 		previews = [];
 	}
@@ -137,6 +141,9 @@
 		resetState();
 
 		try {
+			// Record generation start time for analytics
+			generationStartTime = Date.now();
+
 			const projectData = project as {
 				name: string;
 				outputSize: { width: number; height: number };
@@ -243,6 +250,13 @@
 								allMetadata.length,
 								'metadata'
 							);
+
+							// Track generation completion analytics
+							if (generationStartTime) {
+								const durationSeconds = Math.round((Date.now() - generationStartTime) / 1000);
+								trackGenerationCompleted(allImages.length, durationSeconds);
+							}
+
 							await packageZip(allImages, allMetadata);
 						}
 						break;

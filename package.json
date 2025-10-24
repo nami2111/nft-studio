@@ -70,6 +70,7 @@
 		"cookie": "^0.7.0"
 	},
 	"dependencies": {
+		"@junobuild/analytics": "^0.2.8",
 		"@junobuild/core": "^2.2.0",
 		"@junobuild/functions": "^0.2.7",
 		"bits-ui": "^2.11.7",
