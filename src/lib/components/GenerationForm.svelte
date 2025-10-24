@@ -31,6 +31,8 @@
 	let isPackaging = $state(false);
 	// Track generation start time for analytics
 	let generationStartTime = $state<number | null>(null);
+	// Track if analytics event has been sent to prevent duplicates
+	let analyticsTracked = $state(false);
 
 	// Progress update function
 	function updateProgress(
@@ -64,6 +66,7 @@
 		isPackaging = false;
 		memoryUsage = null;
 		generationStartTime = null;
+		analyticsTracked = false;
 		previews.forEach((p) => URL.revokeObjectURL(p.url));
 		previews = [];
 	}
@@ -251,10 +254,11 @@
 								'metadata'
 							);
 
-							// Track generation completion analytics
-							if (generationStartTime) {
+							// Track generation completion analytics (only once)
+							if (generationStartTime && !analyticsTracked) {
 								const durationSeconds = Math.round((Date.now() - generationStartTime) / 1000);
 								trackGenerationCompleted(allImages.length, durationSeconds);
+								analyticsTracked = true;
 							}
 
 							await packageZip(allImages, allMetadata);
