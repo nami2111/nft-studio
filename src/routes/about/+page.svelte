@@ -9,10 +9,13 @@
 		BarChart3,
 		Github,
 		Twitter,
-		Crown
+		Crown,
+		Menu,
+		X
 	} from 'lucide-svelte';
 
 	let activeSection = 'overview';
+	let isMobileMenuOpen = false;
 
 	const sections = [
 		{ id: 'overview', label: 'Overview', icon: FileText },
@@ -25,6 +28,15 @@
 
 	function showSection(sectionId: string) {
 		activeSection = sectionId;
+		isMobileMenuOpen = false; // Close mobile menu after selection
+	}
+
+	function toggleMobileMenu() {
+		isMobileMenuOpen = !isMobileMenuOpen;
+	}
+
+	function closeMobileMenu() {
+		isMobileMenuOpen = false;
 	}
 </script>
 
@@ -37,8 +49,139 @@
 </svelte:head>
 
 <div class="bg-background min-h-screen">
-	<!-- Fixed Side Navigation -->
-	<div class="border-border bg-card fixed top-0 left-0 z-10 h-screen w-64 border-r">
+	<!-- Mobile Header -->
+	<div class="border-border bg-card sticky top-0 z-20 border-b sm:hidden">
+		<div class="flex items-center justify-between px-4 py-3">
+			<div class="flex items-center space-x-3">
+				<Button
+					variant="ghost"
+					size="icon"
+					class="text-muted-foreground hover:text-foreground"
+					onclick={toggleMobileMenu}
+				>
+					<Menu class="h-5 w-5" />
+				</Button>
+				<div>
+					<h1 class="text-foreground text-lg font-bold">NFT Studio</h1>
+					<p class="text-muted-foreground text-xs">Documentation</p>
+				</div>
+			</div>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="text-muted-foreground hover:text-foreground"
+				onclick={() => history.back()}
+			>
+				<ArrowLeft class="h-5 w-5" />
+			</Button>
+		</div>
+	</div>
+
+	<!-- Mobile Navigation Overlay -->
+	{#if isMobileMenuOpen}
+		<div class="fixed inset-0 z-30 sm:hidden">
+			<div
+				class="fixed inset-0 bg-black/50"
+				role="button"
+				tabindex="0"
+				aria-label="Close mobile menu"
+				onclick={closeMobileMenu}
+				onkeydown={(e) => e.key === 'Enter' && closeMobileMenu()}
+			></div>
+			<div
+				class="border-border bg-card fixed top-0 left-0 h-full w-80 border-r bg-white shadow-xl backdrop-blur-sm dark:bg-gray-900"
+			>
+				<div class="p-4">
+					<div class="mb-6 flex items-center justify-between">
+						<div>
+							<h1 class="text-foreground text-lg font-bold">NFT Studio</h1>
+							<p class="text-muted-foreground text-xs">Documentation</p>
+						</div>
+						<Button
+							variant="ghost"
+							size="icon"
+							class="text-muted-foreground hover:text-foreground"
+							onclick={closeMobileMenu}
+						>
+							<X class="h-5 w-5" />
+						</Button>
+					</div>
+
+					<!-- Navigation Menu -->
+					<nav class="space-y-1">
+						{#each sections as section (section.id)}
+							<button
+								class="flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-left transition-all duration-200 {activeSection ===
+								section.id
+									? 'bg-primary text-primary-foreground scale-[1.02] shadow-sm'
+									: 'text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-[1.01]'}"
+								onclick={() => showSection(section.id)}
+							>
+								<svelte:component this={section.icon} class="h-4 w-4" />
+								<span class="text-sm font-medium">{section.label}</span>
+							</button>
+						{/each}
+					</nav>
+
+					<!-- Quick Actions -->
+					<div class="border-border mt-6 border-t pt-6">
+						<div class="space-y-2">
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full"
+								onclick={() => (window.location.href = '/app')}
+							>
+								Launch Studio
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full"
+								onclick={() => (window.location.href = '/')}
+							>
+								Homepage
+							</Button>
+						</div>
+					</div>
+
+					<!-- Social Links -->
+					<div class="border-border mt-6 border-t pt-6">
+						<div class="space-y-3">
+							<p class="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+								Connect
+							</p>
+							<div class="flex space-x-2">
+								<a
+									href="https://x.com/aimsomnia"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-muted-foreground hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
+									title="Follow on X (Twitter)"
+								>
+									<Twitter class="h-4 w-4" />
+								</a>
+								<a
+									href="https://github.com/nami2111"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-muted-foreground hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
+									title="Follow on GitHub"
+								>
+									<Github class="h-4 w-4" />
+								</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Desktop Side Navigation -->
+	<div
+		class="border-border bg-card fixed top-0 left-0 z-10 hidden h-screen w-64 border-r bg-white sm:block dark:bg-gray-900"
+	>
 		<div class="p-6">
 			<!-- Back Button -->
 			<div class="mb-8">
@@ -126,13 +269,13 @@
 	</div>
 
 	<!-- Main Content Area -->
-	<div class="ml-64">
-		<div class="w-full px-8 py-12">
+	<div class="sm:ml-64">
+		<div class="w-full px-4 py-6 sm:px-8 sm:py-12">
 			<!-- Header Section -->
-			<div class="mb-8">
-				<div class="mb-6">
-					<h1 class="text-foreground mb-2 text-3xl font-bold">NFT Studio</h1>
-					<p class="text-muted-foreground text-lg">
+			<div class="mb-6 sm:mb-8">
+				<div class="mb-4 sm:mb-6">
+					<h1 class="text-foreground mb-2 text-2xl font-bold sm:text-3xl">NFT Studio</h1>
+					<p class="text-muted-foreground text-base sm:text-lg">
 						Professional web-based platform for creating generative NFT collections with advanced
 						layer management and high-performance generation.
 					</p>
@@ -145,10 +288,10 @@
 				{#if activeSection === 'overview'}
 					<section class="animate-in fade-in duration-300">
 						<div class="border-border bg-card rounded-lg border">
-							<div class="border-border border-b px-6 py-4">
-								<h2 class="text-foreground text-xl font-semibold">Overview</h2>
+							<div class="border-border border-b px-4 py-3 sm:px-6 sm:py-4">
+								<h2 class="text-foreground text-lg font-semibold sm:text-xl">Overview</h2>
 							</div>
-							<div class="px-6 py-6">
+							<div class="px-4 py-4 sm:px-6 sm:py-6">
 								<div class="prose max-w-none">
 									<p class="text-muted-foreground mb-6 leading-relaxed">
 										NFT Studio is a professional web application built with SvelteKit 2, TypeScript,
@@ -550,9 +693,12 @@
 										<ol class="text-muted-foreground ml-6 list-decimal space-y-2">
 											<li>Navigate to your project's trait layers</li>
 											<li>Find the trait you want to make a ruler</li>
-											<li>Click the ruler icon (👑) next to the trait name</li>
-											<li>The trait will be marked as a ruler type (blue badge)</li>
-											<li>Click "Manage Rules" to configure compatibility</li>
+											<li>Click the crown icon (👑) in the top-right corner of the trait card</li>
+											<li>The trait is converted to ruler type (crown icon becomes highlighted)</li>
+											<li>
+												Click the settings (⚙️) icon that appears next to ruler traits to manage
+												rules
+											</li>
 										</ol>
 									</div>
 
@@ -566,11 +712,11 @@
 										<div class="border-border bg-muted mb-4 rounded-lg border p-4">
 											<h4 class="text-foreground mb-2 font-semibold">Rule Configuration Steps:</h4>
 											<ol class="text-muted-foreground ml-4 list-decimal space-y-1 text-sm">
-												<li>Select the ruler trait you want to configure</li>
-												<li>Choose a trait category from the dropdown</li>
-												<li>Select specific traits that are compatible</li>
-												<li>Add multiple rules for different categories</li>
-												<li>Save your configuration</li>
+												<li>Click the settings (⚙️) icon on your ruler trait</li>
+												<li>Select a target layer from the dropdown menu</li>
+												<li>Click traits to mark them as allowed (green badges)</li>
+												<li>Click traits to mark them as forbidden (red badges)</li>
+												<li>Click "Add Rule" to save your configuration</li>
 											</ol>
 										</div>
 										<div class="border-border bg-muted rounded-lg border p-4">
@@ -650,24 +796,35 @@
 											<div class="flex items-center space-x-3">
 												<span class="text-blue-500">👑</span>
 												<span class="text-muted-foreground"
-													>Ruler icon - indicates a trait is a ruler type</span
+													>Crown icon - click to toggle trait between normal and ruler type</span
+												>
+											</div>
+											<div class="flex items-center space-x-3">
+												<span class="text-blue-500">⚙️</span>
+												<span class="text-muted-foreground"
+													>Settings icon - appears only for ruler traits, click to manage
+													compatibility rules</span
 												>
 											</div>
 											<div class="flex items-center space-x-3">
 												<span
-													class="text-foreground rounded border border-blue-200 bg-blue-100 px-2 py-1 text-xs font-medium"
-													>RULER</span
+													class="rounded border border-green-600 bg-green-600 px-2 py-1 text-xs font-medium text-white"
+												>
+													✓ Trait</span
 												>
 												<span class="text-muted-foreground"
-													>Blue badge - ruler trait type indicator</span
+													>Green badge - allowed traits in rule configuration</span
 												>
 											</div>
 											<div class="flex items-center space-x-3">
 												<span
-													class="border-border text-foreground rounded border bg-gray-100 px-2 py-1 text-xs font-medium"
-													>NORMAL</span
+													class="rounded border border-red-600 bg-red-600 px-2 py-1 text-xs font-medium text-white"
 												>
-												<span class="text-muted-foreground">Gray badge - normal trait type</span>
+													✗ Trait</span
+												>
+												<span class="text-muted-foreground"
+													>Red badge - forbidden traits in rule configuration</span
+												>
 											</div>
 										</div>
 									</div>

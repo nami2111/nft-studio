@@ -325,9 +325,25 @@
 			return;
 		}
 
-		// Check if there are any traits to display
-		const hasTraits = layers.some((layer: Layer) => layer.traits.length > 0);
-		if (!hasTraits) {
+		// Check if there are any traits with valid image data to display
+		const hasTraitsWithImageData = layers.some((layer: Layer) =>
+			layer.traits.some((trait: Trait) => trait.imageData && trait.imageData.byteLength > 0)
+		);
+
+		// Check if project has traits but they're from persisted data (empty imageData)
+		const hasTraitsWithoutImageData = layers.some((layer: Layer) => layer.traits.length > 0) && !hasTraitsWithImageData;
+
+		if (hasTraitsWithoutImageData) {
+			// Draw placeholder text for persisted projects that need image re-upload
+			ctx.fillStyle = '#9ca3af'; // gray-400
+			ctx.font = '16px sans-serif';
+			ctx.textAlign = 'center';
+			ctx.fillText('Project restored from cache', displayWidth / 2, displayHeight / 2 - 20);
+			ctx.fillText('Please re-upload your trait images to continue', displayWidth / 2, displayHeight / 2 + 10);
+			return;
+		}
+
+		if (!hasTraitsWithImageData) {
 			// Draw placeholder text when no traits are uploaded yet
 			ctx.fillStyle = '#9ca3af'; // gray-400
 			ctx.font = '16px sans-serif';
@@ -347,6 +363,15 @@
 			if (effectiveTraitId) {
 				const selectedTrait = layer.traits.find((trait: Trait) => trait.id === effectiveTraitId);
 				if (selectedTrait) {
+					// Check if trait has valid image data
+					const hasValidImageData = selectedTrait.imageData && selectedTrait.imageData.byteLength > 0;
+
+					// Skip traits without valid image data (e.g., from persisted projects)
+					if (!hasValidImageData && !selectedTrait.imageUrl) {
+						// Silently skip traits without image data (likely from persisted project)
+						return null;
+					}
+
 					let imageUrl = selectedTrait.imageUrl;
 
 					// Try to load with imageUrl first
@@ -356,7 +381,7 @@
 							return { img, layerIndex: i };
 						} catch (error) {
 							// Try to recreate blob URL from imageData if imageUrl failed
-							if (selectedTrait.imageData && selectedTrait.imageData.byteLength > 0) {
+							if (hasValidImageData) {
 								try {
 									const blob = new Blob([selectedTrait.imageData], { type: 'image/png' });
 									imageUrl = URL.createObjectURL(blob);
@@ -374,7 +399,7 @@
 								}
 							}
 						}
-					} else if (selectedTrait.imageData && selectedTrait.imageData.byteLength > 0) {
+					} else if (hasValidImageData) {
 						// No imageUrl but we have imageData, try to create blob URL
 						try {
 							const blob = new Blob([selectedTrait.imageData], { type: 'image/png' });
@@ -390,14 +415,17 @@
 						}
 					}
 
-					// If we get here, all loading attempts failed
-					console.error(
-						`All attempts to load image failed for trait ${selectedTrait?.name || 'UNKNOWN'}`
+					// If we get here, all loading attempts failed for a trait that should have data
+					// Only show error if this isn't a persisted project (where all imageData is empty)
+					const allTraitsHaveEmptyData = layers.every((l: Layer) =>
+						l.traits.every((t: Trait) => !t.imageData || t.imageData.byteLength === 0)
 					);
-					// Only show error toast if we're not in the initial load state
-					const isInitialLoad = layers.every((l: Layer) => l.traits.length === 0);
-					if (!isInitialLoad) {
-						// Show user-friendly error message
+
+					if (!allTraitsHaveEmptyData) {
+						console.error(
+							`All attempts to load image failed for trait ${selectedTrait?.name || 'UNKNOWN'}`
+						);
+						// Show user-friendly error message only for non-persisted projects
 						import('svelte-sonner').then(({ toast }) => {
 							toast.error('Failed to load image in preview', {
 								description: `Could not load ${selectedTrait?.name || 'trait'}`
@@ -676,7 +704,7 @@
 		<h2 class="mb-2 text-base font-bold sm:mb-3 sm:text-lg">Preview</h2>
 		<div
 			bind:this={container}
-			class="border-input bg-muted flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border"
+			class="border-input bg-muted flex aspect-square w-full max-w-full items-center justify-center overflow-hidden rounded-md border"
 		>
 			<canvas bind:this={canvas} class="block max-h-full max-w-full"></canvas>
 		</div>

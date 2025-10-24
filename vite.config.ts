@@ -104,5 +104,10 @@ export default defineConfig({
 	worker: {
 		plugins: () => [sveltekit()],
 		format: 'es'
+	},
+	server: {
+		fs: {
+			allow: ['..']
+		}
 	}
 });

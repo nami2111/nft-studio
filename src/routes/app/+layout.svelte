@@ -63,7 +63,7 @@
 
 	<main id="main-content" class="relative z-10">
 		<div
-			class="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 lg:px-8 xl:max-w-screen-2xl"
+			class="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 lg:px-8 xl:max-w-screen-2xl 2xl:max-w-[1800px]"
 		>
 			<!-- Figma-style header bar -->
 			<div class="bg-card/95 mb-3 rounded-lg border shadow-sm backdrop-blur-sm sm:mb-4 md:mb-6">

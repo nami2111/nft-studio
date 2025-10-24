@@ -13,6 +13,78 @@ import type {
 } from '$lib/types/worker-messages';
 import { createTaskId, type TaskId } from '$lib/types/ids';
 
+// No WASM imports needed - using direct Canvas API for optimal performance
+
+// Simple worker-level LRU cache for ArrayBuffers instead of ImageBitmaps
+// ImageBitmaps can't be safely cached across different contexts due to detachment
+class WorkerArrayBufferCache {
+	private cache = new Map<string, { buffer: ArrayBuffer; accessTime: number }>();
+	private readonly maxSize = 50; // Keep 50 recently used buffers
+
+	get(key: string): ArrayBuffer | undefined {
+		const entry = this.cache.get(key);
+		if (entry) {
+			entry.accessTime = Date.now();
+			return entry.buffer;
+		}
+		return undefined;
+	}
+
+	set(key: string, buffer: ArrayBuffer): void {
+		// Remove oldest if at capacity
+		if (this.cache.size >= this.maxSize) {
+			let oldestKey = '';
+			let oldestTime = Date.now();
+
+			for (const [k, entry] of this.cache) {
+				if (entry.accessTime < oldestTime) {
+					oldestTime = entry.accessTime;
+					oldestKey = k;
+				}
+			}
+
+			if (oldestKey) {
+				this.cache.delete(oldestKey);
+			}
+		}
+
+		this.cache.set(key, {
+			buffer,
+			accessTime: Date.now()
+		});
+	}
+
+	clear(): void {
+		this.cache.clear();
+	}
+
+	get size(): number {
+		return this.cache.size;
+	}
+}
+
+// Global worker cache instance
+const workerArrayBufferCache = new WorkerArrayBufferCache();
+
+// Cache statistics tracking
+let cacheStats = { hits: 0, misses: 0, lastReport: 0 };
+
+// Report cache statistics periodically (every 10 seconds or 50 operations)
+function reportCacheStats() {
+	const now = Date.now();
+	const totalOps = cacheStats.hits + cacheStats.misses;
+
+	// Report every 10 seconds or every 50 operations, whichever comes first
+	if (now - cacheStats.lastReport > 10000 || totalOps % 50 === 0) {
+		const hitRate = totalOps > 0 ? (cacheStats.hits / totalOps * 100).toFixed(1) : '0.0';
+		console.log(
+			`🎯 Worker Cache: ${workerArrayBufferCache.size} entries, ` +
+			`${hitRate}% hit rate (${cacheStats.hits}/${totalOps})`
+		);
+		cacheStats.lastReport = now;
+	}
+}
+
 // Check if a trait is compatible with currently selected traits
 function isTraitCompatible(
 	trait: TransferrableTrait,
@@ -84,8 +156,7 @@ function selectTrait(
 	return null;
 }
 
-// Create an ImageBitmap from ArrayBuffer without intermediate Object URLs
-// Optimized version with better memory management
+// Create an ImageBitmap from ArrayBuffer - optimized for performance
 async function createImageBitmapFromBuffer(
 	buffer: ArrayBuffer,
 	traitName: string,
@@ -95,7 +166,37 @@ async function createImageBitmapFromBuffer(
 		throw new Error(`Image data is empty for trait "${traitName}"`);
 	}
 
+	// Create cache key based on buffer hash and options
+	const cacheKey = `${traitName}_${buffer.byteLength}_${options?.resizeWidth || 0}_${options?.resizeHeight || 0}`;
+
+	// Check cache first for the raw buffer
+	const cachedBuffer = workerArrayBufferCache.get(cacheKey);
+	if (cachedBuffer) {
+		cacheStats.hits++;
+		reportCacheStats();
+
+		// Cache hit - create ImageBitmap from cached buffer
+		const blob = new Blob([cachedBuffer], { type: 'image/png' });
+		const imageBitmapOptions: ImageBitmapOptions = {
+			...(options?.resizeWidth &&
+				options?.resizeHeight && {
+					resizeWidth: options.resizeWidth,
+					resizeHeight: options.resizeHeight,
+					resizeQuality: 'high'
+				}),
+			colorSpaceConversion: 'none',
+			premultiplyAlpha: 'none'
+		};
+		return await createImageBitmap(blob, imageBitmapOptions);
+	}
+
 	try {
+		// Cache miss - store the original buffer
+		workerArrayBufferCache.set(cacheKey, buffer);
+		cacheStats.misses++;
+		reportCacheStats();
+
+		// Use direct Canvas API - images are already correct size, no resizing needed
 		const blob = new Blob([buffer], { type: 'image/png' });
 
 		// Use ImageBitmap options for better memory efficiency
@@ -115,6 +216,7 @@ async function createImageBitmapFromBuffer(
 
 		// Directly create an ImageBitmap from the Blob with optimized options
 		const imageBitmap = await createImageBitmap(blob, imageBitmapOptions);
+
 		return imageBitmap;
 	} catch (error) {
 		throw new Error(
@@ -130,9 +232,87 @@ function cleanupObjectUrls() {
 
 // Cleanup function to free resources
 function cleanupResources() {
+	// Clear worker cache
+	workerArrayBufferCache.clear();
+
+	// Reset cache statistics
+	cacheStats = { hits: 0, misses: 0, lastReport: 0 };
+
+	// Force garbage collection if available
 	if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
 		(globalThis as { gc?: () => void }).gc?.();
 	}
+}
+
+// Optimized image composition for multiple layers
+async function compositeTraits(
+	selectedTraits: { trait: TransferrableTrait }[],
+	targetWidth: number,
+	targetHeight: number
+): Promise<ImageData> {
+	try {
+		// Collect all trait image data
+		const traitImageData: ImageData[] = [];
+
+		for (const { trait } of selectedTraits) {
+			// Create temporary canvas for each trait
+			const tempCanvas = new OffscreenCanvas(targetWidth, targetHeight);
+			const tempCtx = tempCanvas.getContext('2d');
+
+			if (!tempCtx) continue;
+
+			// Create ImageBitmap from trait data (optimized by createImageBitmapFromBuffer)
+			const imageBitmap = await createImageBitmapFromBuffer(
+				trait.imageData,
+				trait.name,
+				{ resizeWidth: targetWidth, resizeHeight: targetHeight }
+			);
+
+			// Draw to temporary canvas
+			tempCtx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+			const imageData = tempCtx.getImageData(0, 0, targetWidth, targetHeight);
+			traitImageData.push(imageData);
+		}
+
+		// If only one trait, return it directly
+		if (traitImageData.length === 1) {
+			return traitImageData[0];
+		}
+
+		// Use Canvas composition for multiple traits
+		return await compositeImagesCanvas(traitImageData, targetWidth, targetHeight);
+
+	} catch (error) {
+		console.warn('Image composition failed:', error);
+		throw error;
+	}
+}
+
+// Canvas-based composition fallback
+async function compositeImagesCanvas(
+	imageDataArray: ImageData[],
+	targetWidth: number,
+	targetHeight: number
+): Promise<ImageData> {
+	const canvas = new OffscreenCanvas(targetWidth, targetHeight);
+	const ctx = canvas.getContext('2d');
+
+	if (!ctx) {
+		throw new Error('Could not get composition canvas context');
+	}
+
+	// Composite each image data layer
+	for (const imageData of imageDataArray) {
+		const tempCanvas = new OffscreenCanvas(imageData.width, imageData.height);
+		const tempCtx = tempCanvas.getContext('2d');
+
+		if (tempCtx) {
+			tempCtx.putImageData(imageData, 0, 0);
+			ctx.drawImage(tempCanvas, 0, 0, targetWidth, targetHeight);
+		}
+	}
+
+	return ctx.getImageData(0, 0, targetWidth, targetHeight);
 }
 
 // Detect device capabilities for optimal performance
@@ -366,8 +546,13 @@ async function generateCollection(
 		return;
 	}
 
-	// Final cleanup
-	cleanupResources();
+	// Report final cache statistics (before cleanup)
+	const totalOps = cacheStats.hits + cacheStats.misses;
+	const finalHitRate = totalOps > 0 ? (cacheStats.hits / totalOps * 100).toFixed(1) : '0.0';
+	console.log(
+		`✅ Generation Complete - Worker Cache: ${workerArrayBufferCache.size} entries, ` +
+		`${finalHitRate}% hit rate (${cacheStats.hits} hits, ${cacheStats.misses} misses)`
+	);
 
 	// Send final completion message
 	const finalCompleteMessage: CompleteMessage = {
@@ -379,8 +564,10 @@ async function generateCollection(
 		}
 	};
 
-	// Send final completion message
 	self.postMessage(finalCompleteMessage);
+
+	// Final cleanup (after reporting)
+	cleanupResources();
 }
 
 // Generate a single item and stream it immediately

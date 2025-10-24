@@ -48,6 +48,30 @@
 		}
 	}
 
+	// Handle viewport height changes for mobile keyboards
+	function handleViewportChange() {
+		if (modalElement && open) {
+			const viewportHeight = window.visualViewport?.height || window.innerHeight;
+			const modalHeight = modalElement.offsetHeight;
+			const isMobile = viewportHeight < 768; // Mobile breakpoint
+			const maxMobileHeight = viewportHeight * 0.85; // More space on mobile
+			const maxDesktopHeight = viewportHeight * 0.9; // Slightly less on desktop
+			const availableSpace = isMobile ? maxMobileHeight : maxDesktopHeight;
+
+			// Clear any existing styles first
+			modalElement.style.marginTop = '';
+			modalElement.style.maxHeight = '';
+			modalElement.style.overflowY = '';
+
+			// If modal is too tall for viewport, adjust positioning
+			if (modalHeight > availableSpace) {
+				modalElement.style.maxHeight = `${availableSpace}px`;
+				modalElement.style.overflowY = 'auto';
+			}
+			// Don't apply any margin - let flexbox handle centering naturally
+		}
+	}
+
 	// Focus management
 	function focusModal() {
 		if (modalElement && open) {
@@ -73,8 +97,22 @@
 	// Set up event listeners
 	onMount(() => {
 		document.addEventListener('keydown', handleKeydown);
+
+		// Handle viewport changes for mobile keyboards
+		if (window.visualViewport) {
+			window.visualViewport.addEventListener('resize', handleViewportChange);
+		} else {
+			// Fallback for browsers that don't support Visual Viewport API
+			window.addEventListener('resize', handleViewportChange);
+		}
+
 		return () => {
 			document.removeEventListener('keydown', handleKeydown);
+			if (window.visualViewport) {
+				window.visualViewport.removeEventListener('resize', handleViewportChange);
+			} else {
+				window.removeEventListener('resize', handleViewportChange);
+			}
 			document.body.style.overflow = '';
 		};
 	});
@@ -86,7 +124,8 @@
 			// Small delay to ensure modal is rendered
 			setTimeout(() => {
 				focusModal();
-			}, 10);
+				handleViewportChange();
+			}, 50);
 		}
 	});
 
@@ -98,7 +137,7 @@
 {#if open}
 	<div
 		bind:this={overlayElement}
-		class="fixed inset-0 z-50 bg-black/50"
+		class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[10vh] sm:p-6 sm:pt-[8vh]"
 		onclick={handleOverlayClick}
 		onkeydown={handleKeydown}
 		role="dialog"
@@ -109,7 +148,7 @@
 		<div
 			bind:this={modalElement}
 			class={cn(
-				'fixed top-1/2 left-1/2 z-50 max-h-[80vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl dark:border-gray-200 dark:bg-gray-900',
+				'z-50 max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl transition-all duration-200 sm:max-h-[90vh] dark:border-gray-200 dark:bg-gray-900',
 				maxWidth,
 				className
 			)}
@@ -117,9 +156,12 @@
 		>
 			<!-- Modal Header -->
 			<div
-				class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700"
+				class="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 dark:border-gray-700"
 			>
-				<h2 id="modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">
+				<h2
+					id="modal-title"
+					class="text-base font-semibold text-gray-900 sm:text-lg dark:text-white"
+				>
 					{title}
 				</h2>
 				<button
@@ -128,12 +170,12 @@
 					onclick={onClose}
 					aria-label="Close modal"
 				>
-					<XIcon class="h-5 w-5" />
+					<XIcon class="h-4 w-4 sm:h-5 sm:w-5" />
 				</button>
 			</div>
 
 			<!-- Modal Content -->
-			<div class="flex-1 overflow-y-auto px-6 py-4">
+			<div class="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
 				{@render children()}
 			</div>
 		</div>

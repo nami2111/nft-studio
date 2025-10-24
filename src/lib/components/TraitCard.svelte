@@ -87,6 +87,19 @@
 
 	let imageContainer: HTMLElement;
 
+	// Effect to create imageUrl from imageData when needed
+	$effect(() => {
+		if (isVisible && trait.imageData && trait.imageData.byteLength > 0 && !trait.imageUrl) {
+			try {
+				const blob = new Blob([trait.imageData], { type: 'image/png' });
+				const url = URL.createObjectURL(blob);
+				trait.imageUrl = url;
+			} catch (error) {
+				console.error('Failed to create image URL:', error);
+			}
+		}
+	});
+
 	onMount(() => {
 		if (!imageContainer) return;
 
@@ -145,21 +158,65 @@
 				/>
 			{/if}
 		</div>
-		{#if isVisible && trait.imageUrl}
-			<img
-				src={trait.imageUrl}
-				alt={trait.name}
-				class="h-full w-full object-contain"
-				loading="lazy"
-			/>
-		{:else if !trait.imageUrl}
-			<div class="flex h-full items-center justify-center">
-				<div
-					class="border-muted-foreground border-t-foreground h-6 w-6 animate-spin rounded-full border-2"
-				></div>
-			</div>
+		{#if isVisible}
+			{#if trait.imageUrl && trait.imageData && trait.imageData.byteLength > 0}
+				<img
+					src={trait.imageUrl}
+					alt={trait.name}
+					class="h-full w-full object-contain"
+					loading="lazy"
+					onerror={(e) => {
+						// If imageUrl fails, try to recreate from imageData
+						if (trait.imageData && trait.imageData.byteLength > 0) {
+							try {
+								const blob = new Blob([trait.imageData], { type: 'image/png' });
+								const newUrl = URL.createObjectURL(blob);
+								(e.target as HTMLImageElement).src = newUrl;
+								trait.imageUrl = newUrl;
+							} catch (error) {
+								console.error('Failed to recreate image URL:', error);
+								// Show broken image state
+								(e.target as HTMLImageElement).style.display = 'none';
+							}
+						} else {
+							// Show broken image state
+							(e.target as HTMLImageElement).style.display = 'none';
+						}
+					}}
+				/>
+			{:else if trait.imageData && trait.imageData.byteLength > 0}
+				<!-- Has imageData but no imageUrl, $effect will create it -->
+				<img
+					src={trait.imageUrl}
+					alt={trait.name}
+					class="h-full w-full object-contain"
+					loading="lazy"
+					onerror={(e) => {
+						console.error('Failed to create image from data:', e);
+						(e.target as HTMLImageElement).style.display = 'none';
+					}}
+				/>
+			{:else if trait.imageUrl && (!trait.imageData || trait.imageData.byteLength === 0)}
+				<!-- Likely from persisted project - show needs re-upload indicator -->
+				<div class="flex h-full flex-col items-center justify-center p-2 text-center">
+					<div class="text-muted-foreground mb-2">
+						<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+						</svg>
+					</div>
+					<span class="text-muted-foreground text-xs">Image needs re-upload</span>
+				</div>
+			{:else}
+				<div class="flex h-full items-center justify-center">
+					<div
+						class="border-muted-foreground border-t-foreground h-6 w-6 animate-spin rounded-full border-2"
+					></div>
+				</div>
+			{/if}
 		{:else}
-			<span class="text-muted-foreground">No image</span>
+			<div class="flex h-full items-center justify-center">
+				<div class="text-muted-foreground text-xs">Loading...</div>
+			</div>
 		{/if}
 	</div>
 	<CardContent class="p-3">

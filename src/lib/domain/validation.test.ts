@@ -56,118 +56,170 @@ describe('Zod Validation Module', () => {
 
 	describe('validateProjectName', () => {
 		it('returns true for valid project name', () => {
-			expect(validateProjectName('My Project')).toBe(true);
-			expect(validateProjectName('Project - Name (2023)')).toBe(true);
+			const result1 = validateProjectName('My Project');
+			const result2 = validateProjectName('Project - Name (2023)');
+
+			expect(result1.success).toBe(true);
+			expect(result1.data).toBe('My Project');
+			expect(result1.error).toBeUndefined();
+
+			expect(result2.success).toBe(true);
+			expect(result2.data).toBe('Project - Name (2023)');
+			expect(result2.error).toBeUndefined();
 		});
 
 		it('returns false for invalid project name', () => {
-			expect(validateProjectName('')).toBe(false);
-			expect(validateProjectName('a'.repeat(101))).toBe(false);
-			expect(validateProjectName('<script>alert(1)</script>')).toBe(false);
+			const result1 = validateProjectName('');
+			const result2 = validateProjectName('a'.repeat(101));
+			const result3 = validateProjectName('<script>alert(1)</script>');
+
+			expect(result1.success).toBe(false);
+			expect(result1.data).toBeUndefined();
+			expect(result1.error).toBeDefined();
+
+			expect(result2.success).toBe(false);
+			expect(result2.data).toBeUndefined();
+			expect(result2.error).toBeDefined();
+
+			expect(result3.success).toBe(false);
+			expect(result3.data).toBeUndefined();
+			expect(result3.error).toBeDefined();
 		});
 	});
 
 	describe('validateLayerName', () => {
 		it('returns true for valid layer name', () => {
-			expect(validateLayerName('Base Layer')).toBe(true);
-			expect(validateLayerName('Background Layer')).toBe(true);
+			const result1 = validateLayerName('Base Layer');
+			const result2 = validateLayerName('Background Layer');
+
+			expect(result1.success).toBe(true);
+			expect(result1.data).toBe('Base Layer');
+			expect(result1.error).toBeUndefined();
+
+			expect(result2.success).toBe(true);
+			expect(result2.data).toBe('Background Layer');
+			expect(result2.error).toBeUndefined();
 		});
 
 		it('returns false for invalid layer name', () => {
-			expect(validateLayerName('')).toBe(false);
-			expect(validateLayerName('a'.repeat(101))).toBe(false);
-			expect(validateLayerName('Invalid*')).toBe(false);
+			const result1 = validateLayerName('');
+			const result2 = validateLayerName('a'.repeat(101));
+			const result3 = validateLayerName('Invalid*');
+
+			expect(result1.success).toBe(false);
+			expect(result2.success).toBe(false);
+			expect(result3.success).toBe(false);
 		});
 	});
 
 	describe('validateTraitName', () => {
 		it('returns true for valid trait name', () => {
-			expect(validateTraitName('Red Hat')).toBe(true);
-			expect(validateTraitName('Blue Shirt')).toBe(true);
+			const result1 = validateTraitName('Red Hat');
+			const result2 = validateTraitName('Blue Shirt');
+
+			expect(result1.success).toBe(true);
+			expect(result1.data).toBe('Red Hat');
+			expect(result1.error).toBeUndefined();
+
+			expect(result2.success).toBe(true);
+			expect(result2.data).toBe('Blue Shirt');
+			expect(result2.error).toBeUndefined();
 		});
 
 		it('returns false for invalid trait name', () => {
-			expect(validateTraitName('')).toBe(false);
-			expect(validateTraitName('a'.repeat(101))).toBe(false);
-			expect(validateTraitName('Hat#')).toBe(false);
+			const result1 = validateTraitName('');
+			const result2 = validateTraitName('a'.repeat(101));
+			const result3 = validateTraitName('Hat#');
+
+			expect(result1.success).toBe(false);
+			expect(result2.success).toBe(false);
+			expect(result3.success).toBe(false);
 		});
 	});
 
 	describe('validateDimensions', () => {
 		it('returns true for valid dimensions', () => {
-			expect(validateDimensions(1000, 1000)).toBe(true);
-			expect(validateDimensions(500, 500)).toBe(true);
+			const result1 = validateDimensions(1000, 1000);
+			const result2 = validateDimensions(500, 500);
+
+			expect(result1.success).toBe(true);
+			expect(result2.success).toBe(true);
 		});
 
 		it('returns false for invalid dimensions', () => {
-			expect(validateDimensions(0, 1000)).toBe(false);
-			expect(validateDimensions(-100, 1000)).toBe(false);
-			expect(validateDimensions(NaN, 1000)).toBe(false);
-			expect(validateDimensions(Infinity, 1000)).toBe(false);
+			const result1 = validateDimensions(0, 1000);
+			const result2 = validateDimensions(-100, 1000);
+			const result3 = validateDimensions(NaN, 1000);
+			const result4 = validateDimensions(Infinity, 1000);
+
+			expect(result1.success).toBe(false);
+			expect(result2.success).toBe(false);
+			expect(result3.success).toBe(false);
+			expect(result4.success).toBe(false);
 		});
 	});
 
 	describe('validateFilename', () => {
 		it('returns true for valid filename', () => {
-			expect(validateFilename('project.json')).toBe(true);
-			expect(validateFilename('my-file.txt')).toBe(true);
+			expect(validateFilename('project.json').success).toBe(true);
+			expect(validateFilename('my-file.txt').success).toBe(true);
 		});
 
 		it('returns false for invalid filename', () => {
-			expect(validateFilename('')).toBe(false);
-			expect(validateFilename('a'.repeat(101))).toBe(false);
-			expect(validateFilename('../secret')).toBe(false);
-			expect(validateFilename('file/name')).toBe(false);
-			expect(validateFilename('file\\name')).toBe(false);
-			expect(validateFilename('file*.txt')).toBe(false);
+			expect(validateFilename('').success).toBe(false);
+			expect(validateFilename('a'.repeat(101)).success).toBe(false);
+			expect(validateFilename('../secret').success).toBe(false);
+			expect(validateFilename('file/name').success).toBe(false);
+			expect(validateFilename('file\\name').success).toBe(false);
+			expect(validateFilename('file*.txt').success).toBe(false);
 		});
 	});
 
 	describe('validateFileSize', () => {
 		it('returns true for valid file size', () => {
-			expect(validateFileSize(1024 * 1024)).toBe(true); // 1MB
-			expect(validateFileSize(10 * 1024 * 1024)).toBe(true); // 10MB
+			expect(validateFileSize(1024 * 1024).success).toBe(true); // 1MB
+			expect(validateFileSize(10 * 1024 * 1024).success).toBe(true); // 10MB
 		});
 
 		it('returns false for invalid file size', () => {
-			expect(validateFileSize(0)).toBe(false);
-			expect(validateFileSize(-1)).toBe(false);
-			expect(validateFileSize(60 * 1024 * 1024)).toBe(false); // 60MB > 50MB default
+			expect(validateFileSize(0).success).toBe(false);
+			expect(validateFileSize(-1).success).toBe(false);
+			expect(validateFileSize(60 * 1024 * 1024).success).toBe(false); // 60MB > 50MB default
 		});
 
 		it('uses custom maxSize', () => {
-			expect(validateFileSize(60 * 1024 * 1024, 70 * 1024 * 1024)).toBe(true);
+			expect(validateFileSize(60 * 1024 * 1024, 70 * 1024 * 1024).success).toBe(true);
 		});
 	});
 
 	describe('validateFileType', () => {
 		it('returns true for allowed file type', () => {
-			expect(validateFileType('image/png')).toBe(true);
-			expect(validateFileType('image/jpeg')).toBe(true);
+			expect(validateFileType('image/png').success).toBe(true);
+			expect(validateFileType('image/jpeg').success).toBe(true);
 			expect(validateFileType('image/gif')).toBe(true);
 		});
 
 		it('returns false for disallowed file type', () => {
-			expect(validateFileType('image/svg+xml')).toBe(false);
-			expect(validateFileType('application/pdf')).toBe(false);
+			expect(validateFileType('image/svg+xml').success).toBe(false);
+			expect(validateFileType('application/pdf').success).toBe(false);
 		});
 
 		it('uses custom allowed types', () => {
-			expect(validateFileType('image/svg+xml', ['image/svg+xml'])).toBe(true);
+			expect(validateFileType('image/svg+xml', ['image/svg+xml']).success).toBe(true);
 		});
 	});
 
 	describe('validateRarityWeight', () => {
 		it('returns true for valid rarity weight', () => {
 			for (let w = 1; w <= 5; w++) {
-				expect(validateRarityWeight(w)).toBe(true);
+				expect(validateRarityWeight(w).success).toBe(true);
 			}
 		});
 
 		it('returns false for invalid rarity weight', () => {
-			expect(validateRarityWeight(0)).toBe(false);
-			expect(validateRarityWeight(6)).toBe(false);
-			expect(validateRarityWeight(1.5)).toBe(false);
+			expect(validateRarityWeight(0).success).toBe(false);
+			expect(validateRarityWeight(6).success).toBe(false);
+			expect(validateRarityWeight(1.5).success).toBe(false);
 		});
 	});
 
@@ -180,13 +232,13 @@ describe('Zod Validation Module', () => {
 				outputSize: { width: 1000, height: 1000 },
 				layers: []
 			};
-			expect(validateProject(validProject)).toBe(true);
+			expect(validateProject(validProject).success).toBe(true);
 		});
 
 		it('returns false for invalid project', () => {
-			expect(validateProject(null)).toBe(false);
-			expect(validateProject({})).toBe(false);
-			expect(validateProject({ id: '', name: '' })).toBe(false);
+			expect(validateProject(null).success).toBe(false);
+			expect(validateProject({}).success).toBe(false);
+			expect(validateProject({ id: '', name: '' }).success).toBe(false);
 		});
 	});
 
@@ -198,13 +250,13 @@ describe('Zod Validation Module', () => {
 				order: 0,
 				traits: []
 			};
-			expect(validateLayer(validLayer)).toBe(true);
+			expect(validateLayer(validLayer).success).toBe(true);
 		});
 
 		it('returns false for invalid layer', () => {
-			expect(validateLayer(null)).toBe(false);
-			expect(validateLayer({})).toBe(false);
-			expect(validateLayer({ id: '', name: '' })).toBe(false);
+			expect(validateLayer(null).success).toBe(false);
+			expect(validateLayer({}).success).toBe(false);
+			expect(validateLayer({ id: '', name: '' }).success).toBe(false);
 		});
 	});
 
@@ -219,13 +271,13 @@ describe('Zod Validation Module', () => {
 				height: 100,
 				rarityWeight: 3
 			};
-			expect(validateTrait(validTrait)).toBe(true);
+			expect(validateTrait(validTrait).success).toBe(true);
 		});
 
 		it('returns false for invalid trait', () => {
-			expect(validateTrait(null)).toBe(false);
-			expect(validateTrait({})).toBe(false);
-			expect(validateTrait({ id: '', name: '' })).toBe(false);
+			expect(validateTrait(null).success).toBe(false);
+			expect(validateTrait({}).success).toBe(false);
+			expect(validateTrait({ id: '', name: '' }).success).toBe(false);
 		});
 	});
 
@@ -247,13 +299,13 @@ describe('Zod Validation Module', () => {
 					}
 				]
 			};
-			expect(validateImportedProject(validProject)).toBe(true);
+			expect(validateImportedProject(validProject).success).toBe(true);
 		});
 
 		it('returns false for invalid imported project', () => {
-			expect(validateImportedProject(null)).toBe(false);
-			expect(validateImportedProject({})).toBe(false);
-			expect(validateImportedProject({ id: '', name: '' })).toBe(false);
+			expect(validateImportedProject(null).success).toBe(false);
+			expect(validateImportedProject({}).success).toBe(false);
+			expect(validateImportedProject({ id: '', name: '' }).success).toBe(false);
 		});
 
 		it('allows missing image data in imported traits', () => {
@@ -274,7 +326,7 @@ describe('Zod Validation Module', () => {
 					}
 				]
 			};
-			expect(validateImportedProject(projectWithMissingImage)).toBe(true);
+			expect(validateImportedProject(projectWithMissingImage).success).toBe(true);
 		});
 	});
 

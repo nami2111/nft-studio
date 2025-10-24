@@ -15,6 +15,7 @@ import {
 	terminateWorkerPool,
 	setMessageCallback
 } from './worker.pool';
+import { performanceMonitor, timed, withTiming } from '$lib/utils/performance-monitor';
 
 // Worker pool will be initialized on demand
 
@@ -32,7 +33,7 @@ setMessageCallback((data) => {
 	}
 });
 
-export function startGeneration(
+export async function startGeneration(
 	layers: TransferrableLayer[],
 	collectionSize: number,
 	outputSize: { width: number; height: number },
@@ -41,9 +42,11 @@ export function startGeneration(
 	onMessage?: (
 		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
 	) => void
-): void {
-	// Initialize worker pool on demand
-	initializeWorkerPool();
+): Promise<void> {
+	const timerId = performanceMonitor.startTimer('generation.startGeneration');
+
+	// Initialize worker pool on demand and wait for it to be ready
+	await initializeWorkerPool();
 
 	// Set message handler for this generation session
 	messageHandler = onMessage || null;
@@ -62,17 +65,22 @@ export function startGeneration(
 	};
 
 	// Post message to worker pool instead of single worker
-	postMessageToPool(message).catch((error) => {
-		// Handle any errors that might occur during message posting
-		if (messageHandler) {
-			messageHandler({
-				type: 'error',
-				payload: {
-					message: error instanceof Error ? error.message : 'Failed to start generation'
-				}
-			});
-		}
-	});
+	postMessageToPool(message)
+		.then(() => {
+			performanceMonitor.stopTimer(timerId);
+		})
+		.catch((error) => {
+			performanceMonitor.stopTimer(timerId, { error: String(error) });
+			// Handle any errors that might occur during message posting
+			if (messageHandler) {
+				messageHandler({
+					type: 'error',
+					payload: {
+						message: error instanceof Error ? error.message : 'Failed to start generation'
+					}
+				});
+			}
+		});
 }
 
 export function cancelGeneration(): void {

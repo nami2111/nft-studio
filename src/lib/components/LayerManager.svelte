@@ -50,9 +50,9 @@
 <Card class="mt-4 sm:mt-6">
 	<CardContent class="p-4 sm:p-6">
 		<div
-			class="mb-2 flex flex-col gap-2 sm:mb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 md:mb-4"
+			class="mb-2 flex flex-col gap-2 sm:mb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 md:mb-4 lg:mb-6"
 		>
-			<h2 class="text-base font-bold sm:text-lg md:text-xl">
+			<h2 class="text-base font-bold sm:text-lg md:text-xl lg:text-2xl">
 				Layers ({layers.length})
 			</h2>
 			<Button

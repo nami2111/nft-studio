@@ -41,7 +41,9 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 						id: trait.id,
 						name: trait.name,
 						imageData: cleanArrayBuffer,
-						rarityWeight: trait.rarityWeight
+						rarityWeight: trait.rarityWeight,
+						type: trait.type,
+						rulerRules: trait.rulerRules
 					};
 
 					return transferrableTrait;
