@@ -1,9 +1,9 @@
 import { initOrbiter } from '@junobuild/analytics';
+import type { HandleClientError } from '@sveltejs/kit';
 
-/** @type {import('@sveltejs/kit').HandleClientError} */
-export async function handleError({ error, event }) {
+export const handleError: HandleClientError = async ({ error, event }) => {
 	console.error(error, event);
-}
+};
 
 // Initialize Juno Analytics - disabled in development
 if (import.meta.env.PROD) {
