@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2025-01-24
+
+### Fixed
+
+- **Critical Ruler Rules Bug**: Fixed complete failure of ruler rules functionality during NFT generation
+- **Worker Data Transfer**: Updated `prepareLayersForWorker()` function to include `type` and `rulerRules` fields when sending trait data to generation workers
+- **Trait Compatibility Logic**: Ruler rules are now properly passed to generation workers and applied during trait selection process
+- **Generation Process**: Ruler trait compatibility checking now works as designed during NFT collection generation
+
+### Technical Details
+
+- Updated `src/lib/domain/project.domain.ts:40-47` to include missing `type` and `rulerRules` properties in `TransferrableTrait` objects
+- Generation worker's `isTraitCompatible()` function now receives complete ruler rules data
+- Trait selection algorithm properly applies ruler constraints (allowed/forbidden trait lists) during generation
+- All ruler rules configuration from UI now affects the actual NFT generation process
+
 ## [0.3.4] - 2025-01-23
 
 ### Added
