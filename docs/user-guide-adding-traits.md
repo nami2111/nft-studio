@@ -122,6 +122,43 @@ Before generating your full collection:
 
 ## Advanced Features
 
+### Ruler Traits (Advanced Control)
+
+Ruler traits provide sophisticated control over which trait combinations can be generated. This advanced feature allows you to enforce specific compatibility rules.
+
+#### What Are Ruler Traits?
+
+- **Normal Traits**: Can combine with any other trait freely
+- **Ruler Traits**: Act as compatibility rules that control which other traits can appear together
+
+#### Creating Ruler Traits
+
+1. **Convert Existing Trait**: Click the crown icon (👑) in the top-right corner of any trait card
+2. **Configure Rules**: Click the settings (⚙️) icon that appears for ruler traits
+3. **Set Permissions**: Choose which traits from other layers are allowed or forbidden
+
+#### Rule Configuration
+
+For each ruler trait, you can:
+- **Control Multiple Layers**: One ruler can control multiple different layers
+- **Set Allowed Traits**: Green badges = traits that CAN appear together
+- **Set Forbidden Traits**: Red badges = traits that CANNOT appear together
+- **Add Multiple Rules**: Create complex rule systems for sophisticated combinations
+
+#### Common Use Cases
+
+- **Thematic Collections**: Forest backgrounds only with nature accessories
+- **Ultra-Rare Combinations**: Golden crown only with royal accessories
+- **Narrative Logic**: Character backgrounds determine available equipment
+- **Sub-Collections**: Create themed groups within your collection
+
+#### Visual Indicators
+
+- **Crown Icon**: Toggle between normal and ruler trait types
+- **Highlighted Crown**: Active ruler trait status
+- **Settings Icon**: Accessible only for ruler traits (⚙️)
+- **Color Badges**: Green (allowed) and red (forbidden) trait indicators
+
 ### Optional Layers
 
 Mark a layer as optional to allow some NFTs to skip it entirely. This creates more variety in your collection.
