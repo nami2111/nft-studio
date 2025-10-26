@@ -175,7 +175,11 @@
 	{:else}
 		<!-- Empty State -->
 		<Card class="p-8 text-center">
-			<div class="text-muted-foreground mb-2 text-6xl">🖼️</div>
+			<svg class="text-muted-foreground mx-auto h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+		<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="1"/>
+		<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1"/>
+		<polyline points="21 15 16 10 5 21" stroke-width="1"/>
+	</svg>
 			<div class="text-muted-foreground text-sm">Select an NFT to view details</div>
 		</Card>
 	{/if}

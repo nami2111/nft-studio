@@ -196,8 +196,7 @@
 		<h3 class="text-foreground font-semibold">Import Collection</h3>
 
 		<div class="text-muted-foreground text-sm">
-			Import previously generated NFT collections from ZIP files. The ZIP should contain an "images"
-			folder with PNG/JPG files and optionally a "metadata" folder with JSON metadata.
+			Import previously generated NFT collections from ZIP files.
 		</div>
 
 		<!-- Drag and Drop Area -->
@@ -219,11 +218,15 @@
 			onclick={triggerFileSelect}
 		>
 			<div class="space-y-2">
-				<div class="text-4xl">📁</div>
+				<svg class="text-muted-foreground mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+		<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+	</svg>
 				<div class="text-foreground text-sm font-medium">
 					{isImporting ? 'Importing...' : 'Drop ZIP file here or click to browse'}
 				</div>
-				<div class="text-muted-foreground text-xs">Supports ZIP files exported from NFT Studio</div>
+				<div class="text-muted-foreground text-xs">
+Supports ZIP files exported from NFT Studio
+</div>
 			</div>
 
 			<input
@@ -249,9 +252,12 @@
 
 		<!-- Instructions -->
 		<div class="text-muted-foreground space-y-1 text-xs">
-			<div><strong>Expected structure:</strong></div>
-			<div>├── images/ (PNG/JPG files)</div>
-			<div>└── metadata/ (JSON files, optional)</div>
+			<div><strong>Important:</strong> Both folders must be at the root level inside the ZIP file</div>
+			<div class="mt-1 text-center text-xs">
+				• images/ folder contains NFT images<br>
+				• metadata/ folder contains JSON files<br>
+				• Do not put folders inside other folders
+			</div>
 		</div>
 	</div>
 </Card>

@@ -260,7 +260,11 @@
 		<!-- Empty State with Import -->
 		<div class="flex min-h-[calc(100vh-200px)] items-center justify-center p-6">
 			<div class="w-full max-w-4xl text-center">
-				<div class="mb-4 text-6xl">🖼️</div>
+				<svg class="text-muted-foreground mx-auto h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+		<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="1"/>
+		<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1"/>
+		<polyline points="21 15 16 10 5 21" stroke-width="1"/>
+	</svg>
 				<h2 class="mb-2 text-xl font-semibold">No collections yet</h2>
 				<p class="text-muted-foreground mb-6">
 					Generate NFTs in Generate Mode or import existing collections to get started.
@@ -808,7 +812,13 @@
 					{:else if selectedCollection}
 						<div class="flex h-full items-center justify-center p-4 text-center">
 							<div class="text-muted-foreground">
-								<div class="mb-2 text-4xl">📸</div>
+								<svg class="text-muted-foreground mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+		<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-1.5-3z" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+		<circle cx="12" cy="13" r="3" stroke-width="1"/>
+		<path d="M12 13v.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+		<path d="M16 11h.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+		<path d="M8 11h.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+	</svg>
 								<div class="text-sm">Click an NFT to view details</div>
 							</div>
 						</div>
