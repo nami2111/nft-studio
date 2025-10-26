@@ -27,7 +27,6 @@
 		class="flex items-center gap-2 {className}"
 	>
 		<span class="text-lg">{currentMode.icon}</span>
-		<span class="hidden sm:inline">{currentMode.name}</span>
-		<span class="sm:hidden">{currentMode.icon}</span>
+		<span class="hidden sm:inline ml-2">{currentMode.name}</span>
 	</Button>
 </div>

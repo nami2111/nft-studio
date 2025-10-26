@@ -204,6 +204,13 @@ class GalleryStore {
 				'nft-studio-gallery-collections',
 				JSON.stringify(this._state.collections)
 			);
+
+			// Save selected collection ID for persistence across page refreshes
+			if (this._state.selectedCollection) {
+				localStorage.setItem('nft-studio-gallery-selected-collection', this._state.selectedCollection.id);
+			} else {
+				localStorage.removeItem('nft-studio-gallery-selected-collection');
+			}
 		} catch (error) {
 			console.error('Failed to save gallery data:', error);
 			this.setError('Failed to save gallery data');
@@ -217,6 +224,15 @@ class GalleryStore {
 			if (stored) {
 				const collections = JSON.parse(stored) as GalleryCollection[];
 				this._state.collections = collections;
+
+				// Restore selected collection if it exists
+				const selectedCollectionId = localStorage.getItem('nft-studio-gallery-selected-collection');
+				if (selectedCollectionId) {
+					const selectedCollection = collections.find(c => c.id === selectedCollectionId);
+					if (selectedCollection) {
+						this._state.selectedCollection = selectedCollection;
+					}
+				}
 			}
 		} catch (error) {
 			console.error('Failed to load gallery data:', error);
@@ -380,7 +396,9 @@ class GalleryStore {
 		this._state.collections = [];
 		this._state.selectedNFT = null;
 		this._state.selectedCollection = null;
-		this.saveToIndexedDB();
+		// Clear localStorage directly since we're clearing everything
+		localStorage.removeItem('nft-studio-gallery-collections');
+		localStorage.removeItem('nft-studio-gallery-selected-collection');
 	}
 
 	exportCollection(collectionId: string) {

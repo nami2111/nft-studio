@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import type { GalleryNFT } from '$lib/types/gallery';
 
+	let isLoading = $derived(galleryStore.isLoading);
 	let collections = $derived(galleryStore.collections);
 	let totalNFTs = $derived(collections.reduce((sum, col) => sum + col.totalSupply, 0));
-	let selectedNFT = $state<GalleryNFT | null>(null);
-	let selectedCollection = $derived(collections[0]); // Default to first collection
+	let selectedNFT = $derived(galleryStore.selectedNFT);
+	let selectedCollection = $derived(galleryStore.selectedCollection || collections[0]); // Use store's selected or fallback to first
 	let totalNFTsInCollection = $derived(selectedCollection?.totalSupply || 0);
 
 	// Search and filter state
@@ -155,10 +156,7 @@
 
 	function forceClearCache() {
 		console.log('Force clearing gallery cache...');
-		// Clear localStorage
-		localStorage.removeItem('nft-studio-gallery-collections');
-
-		// Clear gallery store state directly
+		// Clear gallery store state directly (this also handles localStorage)
 		galleryStore.clearGallery();
 
 		// Force reload the page
@@ -167,16 +165,30 @@
 
 	function selectNFT(nft: GalleryNFT) {
 		console.log('Selected NFT:', nft.name);
-		selectedNFT = nft;
+		galleryStore.setSelectedNFT(nft);
 	}
 
 	function selectCollection(collection: any) {
-		selectedCollection = collection;
-		selectedNFT = null;
+		galleryStore.setSelectedCollection(collection);
 	}
+
+	// Clear cache on page load/reload
+	onMount(() => {
+		console.log('Gallery page loaded - clearing cache...');
+		galleryStore.clearGallery();
+	});
 </script>
 
 <div class="bg-background min-h-screen">
+	{#if isLoading}
+		<!-- Loading State -->
+		<div class="flex min-h-[60vh] items-center justify-center">
+			<div class="text-center">
+				<div class="text-muted-foreground mb-2 text-lg">Loading gallery...</div>
+				<div class="bg-muted mx-auto h-2 w-48 max-w-sm animate-pulse rounded-full"></div>
+			</div>
+		</div>
+	{:else}
 	<!-- Gallery Header -->
 	<div class="bg-background/95 supports-[backdrop-filter]:bg-background/60 border-b backdrop-blur">
 		<div class="mx-auto max-w-screen-2xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
@@ -222,38 +234,35 @@
 			</div>
 		</div>
 	{:else}
-		<!-- Main Layout Container -->
-		<div class="relative">
-			<!-- Left: NFT Grid (70% width, scrollable) -->
-			<div class="min-h-[calc(100vh-120px)] w-[70%]">
-				{#if selectedCollection}
-					<!-- Collection Header -->
-					<div class="bg-background/95 border-b p-6 backdrop-blur">
-						<h2 class="text-2xl font-bold">{selectedCollection.name}</h2>
-						<p class="text-muted-foreground">{selectedCollection.description}</p>
-						<div class="text-muted-foreground mt-1 text-sm">
-							{selectedCollection.totalSupply} NFTs • {new Date(
-								selectedCollection.generatedAt
-							).toLocaleDateString()}
-						</div>
+		<!-- Mobile Layout -->
+		<div class="lg:hidden">
+			{#if selectedCollection}
+				<!-- Collection Header - Mobile -->
+				<div class="bg-background/95 border-b p-4 backdrop-blur">
+					<h2 class="text-lg font-bold">{selectedCollection.name}</h2>
+					<p class="text-muted-foreground text-sm">{selectedCollection.description}</p>
+					<div class="text-muted-foreground mt-1 text-xs">
+						{selectedCollection.totalSupply} NFTs • {new Date(
+							selectedCollection.generatedAt
+						).toLocaleDateString()}
 					</div>
+				</div>
 
-					<!-- Search and Filters -->
-					<div class="bg-background/95 border-b p-4 backdrop-blur">
-						<div class="space-y-4">
-							<!-- Search Bar -->
-							<div class="flex items-center gap-4">
-								<div class="flex-1">
-									<input
-										type="text"
-										placeholder="Search NFTs by name..."
-										bind:value={searchQuery}
-										class="focus:ring-primary w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
-									/>
-								</div>
+				<!-- Search and Filters - Mobile -->
+				<div class="bg-background/95 border-b p-3 backdrop-blur">
+					<div class="space-y-3">
+						<!-- Search Bar - Mobile -->
+						<div class="flex flex-col gap-2">
+							<input
+								type="text"
+								placeholder="Search NFTs..."
+								bind:value={searchQuery}
+								class="focus:ring-primary w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							/>
+							<div class="flex gap-2">
 								<select
 									bind:value={selectedSort}
-									class="focus:ring-primary rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
+									class="focus:ring-primary flex-1 rounded-md border px-2 py-2 text-sm focus:ring-2 focus:outline-none"
 								>
 									<option value="name-asc">Name (A-Z)</option>
 									<option value="name-desc">Name (Z-A)</option>
@@ -263,239 +272,446 @@
 								<button
 									type="button"
 									onclick={clearFilters}
-									class="hover:bg-muted rounded-md border px-3 py-2 text-sm transition-colors"
+									class="hover:bg-muted rounded-md border px-3 py-2 text-xs transition-colors whitespace-nowrap"
 								>
-									Clear All
+									Clear
 								</button>
 							</div>
+						</div>
 
-							<!-- Trait Filters -->
-							{#if Object.keys(allTraits).length > 0}
-								<div class="space-y-3">
-									<div class="text-sm font-medium">Trait Filters</div>
-									<div class="flex flex-wrap gap-4">
-										{#each Object.entries(allTraits) as [layer, values]}
-											<div class="space-y-2">
-												<div class="text-muted-foreground text-xs font-medium">{layer}</div>
-												<div class="flex flex-wrap gap-1">
-													{#each values as value}
-														<button
-															type="button"
-															onclick={() => toggleTrait(layer, value)}
-															class="rounded border px-2 py-1 text-xs transition-colors {selectedTraits[
-																layer
-															]?.includes(value)
-																? 'bg-primary text-primary-foreground border-primary'
-																: 'hover:bg-muted border-border'}"
-														>
-															{value}
-														</button>
-													{/each}
-												</div>
+						<!-- Trait Filters - Mobile -->
+						{#if Object.keys(allTraits).length > 0}
+							<div class="space-y-2">
+								<div class="text-xs font-medium">Filters</div>
+								<div class="max-h-32 overflow-y-auto space-y-2">
+									{#each Object.entries(allTraits) as [layer, values]}
+										<div>
+											<div class="text-muted-foreground text-xs font-medium mb-1">{layer}</div>
+											<div class="flex flex-wrap gap-1">
+												{#each values.slice(0, 6) as value}
+													<button
+														type="button"
+														onclick={() => toggleTrait(layer, value)}
+														class="rounded border px-2 py-1 text-xs transition-colors {selectedTraits[layer]?.includes(value)
+															? 'bg-primary text-primary-foreground border-primary'
+															: 'hover:bg-muted border-border'}"
+													>
+														{value}
+													</button>
+												{/each}
+												{#if values.length > 6}
+													<button
+														type="button"
+														class="rounded border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+													>
+														+{values.length - 6}
+													</button>
+												{/if}
 											</div>
-										{/each}
-									</div>
-								</div>
-							{/if}
-
-							<!-- Results Count -->
-							<div class="text-muted-foreground text-sm">
-								Showing {filteredNFTs.length} of {selectedCollection.totalSupply} NFTs
-							</div>
-						</div>
-					</div>
-
-					<!-- NFT Grid (scrollable) -->
-					<div class="overflow-y-auto p-6" style="max-height: calc(100vh - 320px);">
-						<div
-							class="grid grid-cols-4 gap-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8"
-						>
-							{#each filteredNFTs as nft}
-								<button
-									type="button"
-									class="group bg-muted/50 hover:border-primary relative aspect-[4/5] cursor-pointer overflow-hidden rounded-lg border transition-colors {selectedNFT?.id ===
-									nft.id
-										? 'ring-primary ring-2'
-										: ''}"
-									onclick={() => selectNFT(nft)}
-								>
-									{#if nft.imageData && nft.imageData.byteLength > 0}
-										<img
-											src={createObjectUrl(nft.imageData)}
-											alt={nft.name}
-											class="h-full w-full object-cover"
-											onerror={(e) => {
-												const target = e.target as HTMLImageElement;
-												target.style.display = 'none';
-												target.nextElementSibling &&
-													((target.nextElementSibling as HTMLElement).style.display = 'flex');
-											}}
-										/>
-										<div
-											class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-2 text-xs"
-											style="display: none;"
-										>
-											<div class="text-center">
-												<div>Image Error</div>
-											</div>
-										</div>
-									{:else}
-										<div
-											class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
-										>
-											<div class="text-center">
-												<div>No Image</div>
-											</div>
-										</div>
-									{/if}
-									<div
-										class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
-									>
-										<div class="absolute right-0 bottom-0 left-0 p-1 text-white">
-											<div class="truncate text-xs font-medium">{nft.name}</div>
-											<div class="text-xs opacity-80">#{nft.rarityRank}</div>
-										</div>
-									</div>
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
-
-			<!-- Right: Fixed Stats and Details Panel (30% width, not scrollable) -->
-			<div
-				class="border-border bg-background/95 fixed top-[calc(120px+144px)] right-0 h-[calc(100vh)] w-[30%] border-l backdrop-blur"
-			>
-				<!-- Collection Selector -->
-				{#if collections.length > 1}
-					<div class="border-b p-4">
-						<h3 class="mb-3 font-semibold">Collections</h3>
-						<div class="max-h-32 space-y-2 overflow-y-auto">
-							{#each collections as collection}
-								<button
-									type="button"
-									class="hover:bg-muted w-full rounded border p-2 text-left transition-colors {selectedCollection?.id ===
-									collection.id
-										? 'border-primary bg-primary/10'
-										: 'border-border'}"
-									onclick={() => selectCollection(collection)}
-								>
-									<div class="truncate text-sm font-medium">{collection.name}</div>
-									<div class="text-muted-foreground text-xs">{collection.totalSupply} NFTs</div>
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				<!-- Collection Stats -->
-				{#if selectedCollection}
-					<div class="border-b p-4">
-						<h3 class="mb-3 font-semibold">Collection Stats</h3>
-						<div class="grid grid-cols-2 gap-3 text-sm">
-							<div>
-								<div class="text-muted-foreground">Total</div>
-								<div class="font-medium">{selectedCollection.totalSupply}</div>
-							</div>
-							<div>
-								<div class="text-muted-foreground">Rarest</div>
-								<div class="font-medium">
-									#{Math.min(...selectedCollection.nfts.map((n) => n.rarityRank))}
-								</div>
-							</div>
-							<div>
-								<div class="text-muted-foreground">Avg Score</div>
-								<div class="font-medium">
-									{(
-										selectedCollection.nfts.reduce((sum, n) => sum + n.rarityScore, 0) /
-										selectedCollection.nfts.length
-									).toFixed(1)}
-								</div>
-							</div>
-							<div>
-								<div class="text-muted-foreground">Date</div>
-								<div class="text-xs font-medium">
-									{new Date(selectedCollection.generatedAt).toLocaleDateString()}
-								</div>
-							</div>
-						</div>
-					</div>
-				{/if}
-
-				<!-- NFT Details -->
-				{#if selectedNFT}
-					<div class="h-full overflow-y-auto p-4">
-						<h3 class="mb-4 font-semibold">NFT Details</h3>
-
-						<!-- NFT Image -->
-						<div
-							class="bg-muted mx-auto mb-4 aspect-square max-w-[450px] overflow-hidden rounded-lg"
-						>
-							{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
-								<img
-									src={createObjectUrl(selectedNFT.imageData)}
-									alt={selectedNFT.name}
-									class="h-full w-full object-contain"
-								/>
-							{:else}
-								<div
-									class="text-muted-foreground flex h-full w-full items-center justify-center text-sm"
-								>
-									No Image
-								</div>
-							{/if}
-						</div>
-
-						<!-- NFT Name -->
-						<div class="mb-4">
-							<h4 class="mb-1 text-xl font-bold">{selectedNFT.name}</h4>
-							<div class="text-muted-foreground text-sm">
-								Rank #{selectedNFT.rarityRank} • Score: {selectedNFT.rarityScore.toFixed(1)}
-							</div>
-						</div>
-
-						<!-- NFT Description -->
-						{#if selectedNFT.description}
-							<div class="mb-4">
-								<div class="mb-2 font-medium">Description</div>
-								<p class="text-muted-foreground">{selectedNFT.description}</p>
-							</div>
-						{/if}
-
-						<!-- Traits -->
-						{#if selectedNFT.metadata.traits && selectedNFT.metadata.traits.length > 0}
-							<div class="mb-4">
-								<div class="mb-3 font-medium">Traits</div>
-								<div class="space-y-2">
-									{#each selectedNFT.metadata.traits as trait}
-										<div class="bg-muted/30 flex items-center justify-between rounded p-2 text-sm">
-											<div>
-												<span class="font-medium">{trait.layer || (trait as any).trait_type}:</span>
-												<span class="ml-2">{trait.trait || (trait as any).value}</span>
-											</div>
-											{#if trait.rarity}
-												<span class="text-muted-foreground bg-background rounded px-2 py-1 text-xs"
-													>{trait.rarity}%</span
-												>
-											{/if}
 										</div>
 									{/each}
 								</div>
 							</div>
 						{/if}
+
+						<!-- Results Count - Mobile -->
+						<div class="text-muted-foreground text-xs">
+							{filteredNFTs.length} of {selectedCollection.totalSupply} NFTs
+						</div>
 					</div>
-				{:else if selectedCollection}
-					<div class="flex h-full items-center justify-center p-4 text-center">
-						<div class="text-muted-foreground">
-							<div class="mb-2 text-4xl">📸</div>
-							<div class="text-sm">Click an NFT to view details</div>
+				</div>
+
+				<!-- NFT Grid - Mobile -->
+				<div class="overflow-y-auto p-2" style="max-height: calc(100vh - 300px);">
+					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+						{#each filteredNFTs as nft}
+							<button
+								type="button"
+								class="group bg-muted/50 hover:border-primary relative aspect-square cursor-pointer overflow-hidden rounded border transition-colors {selectedNFT?.id === nft.id
+									? 'ring-primary ring-2'
+									: ''}"
+								onclick={() => selectNFT(nft)}
+							>
+								{#if nft.imageData && nft.imageData.byteLength > 0}
+									<img
+										src={createObjectUrl(nft.imageData)}
+										alt={nft.name}
+										class="h-full w-full object-cover"
+										onerror={(e) => {
+											const target = e.target as HTMLImageElement;
+											target.style.display = 'none';
+											target.nextElementSibling &&
+												((target.nextElementSibling as HTMLElement).style.display = 'flex');
+										}}
+									/>
+									<div
+										class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-1 text-xs"
+										style="display: none;"
+									>
+										<div class="text-center">
+											<div>✕</div>
+										</div>
+									</div>
+								{:else}
+									<div
+										class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center text-xs"
+									>
+										<div class="text-center">
+											<div>No Img</div>
+										</div>
+									</div>
+								{/if}
+								<div
+									class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
+								>
+									<div class="absolute right-0 bottom-0 left-0 p-1 text-white">
+										<div class="truncate text-xs font-medium">{nft.name}</div>
+										<div class="text-xs opacity-80">#{nft.rarityRank}</div>
+									</div>
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Mobile NFT Details Panel -->
+				{#if selectedNFT}
+					<div class="fixed bottom-0 left-0 right-0 bg-white/95 border-t backdrop-blur p-3 max-h-[40vh] overflow-y-auto">
+						<div class="flex justify-between items-center mb-2">
+							<h3 class="text-sm font-semibold">NFT Details</h3>
+							<button
+								type="button"
+								onclick={() => selectedNFT = null}
+								class="text-muted-foreground hover:text-foreground text-sm"
+							>
+								✕
+							</button>
+						</div>
+
+						<div class="flex gap-3">
+							<!-- NFT Image - Mobile -->
+							<div class="flex-shrink-0 w-24 h-24 bg-muted rounded overflow-hidden">
+								{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
+									<img
+										src={createObjectUrl(selectedNFT.imageData)}
+										alt={selectedNFT.name}
+										class="h-full w-full object-contain"
+									/>
+								{:else}
+									<div class="text-muted-foreground flex h-full w-full items-center justify-center text-xs">
+										No Img
+									</div>
+								{/if}
+							</div>
+
+							<!-- NFT Info - Mobile -->
+							<div class="flex-1 min-w-0">
+								<h4 class="text-sm font-bold truncate">{selectedNFT.name}</h4>
+								<div class="text-xs text-muted-foreground">
+									Rank #{selectedNFT.rarityRank} • Score: {selectedNFT.rarityScore.toFixed(1)}
+								</div>
+								{#if selectedNFT.description}
+									<p class="text-xs text-muted-foreground mt-1 line-clamp-2">{selectedNFT.description}</p>
+								{/if}
+
+								<!-- Traits - Mobile -->
+								{#if selectedNFT.metadata.traits && selectedNFT.metadata.traits.length > 0}
+									<div class="mt-2 flex flex-wrap gap-1">
+										{#each selectedNFT.metadata.traits.slice(0, 4) as trait}
+											<span class="bg-muted/70 rounded px-2 py-1 text-xs">
+												{trait.layer || (trait as any).trait_type}: {trait.trait || (trait as any).value}
+											</span>
+										{/each}
+										{#if selectedNFT.metadata.traits.length > 4}
+											<span class="text-xs text-muted-foreground">+{selectedNFT.metadata.traits.length - 4} more</span>
+										{/if}
+									</div>
+								{/if}
+							</div>
 						</div>
 					</div>
 				{/if}
-			</div>
-			<!-- Add padding to account for fixed right panel -->
-			<div class="w-[30%]"></div>
+			{/if}
 		</div>
+
+		<!-- Desktop Layout -->
+		<div class="hidden lg:block">
+			<!-- Main Layout Container -->
+			<div class="relative">
+				<!-- Left: NFT Grid (70% width) -->
+				<div class="min-h-[calc(100vh-120px)] w-[70%]">
+					{#if selectedCollection}
+						<!-- Collection Header -->
+						<div class="bg-background/95 border-b p-6 backdrop-blur">
+							<h2 class="text-2xl font-bold">{selectedCollection.name}</h2>
+							<p class="text-muted-foreground">{selectedCollection.description}</p>
+							<div class="text-muted-foreground mt-1 text-sm">
+								{selectedCollection.totalSupply} NFTs • {new Date(
+									selectedCollection.generatedAt
+								).toLocaleDateString()}
+							</div>
+						</div>
+
+						<!-- Search and Filters -->
+						<div class="bg-background/95 border-b p-4 backdrop-blur">
+							<div class="space-y-4">
+								<!-- Search Bar -->
+								<div class="flex items-center gap-4">
+									<div class="flex-1">
+										<input
+											type="text"
+											placeholder="Search NFTs by name..."
+											bind:value={searchQuery}
+											class="focus:ring-primary w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
+										/>
+									</div>
+									<select
+										bind:value={selectedSort}
+										class="focus:ring-primary rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
+									>
+										<option value="name-asc">Name (A-Z)</option>
+										<option value="name-desc">Name (Z-A)</option>
+										<option value="rarity-asc">Rarity (Low to High)</option>
+										<option value="rarity-desc">Rarity (High to Low)</option>
+									</select>
+									<button
+										type="button"
+										onclick={clearFilters}
+										class="hover:bg-muted rounded-md border px-3 py-2 text-sm transition-colors"
+									>
+										Clear All
+									</button>
+								</div>
+
+								<!-- Trait Filters -->
+								{#if Object.keys(allTraits).length > 0}
+									<div class="space-y-3">
+										<div class="text-sm font-medium">Trait Filters</div>
+										<div class="flex flex-wrap gap-4">
+											{#each Object.entries(allTraits) as [layer, values]}
+												<div class="space-y-2">
+													<div class="text-muted-foreground text-xs font-medium">{layer}</div>
+													<div class="flex flex-wrap gap-1">
+														{#each values as value}
+															<button
+																type="button"
+																onclick={() => toggleTrait(layer, value)}
+																class="rounded border px-2 py-1 text-xs transition-colors {selectedTraits[
+																	layer
+																]?.includes(value)
+																	? 'bg-primary text-primary-foreground border-primary'
+																	: 'hover:bg-muted border-border'}"
+															>
+																{value}
+															</button>
+														{/each}
+													</div>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
+
+								<!-- Results Count -->
+								<div class="text-muted-foreground text-sm">
+									Showing {filteredNFTs.length} of {selectedCollection.totalSupply} NFTs
+								</div>
+							</div>
+						</div>
+
+						<!-- NFT Grid (scrollable) -->
+						<div class="overflow-y-auto p-3 sm:p-4 lg:p-6" style="max-height: calc(125vh - 320px);">
+							<div
+								class="grid grid-cols-4 gap-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8"
+							>
+								{#each filteredNFTs as nft}
+									<button
+										type="button"
+										class="group bg-muted/50 hover:border-primary relative aspect-[4/5] cursor-pointer overflow-hidden rounded-lg border transition-colors {selectedNFT?.id ===
+										nft.id
+											? 'ring-primary ring-2'
+											: ''}"
+										onclick={() => selectNFT(nft)}
+									>
+										{#if nft.imageData && nft.imageData.byteLength > 0}
+											<img
+												src={createObjectUrl(nft.imageData)}
+												alt={nft.name}
+												class="h-full w-full object-cover"
+												onerror={(e) => {
+													const target = e.target as HTMLImageElement;
+													target.style.display = 'none';
+													target.nextElementSibling &&
+														((target.nextElementSibling as HTMLElement).style.display = 'flex');
+												}}
+											/>
+											<div
+												class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-2 text-xs"
+												style="display: none;"
+											>
+												<div class="text-center">
+													<div>Image Error</div>
+												</div>
+											</div>
+										{:else}
+											<div
+												class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
+											>
+												<div class="text-center">
+													<div>No Image</div>
+												</div>
+											</div>
+										{/if}
+										<div
+											class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
+										>
+											<div class="absolute right-0 bottom-0 left-0 p-1 text-white">
+												<div class="truncate text-xs font-medium">{nft.name}</div>
+												<div class="text-xs opacity-80">#{nft.rarityRank}</div>
+											</div>
+										</div>
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Right: Fixed Stats and Details Panel (30% width) -->
+				<div
+					class="border-border bg-background/95 fixed top-[calc(120px+144px)] right-0 h-[calc(100vh)] w-[30%] border-l backdrop-blur"
+				>
+					<!-- Collection Selector -->
+					{#if collections.length > 1}
+						<div class="border-b p-4">
+							<h3 class="mb-3 font-semibold">Collections</h3>
+							<div class="max-h-32 space-y-2 overflow-y-auto">
+								{#each collections as collection}
+									<button
+										type="button"
+										class="hover:bg-muted w-full rounded border p-2 text-left transition-colors {selectedCollection?.id ===
+										collection.id
+											? 'border-primary bg-primary/10'
+											: 'border-border'}"
+										onclick={() => selectCollection(collection)}
+									>
+										<div class="truncate text-sm font-medium">{collection.name}</div>
+										<div class="text-muted-foreground text-xs">{collection.totalSupply} NFTs</div>
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Collection Stats -->
+					{#if selectedCollection}
+						<div class="border-b p-4">
+							<h3 class="mb-3 font-semibold">Collection Stats</h3>
+							<div class="grid grid-cols-2 gap-3 text-sm">
+								<div>
+									<div class="text-muted-foreground">Total</div>
+									<div class="font-medium">{selectedCollection.totalSupply}</div>
+								</div>
+								<div>
+									<div class="text-muted-foreground">Rarest</div>
+									<div class="font-medium">
+										#{Math.min(...selectedCollection.nfts.map((n) => n.rarityRank))}
+									</div>
+								</div>
+								<div>
+									<div class="text-muted-foreground">Avg Score</div>
+									<div class="font-medium">
+										{(
+											selectedCollection.nfts.reduce((sum, n) => sum + n.rarityScore, 0) /
+											selectedCollection.nfts.length
+										).toFixed(1)}
+									</div>
+								</div>
+								<div>
+									<div class="text-muted-foreground">Date</div>
+									<div class="text-xs font-medium">
+										{new Date(selectedCollection.generatedAt).toLocaleDateString()}
+									</div>
+								</div>
+							</div>
+						</div>
+					{/if}
+
+					<!-- NFT Details -->
+					{#if selectedNFT}
+						<div class="h-full overflow-y-auto p-4">
+							<h3 class="mb-4 font-semibold">NFT Details</h3>
+
+							<!-- NFT Image -->
+							<div
+								class="bg-muted mx-auto mb-4 aspect-square max-w-[450px] overflow-hidden rounded-lg"
+							>
+								{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
+									<img
+										src={createObjectUrl(selectedNFT.imageData)}
+										alt={selectedNFT.name}
+										class="h-full w-full object-contain"
+									/>
+								{:else}
+									<div
+										class="text-muted-foreground flex h-full w-full items-center justify-center text-sm"
+									>
+										No Image
+									</div>
+								{/if}
+							</div>
+
+							<!-- NFT Name -->
+							<div class="mb-4">
+								<h4 class="mb-1 text-xl font-bold">{selectedNFT.name}</h4>
+								<div class="text-muted-foreground text-sm">
+									Rank #{selectedNFT.rarityRank} • Score: {selectedNFT.rarityScore.toFixed(1)}
+								</div>
+							</div>
+
+							<!-- NFT Description -->
+							{#if selectedNFT.description}
+								<div class="mb-4">
+									<div class="mb-2 font-medium">Description</div>
+									<p class="text-muted-foreground">{selectedNFT.description}</p>
+								</div>
+							{/if}
+
+							<!-- Traits -->
+							{#if selectedNFT.metadata.traits && selectedNFT.metadata.traits.length > 0}
+								<div class="mb-4">
+									<div class="mb-3 font-medium">Traits</div>
+									<div class="space-y-2">
+										{#each selectedNFT.metadata.traits as trait}
+											<div class="bg-muted/30 flex items-center justify-between rounded p-2 text-sm">
+												<div>
+													<span class="font-medium">{trait.layer || (trait as any).trait_type}:</span>
+													<span class="ml-2">{trait.trait || (trait as any).value}</span>
+												</div>
+												{#if trait.rarity}
+													<span class="text-muted-foreground bg-background rounded px-2 py-1 text-xs"
+														>{trait.rarity}%</span
+													>
+												{/if}
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
+						</div>
+					{:else if selectedCollection}
+						<div class="flex h-full items-center justify-center p-4 text-center">
+							<div class="text-muted-foreground">
+								<div class="mb-2 text-4xl">📸</div>
+								<div class="text-sm">Click an NFT to view details</div>
+							</div>
+						</div>
+					{/if}
+				</div>
+				<!-- Add padding to account for fixed right panel -->
+				<div class="w-[30%]"></div>
+			</div>
+		</div>
+	{/if}
 	{/if}
 </div>

@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2025-01-26
+
+### Added
+
+- **Gallery Mode with NFT Collection Viewing**: Complete gallery interface for viewing and managing generated NFT collections
+- **Responsive Gallery Layout**: Mobile-first design with full-width grid on mobile devices and 70/30 split layout on desktop
+- **Advanced Search and Filtering**: Real-time search by NFT name with multiple sort options (name A-Z/Z-A, rarity Low to High/High to Low)
+- **Trait-Based Filtering**: Interactive trait filters with visual selection feedback and multi-select capability
+- **Mobile-Optimized NFT Display**: Square aspect ratio cards on mobile with 3-4 columns, expanding on larger screens
+- **Bottom-Up NFT Details Panel**: Mobile details panel slides up from bottom with dismissible overlay
+- **Enhanced Rarity Calculation**: Proper rarity score computation with trait rarity percentages and accurate ranking system
+- **Metadata Import Support**: Full ZIP file import with automatic metadata parsing from `images/` and `metadata/` folders
+- **Collection Management**: Multiple collection support with collection switching and statistics
+- **Real-Time NFT Grid Updates**: Reactive grid that updates instantly with search and filter changes
+- **Professional NFT Details Display**: Large image display (450px max on desktop) with complete trait information and rarity statistics
+- **Fixed Border Length**: Vertical border now extends to full viewport height for proper visual separation
+- **Mobile Responsive Typography**: Optimized text sizes and spacing for mobile viewing
+- **Touch-Friendly Interface**: Larger tap targets and proper spacing for mobile navigation
+
+### Enhanced
+
+- **Mobile Layout Optimization**: Complete separation of mobile and desktop layouts for optimal user experience
+- **Search Performance**: Debounced search with efficient filtering algorithms
+- **Filter Performance**: Optimized trait filtering with instant visual feedback
+- **Grid Responsiveness**: Adaptive column layout (3-8 columns) based on screen size
+- **Image Handling**: Improved error handling and fallbacks for corrupted or missing images
+- **State Management**: Efficient reactive state management with proper cleanup and memory management
+- **User Experience**: Seamless transitions between viewing modes and collection management
+
+### Fixed
+
+- **Mobile Layout Issues**: Gallery page now properly optimized for mobile screens with full-width grid
+- **Search Functionality**: Search and filter controls work correctly on all screen sizes
+- **NFT Details Display**: Mobile details panel properly positioned and styled with white background
+- **Trait Filter Layout**: Trait filters organized and accessible on mobile devices
+- **Button Responsiveness**: Mode switcher and action buttons properly sized for mobile use
+- **Grid Responsiveness**: NFT grid columns adapt properly to screen size changes
+- **Border Visual Issues**: Right panel border extends full height as intended
+- **Typography Scaling**: Text sizes appropriate for mobile and desktop viewing
+
+### Technical
+
+- **Responsive Breakpoints**: Mobile (<1024px) and desktop (≥1024px) layouts properly separated
+- **Performance Optimization**: Efficient filtering and sorting algorithms for large NFT collections
+- **Type Safety**: Enhanced TypeScript types for gallery components and data structures
+- **Memory Management**: Proper cleanup of Object URLs and reactive state
+- **Accessibility**: Semantic HTML structure with proper ARIA labels and keyboard navigation
+
 ## [0.3.5] - 2025-01-24
 
 ### Fixed
