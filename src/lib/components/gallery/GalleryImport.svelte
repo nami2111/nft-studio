@@ -191,7 +191,7 @@
 	}
 </script>
 
-<Card class="p-4 {className}">
+<Card class="p-4 max-w-2xl lg:max-w-3xl xl:max-w-4xl {className}">
 	<div class="space-y-4">
 		<h3 class="text-foreground font-semibold">Import Collection</h3>
 

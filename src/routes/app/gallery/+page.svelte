@@ -259,7 +259,7 @@
 	{#if collections.length === 0}
 		<!-- Empty State with Import -->
 		<div class="flex min-h-[calc(100vh-200px)] items-center justify-center p-6">
-			<div class="max-w-md text-center">
+			<div class="w-full max-w-4xl text-center">
 				<div class="mb-4 text-6xl">🖼️</div>
 				<h2 class="mb-2 text-xl font-semibold">No collections yet</h2>
 				<p class="text-muted-foreground mb-6">
