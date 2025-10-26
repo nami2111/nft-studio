@@ -54,7 +54,10 @@ interface PersistedProject {
 function persistProject(projectToPersist: Project): void {
 	try {
 		// Check if project has any traits - only persist projects without traits
-		const totalTraits = projectToPersist.layers.reduce((sum, layer) => sum + layer.traits.length, 0);
+		const totalTraits = projectToPersist.layers.reduce(
+			(sum, layer) => sum + layer.traits.length,
+			0
+		);
 		if (totalTraits > 0) {
 			// Don't persist projects with traits to avoid broken image references on refresh
 			// Also clear any existing persisted data

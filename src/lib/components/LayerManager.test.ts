@@ -159,7 +159,11 @@ describe('LayerManager', () => {
 		it('shows loading state while adding layer', async () => {
 			const { addLayer } = require('$lib/stores');
 			let resolveAdd: (value: unknown) => void;
-			addLayer.mockReturnValue(new Promise((resolve) => { resolveAdd = resolve; }));
+			addLayer.mockReturnValue(
+				new Promise((resolve) => {
+					resolveAdd = resolve;
+				})
+			);
 
 			render(LayerManager);
 
@@ -181,7 +185,11 @@ describe('LayerManager', () => {
 		it('prevents multiple simultaneous add operations', async () => {
 			const { addLayer } = require('$lib/stores');
 			let resolveAdd: (value: unknown) => void;
-			addLayer.mockReturnValue(new Promise((resolve) => { resolveAdd = resolve; }));
+			addLayer.mockReturnValue(
+				new Promise((resolve) => {
+					resolveAdd = resolve;
+				})
+			);
 
 			render(LayerManager);
 

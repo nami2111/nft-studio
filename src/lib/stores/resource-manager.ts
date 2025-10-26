@@ -3,7 +3,12 @@
  * Handles object URLs, caching, and intelligent memory management
  */
 
-import { ImageBitmapCache, ImageDataCache, ArrayBufferCache, type CacheMetrics } from '$lib/utils/advanced-cache';
+import {
+	ImageBitmapCache,
+	ImageDataCache,
+	ArrayBufferCache,
+	type CacheMetrics
+} from '$lib/utils/advanced-cache';
 
 export interface CacheConfig {
 	imageBitmap?: {
@@ -254,9 +259,16 @@ export class ResourceManager {
 		const arrayBufferMetrics = this.arrayBufferCache.getMetrics();
 
 		const totalHits = imageBitmapMetrics.hits + imageDataMetrics.hits + arrayBufferMetrics.hits;
-		const totalMisses = imageBitmapMetrics.misses + imageDataMetrics.misses + arrayBufferMetrics.misses;
-		const totalMemoryUsage = imageBitmapMetrics.memoryUsage + imageDataMetrics.memoryUsage + arrayBufferMetrics.memoryUsage;
-		const totalEntries = imageBitmapMetrics.currentEntries + imageDataMetrics.currentEntries + arrayBufferMetrics.currentEntries;
+		const totalMisses =
+			imageBitmapMetrics.misses + imageDataMetrics.misses + arrayBufferMetrics.misses;
+		const totalMemoryUsage =
+			imageBitmapMetrics.memoryUsage +
+			imageDataMetrics.memoryUsage +
+			arrayBufferMetrics.memoryUsage;
+		const totalEntries =
+			imageBitmapMetrics.currentEntries +
+			imageDataMetrics.currentEntries +
+			arrayBufferMetrics.currentEntries;
 
 		return {
 			imageBitmap: imageBitmapMetrics,

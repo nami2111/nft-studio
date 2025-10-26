@@ -226,13 +226,10 @@ describe('TraitCard', () => {
 				props: { trait: mockTrait, layerId }
 			});
 
-			expect(global.IntersectionObserver).toHaveBeenCalledWith(
-				expect.any(Function),
-				{
-					rootMargin: '50px',
-					threshold: 0.1
-				}
-			);
+			expect(global.IntersectionObserver).toHaveBeenCalledWith(expect.any(Function), {
+				rootMargin: '50px',
+				threshold: 0.1
+			});
 		});
 	});
 
@@ -376,7 +373,9 @@ describe('TraitCard', () => {
 			const deleteButton = screen.getByTestId('trash-icon').closest('button');
 			fireEvent.click(deleteButton!);
 
-			expect(global.confirm).toHaveBeenCalledWith(`Are you sure you want to delete "${mockTrait.name}"?`);
+			expect(global.confirm).toHaveBeenCalledWith(
+				`Are you sure you want to delete "${mockTrait.name}"?`
+			);
 		});
 
 		it('removes trait when confirmation is accepted', async () => {
@@ -548,7 +547,10 @@ describe('TraitCard', () => {
 		});
 
 		it('shows title attribute for long trait names', () => {
-			const longNameTrait = { ...mockTrait, name: 'This is a very long trait name that might be truncated' };
+			const longNameTrait = {
+				...mockTrait,
+				name: 'This is a very long trait name that might be truncated'
+			};
 
 			render(TraitCard, {
 				props: { trait: longNameTrait, layerId }
@@ -593,9 +595,11 @@ describe('TraitCard', () => {
 			};
 
 			// Should not throw
-			expect(() => render(TraitCard, {
-				props: { trait: invalidTrait, layerId }
-			})).not.toThrow();
+			expect(() =>
+				render(TraitCard, {
+					props: { trait: invalidTrait, layerId }
+				})
+			).not.toThrow();
 		});
 	});
 });

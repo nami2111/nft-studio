@@ -1,388 +1,141 @@
 # NFT Studio TODO
 
-## 🚨 Critical Issues (Fix Immediately)
+## Gallery Mode Implementation
 
-### 1. **TSConfig Parse Error** - Blocking
+### Overview
 
-**File:** `tsconfig.json`
-**Issue:** Comments inside JSON object causing parse error
-**Solution:** Move comments outside JSON object or remove them
-**Time:** 5 minutes
-**Priority:** 🔴 CRITICAL
+Add a new Gallery page with mode switching between "Generate Mode" and "Gallery Mode" for viewing generated NFT collections.
 
-```json
-// BROKEN - Comments inside JSON object
-{
-  "compilerOptions": { /* ... */ }
-  // This comment breaks JSON parsing
-}
+### Components to Create
 
-// FIXED - Move comments outside or remove
-{
-  "compilerOptions": { /* ... */ }
-}
-// Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias
-```
+#### 1. Gallery Route Structure
 
-### 2. **Regex Control Characters** - Security Risk
+- [ ] Create `src/routes/app/gallery/+page.svelte` - Main gallery page
+- [ ] Create `src/routes/app/gallery/+layout.svelte` - Gallery-specific layout (if needed)
+- [ ] Update `src/routes/app/+layout.svelte` to include mode switcher
 
-**File:** `src/lib/domain/validation.ts:115`
-**Issue:** Unsafe control character regex causing linting errors
-**Solution:** Replace with safer Unicode escape sequences
-**Time:** 5 minutes
-**Priority:** 🔴 CRITICAL
+#### 2. Mode Switcher Component
 
-```typescript
-// CURRENT - Unsafe
-.replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+- [ ] Create `src/lib/components/ModeSwitcher.svelte` - Dropdown for switching modes
+- [ ] Position in top-right of app page
+- [ ] Options: "Generate Mode" (current) and "Gallery Mode" (new)
+- [ ] Route between `/app` and `/app/gallery`
 
-// UPGRADED - Safer Unicode escaping
-.replace(/[\x00-\x1F\x7F-\x9F]/g, '')
-```
+#### 3. Gallery State Management
 
-### 3. **Implicit Any Types**
+- [ ] Create `src/lib/stores/gallery.store.svelte.ts` - Store for generated NFTs
+- [ ] Store NFT images, metadata, and calculated rarity information
+- [ ] Use IndexedDB for persistence of generated collections
+- [ ] Include search, filtering, and sorting capabilities
 
-**File:** `src/lib/workers/worker.pool.ts:828`
-**Issue:** Variable with implicit any type
-**Solution:** Add explicit typing
-**Time:** 10 minutes
-**Priority:** 🟡 HIGH
+#### 4. Gallery Grid View Component
 
-## 🏗️ Architectural Upgrades
+- [ ] Create `src/lib/components/gallery/GalleryGrid.svelte` - Main grid layout
+- [ ] Responsive grid design (mobile: 1-2 cols, tablet: 3-4 cols, desktop: 5-6 cols)
+- [ ] Show NFT image with name overlay
+- [ ] Include rarity indicator/badge
+- [ ] Add loading states and skeleton screens
 
-### 4. **State Persistence Layer**
+#### 5. NFT Detail View Component
 
-**Files:** `src/lib/stores/project.store.svelte.ts`
-**Issue:** No localStorage/project persistence
-**Solution:** Add automatic state persistence and recovery
-**Time:** 30 minutes
-**Priority:** 🟡 HIGH
+- [ ] Create `src/lib/components/gallery/NFTDetail.svelte` - Detail panel
+- [ ] Display full-size NFT image
+- [ ] Show NFT name and description
+- [ ] List all traits with their properties
+- [ ] Display rarity rank and rarity score
+- [ ] Show trait rarity percentages
 
-```typescript
-function persistProject(project: Project) {
-	try {
-		localStorage.setItem('nft-studio-project', JSON.stringify(project));
-	} catch (error) {
-		console.warn('Failed to persist project:', error);
-	}
-}
+#### 6. Rarity Calculation System
 
-// Load on init
-const persisted = localStorage.getItem('nft-studio-project');
-if (persisted) {
-	project.set(JSON.parse(persisted));
-}
-```
+- [ ] Create `src/lib/domain/rarity-calculator.ts` - Rarity calculation logic
+- [ ] Calculate trait rarity percentages within collection
+- [ ] Calculate overall NFT rarity scores
+- [ ] Rank NFTs by rarity (1 being most rare)
+- [ ] Consider special trait combinations for bonus rarity
 
-### 5. **Enhanced Error Recovery**
+#### 7. Gallery Page Layout
 
-**Files:** `src/lib/utils/error-handler.ts`, `src/lib/domain/`
-**Issue:** No retry mechanisms for failed operations
-**Solution:** Implement exponential backoff retry logic
-**Time:** 1 hour
-**Priority:** 🟡 HIGH
+- [ ] Create two-column layout: left grid, right detail panel
+- [ ] Responsive design: stack on mobile, side-by-side on desktop
+- [ ] Add collection statistics (total NFTs, rare traits, etc.)
+- [ ] Include search and filter controls
+- [ ] Add sort options (by name, rarity, traits, etc.)
 
-```typescript
-async function retryWithBackoff<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
-	for (let i = 0; i < maxRetries; i++) {
-		try {
-			return await operation();
-		} catch (error) {
-			if (i === maxRetries - 1) throw error;
-			await new Promise((resolve) => setTimeout(resolve, 2 ** i * 1000));
-		}
-	}
-	throw new Error('Max retries exceeded');
-}
-```
+#### 8. Integration with Generation System
 
-### 6. **Performance Monitoring**
+- [ ] Modify `src/lib/components/GenerationForm.svelte` to save results
+- [ ] Store generated NFTs in gallery store after completion
+- [ ] Add option to import existing collections
+- [ ] Handle memory management for large collections
+- [ ] Implement lazy loading for performance
 
-**Files:** `src/lib/workers/worker.pool.ts`, `src/lib/utils/`
-**Issue:** No performance tracking or metrics
-**Solution:** Add performance monitoring class
-**Time:** 1 hour
-**Priority:** 🟢 MEDIUM
+#### 9. Additional Features
+
+- [ ] Add zoom functionality for NFT images
+- [ ] Implement bulk selection for actions
+- [ ] Add export functionality for selected NFTs
+- [ ] Include trait analysis and statistics
+- [ ] Add comparison mode between NFTs
+
+### Technical Considerations
+
+#### Data Structure
 
 ```typescript
-class PerformanceMonitor {
-	private metrics = new Map<string, number[]>();
+interface GalleryNFT {
+	id: string;
+	name: string;
+	description?: string;
+	imageData: ArrayBuffer;
+	imageUrl?: string;
+	metadata: {
+		traits: Array<{
+			layer: string;
+			trait: string;
+			rarity: number;
+		}>;
+	};
+	rarityScore: number;
+	rarityRank: number;
+	collectionId: string;
+	generatedAt: Date;
+}
 
-	startTimer(operation: string): () => void {
-		const start = performance.now();
-		return () => {
-			const duration = performance.now() - start;
-			this.recordMetric(operation, duration);
-		};
-	}
-
-	getAverageTime(operation: string): number {
-		const times = this.metrics.get(operation) || [];
-		return times.reduce((a, b) => a + b, 0) / times.length;
-	}
+interface GalleryCollection {
+	id: string;
+	name: string;
+	description: string;
+	projectName: string;
+	nfts: GalleryNFT[];
+	generatedAt: Date;
+	totalSupply: number;
 }
 ```
 
-## 🧪 Testing Improvements
+#### Performance Optimization
 
-### 7. **Component Testing Suite**
+- Use virtual scrolling for large collections
+- Implement image lazy loading
+- Use WebP format for better compression
+- Cache calculated rarity scores
+- Implement pagination or infinite scroll
 
-**Files:** `src/lib/components/*.test.ts`
-**Issue:** Limited component test coverage
-**Solution:** Add comprehensive component tests
-**Time:** 4-6 hours
-**Priority:** 🟢 MEDIUM
+#### UI/UX Considerations
 
-```typescript
-// Example: GenerationForm.test.ts
-import { render, screen } from '@testing-library/svelte';
-import GenerationForm from '$lib/components/GenerationForm.svelte';
+- Smooth transitions between generate and gallery modes
+- Loading states for all operations
+- Error handling for failed operations
+- Responsive design for all screen sizes
+- Keyboard navigation support
+- Accessibility features (ARIA labels, etc.)
 
-describe('GenerationForm', () => {
-	it('validates project before generation', async () => {
-		const { component } = render(GenerationForm);
-		// Test validation logic
-	});
+### Implementation Order
 
-	it('shows progress during generation', async () => {
-		// Test progress indicators
-	});
-});
-```
-
-### 8. **E2E Testing with Playwright**
-
-**Files:** `tests/e2e/`
-**Issue:** No end-to-end testing
-**Solution:** Add Playwright E2E test suite
-**Time:** 6-8 hours
-**Priority:** 🟢 MEDIUM
-
-```typescript
-// e2e/generation.spec.ts
-import { test, expect } from '@playwright/test';
-
-test('can generate NFT collection', async ({ page }) => {
-	await page.goto('/');
-	await page.click('[data-testid="new-project"]');
-	// Test full generation workflow
-});
-```
-
-### 9. **Performance Benchmarking**
-
-**Files:** `tests/performance/`
-**Issue:** No performance tests for worker pool
-**Solution:** Add benchmarks for generation speed
-**Time:** 3-4 hours
-**Priority:** 🟢 MEDIUM
-
-## 🚀 Modern Best Practices
-
-### 10. **WebAssembly for Image Processing** ❌ REMOVED
-
-**Reason:** After implementation, discovered that direct Canvas API approach is more optimal for this use case
-**Finding:** Images are already correct size, so WASM resizing provides no benefit
-**Solution:** Simplified to use direct Canvas API `createImageBitmap` which is highly optimized
-**Performance:** Actually better without WASM overhead - faster initialization, simpler code path
-**Time:** 8-12 hours (implementation) + 2 hours (cleanup and optimization)
-**Priority:** 🔵 LOW
-
-**Final Approach:**
-```typescript
-// Direct Canvas API - optimal performance for already-sized images
-const blob = new Blob([buffer], { type: 'image/png' });
-const imageBitmap = await createImageBitmap(blob, {
-    resizeWidth: targetWidth,
-    resizeHeight: targetHeight,
-    resizeQuality: 'high'
-});
-```
-
-### 11. **Streaming Generation**
-
-**Files:** `src/lib/components/GenerationForm.svelte`, `src/lib/workers/`
-**Issue:** Large collections block UI during generation
-**Solution:** Implement progressive loading with async generators
-**Time:** 4-6 hours
-**Priority:** 🔵 LOW
-
-```typescript
-async function* generateStream(layers: Layer[], count: number): AsyncGenerator<GeneratedImage> {
-	for (let i = 0; i < count; i++) {
-		const image = await generateSingleImage(layers, i);
-		yield image;
-		// Allow UI updates between generations
-		await new Promise((resolve) => setTimeout(resolve, 0));
-	}
-}
-```
-
-### 12. **Advanced Caching Strategy** ✅ COMPLETED
-
-**Files:** `src/lib/utils/advanced-cache.ts`, `src/lib/stores/resource-manager.ts`, `src/lib/workers/generation.worker.ts`, `src/lib/components/CacheMonitor.svelte`
-**Implementation:** Multi-type LRU cache with TTL, memory tracking, and performance metrics
-**Performance:** Intelligent eviction policies, memory management, and cache monitoring
-**Time:** 2-3 hours
-**Priority:** 🟢 MEDIUM
-
-**Features Implemented:**
-- **Multi-type Caching**: Separate caches for ImageBitmap, ImageData, and ArrayBuffer
-- **LRU with TTL**: Time-to-live support and intelligent eviction strategies
-- **Memory Management**: Automatic memory usage tracking and size limits
-- **Performance Metrics**: Hit rate monitoring, cache statistics, and real-time monitoring
-- **Worker Integration**: Worker-level caching for improved generation performance
-- **Cache Monitoring**: Real-time dashboard showing cache performance and memory usage
-
-**Key Benefits:**
-- Reduces redundant image processing by 60-80%
-- Intelligent memory management prevents memory leaks
-- Configurable TTL prevents stale data accumulation
-- Real-time monitoring for performance optimization
-- Specialized caches optimized for different data types
-
-**Cache Configuration:**
-```typescript
-// Example cache configuration
-const resourceManager = new ResourceManager({
-  imageBitmap: { maxSize: '100MB', maxEntries: 500, ttl: '30m' },
-  imageData: { maxSize: '50MB', maxEntries: 200, ttl: '15m' },
-  arrayBuffer: { maxSize: '200MB', maxEntries: 1000, ttl: '1h' }
-});
-```
-
-## 📊 Type Safety Improvements
-
-### 13. **Eliminate Any Types**
-
-**Files:** `src/lib/workers/worker.pool.ts`, `src/lib/types/`
-**Issue:** Implicit any types reduce type safety
-**Solution:** Add explicit typing for all variables
-**Time:** 2-3 hours
-**Priority:** 🟡 HIGH
-
-```typescript
-// CURRENT
-let result; // implicit any
-
-// UPGRADED
-type GenerationResult = {
-	success: boolean;
-	imageData?: ImageData;
-	error?: string;
-};
-let result: GenerationResult;
-```
-
-### 14. **Branded Type Enhancements**
-
-**Files:** `src/lib/types/ids.ts`
-**Issue:** Basic branded types could be more robust
-**Solution:** Add validation to branded type constructors
-**Time:** 1-2 hours
-**Priority:** 🟢 MEDIUM
-
-```typescript
-type ProjectId = string & { readonly brand: unique symbol };
-type LayerId = string & { readonly brand: unique symbol };
-
-function createProjectId(id: string): ProjectId {
-	if (!id.match(/^[a-zA-Z0-9_-]+$/)) {
-		throw new Error('Invalid ProjectId format');
-	}
-	return id as ProjectId;
-}
-```
-
-## 🧹 Code Quality
-
-### 15. **Fix Import Organization**
-
-**Files:** Multiple files with unorganized imports
-**Issue:** Biome reports unorganized imports across codebase
-**Solution:** Run import organization fix
-**Time:** 30 minutes
-**Priority:** 🟢 MEDIUM
-
-```bash
-pnpm lint --fix
-```
-
-### 16. **Remove Unused Imports**
-
-**Files:** `src/lib/domain/validation.ts`, `src/lib/workers/generation.worker.ts`
-**Issue:** Several unused imports detected
-**Solution:** Remove unused imports
-**Time:** 15 minutes
-**Priority:** 🟢 MEDIUM
-
-### 17. **Template Literal Usage**
-
-**Files:** `src/lib/domain/validation.test.ts`
-**Issue:** String concatenation instead of template literals
-**Solution:** Replace with template literals
-**Time:** 15 minutes
-**Priority:** 🟢 MEDIUM
-
-## 🎯 Priority Implementation Order
-
-### Phase 1: Critical Fixes (Week 1)
-
-1. **Fix TSConfig** - 5 minutes (Blocking issue)
-2. **Fix Regex** - 5 minutes (Security fix)
-3. **Eliminate Any Types** - 2-3 hours (Type safety)
-4. **Remove Unused Imports** - 15 minutes (Code quality)
-
-### Phase 2: Core Features (Week 2)
-
-5. **State Persistence** - 30 minutes (User experience)
-6. **Enhanced Error Recovery** - 1 hour (Reliability)
-7. **Performance Monitoring** - 1 hour (Observability)
-8. **Advanced Caching** - ✅ COMPLETED (Performance improvements achieved)
-
-### Phase 3: Testing & Quality (Week 3-4)
-
-9. **Component Testing Suite** - 4-6 hours (Test coverage)
-10. **Import Organization** - 30 minutes (Code quality)
-11. **Template Literal Updates** - 15 minutes (Modern syntax)
-12. **Branded Type Enhancements** - 1-2 hours (Type safety)
-
-### Phase 4: Advanced Features (Month 2)
-
-13. **E2E Testing** - 6-8 hours (Test coverage)
-14. **Streaming Generation** - 4-6 hours (Performance)
-15. **Performance Benchmarking** - 3-4 hours (Optimization)
-16. **WebAssembly Integration** - ❌ REMOVED (Direct Canvas API approach was optimal)
-
-## 📈 Expected Improvements
-
-**Current Architecture Score:** 8.5/10
-**Target Architecture Score:** 9.5/10
-
-**Performance Improvements:**
-
-- Optimized direct Canvas API image processing (better than WASM for this use case)
-- 50% better memory management with LRU caching
-- Real-time performance monitoring and optimization
-
-**Code Quality Improvements:**
-
-- 100% type safety (no `any` types)
-- 90%+ test coverage
-- Modern syntax and best practices
-
-**User Experience Improvements:**
-
-- Automatic project persistence
-- Progressive loading for large collections
-- Better error recovery and retry mechanisms
-
-## 🔍 Implementation Notes
-
-- All critical fixes can be completed in under 1 hour
-- Testing improvements require significant time investment
-- Direct Canvas API optimization provides best performance for this use case
-- Consider user feedback when prioritizing advanced features
-- Some features may require additional dependencies
-- Performance monitoring should include user metrics tracking
-- Sometimes simpler solutions are better than complex ones (WASM lesson learned)
+1. Create basic route structure and mode switcher
+2. Implement gallery state management and storage
+3. Build basic grid view with mock data
+4. Create detail view component
+5. Implement rarity calculation system
+6. Connect generation output to gallery
+7. Add advanced features and optimizations
+8. Testing and refinement

@@ -1,0 +1,399 @@
+/**
+ * Gallery Store - State management for NFT gallery functionality
+ * Uses Svelte 5 runes and IndexedDB for persistence
+ */
+
+// Using localStorage directly instead of svelte-persisted-store for simplicity
+import type {
+	GalleryNFT,
+	GalleryCollection,
+	GalleryState,
+	GalleryFilterOptions,
+	GallerySortOption
+} from '$lib/types/gallery';
+import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
+
+// Gallery store with Svelte 5 runes
+class GalleryStore {
+	// Main state
+	private _state = $state<GalleryState>({
+		collections: [],
+		selectedNFT: null,
+		selectedCollection: null,
+		filterOptions: {},
+		sortOption: 'newest',
+		isLoading: false,
+		error: null
+	});
+
+	// Getters
+	get collections() {
+		return this._state.collections;
+	}
+
+	get selectedNFT() {
+		return this._state.selectedNFT;
+	}
+
+	get selectedCollection() {
+		return this._state.selectedCollection;
+	}
+
+	get filterOptions() {
+		return this._state.filterOptions;
+	}
+
+	get sortOption() {
+		return this._state.sortOption;
+	}
+
+	get isLoading() {
+		return this._state.isLoading;
+	}
+
+	get error() {
+		return this._state.error;
+	}
+
+	// Computed properties
+	get filteredAndSortedNFTs(): GalleryNFT[] {
+		let nfts: GalleryNFT[] = [];
+
+		// If a collection is selected, show only its NFTs
+		if (this._state.selectedCollection) {
+			nfts = [...this._state.selectedCollection.nfts];
+		} else {
+			// Otherwise, show all NFTs from all collections
+			nfts = this._state.collections.flatMap((collection) => collection.nfts);
+		}
+
+		// Apply search filter
+		if (this._state.filterOptions.search) {
+			const searchLower = this._state.filterOptions.search.toLowerCase();
+			nfts = nfts.filter(
+				(nft) =>
+					nft.name.toLowerCase().includes(searchLower) ||
+					nft.description?.toLowerCase().includes(searchLower)
+			);
+		}
+
+		// Apply trait filters
+		if (this._state.filterOptions.selectedTraits) {
+			nfts = nfts.filter((nft) => {
+				for (const [layer, traits] of Object.entries(this._state.filterOptions.selectedTraits!)) {
+					const nftLayerTraits = nft.metadata.traits
+						.filter((t) => (t.layer || (t as any).trait_type) === layer)
+						.map((t) => t.trait || (t as any).value);
+
+					if (!traits.some((trait) => nftLayerTraits.includes(trait))) {
+						return false;
+					}
+				}
+				return true;
+			});
+		}
+
+		// Apply rarity range filter
+		if (this._state.filterOptions.rarityRange) {
+			const [min, max] = this._state.filterOptions.rarityRange;
+			nfts = nfts.filter((nft) => nft.rarityScore >= min && nft.rarityScore <= max);
+		}
+
+		// Apply sorting
+		switch (this._state.sortOption) {
+			case 'name-asc':
+				nfts.sort((a, b) => a.name.localeCompare(b.name));
+				break;
+			case 'name-desc':
+				nfts.sort((a, b) => b.name.localeCompare(a.name));
+				break;
+			case 'rarity-asc':
+				nfts.sort((a, b) => a.rarityRank - b.rarityRank);
+				break;
+			case 'rarity-desc':
+				nfts.sort((a, b) => b.rarityRank - a.rarityRank);
+				break;
+			case 'newest':
+				nfts.sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
+				break;
+			case 'oldest':
+				nfts.sort((a, b) => new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime());
+				break;
+		}
+
+		return nfts;
+	}
+
+	// Actions
+	setSelectedNFT(nft: GalleryNFT | null) {
+		this._state.selectedNFT = nft;
+	}
+
+	setSelectedCollection(collection: GalleryCollection | null) {
+		this._state.selectedCollection = collection;
+		this._state.selectedNFT = null; // Clear selected NFT when changing collection
+	}
+
+	setFilterOptions(options: Partial<GalleryFilterOptions>) {
+		this._state.filterOptions = { ...this._state.filterOptions, ...options };
+	}
+
+	setSortOption(option: GallerySortOption) {
+		this._state.sortOption = option;
+	}
+
+	setLoading(loading: boolean) {
+		this._state.isLoading = loading;
+	}
+
+	setError(error: string | null) {
+		this._state.error = error;
+	}
+
+	// Collection management
+	addCollection(collection: GalleryCollection) {
+		this._state.collections.push(collection);
+		this.saveToIndexedDB();
+	}
+
+	updateCollection(id: string, updates: Partial<GalleryCollection>) {
+		const index = this._state.collections.findIndex((c) => c.id === id);
+		if (index !== -1) {
+			this._state.collections[index] = { ...this._state.collections[index], ...updates };
+			this.saveToIndexedDB();
+		}
+	}
+
+	removeCollection(id: string) {
+		this._state.collections = this._state.collections.filter((c) => c.id !== id);
+		if (this._state.selectedCollection?.id === id) {
+			this._state.selectedCollection = null;
+			this._state.selectedNFT = null;
+		}
+		this.saveToIndexedDB();
+	}
+
+	// NFT management
+	addNFTToCollection(collectionId: string, nft: GalleryNFT) {
+		const collection = this._state.collections.find((c) => c.id === collectionId);
+		if (collection) {
+			collection.nfts.push(nft);
+			collection.totalSupply = collection.nfts.length;
+			this.saveToIndexedDB();
+		}
+	}
+
+	removeNFTFromCollection(collectionId: string, nftId: string) {
+		const collection = this._state.collections.find((c) => c.id === collectionId);
+		if (collection) {
+			collection.nfts = collection.nfts.filter((n) => n.id !== nftId);
+			collection.totalSupply = collection.nfts.length;
+			if (this._state.selectedNFT?.id === nftId) {
+				this._state.selectedNFT = null;
+			}
+			this.saveToIndexedDB();
+		}
+	}
+
+	// Database operations
+	private async saveToIndexedDB() {
+		try {
+			// Simple implementation using localStorage for now
+			// In production, this would use IndexedDB for better performance
+			localStorage.setItem(
+				'nft-studio-gallery-collections',
+				JSON.stringify(this._state.collections)
+			);
+		} catch (error) {
+			console.error('Failed to save gallery data:', error);
+			this.setError('Failed to save gallery data');
+		}
+	}
+
+	async loadFromIndexedDB() {
+		try {
+			this.setLoading(true);
+			const stored = localStorage.getItem('nft-studio-gallery-collections');
+			if (stored) {
+				const collections = JSON.parse(stored) as GalleryCollection[];
+				this._state.collections = collections;
+			}
+		} catch (error) {
+			console.error('Failed to load gallery data:', error);
+			this.setError('Failed to load gallery data');
+		} finally {
+			this.setLoading(false);
+		}
+	}
+
+	// Import generated NFTs from generation system
+	importGeneratedNFTs(
+		nfts: Array<{ name: string; imageData: ArrayBuffer; metadata: any; index: number }>,
+		projectName: string,
+		projectDescription: string
+	) {
+		const collectionId = `collection-${Date.now()}`;
+
+		const collection: GalleryCollection = {
+			id: collectionId,
+			name: `${projectName} Collection`,
+			description: projectDescription,
+			projectName,
+			nfts: nfts.map((nft, index) => ({
+				id: `nft-${collectionId}-${index}`,
+				name: nft.name,
+				imageData: nft.imageData,
+				metadata: nft.metadata,
+				rarityScore: 0, // Will be calculated
+				rarityRank: 0, // Will be calculated
+				collectionId: collectionId,
+				generatedAt: new Date()
+			})),
+			generatedAt: new Date(),
+			totalSupply: nfts.length
+		};
+
+		// Calculate rarity using proper algorithm
+		const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
+		this.addCollection(updatedCollection);
+		return updatedCollection;
+	}
+
+	// Import collection from external data (ZIP file, etc.)
+	importCollection(
+		nfts: Array<{ name: string; imageData: ArrayBuffer; metadata: any; index: number }>,
+		collectionName: string,
+		collectionDescription: string = 'Imported NFT collection'
+	) {
+		// Check for duplicate collection names
+		let finalName = collectionName;
+		let counter = 1;
+		while (this._state.collections.some((c) => c.name === finalName)) {
+			finalName = `${collectionName} (${counter})`;
+			counter++;
+		}
+
+		const collectionId = `collection-${Date.now()}`;
+
+		const collection: GalleryCollection = {
+			id: collectionId,
+			name: finalName,
+			description: collectionDescription,
+			projectName: finalName,
+			nfts: nfts.map((nft, index) => ({
+				id: `nft-${collectionId}-${index}`,
+				name: nft.name,
+				imageData: nft.imageData,
+				metadata: nft.metadata,
+				rarityScore: 0, // Will be calculated
+				rarityRank: 0, // Will be calculated
+				collectionId: collectionId,
+				generatedAt: new Date()
+			})),
+			generatedAt: new Date(),
+			totalSupply: nfts.length
+		};
+
+		// Calculate rarity using proper algorithm
+		const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
+		this.addCollection(updatedCollection);
+		return updatedCollection;
+	}
+
+	// Merge NFTs into existing collection
+	mergeIntoCollection(
+		collectionId: string,
+		nfts: Array<{ name: string; imageData: ArrayBuffer; metadata: any; index: number }>
+	) {
+		const collection = this._state.collections.find((c) => c.id === collectionId);
+		if (!collection) {
+			throw new Error('Collection not found');
+		}
+
+		const newNFTs = nfts.map((nft, index) => ({
+			id: `nft-${collectionId}-${collection.nfts.length + index}`,
+			name: nft.name,
+			imageData: nft.imageData,
+			metadata: nft.metadata,
+			rarityScore: Math.random() * 100, // Placeholder - will be calculated properly
+			rarityRank: collection.nfts.length + index + 1, // Placeholder - will be calculated properly
+			collectionId: collectionId,
+			generatedAt: new Date()
+		}));
+
+		collection.nfts.push(...newNFTs);
+		collection.totalSupply = collection.nfts.length;
+		this.saveToIndexedDB();
+
+		return collection;
+	}
+
+	// Validate imported data
+	validateImportData(nfts: Array<{ name: string; imageData: ArrayBuffer; metadata?: any }>): {
+		isValid: boolean;
+		errors: string[];
+	} {
+		const errors: string[] = [];
+
+		if (nfts.length === 0) {
+			errors.push('No NFTs found in import data');
+		}
+
+		if (nfts.length > 10000) {
+			errors.push('Too many NFTs (max 10,000 per collection)');
+		}
+
+		// Check for duplicate names
+		const names = nfts.map((n) => n.name.toLowerCase());
+		const uniqueNames = new Set(names);
+		if (names.length !== uniqueNames.size) {
+			errors.push('Duplicate NFT names found');
+		}
+
+		// Validate each NFT
+		nfts.forEach((nft, index) => {
+			if (!nft.name || nft.name.trim() === '') {
+				errors.push(`NFT ${index + 1} has no name`);
+			}
+
+			if (!nft.imageData || nft.imageData.byteLength === 0) {
+				errors.push(`NFT ${index + 1} has no image data`);
+			}
+
+			// Check for reasonable image size (between 1KB and 10MB)
+			if (nft.imageData.byteLength < 1024) {
+				errors.push(`NFT ${index + 1} image is too small`);
+			}
+			if (nft.imageData.byteLength > 10 * 1024 * 1024) {
+				errors.push(`NFT ${index + 1} image is too large`);
+			}
+		});
+
+		return {
+			isValid: errors.length === 0,
+			errors
+		};
+	}
+
+	// Utility methods
+	clearGallery() {
+		this._state.collections = [];
+		this._state.selectedNFT = null;
+		this._state.selectedCollection = null;
+		this.saveToIndexedDB();
+	}
+
+	exportCollection(collectionId: string) {
+		const collection = this._state.collections.find((c) => c.id === collectionId);
+		if (!collection) {
+			throw new Error('Collection not found');
+		}
+		return collection;
+	}
+}
+
+// Create singleton instance
+export const galleryStore = new GalleryStore();
+
+// Initialize store on module load
+galleryStore.loadFromIndexedDB();

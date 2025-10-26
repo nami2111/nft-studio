@@ -83,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical Decision & WASM Journey
 
 **WASM Implementation Phase**:
+
 - Initially implemented comprehensive WASM integration with @jsquash/resize and @jsquash/png libraries
 - Created 600+ line WASM image processor with performance monitoring and fallback systems
 - Enhanced worker pool with WASM-aware task complexity calculations
@@ -90,18 +91,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Evaluation & Discovery**:
 After implementing WASM integration with @jsquash libraries, discovered that:
+
 1. Images are already at correct dimensions, making WASM resizing unnecessary
 2. Canvas API `createImageBitmap` is highly optimized and performs better for this use case
 3. WASM added unnecessary complexity without providing performance benefits
 4. Simplified direct approach is more maintainable and reliable
 
 **Performance Optimization Results**:
+
 - Cache system delivers enterprise-scale performance with 74-98% hit rates
 - Clean, professional logging provides actionable performance insights
 - Memory management prevents leaks while maintaining high performance
 - Multi-type caching architecture optimizes for different data types
 
 **Final Architecture**:
+
 - Direct Canvas API `createImageBitmap` for optimal image processing
 - Advanced LRU caching with TTL and performance monitoring
 - ArrayBuffer caching strategy to resolve worker context issues

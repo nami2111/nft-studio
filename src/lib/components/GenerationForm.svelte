@@ -16,6 +16,8 @@
 	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
 	import { trackGenerationCompleted } from '$lib/utils/analytics';
+	import { galleryStore } from '$lib/stores/gallery.store.svelte';
+	import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
 
 	// State
 	let collectionSize = $state(100);
@@ -88,6 +90,38 @@
 		updateProgress(images.length, images.length, 'Packaging files into a .zip...');
 
 		try {
+			// Save to gallery first
+			try {
+				console.log('Saving generated NFTs to gallery...');
+
+				// Convert images and metadata to gallery format
+				const galleryNFTs = images.map((image, index) => {
+					const matchingMetadata = metadata.find((meta) => meta.name === image.name);
+					return {
+						name: image.name.replace('.png', ''),
+						imageData: image.imageData,
+						metadata: matchingMetadata?.data || { traits: [] },
+						index
+					};
+				});
+
+				// Import into gallery store
+				const collection = galleryStore.importGeneratedNFTs(
+					galleryNFTs,
+					projectData.name || 'Untitled Collection',
+					projectData.description || 'Generated NFT collection'
+				);
+
+				// Calculate rarity for the collection
+				const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
+				galleryStore.updateCollection(collection.id, updatedCollection);
+
+				console.log(`Saved ${galleryNFTs.length} NFTs to gallery collection: ${collection.name}`);
+			} catch (galleryError) {
+				console.error('Failed to save to gallery:', galleryError);
+				// Don't let gallery errors prevent the download
+			}
+
 			// Dynamically import JSZip to reduce initial bundle size
 			const { default: JSZip } = await import('jszip');
 			const zip = new JSZip();
@@ -121,7 +155,7 @@
 
 			statusText = 'Download started.';
 			showSuccess('Generation complete', {
-				description: 'Your download has started.'
+				description: 'Your download has started and NFTs have been added to the gallery.'
 			});
 		} catch (error) {
 			showError(error, {

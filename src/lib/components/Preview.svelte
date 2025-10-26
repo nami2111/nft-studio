@@ -331,7 +331,8 @@
 		);
 
 		// Check if project has traits but they're from persisted data (empty imageData)
-		const hasTraitsWithoutImageData = layers.some((layer: Layer) => layer.traits.length > 0) && !hasTraitsWithImageData;
+		const hasTraitsWithoutImageData =
+			layers.some((layer: Layer) => layer.traits.length > 0) && !hasTraitsWithImageData;
 
 		if (hasTraitsWithoutImageData) {
 			// Draw placeholder text for persisted projects that need image re-upload
@@ -339,7 +340,11 @@
 			ctx.font = '16px sans-serif';
 			ctx.textAlign = 'center';
 			ctx.fillText('Project restored from cache', displayWidth / 2, displayHeight / 2 - 20);
-			ctx.fillText('Please re-upload your trait images to continue', displayWidth / 2, displayHeight / 2 + 10);
+			ctx.fillText(
+				'Please re-upload your trait images to continue',
+				displayWidth / 2,
+				displayHeight / 2 + 10
+			);
 			return;
 		}
 
@@ -364,7 +369,8 @@
 				const selectedTrait = layer.traits.find((trait: Trait) => trait.id === effectiveTraitId);
 				if (selectedTrait) {
 					// Check if trait has valid image data
-					const hasValidImageData = selectedTrait.imageData && selectedTrait.imageData.byteLength > 0;
+					const hasValidImageData =
+						selectedTrait.imageData && selectedTrait.imageData.byteLength > 0;
 
 					// Skip traits without valid image data (e.g., from persisted projects)
 					if (!hasValidImageData && !selectedTrait.imageUrl) {

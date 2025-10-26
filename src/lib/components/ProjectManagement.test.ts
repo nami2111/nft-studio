@@ -198,7 +198,9 @@ describe('ProjectManagement', () => {
 			await fireEvent.click(loadButton);
 
 			expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
-			expect(screen.getByTestId('loading-indicator')).toHaveTextContent('project-load: Loading project...');
+			expect(screen.getByTestId('loading-indicator')).toHaveTextContent(
+				'project-load: Loading project...'
+			);
 		});
 
 		it('shows progress bar when loading progress is available', async () => {
@@ -375,7 +377,9 @@ describe('ProjectManagement', () => {
 			await fireEvent.click(saveButton);
 
 			expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
-			expect(screen.getByTestId('loading-indicator')).toHaveTextContent('project-save: Saving project...');
+			expect(screen.getByTestId('loading-indicator')).toHaveTextContent(
+				'project-save: Saving project...'
+			);
 		});
 
 		it('shows progress bar when saving progress is available', async () => {
@@ -622,7 +626,9 @@ describe('ProjectManagement', () => {
 			// Mock the file input element to track value changes
 			Object.defineProperty(fileInput, 'value', {
 				get: () => fileInput._value || '',
-				set: (value) => { fileInput._value = value; }
+				set: (value) => {
+					fileInput._value = value;
+				}
 			});
 
 			await fireEvent.change(fileInput, { target: { files: [mockFile] } });

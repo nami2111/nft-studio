@@ -384,7 +384,8 @@
 		// Helper function to show "needs re-upload" indicator
 		function showNeedsReupload(container: HTMLElement) {
 			const needsReuploadDiv = document.createElement('div');
-			needsReuploadDiv.className = 'flex h-full flex-col items-center justify-center p-2 text-center';
+			needsReuploadDiv.className =
+				'flex h-full flex-col items-center justify-center p-2 text-center';
 			needsReuploadDiv.innerHTML = `
 				<div class="text-muted-foreground mb-2">
 					<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

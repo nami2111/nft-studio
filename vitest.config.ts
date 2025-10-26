@@ -23,15 +23,15 @@ export default defineConfig({
 		},
 		// Mock global APIs that are not available in jsdom
 		define: {
-			'global': 'globalThis',
-			'window': 'globalThis',
-			'document': 'globalThis.document',
-			'navigator': 'globalThis.navigator'
+			global: 'globalThis',
+			window: 'globalThis',
+			document: 'globalThis.document',
+			navigator: 'globalThis.navigator'
 		}
 	},
 	// Handle worker mocking for tests
 	define: {
-		'global': 'globalThis'
+		global: 'globalThis'
 	},
 	optimizeDeps: {
 		esbuildOptions: {
