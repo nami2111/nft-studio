@@ -35,3 +35,10 @@ export function trackGenerationCompleted(collectionSize: number, durationSeconds
 		duration_seconds: durationSeconds.toString()
 	});
 }
+
+/**
+ * Track Gallery Mode page visit
+ */
+export function trackGalleryPageVisit(): void {
+	trackAnalyticsEvent('gallery_page_visit');
+}

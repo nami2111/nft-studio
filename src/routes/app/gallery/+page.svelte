@@ -3,6 +3,9 @@
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import type { GalleryNFT } from '$lib/types/gallery';
+	import {
+		trackGalleryPageVisit
+	} from '$lib/utils/analytics';
 
 	let isLoading = $derived(galleryStore.isLoading);
 	let collections = $derived(galleryStore.collections);
@@ -179,6 +182,7 @@
 	// Clear cache on page load/reload
 	onMount(() => {
 		galleryStore.clearGallery();
+		trackGalleryPageVisit();
 	});
 
 	// Toggle dropdown and calculate position
