@@ -837,7 +837,17 @@
 
 	<!-- Portal for mobile dropdown - placed at root level -->
 	{#if sortDropdownOpen}
-		<div class="fixed inset-0 z-[9999]" onmousedown={() => sortDropdownOpen = false}>
+		<div
+			class="fixed inset-0 z-[9999]"
+			role="button"
+			tabindex="0"
+			onmousedown={() => sortDropdownOpen = false}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					sortDropdownOpen = false;
+				}
+			}}
+		>
 			<!-- Backdrop to close dropdown when clicking outside -->
 		</div>
 		<div
