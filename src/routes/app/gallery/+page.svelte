@@ -14,6 +14,10 @@
 	// Search and filter state
 	let searchQuery = $state('');
 	let selectedSort = $state<'name-asc' | 'name-desc' | 'rarity-asc' | 'rarity-desc'>('rarity-asc');
+	let sortDropdownOpen = $state(false);
+	let sortButtonRef = $state<HTMLButtonElement | null>(null);
+	let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
+	let selectedTraits = $state<Record<string, string[]>>({});
 	// Local filtering and sorting
 	let filteredNFTs = $derived.by(() => {
 		if (!selectedCollection) return [];
@@ -99,33 +103,8 @@
 		return result;
 	});
 
-	let selectedTraits = $state<{ [layer: string]: string[] }>({});
-
-	function toggleTrait(layer: string, value: string) {
-		if (!selectedTraits[layer]) {
-			selectedTraits[layer] = [];
-		}
-
-		const index = selectedTraits[layer].indexOf(value);
-		if (index > -1) {
-			selectedTraits[layer] = selectedTraits[layer].filter((_, i) => i !== index);
-			if (selectedTraits[layer].length === 0) {
-				selectedTraits = { ...selectedTraits };
-				delete selectedTraits[layer];
-			}
-		} else {
-			selectedTraits[layer] = [...selectedTraits[layer], value];
-		}
-
-		selectedTraits = { ...selectedTraits };
-	}
-
-	function clearFilters() {
-		searchQuery = '';
-		selectedTraits = {};
-		selectedSort = 'rarity-asc';
-	}
-
+	
+	
 	// Track Object URLs for cleanup
 	const objectUrls = new Set<string>();
 
@@ -164,7 +143,6 @@
 	}
 
 	function selectNFT(nft: GalleryNFT) {
-		console.log('Selected NFT:', nft.name);
 		galleryStore.setSelectedNFT(nft);
 	}
 
@@ -172,10 +150,67 @@
 		galleryStore.setSelectedCollection(collection);
 	}
 
+	// Toggle trait filter when clicking on traits in NFT details
+	function toggleTraitFilter(layer: string, trait: string) {
+		if (!selectedTraits[layer]) {
+			selectedTraits[layer] = [];
+		}
+
+		const index = selectedTraits[layer].indexOf(trait);
+		if (index > -1) {
+			// Remove trait if already selected
+			selectedTraits[layer].splice(index, 1);
+			if (selectedTraits[layer].length === 0) {
+				delete selectedTraits[layer];
+			}
+		} else {
+			// Add trait if not selected
+			selectedTraits[layer].push(trait);
+		}
+	}
+
+	// Clear all filters
+	function clearFilters() {
+		searchQuery = '';
+		selectedSort = 'rarity-asc';
+		selectedTraits = {};
+	}
+
 	// Clear cache on page load/reload
 	onMount(() => {
-		console.log('Gallery page loaded - clearing cache...');
 		galleryStore.clearGallery();
+	});
+
+	// Toggle dropdown and calculate position
+	function toggleSortDropdown() {
+		if (!sortDropdownOpen && sortButtonRef) {
+			const rect = sortButtonRef.getBoundingClientRect();
+			const scrollY = window.scrollY;
+			dropdownPosition = {
+				top: rect.bottom + scrollY + 4, // Add scroll position and gap
+				left: rect.left,
+				width: rect.width
+			};
+		}
+		sortDropdownOpen = !sortDropdownOpen;
+	}
+
+	// Close dropdown when clicking outside
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as Element;
+		if (!target.closest('.sort-dropdown-container')) {
+			sortDropdownOpen = false;
+		}
+	}
+
+	// Add/remove event listener for click outside
+	$effect(() => {
+		if (sortDropdownOpen) {
+			document.addEventListener('click', handleClickOutside);
+			return () => {
+				document.removeEventListener('click', handleClickOutside);
+			};
+		}
 	});
 </script>
 
@@ -259,16 +294,27 @@
 								bind:value={searchQuery}
 								class="focus:ring-primary w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 							/>
-							<div class="flex gap-2">
-								<select
-									bind:value={selectedSort}
-									class="focus:ring-primary flex-1 rounded-md border px-2 py-2 text-sm focus:ring-2 focus:outline-none"
-								>
-									<option value="name-asc">Name (A-Z)</option>
-									<option value="name-desc">Name (Z-A)</option>
-									<option value="rarity-asc">Rarity (Low to High)</option>
-									<option value="rarity-desc">Rarity (High to Low)</option>
-								</select>
+							<div class="flex gap-2 relative">
+								<!-- Custom Sort Dropdown -->
+								<div class="flex-1 relative sort-dropdown-container">
+									<button
+										bind:this={sortButtonRef}
+										type="button"
+										onclick={toggleSortDropdown}
+										class="focus:ring-primary flex w-full justify-between rounded-md border px-2 py-2 text-sm focus:ring-2 focus:outline-none"
+									>
+										<span>
+											{#if selectedSort === 'name-asc'}Name (A-Z)
+											{:else if selectedSort === 'name-desc'}Name (Z-A)
+											{:else if selectedSort === 'rarity-asc'}Rarity (Low to High)
+											{:else if selectedSort === 'rarity-desc'}Rarity (High to Low)
+											{/if}
+										</span>
+										<span class="text-muted-foreground">▼</span>
+									</button>
+
+									</div>
+
 								<button
 									type="button"
 									onclick={clearFilters}
@@ -291,12 +337,18 @@
 												{#each values.slice(0, 6) as value}
 													<button
 														type="button"
-														onclick={() => toggleTrait(layer, value)}
-														class="rounded border px-2 py-1 text-xs transition-colors {selectedTraits[layer]?.includes(value)
-															? 'bg-primary text-primary-foreground border-primary'
-															: 'hover:bg-muted border-border'}"
+														onclick={() => toggleTraitFilter(layer, value)}
+														class="rounded border px-2 py-1 text-xs transition-all {selectedTraits[layer]?.includes(value)
+															? 'bg-primary text-primary-foreground border-primary shadow-sm'
+															: 'hover:bg-muted border-border text-foreground'}"
+														title="{selectedTraits[layer]?.includes(value) ? 'Remove filter' : 'Filter by this trait'}"
 													>
 														{value}
+														{#if selectedTraits[layer]?.includes(value)}
+															<span class="ml-1 font-bold">✓</span>
+														{:else}
+															<span class="ml-1 text-muted-foreground">+</span>
+														{/if}
 													</button>
 												{/each}
 												{#if values.length > 6}
@@ -416,14 +468,33 @@
 
 								<!-- Traits - Mobile -->
 								{#if selectedNFT.metadata.traits && selectedNFT.metadata.traits.length > 0}
-									<div class="mt-2 flex flex-wrap gap-1">
-										{#each selectedNFT.metadata.traits.slice(0, 4) as trait}
-											<span class="bg-muted/70 rounded px-2 py-1 text-xs">
-												{trait.layer || (trait as any).trait_type}: {trait.trait || (trait as any).value}
-											</span>
-										{/each}
-										{#if selectedNFT.metadata.traits.length > 4}
-											<span class="text-xs text-muted-foreground">+{selectedNFT.metadata.traits.length - 4} more</span>
+									<div class="mt-2">
+										<div class="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
+											{#each selectedNFT.metadata.traits as trait}
+												{@const layer = trait.layer || (trait as any).trait_type}
+												{@const traitValue = trait.trait || (trait as any).value}
+												{@const isSelected = selectedTraits[layer]?.includes(traitValue)}
+												<button
+													type="button"
+													class="rounded-full px-2 py-0.5 text-xs cursor-pointer transition-all flex-shrink-0 {isSelected
+														? 'bg-primary text-primary-foreground shadow-sm'
+														: 'bg-muted/70 hover:bg-muted text-foreground'}"
+													onclick={() => toggleTraitFilter(layer, traitValue)}
+													title="{isSelected ? 'Remove filter' : 'Filter by this trait'}"
+												>
+													{traitValue}
+													{#if isSelected}
+														<span class="ml-1 font-bold">✓</span>
+													{:else}
+														<span class="ml-1 text-muted-foreground">+</span>
+													{/if}
+												</button>
+											{/each}
+										</div>
+										{#if Object.keys(selectedTraits).length > 0}
+											<div class="mt-1 text-xs text-muted-foreground">
+												{Object.values(selectedTraits).flat().length} filter{Object.values(selectedTraits).flat().length !== 1 ? 's' : ''} active
+											</div>
 										{/if}
 									</div>
 								{/if}
@@ -495,14 +566,20 @@
 														{#each values as value}
 															<button
 																type="button"
-																onclick={() => toggleTrait(layer, value)}
-																class="rounded border px-2 py-1 text-xs transition-colors {selectedTraits[
+																onclick={() => toggleTraitFilter(layer, value)}
+																class="rounded border px-2 py-1 text-xs transition-all {selectedTraits[
 																	layer
 																]?.includes(value)
-																	? 'bg-primary text-primary-foreground border-primary'
-																	: 'hover:bg-muted border-border'}"
+																	? 'bg-primary text-primary-foreground border-primary shadow-sm'
+																	: 'hover:bg-muted border-border text-foreground'}"
+																title="{selectedTraits[layer]?.includes(value) ? 'Remove filter' : 'Filter by this trait'}"
 															>
 																{value}
+																{#if selectedTraits[layer]?.includes(value)}
+																	<span class="ml-1 font-bold">✓</span>
+																{:else}
+																	<span class="ml-1 text-muted-foreground">+</span>
+																{/if}
 															</button>
 														{/each}
 													</div>
@@ -579,7 +656,7 @@
 
 				<!-- Right: Fixed Stats and Details Panel (30% width) -->
 				<div
-					class="border-border bg-background/95 fixed top-[calc(120px+144px)] right-0 h-[calc(100vh)] w-[30%] border-l backdrop-blur"
+					class="border-border bg-background/95 fixed top-[calc(120px+144px)] right-0 h-[calc(130vh)] w-[30%] border-l backdrop-blur"
 				>
 					<!-- Collection Selector -->
 					{#if collections.length > 1}
@@ -639,7 +716,7 @@
 
 					<!-- NFT Details -->
 					{#if selectedNFT}
-						<div class="h-full overflow-y-auto p-4">
+						<div class="h-[calc(110vh-144px)] overflow-y-auto p-4">
 							<h3 class="mb-4 font-semibold">NFT Details</h3>
 
 							<!-- NFT Image -->
@@ -680,22 +757,51 @@
 							<!-- Traits -->
 							{#if selectedNFT.metadata.traits && selectedNFT.metadata.traits.length > 0}
 								<div class="mb-4">
-									<div class="mb-3 font-medium">Traits</div>
+									<div class="mb-3 font-medium">Traits (click to filter)</div>
 									<div class="space-y-2">
 										{#each selectedNFT.metadata.traits as trait}
-											<div class="bg-muted/30 flex items-center justify-between rounded p-2 text-sm">
-												<div>
-													<span class="font-medium">{trait.layer || (trait as any).trait_type}:</span>
-													<span class="ml-2">{trait.trait || (trait as any).value}</span>
+											{@const layer = trait.layer || (trait as any).trait_type}
+											{@const traitValue = trait.trait || (trait as any).value}
+											{@const isSelected = selectedTraits[layer]?.includes(traitValue)}
+											<button
+												type="button"
+												class="flex items-center justify-between rounded p-2 text-sm cursor-pointer transition-all w-full text-left {isSelected
+													? 'bg-primary text-primary-foreground shadow-md ring-2 ring-primary/50'
+													: 'bg-muted/30 hover:bg-muted/50 text-foreground'}"
+												onclick={() => toggleTraitFilter(layer, traitValue)}
+												onkeydown={(e) => {
+													if (e.key === 'Enter' || e.key === ' ') {
+														e.preventDefault();
+														toggleTraitFilter(layer, traitValue);
+													}
+												}}
+												title="{isSelected ? 'Click to remove filter' : 'Click to filter by this trait'}"
+											>
+												<div class="flex items-center gap-2">
+													<div class="h-2 w-2 rounded-full {isSelected ? 'bg-primary-foreground' : 'bg-muted-foreground'}"></div>
+													<span class="font-medium">{layer}:</span>
+													<span class="{isSelected ? 'text-primary-foreground' : ''}">{traitValue}</span>
 												</div>
-												{#if trait.rarity}
-													<span class="text-muted-foreground bg-background rounded px-2 py-1 text-xs"
-														>{trait.rarity}%</span
-													>
-												{/if}
-											</div>
+												<div class="flex items-center gap-2">
+													{#if trait.rarity}
+														<span class="{isSelected ? 'text-primary-foreground bg-primary-foreground/20' : 'text-muted-foreground bg-background'} rounded px-2 py-1 text-xs"
+															>{trait.rarity}%</span
+														>
+													{/if}
+													{#if isSelected}
+														<span class="text-primary-foreground text-xs font-bold">✓</span>
+													{:else}
+														<span class="text-muted-foreground text-xs">+</span>
+													{/if}
+												</div>
+											</button>
 										{/each}
 									</div>
+									{#if Object.keys(selectedTraits).length > 0}
+										<div class="mt-3 text-xs text-muted-foreground">
+											{Object.values(selectedTraits).flat().length} trait{Object.values(selectedTraits).flat().length !== 1 ? 's' : ''} selected
+										</div>
+									{/if}
 								</div>
 							{/if}
 						</div>
@@ -713,5 +819,45 @@
 			</div>
 		</div>
 	{/if}
+	{/if}
+
+	<!-- Portal for mobile dropdown - placed at root level -->
+	{#if sortDropdownOpen}
+		<div class="fixed inset-0 z-[9999]" onmousedown={() => sortDropdownOpen = false}>
+			<!-- Backdrop to close dropdown when clicking outside -->
+		</div>
+		<div
+			class="fixed z-[10000] rounded-md border border-border shadow-lg"
+			style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; width: {dropdownPosition.width}px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);"
+		>
+			<button
+				type="button"
+				onclick={() => { selectedSort = 'name-asc'; sortDropdownOpen = false; }}
+				class="w-full rounded-t-md px-3 py-2 text-left text-sm hover:bg-muted {selectedSort === 'name-asc' ? 'bg-primary text-primary-foreground' : ''}"
+			>
+				Name (A-Z)
+			</button>
+			<button
+				type="button"
+				onclick={() => { selectedSort = 'name-desc'; sortDropdownOpen = false; }}
+				class="w-full px-3 py-2 text-left text-sm hover:bg-muted {selectedSort === 'name-desc' ? 'bg-primary text-primary-foreground' : ''}"
+			>
+				Name (Z-A)
+			</button>
+			<button
+				type="button"
+				onclick={() => { selectedSort = 'rarity-asc'; sortDropdownOpen = false; }}
+				class="w-full px-3 py-2 text-left text-sm hover:bg-muted {selectedSort === 'rarity-asc' ? 'bg-primary text-primary-foreground' : ''}"
+			>
+				Rarity (Low to High)
+			</button>
+			<button
+				type="button"
+				onclick={() => { selectedSort = 'rarity-desc'; sortDropdownOpen = false; }}
+				class="w-full rounded-b-md px-3 py-2 text-left text-sm hover:bg-muted {selectedSort === 'rarity-desc' ? 'bg-primary text-primary-foreground' : ''}"
+			>
+				Rarity (High to Low)
+			</button>
+		</div>
 	{/if}
 </div>
