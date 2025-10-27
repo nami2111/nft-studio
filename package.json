@@ -31,6 +31,7 @@
 		"@junobuild/vite-plugin": "^4.3.0",
 		"@lucide/svelte": "^0.544.0",
 		"@sveltejs/adapter-static": "^3.0.10",
+		"@sveltejs/enhanced-img": "^0.8.4",
 		"@sveltejs/kit": "^2.47.0",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
 		"@tailwindcss/postcss": "^4.1.14",
@@ -70,10 +71,12 @@
 		"cookie": "^0.7.0"
 	},
 	"dependencies": {
+		"@humanspeak/svelte-virtual-list": "^0.3.5",
 		"@junobuild/analytics": "^0.2.8",
 		"@junobuild/core": "^2.2.0",
 		"@junobuild/functions": "^0.2.7",
 		"bits-ui": "^2.11.7",
+		"idb": "^8.0.3",
 		"jszip": "^3.10.1",
 		"lucide-svelte": "^0.544.0",
 		"svelte-dnd-action": "^0.9.65",

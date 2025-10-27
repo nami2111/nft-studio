@@ -3,7 +3,6 @@
  * Uses Svelte 5 runes and IndexedDB for persistence
  */
 
-// Using localStorage directly instead of svelte-persisted-store for simplicity
 import type {
 	GalleryNFT,
 	GalleryCollection,
@@ -12,6 +11,16 @@ import type {
 	GallerySortOption
 } from '$lib/types/gallery';
 import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
+import {
+	initGalleryDB,
+	saveCollection,
+	getCollection,
+	getAllCollections,
+	deleteCollection,
+	clearAllCollections,
+	getStorageEstimate
+} from '$lib/utils/gallery-db';
+import { imageUrlCache } from '$lib/utils/object-url-cache';
 
 // Gallery store with Svelte 5 runes
 class GalleryStore {
@@ -164,12 +173,14 @@ class GalleryStore {
 		}
 	}
 
-	removeCollection(id: string) {
+	async removeCollection(id: string) {
 		this._state.collections = this._state.collections.filter((c) => c.id !== id);
 		if (this._state.selectedCollection?.id === id) {
 			this._state.selectedCollection = null;
 			this._state.selectedNFT = null;
 		}
+		// Delete from IndexedDB
+		await deleteCollection(id);
 		this.saveToIndexedDB();
 	}
 
@@ -198,18 +209,28 @@ class GalleryStore {
 	// Database operations
 	private async saveToIndexedDB() {
 		try {
-			// Simple implementation using localStorage for now
-			// In production, this would use IndexedDB for better performance
-			localStorage.setItem(
-				'nft-studio-gallery-collections',
-				JSON.stringify(this._state.collections)
-			);
+			// Initialize IndexedDB if not already done
+			await initGalleryDB();
 
-			// Save selected collection ID for persistence across page refreshes
+			// Save each collection individually to IndexedDB
+			// This is more efficient than storing everything in one large object
+			for (const collection of this._state.collections) {
+				await saveCollection(collection);
+			}
+
+			// Save selected collection ID to localStorage (small, safe)
 			if (this._state.selectedCollection) {
 				localStorage.setItem('nft-studio-gallery-selected-collection', this._state.selectedCollection.id);
 			} else {
 				localStorage.removeItem('nft-studio-gallery-selected-collection');
+			}
+
+			// Log storage usage for monitoring
+			const estimate = await getStorageEstimate();
+			if (estimate.quota > 0) {
+				const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+				const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
+				console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`);
 			}
 		} catch (error) {
 			console.error('Failed to save gallery data:', error);
@@ -220,19 +241,30 @@ class GalleryStore {
 	async loadFromIndexedDB() {
 		try {
 			this.setLoading(true);
-			const stored = localStorage.getItem('nft-studio-gallery-collections');
-			if (stored) {
-				const collections = JSON.parse(stored) as GalleryCollection[];
-				this._state.collections = collections;
 
-				// Restore selected collection if it exists
-				const selectedCollectionId = localStorage.getItem('nft-studio-gallery-selected-collection');
-				if (selectedCollectionId) {
-					const selectedCollection = collections.find(c => c.id === selectedCollectionId);
-					if (selectedCollection) {
-						this._state.selectedCollection = selectedCollection;
-					}
+			// Load all collections from IndexedDB
+			const collections = await getAllCollections();
+			this._state.collections = collections;
+
+			// Set cache strategy based on total NFT count
+			const totalNFTs = collections.reduce((sum, collection) => sum + collection.nfts.length, 0);
+			imageUrlCache.setCollectionSize(totalNFTs);
+
+			// Restore selected collection if it exists (stored in localStorage)
+			const selectedCollectionId = localStorage.getItem('nft-studio-gallery-selected-collection');
+			if (selectedCollectionId) {
+				const selectedCollection = collections.find(c => c.id === selectedCollectionId);
+				if (selectedCollection) {
+					this._state.selectedCollection = selectedCollection;
 				}
+			}
+
+			// Log storage usage for monitoring
+			const estimate = await getStorageEstimate();
+			if (estimate.quota > 0) {
+				const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+				const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
+				console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`);
 			}
 		} catch (error) {
 			console.error('Failed to load gallery data:', error);
@@ -268,6 +300,9 @@ class GalleryStore {
 			generatedAt: new Date(),
 			totalSupply: nfts.length
 		};
+
+		// Set cache strategy based on collection size
+		imageUrlCache.setCollectionSize(nfts.length);
 
 		// Calculate rarity using proper algorithm
 		const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
@@ -310,6 +345,9 @@ class GalleryStore {
 			totalSupply: nfts.length
 		};
 
+		// Set cache strategy based on collection size
+		imageUrlCache.setCollectionSize(nfts.length);
+
 		// Calculate rarity using proper algorithm
 		const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
 		this.addCollection(updatedCollection);
@@ -339,6 +377,10 @@ class GalleryStore {
 
 		collection.nfts.push(...newNFTs);
 		collection.totalSupply = collection.nfts.length;
+
+		// Update cache strategy based on new collection size
+		imageUrlCache.setCollectionSize(collection.nfts.length);
+
 		this.saveToIndexedDB();
 
 		return collection;
@@ -392,12 +434,12 @@ class GalleryStore {
 	}
 
 	// Utility methods
-	clearGallery() {
+	async clearGallery() {
 		this._state.collections = [];
 		this._state.selectedNFT = null;
 		this._state.selectedCollection = null;
-		// Clear localStorage directly since we're clearing everything
-		localStorage.removeItem('nft-studio-gallery-collections');
+		// Clear IndexedDB and localStorage
+		await clearAllCollections();
 		localStorage.removeItem('nft-studio-gallery-selected-collection');
 	}
 
