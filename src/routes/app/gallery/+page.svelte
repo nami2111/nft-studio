@@ -3,9 +3,9 @@
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import type { GalleryNFT } from '$lib/types/gallery';
-	import {
-		trackGalleryPageVisit
-	} from '$lib/utils/analytics';
+	import { trackGalleryPageVisit } from '$lib/utils/analytics';
+	import { imageUrlCache } from '$lib/utils/object-url-cache';
+	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
 
 	let isLoading = $derived(galleryStore.isLoading);
 	let collections = $derived(galleryStore.collections);
@@ -138,10 +138,8 @@
 
 	function forceClearCache() {
 		console.log('Force clearing gallery cache...');
-		// Clear gallery store state directly (this also handles localStorage)
 		galleryStore.clearGallery();
-
-		// Force reload the page
+		imageUrlCache.clear();
 		window.location.reload();
 	}
 
@@ -381,57 +379,16 @@
 					</div>
 				</div>
 
-				<!-- NFT Grid - Mobile -->
+				<!-- NFT Grid - Mobile with Virtual Scrolling -->
 				<div class="overflow-y-auto p-2" style="max-height: calc(100vh - 300px);">
-					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
-						{#each filteredNFTs as nft}
-							<button
-								type="button"
-								class="group bg-muted/50 hover:border-primary relative aspect-square cursor-pointer overflow-hidden rounded border transition-colors {selectedNFT?.id === nft.id
-									? 'ring-primary ring-2'
-									: ''}"
-								onclick={() => selectNFT(nft)}
-							>
-								{#if nft.imageData && nft.imageData.byteLength > 0}
-									<img
-										src={createObjectUrl(nft.imageData)}
-										alt={nft.name}
-										class="h-full w-full object-cover"
-										onerror={(e) => {
-											const target = e.target as HTMLImageElement;
-											target.style.display = 'none';
-											target.nextElementSibling &&
-												((target.nextElementSibling as HTMLElement).style.display = 'flex');
-										}}
-									/>
-									<div
-										class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-1 text-xs"
-										style="display: none;"
-									>
-										<div class="text-center">
-											<div>✕</div>
-										</div>
-									</div>
-								{:else}
-									<div
-										class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center text-xs"
-									>
-										<div class="text-center">
-											<div>No Img</div>
-										</div>
-									</div>
-								{/if}
-								<div
-									class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
-								>
-									<div class="absolute right-0 bottom-0 left-0 p-1 text-white">
-										<div class="truncate text-xs font-medium">{nft.name}</div>
-										<div class="text-xs opacity-80">#{nft.rarityRank}</div>
-									</div>
-								</div>
-							</button>
-						{/each}
-					</div>
+					<SimpleVirtualGrid
+						nfts={filteredNFTs}
+						selectedNFT={selectedNFT}
+						onselect={selectNFT}
+						columns={3}
+						itemHeight={150}
+						gap={8}
+					/>
 				</div>
 
 				<!-- Mobile NFT Details Panel -->
@@ -453,7 +410,7 @@
 							<div class="flex-shrink-0 w-24 h-24 bg-muted rounded overflow-hidden">
 								{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
 									<img
-										src={createObjectUrl(selectedNFT.imageData)}
+										src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
 										alt={selectedNFT.name}
 										class="h-full w-full object-contain"
 									/>
@@ -604,60 +561,17 @@
 							</div>
 						</div>
 
-						<!-- NFT Grid (scrollable) -->
-						<div class="overflow-y-auto p-3 sm:p-4 lg:p-6" style="max-height: calc(125vh - 320px);">
-							<div
-								class="grid grid-cols-4 gap-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8"
-							>
-								{#each filteredNFTs as nft}
-									<button
-										type="button"
-										class="group bg-muted/50 hover:border-primary relative aspect-[4/5] cursor-pointer overflow-hidden rounded-lg border transition-colors {selectedNFT?.id ===
-										nft.id
-											? 'ring-primary ring-2'
-											: ''}"
-										onclick={() => selectNFT(nft)}
-									>
-										{#if nft.imageData && nft.imageData.byteLength > 0}
-											<img
-												src={createObjectUrl(nft.imageData)}
-												alt={nft.name}
-												class="h-full w-full object-cover"
-												onerror={(e) => {
-													const target = e.target as HTMLImageElement;
-													target.style.display = 'none';
-													target.nextElementSibling &&
-														((target.nextElementSibling as HTMLElement).style.display = 'flex');
-												}}
-											/>
-											<div
-												class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-2 text-xs"
-												style="display: none;"
-											>
-												<div class="text-center">
-													<div>Image Error</div>
-												</div>
-											</div>
-										{:else}
-											<div
-												class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
-											>
-												<div class="text-center">
-													<div>No Image</div>
-												</div>
-											</div>
-										{/if}
-										<div
-											class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
-										>
-											<div class="absolute right-0 bottom-0 left-0 p-1 text-white">
-												<div class="truncate text-xs font-medium">{nft.name}</div>
-												<div class="text-xs opacity-80">#{nft.rarityRank}</div>
-											</div>
-										</div>
-									</button>
-								{/each}
-							</div>
+						<!-- NFT Grid with Virtual Scrolling -->
+						<div class="overflow-y-auto" style="max-height: calc(125vh - 320px);">
+							<SimpleVirtualGrid
+								nfts={filteredNFTs}
+								selectedNFT={selectedNFT}
+								onselect={selectNFT}
+								columns={6}
+								itemHeight={200}
+								gap={12}
+								class="p-3 sm:p-4 lg:p-6"
+							/>
 						</div>
 					{/if}
 				</div>
@@ -733,7 +647,7 @@
 							>
 								{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
 									<img
-										src={createObjectUrl(selectedNFT.imageData)}
+										src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
 										alt={selectedNFT.name}
 										class="h-full w-full object-contain"
 									/>

@@ -78,6 +78,7 @@
 		"lucide-svelte": "^0.544.0",
 		"svelte-dnd-action": "^0.9.65",
 		"svelte-headlessui": "^0.0.46",
+		"svelte-virtual": "^0.6.3",
 		"zod": "^4.1.12"
 	}
 }

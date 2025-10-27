@@ -32,6 +32,9 @@ importers:
       svelte-headlessui:
         specifier: ^0.0.46
         version: 0.0.46(svelte@5.40.1)
+      svelte-virtual:
+        specifier: ^0.6.3
+        version: 0.6.3(svelte@5.40.1)
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -3324,6 +3327,12 @@ packages:
     engines: {node: '>=18', pnpm: '>=8.7.0'}
     peerDependencies:
       svelte: ^5.0.0
+
+  svelte-virtual@0.6.3:
+    resolution: {integrity: sha512-vH82tAAdqjNumSssUwQ7UUQx5mxkiyPtpIs1WUpGq5PzQUDtffr3ffaPuKUuE5DKZe0L7PE1K4vGwIdPs777og==}
+    engines: {pnpm: '>=7'}
+    peerDependencies:
+      svelte: ^3.54.0 || ^4.0.0
 
   svelte@5.40.1:
     resolution: {integrity: sha512-0R3t2oiLxJNJb2buz61MNfPdkjeyj2qTCM7TtIv/4ZfF12zD7Ig8iIo+C8febroy+9S4QJ7qfijtearSdO/1ww==}
@@ -7122,6 +7131,10 @@ snapshots:
       clsx: 2.1.1
       runed: 0.23.4(svelte@5.40.1)
       style-to-object: 1.0.11
+      svelte: 5.40.1
+
+  svelte-virtual@0.6.3(svelte@5.40.1):
+    dependencies:
       svelte: 5.40.1
 
   svelte@5.40.1:
