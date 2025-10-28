@@ -41,6 +41,6 @@
 		class="flex items-center gap-2 {className}"
 	>
 		{@html currentMode.icon}
-		<span class="hidden sm:inline ml-2">{currentMode.name}</span>
+		<span class="ml-2 hidden sm:inline">{currentMode.name}</span>
 	</Button>
 </div>

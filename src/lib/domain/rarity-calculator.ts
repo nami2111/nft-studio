@@ -203,13 +203,11 @@ export function findNFTsWithTraits(
 ): GalleryNFT[] {
 	return collection.nfts.filter((nft) => {
 		return requiredTraits.every((required) => {
-			return nft.metadata.traits.some(
-				(trait) => {
-					const layer = trait.layer || (trait as any).trait_type;
-					const traitValue = trait.trait || (trait as any).value;
-					return layer === required.layer && traitValue === required.trait;
-				}
-			);
+			return nft.metadata.traits.some((trait) => {
+				const layer = trait.layer || (trait as any).trait_type;
+				const traitValue = trait.trait || (trait as any).value;
+				return layer === required.layer && traitValue === required.trait;
+			});
 		});
 	});
 }
@@ -218,16 +216,20 @@ export function findNFTsWithTraits(
  * Calculate similarity between two NFTs based on traits
  */
 export function calculateNFTSimilarity(nft1: GalleryNFT, nft2: GalleryNFT): number {
-	const traits1 = new Set(nft1.metadata.traits.map((t) => {
-		const layer = t.layer || (t as any).trait_type;
-		const traitValue = t.trait || (t as any).value;
-		return `${layer}:${traitValue}`;
-	}));
-	const traits2 = new Set(nft2.metadata.traits.map((t) => {
-		const layer = t.layer || (t as any).trait_type;
-		const traitValue = t.trait || (t as any).value;
-		return `${layer}:${traitValue}`;
-	}));
+	const traits1 = new Set(
+		nft1.metadata.traits.map((t) => {
+			const layer = t.layer || (t as any).trait_type;
+			const traitValue = t.trait || (t as any).value;
+			return `${layer}:${traitValue}`;
+		})
+	);
+	const traits2 = new Set(
+		nft2.metadata.traits.map((t) => {
+			const layer = t.layer || (t as any).trait_type;
+			const traitValue = t.trait || (t as any).value;
+			return `${layer}:${traitValue}`;
+		})
+	);
 
 	const intersection = new Set([...traits1].filter((trait) => traits2.has(trait)));
 	const union = new Set([...traits1, ...traits2]);

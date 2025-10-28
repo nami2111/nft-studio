@@ -54,16 +54,19 @@ Normal traits allow any combination during generation. Ruler traits add a layer 
 ### Rule Types
 
 **Allowed Traits** (Green Badges):
+
 - These traits CAN appear when the ruler trait is selected
 - All other traits in the layer are forbidden by default
 
 **Forbidden Traits** (Red Badges):
+
 - These traits CANNOT appear when the ruler trait is selected
 - Explicitly blocks specific trait combinations
 
 ### Multiple Rules per Ruler
 
 You can create multiple compatibility rules for the same ruler trait:
+
 - **Cross-Layer Control**: One ruler can control multiple different layers
 - **Complex Logic**: Build sophisticated trait relationship systems
 - **Fine-Grained Control**: Precise control over trait combinations
@@ -76,6 +79,7 @@ You can create multiple compatibility rules for the same ruler trait:
 
 **Ruler Trait**: "Forest Background" (Background layer)
 **Rules for Accessories Layer**:
+
 - **Allowed**: Tree, Leaf, Mushroom, Flower, Animal
 - **Forbidden**: Metal, Tech, Urban, Neon
 
@@ -87,6 +91,7 @@ You can create multiple compatibility rules for the same ruler trait:
 
 **Ruler Trait**: "Golden Crown" (Head layer)
 **Rules for Accessories Layer**:
+
 - **Allowed**: Royal Scepter, Magic Wand
 - **Forbidden**: All other accessories
 
@@ -97,11 +102,13 @@ You can create multiple compatibility rules for the same ruler trait:
 **Scenario**: Character backgrounds determine available equipment
 
 **Ruler Traits**:
+
 - "Ninja Village" (Background layer)
 - "Wizard Tower" (Background layer)
 - "Dragon Lair" (Background layer)
 
 **Rules for Accessories Layer**:
+
 - **Ninja Village Rules**: Shuriken, Kunai, Smoke Bomb allowed
 - **Wizard Tower Rules**: Staff, Spellbook, Potion allowed
 - **Dragon Lair Rules**: Sword, Shield, Treasure allowed
@@ -127,14 +134,17 @@ You can create multiple compatibility rules for the same ruler trait:
 ### Common Patterns
 
 **Background-Driven Rules**: Most common pattern, backgrounds control accessories
+
 - Pros: Easy to understand, creates clear themes
 - Cons: Limited to background layer influence
 
 **Character-Driven Rules**: Character traits control accessories
+
 - Pros: More flexible, enables character-based storytelling
 - Cons: More complex to manage multiple character types
 
 **Cross-Layer Rules**: Multiple rulers controlling different layers
+
 - Pros: Maximum flexibility, sophisticated combinations
 - Cons: Complex to debug, requires careful planning
 
@@ -150,6 +160,7 @@ You can create multiple compatibility rules for the same ruler trait:
 ### Preview Validation
 
 The preview system automatically:
+
 - **Filters Options**: Shows only compatible trait combinations
 - **Highlights Conflicts**: Displays warnings about incompatible selections
 - **Updates in Real-Time**: Changes to ruler rules immediately affect available options
@@ -167,6 +178,7 @@ The system handles complex rule scenarios:
 ### Export and Import
 
 Ruler trait settings are preserved when:
+
 - **Exporting Projects**: Rules are included in ZIP export files
 - **Importing Projects**: Ruler configurations are restored
 - **Saving Projects**: All ruler settings are saved to browser storage
@@ -182,21 +194,25 @@ Ruler trait settings are preserved when:
 ### Common Issues
 
 **No Traits Available After Selecting Ruler**:
+
 - Check if ruler rules are configured correctly
 - Ensure some traits are marked as "allowed" in the target layer
 - Verify the ruler trait is actually selected in the layer
 
 **Generation Takes Too Long**:
+
 - Complex ruler rules may slow down generation
 - Consider simplifying rule logic
 - Test with smaller collection sizes first
 
 **Unexpected Trait Combinations**:
+
 - Review all active ruler rules for conflicts
 - Check if multiple rulers are creating contradictory requirements
 - Use preview mode to test rule effectiveness
 
 **Rules Not Applying**:
+
 - Verify trait type is set to "ruler" (check crown icon)
 - Ensure rules are saved (click "Add Rule" button)
 - Refresh the project to reload rule configurations
@@ -213,6 +229,7 @@ Ruler trait settings are preserved when:
 ### Rule Structure
 
 Each ruler rule contains:
+
 - **Layer ID**: Which layer the rule controls
 - **Allowed Traits**: List of trait IDs that are permitted
 - **Forbidden Traits**: List of trait IDs that are blocked
@@ -228,15 +245,17 @@ Each ruler rule contains:
 ### Data Format
 
 Ruler traits store rules in a structured format:
+
 ```typescript
 interface RulerRule {
-  layerId: string;
-  allowedTraits: string[];
-  forbiddenTraits: string[];
+	layerId: string;
+	allowedTraits: string[];
+	forbiddenTraits: string[];
 }
 ```
 
 This format enables:
+
 - **Efficient Storage**: Compact representation in browser storage
 - **Fast Lookups**: Quick rule evaluation during generation
 - **Easy Migration**: Compatible with project export/import
@@ -247,6 +266,7 @@ This format enables:
 ### Rarity Calculation
 
 Ruler traits work seamlessly with the rarity system:
+
 - **Normal Rarity**: Ruler traits have their own rarity like any other trait
 - **Rarity Impact**: Ruler rules affect the statistical distribution of traits
 - **Score Calculation**: Ruler trait scores included in overall NFT rarity scores

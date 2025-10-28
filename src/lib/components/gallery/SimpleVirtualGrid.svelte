@@ -79,7 +79,7 @@
 		// Check if we have a recent cached URL (within 1 second)
 		const now = Date.now();
 		const cached = urlCache.get(nft.id);
-		if (cached && (now - lastCacheClear) < 1000) {
+		if (cached && now - lastCacheClear < 1000) {
 			return cached;
 		}
 
@@ -162,16 +162,13 @@
 <div class={className}>
 	<!-- Debug info -->
 	{#if import.meta.env.DEV}
-		<div class="mb-2 text-xs text-muted-foreground">
-			Total: {nfts.length} | Showing: {visibleEnd - visibleStart} (indexes {visibleStart}-{visibleEnd}) | Container: {containerHeight.toFixed(0)}px
+		<div class="text-muted-foreground mb-2 text-xs">
+			Total: {nfts.length} | Showing: {visibleEnd - visibleStart} (indexes {visibleStart}-{visibleEnd})
+			| Container: {containerHeight.toFixed(0)}px
 		</div>
 	{/if}
 
-	<div
-		bind:this={scrollElement}
-		class="relative overflow-y-auto"
-		onscroll={handleScroll}
-	>
+	<div bind:this={scrollElement} class="relative overflow-y-auto" onscroll={handleScroll}>
 		<!-- Spacer for total height -->
 		<div style="height: {totalHeight}px; position: relative;">
 			<!-- Visible items -->
@@ -182,11 +179,14 @@
 				{#if nft}
 					<button
 						type="button"
-						class="group absolute bg-muted/50 hover:border-primary cursor-pointer overflow-hidden border transition-all hover:scale-105 {selectedNFT?.id ===
+						class="group bg-muted/50 hover:border-primary absolute cursor-pointer overflow-hidden border transition-all hover:scale-105 {selectedNFT?.id ===
 						nft.id
 							? 'ring-primary ring-2'
 							: ''}"
-						style="top: {row * rowHeight}px; left: {col * (100 / columns)}%; width: calc({100 / columns}% - {gap * (columns - 1) / columns}px); height: {itemHeight}px; {col > 0 ? `margin-left: ${gap}px;` : ''}"
+						style="top: {row * rowHeight}px; left: {col * (100 / columns)}%; width: calc({100 /
+							columns}% - {(gap * (columns - 1)) / columns}px); height: {itemHeight}px; {col > 0
+							? `margin-left: ${gap}px;`
+							: ''}"
 						onclick={() => handleNFTClick(nft)}
 					>
 						<!-- NFT Image -->
@@ -206,19 +206,43 @@
 										style="display: none;"
 									>
 										<div class="text-center">
-											<svg class="mx-auto h-6 w-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-												<path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+											<svg
+												class="mx-auto mb-1 h-6 w-6"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+													stroke-width="1"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+												/>
 											</svg>
 											<div>Image Unavailable</div>
-											<div class="text-xs opacity-70 mt-1">Loading failed</div>
+											<div class="mt-1 text-xs opacity-70">Loading failed</div>
 										</div>
 									</div>
 								{:else}
 									<!-- Show loading state when no URL is available -->
-									<div class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-2 text-xs flex">
+									<div
+										class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
+									>
 										<div class="text-center">
-											<svg class="mx-auto h-6 w-6 mb-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-												<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+											<svg
+												class="mx-auto mb-1 h-6 w-6 animate-spin"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+													stroke-width="1"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+												/>
 											</svg>
 											<div>Loading...</div>
 										</div>
@@ -226,10 +250,23 @@
 								{/if}
 							{:else}
 								<!-- Show placeholder/error state when no image is available -->
-								<div class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-2 text-xs flex">
+								<div
+									class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
+								>
 									<div class="text-center">
-										<svg class="mx-auto h-6 w-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-											<path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+										<svg
+											class="mx-auto mb-1 h-6 w-6"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+										>
+											<path
+												d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+												stroke-width="1"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
 										</svg>
 										<div>No Image</div>
 									</div>
@@ -239,7 +276,7 @@
 
 						<!-- Rarity Badge -->
 						<div class="absolute top-1 right-1">
-							<span class="text-[10px] font-semibold px-1 py-0.5 rounded bg-black/70 text-white">
+							<span class="rounded bg-black/70 px-1 py-0.5 text-[10px] font-semibold text-white">
 								#{nft.rarityRank}
 							</span>
 						</div>

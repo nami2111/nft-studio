@@ -5,6 +5,7 @@ Gallery Mode provides a powerful interface for viewing, filtering, and managing 
 ## Overview
 
 Gallery Mode allows you to:
+
 - Import existing NFT collections from ZIP files
 - View collections with advanced filtering and search
 - Use interactive trait filtering for precise exploration
@@ -56,6 +57,7 @@ Expected structure:
 ### Collection Statistics
 
 For each collection, you can see:
+
 - **Total NFTs**: Number of NFTs in the collection
 - **Rarest NFT**: The NFT with the highest rarity score
 - **Average Score**: Mean rarity score across all NFTs
@@ -159,21 +161,25 @@ Gallery Mode features revolutionary interactive trait filtering:
 ### Common Issues
 
 **Import Fails**:
+
 - Ensure ZIP file contains `images/` folder at root level
 - Check that image files are PNG or JPG format
 - Verify ZIP file isn't corrupted
 
 **No Traits Displayed**:
+
 - Check if metadata folder exists in ZIP file
 - Ensure JSON files follow standard format with attributes array
 - Metadata is optional - NFTs will import without it
 
 **Slow Performance**:
+
 - Large collections (>5000 NFTs) may take longer to process
 - Consider importing in smaller batches
 - Close other browser tabs to free memory
 
 **Mobile Dropdown Issues**:
+
 - Use custom dropdowns (not native mobile pickers)
 - Ensure sufficient memory available
 - Try refreshing if dropdowns don't respond
@@ -181,11 +187,13 @@ Gallery Mode features revolutionary interactive trait filtering:
 ### File Format Requirements
 
 **Images**:
+
 - PNG or JPG format recommended
 - Consistent dimensions across all images
 - Maximum size: 4096×4096 pixels
 
 **Metadata** (Optional):
+
 - JSON files with `attributes` array
 - Standard format: `{"trait_type": "Background", "value": "Blue"}`
 - Alternative format: `{"layer": "Background", "trait": "Blue"}`
@@ -215,6 +223,7 @@ Gallery Mode features revolutionary interactive trait filtering:
 ### Trait Rarity Analysis
 
 Gallery Mode automatically calculates and displays:
+
 - **Individual Trait Rarity**: Percentage of NFTs with each specific trait
 - **Trait Rankings**: Most and least common traits in the collection
 - **Rarity Distribution**: Overall rarity score distribution across collection
@@ -222,6 +231,7 @@ Gallery Mode automatically calculates and displays:
 ### Collection Comparison
 
 Import multiple collections to:
+
 - **Compare Rarity**: See which collection has rarer traits overall
 - **Trait Analysis**: Compare trait distributions between collections
 - **Quality Assessment**: Evaluate trait variety and uniqueness
@@ -229,6 +239,7 @@ Import multiple collections to:
 ### Export Considerations
 
 While Gallery Mode focuses on viewing and analysis, you can:
+
 - **Document Findings**: Take screenshots of rare trait combinations
 - **Filter Results**: Note specific trait filters that yield interesting results
 - **Collection Insights**: Record analytics and patterns discovered

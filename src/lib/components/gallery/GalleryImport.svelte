@@ -82,8 +82,8 @@
 			}
 
 			// Process metadata folder - get all files directly from the main zip that start with 'metadata/'
-			const metadataFiles = allFiles.filter((filename) =>
-				filename.startsWith('metadata/') && filename.endsWith('.json')
+			const metadataFiles = allFiles.filter(
+				(filename) => filename.startsWith('metadata/') && filename.endsWith('.json')
 			);
 
 			for (const filename of metadataFiles) {
@@ -121,7 +121,8 @@
 						imageData: image.imageData,
 						metadata: {
 							traits: matchingMetadata.data.attributes || [],
-							description: matchingMetadata.data.description || `A unique ${image.name} from this collection.`
+							description:
+								matchingMetadata.data.description || `A unique ${image.name} from this collection.`
 						},
 						index
 					};
@@ -191,7 +192,7 @@
 	}
 </script>
 
-<Card class="p-4 max-w-2xl lg:max-w-3xl xl:max-w-4xl {className}">
+<Card class="max-w-2xl p-4 lg:max-w-3xl xl:max-w-4xl {className}">
 	<div class="space-y-4">
 		<h3 class="text-foreground font-semibold">Import Collection</h3>
 
@@ -218,15 +219,24 @@
 			onclick={triggerFileSelect}
 		>
 			<div class="space-y-2">
-				<svg class="text-muted-foreground mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-		<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-	</svg>
+				<svg
+					class="text-muted-foreground mx-auto h-12 w-12"
+					stroke="currentColor"
+					fill="none"
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+				>
+					<path
+						d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+						stroke-width="1"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
 				<div class="text-foreground text-sm font-medium">
 					{isImporting ? 'Importing...' : 'Drop ZIP file here or click to browse'}
 				</div>
-				<div class="text-muted-foreground text-xs">
-Supports ZIP files exported from NFT Studio
-</div>
+				<div class="text-muted-foreground text-xs">Supports ZIP files exported from NFT Studio</div>
 			</div>
 
 			<input
@@ -252,10 +262,12 @@ Supports ZIP files exported from NFT Studio
 
 		<!-- Instructions -->
 		<div class="text-muted-foreground space-y-1 text-xs">
-			<div><strong>Important:</strong> Both folders must be at the root level inside the ZIP file</div>
+			<div>
+				<strong>Important:</strong> Both folders must be at the root level inside the ZIP file
+			</div>
 			<div class="mt-1 text-center text-xs">
-				• images/ folder contains NFT images<br>
-				• metadata/ folder contains JSON files<br>
+				• images/ folder contains NFT images<br />
+				• metadata/ folder contains JSON files<br />
 				• Do not put folders inside other folders
 			</div>
 		</div>

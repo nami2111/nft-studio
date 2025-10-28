@@ -29,10 +29,7 @@
 
 		scrollTop = scrollElement.scrollTop;
 		const start = Math.floor(scrollTop / itemHeight);
-		const end = Math.min(
-			nfts.length,
-			Math.ceil((scrollTop + containerHeight) / itemHeight)
-		);
+		const end = Math.min(nfts.length, Math.ceil((scrollTop + containerHeight) / itemHeight));
 
 		visibleStart = Math.max(0, start - overscan);
 		visibleEnd = Math.min(nfts.length, end + overscan);
@@ -106,7 +103,7 @@
 			{#each nfts.slice(visibleStart, visibleEnd) as nft, i (nft.id)}
 				{@const actualIndex = visibleStart + i}
 				<div
-					class="absolute left-0 right-0 p-4"
+					class="absolute right-0 left-0 p-4"
 					style="top: {actualIndex * itemHeight}px; height: {itemHeight}px;"
 				>
 					<button
@@ -144,7 +141,10 @@
 						<!-- Rarity Badge -->
 						<div class="absolute top-2 right-2">
 							<span
-								class="text-xs font-semibold px-2 py-1 rounded {getRarityColor(nft.rarityRank, nfts.length)}"
+								class="rounded px-2 py-1 text-xs font-semibold {getRarityColor(
+									nft.rarityRank,
+									nfts.length
+								)}"
 							>
 								#{nft.rarityRank}
 							</span>
@@ -159,7 +159,9 @@
 								<div class="text-xs opacity-80">Score: {nft.rarityScore.toFixed(1)}</div>
 								{#if nft.metadata.traits?.length > 0}
 									<div class="mt-1 text-xs opacity-75">
-										{Array.from(new Set(nft.metadata.traits.map((t) => t.layer || (t as any).trait_type))).join(', ')}
+										{Array.from(
+											new Set(nft.metadata.traits.map((t) => t.layer || (t as any).trait_type))
+										).join(', ')}
 									</div>
 								{/if}
 							</div>
@@ -172,10 +174,12 @@
 
 	<!-- Cache stats for debugging -->
 	{#if import.meta.env.DEV}
-		<div class="fixed bottom-4 right-4 bg-black/80 text-white text-xs px-3 py-2 rounded">
-			Visible: {visibleStart}-{visibleEnd}/{nfts.length} |
-			Cached: {imageUrlCache.getStats().size}/{imageUrlCache.getStats().maxSize} |
-			Memory: {(imageUrlCache.getStats().memory / (1024 * 1024)).toFixed(1)}MB
+		<div class="fixed right-4 bottom-4 rounded bg-black/80 px-3 py-2 text-xs text-white">
+			Visible: {visibleStart}-{visibleEnd}/{nfts.length} | Cached: {imageUrlCache.getStats()
+				.size}/{imageUrlCache.getStats().maxSize} | Memory: {(
+				imageUrlCache.getStats().memory /
+				(1024 * 1024)
+			).toFixed(1)}MB
 		</div>
 	{/if}
 </div>

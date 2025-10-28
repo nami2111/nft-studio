@@ -10,7 +10,10 @@
  */
 
 export class ObjectUrlCache {
-	private cache = new Map<string, { url: string; type: 'blob' | 'dataurl'; size: number; lastAccessed: number; revoked?: boolean }>();
+	private cache = new Map<
+		string,
+		{ url: string; type: 'blob' | 'dataurl'; size: number; lastAccessed: number; revoked?: boolean }
+	>();
 	private retryAttempts = new Map<string, number>();
 	private maxSize: number;
 	private maxMemory: number; // in bytes
@@ -21,7 +24,8 @@ export class ObjectUrlCache {
 	 * @param maxSize Maximum number of URLs to cache
 	 * @param maxMemory Maximum memory in bytes
 	 */
-	constructor(maxSize = 5000, maxMemory = 200 * 1024 * 1024) { // Reduced memory for data URLs
+	constructor(maxSize = 5000, maxMemory = 200 * 1024 * 1024) {
+		// Reduced memory for data URLs
 		this.maxSize = maxSize;
 		this.maxMemory = maxMemory;
 		this.isLargeCollection = false;
@@ -54,11 +58,14 @@ export class ObjectUrlCache {
 				entry.lastAccessed = now;
 				return entry.url;
 			}
-			}
+		}
 
 		// Aggressive eviction for large collections
 		const evictionThreshold = this.isLargeCollection ? 0.7 : 0.8;
-		if (this.cache.size >= this.maxSize * evictionThreshold || this.currentMemory >= this.maxMemory * evictionThreshold) {
+		if (
+			this.cache.size >= this.maxSize * evictionThreshold ||
+			this.currentMemory >= this.maxMemory * evictionThreshold
+		) {
 			this.evict();
 		}
 
@@ -116,12 +123,12 @@ export class ObjectUrlCache {
 		const view = new Uint8Array(buffer);
 
 		// PNG signature
-		if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4E && view[3] === 0x47) {
+		if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4e && view[3] === 0x47) {
 			return 'image/png';
 		}
 
 		// JPEG signature
-		if (view[0] === 0xFF && view[1] === 0xD8 && view[2] === 0xFF) {
+		if (view[0] === 0xff && view[1] === 0xd8 && view[2] === 0xff) {
 			return 'image/jpeg';
 		}
 
@@ -180,7 +187,10 @@ export class ObjectUrlCache {
 		const evictionThreshold = this.maxSize > 3000 ? 0.6 : 0.9;
 
 		// Check if we need to evict - use threshold here too
-		if (this.cache.size >= this.maxSize * evictionThreshold || this.currentMemory >= this.maxMemory * evictionThreshold) {
+		if (
+			this.cache.size >= this.maxSize * evictionThreshold ||
+			this.currentMemory >= this.maxMemory * evictionThreshold
+		) {
 			// Evict multiple items if needed to make room
 			const neededMemory = imageData.byteLength;
 			const neededEntries = 1;
@@ -188,8 +198,7 @@ export class ObjectUrlCache {
 
 			// Keep evicting until we have enough space
 			while (
-				(this.cache.size >= this.maxSize - neededEntries &&
-					evicted < 10) ||
+				(this.cache.size >= this.maxSize - neededEntries && evicted < 10) ||
 				(this.currentMemory + neededMemory >= this.maxMemory && evicted < 10)
 			) {
 				this.evict();
@@ -301,8 +310,9 @@ export class ObjectUrlCache {
 	 */
 	private evict(): void {
 		// Sort entries by last accessed time
-		const entries = Array.from(this.cache.entries())
-			.sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed);
+		const entries = Array.from(this.cache.entries()).sort(
+			([, a], [, b]) => a.lastAccessed - b.lastAccessed
+		);
 
 		// Remove more entries for large collections (25% of cache or at least 10)
 		const toRemove = Math.max(10, Math.floor(this.cache.size * 0.25));

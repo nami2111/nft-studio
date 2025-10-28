@@ -140,6 +140,7 @@ Ruler traits provide sophisticated control over which trait combinations can be 
 #### Rule Configuration
 
 For each ruler trait, you can:
+
 - **Control Multiple Layers**: One ruler can control multiple different layers
 - **Set Allowed Traits**: Green badges = traits that CAN appear together
 - **Set Forbidden Traits**: Red badges = traits that CANNOT appear together

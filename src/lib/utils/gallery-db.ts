@@ -49,13 +49,14 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 		name: collection.name,
 		description: collection.description,
 		projectName: collection.projectName,
-		generatedAt: collection.generatedAt instanceof Date
-			? collection.generatedAt.toISOString()
-			: collection.generatedAt,
+		generatedAt:
+			collection.generatedAt instanceof Date
+				? collection.generatedAt.toISOString()
+				: collection.generatedAt,
 		totalSupply: collection.totalSupply,
 		// Store NFTs without imageData - metadata only
 		// Deep serialize metadata to remove any non-serializable properties
-		nfts: collection.nfts.map(nft => ({
+		nfts: collection.nfts.map((nft) => ({
 			id: nft.id,
 			name: nft.name,
 			description: nft.description,
@@ -64,9 +65,7 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 			rarityScore: nft.rarityScore,
 			rarityRank: nft.rarityRank,
 			collectionId: nft.collectionId,
-			generatedAt: nft.generatedAt instanceof Date
-				? nft.generatedAt.toISOString()
-				: nft.generatedAt
+			generatedAt: nft.generatedAt instanceof Date ? nft.generatedAt.toISOString() : nft.generatedAt
 			// imageData excluded to save space
 		}))
 	};
@@ -105,7 +104,7 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 	const db = await initGalleryDB();
 	const storedCollections = await db.getAll(COLLECTIONS_STORE);
 
-	return storedCollections.map(stored => ({
+	return storedCollections.map((stored) => ({
 		...stored,
 		generatedAt: stored.generatedAt ? new Date(stored.generatedAt) : new Date(),
 		nfts: stored.nfts.map((nft: any) => ({

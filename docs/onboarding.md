@@ -40,16 +40,19 @@ The application will be available at `http://localhost:5173`
 NFT Studio provides two main modes for working with NFT collections:
 
 ### Generate Mode (`/app`)
+
 - **Purpose**: Create new NFT collections from layers and traits
 - **Features**: Layer management, trait configuration, rarity settings, batch generation
 - **Workflow**: Design → Configure → Generate → Export
 
 ### Gallery Mode (`/app/gallery`)
+
 - **Purpose**: View, filter, and analyze existing NFT collections
 - **Features**: Import collections, interactive trait filtering, rarity analysis, responsive viewing
 - **Workflow**: Import → Analyze → Filter → Explore
 
 ### Mode Switching
+
 - Use the **"Gallery Mode"** button in the top-right corner to switch between modes
 - Each mode maintains its own state and workspace
 - Data flows from Generate Mode → Export → Gallery Mode for complete workflow

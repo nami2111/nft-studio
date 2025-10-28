@@ -220,7 +220,10 @@ class GalleryStore {
 
 			// Save selected collection ID to localStorage (small, safe)
 			if (this._state.selectedCollection) {
-				localStorage.setItem('nft-studio-gallery-selected-collection', this._state.selectedCollection.id);
+				localStorage.setItem(
+					'nft-studio-gallery-selected-collection',
+					this._state.selectedCollection.id
+				);
 			} else {
 				localStorage.removeItem('nft-studio-gallery-selected-collection');
 			}
@@ -253,7 +256,7 @@ class GalleryStore {
 			// Restore selected collection if it exists (stored in localStorage)
 			const selectedCollectionId = localStorage.getItem('nft-studio-gallery-selected-collection');
 			if (selectedCollectionId) {
-				const selectedCollection = collections.find(c => c.id === selectedCollectionId);
+				const selectedCollection = collections.find((c) => c.id === selectedCollectionId);
 				if (selectedCollection) {
 					this._state.selectedCollection = selectedCollection;
 				}
