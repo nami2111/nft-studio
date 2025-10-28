@@ -9,6 +9,10 @@ NFT Studio is a powerful web-based application for creating, managing, and gener
 - **Visual Preview**: Real-time preview of your NFT collection as you build it
 - **Batch Generation**: Generate up to 10,000 unique NFT combinations
 - **Rarity Control**: Fine-tune the distribution of traits with adjustable rarity sliders
+- **Gallery Mode**: View, filter, and manage generated NFT collections with advanced search and trait filtering
+- **Interactive Traits**: Click on traits in NFT details to instantly filter collections by specific attributes
+- **Responsive Design**: Optimized layouts for mobile, tablet, and desktop screens
+- **Import Collections**: Import existing NFT collections from ZIP files with automatic metadata parsing
 - **Project Management**: Save, load, and export your projects
 - **Web Worker Processing**: Offload intensive image processing to background workers
 - **Progressive Previews**: Real-time preview generation during batch processing
@@ -191,6 +195,7 @@ The state management system leverages Svelte 5's modern runes system:
 
 - **`/`** - Landing page with hero section and introduction
 - **`/app`** - Main application interface with project settings, layer management, and generation
+- **`/app/gallery`** - Gallery mode for viewing, filtering, and managing generated NFT collections
 
 ### Key Components
 
@@ -199,6 +204,8 @@ The state management system leverages Svelte 5's modern runes system:
 - **LayerManager.svelte** - Layer and trait management interface
 - **Preview.svelte** - Real-time NFT preview with trait selection
 - **GenerationForm.svelte** - Collection generation controls and progress tracking
+- **GalleryImport.svelte** - Import interface for existing NFT collections
+- **ModeSwitcher.svelte** - Navigation between Generate and Gallery modes
 
 ## Common Development Tasks
 

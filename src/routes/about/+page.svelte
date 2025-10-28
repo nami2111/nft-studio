@@ -11,7 +11,8 @@
 		Twitter,
 		Crown,
 		Menu,
-		X
+		X,
+		Image
 	} from 'lucide-svelte';
 
 	let activeSection = 'overview';
@@ -21,6 +22,7 @@
 		{ id: 'overview', label: 'Overview', icon: FileText },
 		{ id: 'quick-start', label: 'Quick Start', icon: Zap },
 		{ id: 'advanced-features', label: 'Features', icon: Layers },
+		{ id: 'gallery-mode', label: 'Gallery Mode', icon: Image },
 		{ id: 'ruler-traits', label: 'Ruler Traits', icon: Crown },
 		{ id: 'technical-details', label: 'Technical', icon: Cpu },
 		{ id: 'performance', label: 'Performance', icon: BarChart3 }
@@ -534,6 +536,242 @@
 										<div>
 											<strong class="text-foreground">Preview:</strong>
 											<p class="text-muted-foreground">HTML gallery with statistics</p>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</section>
+				{/if}
+
+				<!-- Gallery Mode Section -->
+				{#if activeSection === 'gallery-mode'}
+					<section class="animate-in fade-in duration-300">
+						<div class="border-border bg-card rounded-lg border">
+							<div class="border-border border-b px-6 py-4">
+								<h2 class="text-foreground text-xl font-semibold">Gallery Mode</h2>
+							</div>
+							<div class="px-6 py-6">
+								<div class="space-y-8">
+									<div>
+										<h3 class="text-foreground mb-4 font-semibold">View & Manage Collections</h3>
+										<p class="text-muted-foreground mb-4">
+											Gallery Mode provides a powerful interface for viewing, filtering, and
+											managing your generated NFT collections. Access it by clicking "Gallery Mode"
+											in the top-right corner of the main app.
+										</p>
+
+										<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+											<div>
+												<h4 class="text-foreground mb-3 font-semibold">Collection Management</h4>
+												<div class="text-muted-foreground space-y-2 text-sm">
+													<p>• Import existing collections from ZIP files</p>
+													<p>• View multiple collections in one interface</p>
+													<p>• Automatic metadata parsing and organization</p>
+													<p>• Collection statistics and insights</p>
+												</div>
+											</div>
+											<div>
+												<h4 class="text-foreground mb-3 font-semibold">Advanced Filtering</h4>
+												<div class="text-muted-foreground space-y-2 text-sm">
+													<p>• Search by NFT name and description</p>
+													<p>• Multi-layer trait filtering</p>
+													<p>• Sort by rarity, name, or generation date</p>
+													<p>• Real-time filter results</p>
+												</div>
+											</div>
+										</div>
+									</div>
+
+									<div>
+										<h3 class="text-foreground mb-4 font-semibold">Interactive Trait Filtering</h3>
+										<p class="text-muted-foreground mb-4">
+											Click on any trait in NFT details to instantly filter the entire collection by
+											that trait. Build complex filters by selecting multiple traits from different
+											layers.
+										</p>
+
+										<div class="border-border bg-muted rounded-lg border p-4">
+											<h4 class="text-foreground mb-2 font-semibold">
+												How Interactive Filtering Works:
+											</h4>
+											<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
+												<li>Click any NFT to view its details in the right panel</li>
+												<li>Click on individual traits to filter by that specific attribute</li>
+												<li>Selected traits are highlighted with primary color styling</li>
+												<li>Build multi-trait filters by clicking additional traits</li>
+												<li>Use "Clear All" to reset all active filters</li>
+											</ul>
+										</div>
+									</div>
+
+									<div>
+										<h3 class="text-foreground mb-4 font-semibold">Responsive Design</h3>
+										<p class="text-muted-foreground mb-4">
+											Gallery Mode is optimized for all devices with adaptive layouts that provide
+											the best experience on mobile, tablet, and desktop.
+										</p>
+
+										<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+											<div class="border-border bg-muted rounded-lg border p-4">
+												<h4 class="text-foreground mb-2 font-semibold">Mobile</h4>
+												<p class="text-muted-foreground text-sm">
+													Full-width grid layout with bottom details panel and horizontal scrolling
+													traits
+												</p>
+											</div>
+											<div class="border-border bg-muted rounded-lg border p-4">
+												<h4 class="text-foreground mb-2 font-semibold">Tablet</h4>
+												<p class="text-muted-foreground text-sm">
+													Balanced layout with optimized grid sizing and responsive trait filters
+												</p>
+											</div>
+											<div class="border-border bg-muted rounded-lg border p-4">
+												<h4 class="text-foreground mb-2 font-semibold">Desktop</h4>
+												<p class="text-muted-foreground text-sm">
+													70/30 split layout with fixed right panel and comprehensive NFT details
+												</p>
+											</div>
+										</div>
+									</div>
+
+									<div>
+										<h3 class="text-foreground mb-4 font-semibold">Import Collections</h3>
+										<p class="text-muted-foreground mb-4">
+											Seamlessly import collections generated by other tools or external platforms
+											into Gallery Mode for viewing and filtering.
+										</p>
+
+										<div class="border-border bg-muted rounded-lg border p-4">
+											<h4 class="text-foreground mb-2 font-semibold">Supported Import Features:</h4>
+											<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
+												<li>ZIP files with images/ and metadata/ folder structure</li>
+												<li>Automatic metadata parsing and organization</li>
+												<li>Automatic rarity calculation and ranking system</li>
+												<li>Support for various metadata formats and trait structures</li>
+												<li>Duplicate collection name handling with automatic numbering</li>
+												<li>Real-time preview during import process</li>
+											</ul>
+										</div>
+									</div>
+
+									<div>
+										<h3 class="text-foreground mb-4 font-semibold">Rarity Calculation System</h3>
+										<p class="text-muted-foreground mb-4">
+											Gallery Mode automatically calculates rarity scores and ranks for all imported
+											NFTs using advanced algorithms that analyze trait distribution across the
+											entire collection.
+										</p>
+
+										<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+											<div>
+												<h4 class="text-foreground mb-3 font-semibold">Trait Rarity Method</h4>
+												<p class="text-muted-foreground mb-3 text-sm">
+													Each trait's rarity is calculated based on its frequency in the
+													collection:
+												</p>
+												<div class="border-border bg-muted rounded-lg border p-3">
+													<p class="text-foreground mb-2 font-mono text-xs">
+														Trait Rarity (%) = (Number of NFTs with this trait ÷ Total NFTs) × 100
+													</p>
+													<p class="text-muted-foreground text-xs">
+														Example: If only 50 out of 1000 NFTs have a "Golden Crown" trait, its
+														rarity is 5%.
+													</p>
+												</div>
+											</div>
+											<div>
+												<h4 class="text-foreground mb-3 font-semibold">Overall NFT Score</h4>
+												<p class="text-muted-foreground mb-3 text-sm">
+													Each NFT's rarity score is calculated by summing its individual trait
+													rarity scores (where rarer = higher score):
+												</p>
+												<div class="border-border bg-muted rounded-lg border p-3">
+													<p class="text-foreground mb-2 font-mono text-xs">
+														Trait Score = 100 ÷ Trait Percentage
+													</p>
+													<p class="text-foreground mb-2 font-mono text-xs">
+														NFT Score = Sum of all trait scores
+													</p>
+													<p class="text-muted-foreground text-xs">
+														Example: A 5% rare trait = 20 points, 10% trait = 10 points. Total score
+														= 30.
+													</p>
+												</div>
+											</div>
+										</div>
+
+										<div class="border-border bg-muted mt-4 rounded-lg border p-4">
+											<h4 class="text-foreground mb-2 font-semibold">Ranking System</h4>
+											<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
+												<li>
+													<strong>Rank #1:</strong> Most rare NFT (HIGHEST score - has rarest traits)
+												</li>
+												<li>
+													<strong>Higher numbers:</strong> Less rare NFTs (LOWER scores - more common
+													traits)
+												</li>
+												<li>
+													<strong>Sorting:</strong> "Low to High" = common to rare (low score to high
+													score)
+												</li>
+												<li>
+													<strong>Sorting:</strong> "High to Low" = rare to common (high score to low
+													score)
+												</li>
+												<li>
+													<strong>Visual indicators:</strong> Rarity scores and ranks are displayed in
+													NFT details
+												</li>
+											</ul>
+										</div>
+
+										<div class="border-border bg-muted mt-4 rounded-lg border p-4">
+											<h4 class="text-foreground mb-2 font-semibold">How Rarity is Displayed</h4>
+											<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+												<div>
+													<h5 class="text-foreground mb-1 text-sm font-medium">
+														In NFT Details Panel:
+													</h5>
+													<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-xs">
+														<li>Individual trait rarity percentages</li>
+														<li>Overall NFT rarity score</li>
+														<li>Global rarity rank (e.g., "Rank #42")</li>
+													</ul>
+												</div>
+												<div>
+													<h5 class="text-foreground mb-1 text-sm font-medium">
+														In Collection Stats:
+													</h5>
+													<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-xs">
+														<li>Rarest NFT in the collection</li>
+														<li>Average rarity score across all NFTs</li>
+														<li>Total number of unique traits</li>
+													</ul>
+												</div>
+											</div>
+										</div>
+									</div>
+
+									<div>
+										<h3 class="text-foreground mb-4 font-semibold">Performance Features</h3>
+										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+											<div>
+												<h4 class="text-foreground mb-2 font-semibold">Memory Management</h4>
+												<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
+													<li>Automatic cache clearing on page refresh</li>
+													<li>Efficient image loading and display</li>
+													<li>Smart memory cleanup for large collections</li>
+												</ul>
+											</div>
+											<div>
+												<h4 class="text-foreground mb-2 font-semibold">User Experience</h4>
+												<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
+													<li>Smooth animations and transitions</li>
+													<li>Real-time search and filtering</li>
+													<li>Custom dropdown components for mobile</li>
+												</ul>
+											</div>
 										</div>
 									</div>
 								</div>

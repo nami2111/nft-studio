@@ -301,6 +301,17 @@
 		-moz-osx-font-smoothing: grayscale;
 	}
 
+	/* Toast notification text color fix */
+	[data-sonner-toaster] [data-sonner-toast] {
+		color: hsl(var(--foreground)) !important;
+	}
+	[data-sonner-toaster] [data-sonner-toast] [data-title] {
+		color: hsl(var(--foreground)) !important;
+	}
+	[data-sonner-toaster] [data-sonner-toast] [data-description] {
+		color: hsl(var(--foreground)) !important;
+	}
+
 	/* Performance optimization: Reduce motion for users who prefer it */
 	@media (prefers-reduced-motion: reduce) {
 		*,

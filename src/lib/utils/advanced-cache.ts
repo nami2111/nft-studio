@@ -240,9 +240,12 @@ export class AdvancedCache<T = any> {
 	 */
 	private startCleanupTimer(): void {
 		// Cleanup every 5 minutes
-		this.cleanupTimer = setInterval(() => {
-			this.cleanup();
-		}, 5 * 60 * 1000) as unknown as number;
+		this.cleanupTimer = setInterval(
+			() => {
+				this.cleanup();
+			},
+			5 * 60 * 1000
+		) as unknown as number;
 	}
 
 	/**
@@ -250,13 +253,16 @@ export class AdvancedCache<T = any> {
 	 */
 	private updateMetrics(): void {
 		this.metrics.memoryUsage = this.metrics.currentSize;
-		this.metrics.hitRate = this.metrics.hits + this.metrics.misses > 0
-			? this.metrics.hits / (this.metrics.hits + this.metrics.misses)
-			: 0;
+		this.metrics.hitRate =
+			this.metrics.hits + this.metrics.misses > 0
+				? this.metrics.hits / (this.metrics.hits + this.metrics.misses)
+				: 0;
 
 		if (this.metrics.currentEntries > 0) {
-			const totalAccessCount = Array.from(this.cache.values())
-				.reduce((sum, entry) => sum + entry.accessCount, 0);
+			const totalAccessCount = Array.from(this.cache.values()).reduce(
+				(sum, entry) => sum + entry.accessCount,
+				0
+			);
 			this.metrics.averageAccessCount = totalAccessCount / this.metrics.currentEntries;
 		} else {
 			this.metrics.averageAccessCount = 0;
@@ -293,28 +299,35 @@ export class AdvancedCache<T = any> {
 		switch (this.options.evictionPolicy) {
 			case 'lru':
 				// Least Recently Used
-				keyToEvict = entries.reduce((oldest, [key, entry]) =>
-					entry.accessTime < oldest.entry.accessTime ? { key, entry } : oldest
-				, { key: entries[0][0], entry: entries[0][1] }).key;
+				keyToEvict = entries.reduce(
+					(oldest, [key, entry]) =>
+						entry.accessTime < oldest.entry.accessTime ? { key, entry } : oldest,
+					{ key: entries[0][0], entry: entries[0][1] }
+				).key;
 				break;
 
 			case 'lfu':
 				// Least Frequently Used
-				keyToEvict = entries.reduce((least, [key, entry]) =>
-					entry.accessCount < least.entry.accessCount ? { key, entry } : least
-				, { key: entries[0][0], entry: entries[0][1] }).key;
+				keyToEvict = entries.reduce(
+					(least, [key, entry]) =>
+						entry.accessCount < least.entry.accessCount ? { key, entry } : least,
+					{ key: entries[0][0], entry: entries[0][1] }
+				).key;
 				break;
 
 			case 'ttl':
 				// Shortest TTL remaining
-				keyToEvict = entries.reduce((shortest, [key, entry]) => {
-					if (!entry.ttl) return { key, entry };
-					const remaining = entry.ttl - (Date.now() - entry.createTime);
-					const shortestRemaining = shortest.entry.ttl
-						? shortest.entry.ttl - (Date.now() - shortest.entry.createTime)
-						: Infinity;
-					return remaining < shortestRemaining ? { key, entry } : shortest;
-				}, { key: entries[0][0], entry: entries[0][1] }).key;
+				keyToEvict = entries.reduce(
+					(shortest, [key, entry]) => {
+						if (!entry.ttl) return { key, entry };
+						const remaining = entry.ttl - (Date.now() - entry.createTime);
+						const shortestRemaining = shortest.entry.ttl
+							? shortest.entry.ttl - (Date.now() - shortest.entry.createTime)
+							: Infinity;
+						return remaining < shortestRemaining ? { key, entry } : shortest;
+					},
+					{ key: entries[0][0], entry: entries[0][1] }
+				).key;
 				break;
 
 			default:

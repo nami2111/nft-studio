@@ -473,7 +473,7 @@ describe('Modal', () => {
 					title: 'Test Modal',
 					children: 'Content',
 					'data-testid': 'custom-modal',
-					'role': 'alertdialog'
+					role: 'alertdialog'
 				}
 			});
 
@@ -523,10 +523,13 @@ describe('Modal', () => {
 			});
 
 			// Wait for the setTimeout in focusModal to execute
-			await waitFor(() => {
-				const firstButton = screen.getByText('Button 1');
-				expect(firstButton).toHaveFocus();
-			}, { timeout: 100 });
+			await waitFor(
+				() => {
+					const firstButton = screen.getByText('Button 1');
+					expect(firstButton).toHaveFocus();
+				},
+				{ timeout: 100 }
+			);
 		});
 	});
 

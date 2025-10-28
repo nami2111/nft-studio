@@ -15,6 +15,9 @@
 	} from '$lib/types/worker-messages';
 	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
+	import { trackGenerationCompleted } from '$lib/utils/analytics';
+	import { galleryStore } from '$lib/stores/gallery.store.svelte';
+	import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
 
 	// State
 	let collectionSize = $state(100);
@@ -28,6 +31,10 @@
 	let previews = $state([] as { index: number; url: string }[]);
 	// Track if we've started packaging to prevent duplicate calls
 	let isPackaging = $state(false);
+	// Track generation start time for analytics
+	let generationStartTime = $state<number | null>(null);
+	// Track if analytics event has been sent to prevent duplicates
+	let analyticsTracked = $state(false);
 
 	// Progress update function
 	function updateProgress(
@@ -60,6 +67,8 @@
 		allMetadata = [];
 		isPackaging = false;
 		memoryUsage = null;
+		generationStartTime = null;
+		analyticsTracked = false;
 		previews.forEach((p) => URL.revokeObjectURL(p.url));
 		previews = [];
 	}
@@ -81,6 +90,38 @@
 		updateProgress(images.length, images.length, 'Packaging files into a .zip...');
 
 		try {
+			// Save to gallery first
+			try {
+				console.log('Saving generated NFTs to gallery...');
+
+				// Convert images and metadata to gallery format
+				const galleryNFTs = images.map((image, index) => {
+					const matchingMetadata = metadata.find((meta) => meta.name === image.name);
+					return {
+						name: image.name.replace('.png', ''),
+						imageData: image.imageData,
+						metadata: matchingMetadata?.data || { traits: [] },
+						index
+					};
+				});
+
+				// Import into gallery store
+				const collection = galleryStore.importGeneratedNFTs(
+					galleryNFTs,
+					projectData.name || 'Untitled Collection',
+					projectData.description || 'Generated NFT collection'
+				);
+
+				// Calculate rarity for the collection
+				const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
+				galleryStore.updateCollection(collection.id, updatedCollection);
+
+				console.log(`Saved ${galleryNFTs.length} NFTs to gallery collection: ${collection.name}`);
+			} catch (galleryError) {
+				console.error('Failed to save to gallery:', galleryError);
+				// Don't let gallery errors prevent the download
+			}
+
 			// Dynamically import JSZip to reduce initial bundle size
 			const { default: JSZip } = await import('jszip');
 			const zip = new JSZip();
@@ -114,7 +155,7 @@
 
 			statusText = 'Download started.';
 			showSuccess('Generation complete', {
-				description: 'Your download has started.'
+				description: 'Your download has started and NFTs have been added to the gallery.'
 			});
 		} catch (error) {
 			showError(error, {
@@ -137,6 +178,9 @@
 		resetState();
 
 		try {
+			// Record generation start time for analytics
+			generationStartTime = Date.now();
+
 			const projectData = project as {
 				name: string;
 				outputSize: { width: number; height: number };
@@ -243,6 +287,14 @@
 								allMetadata.length,
 								'metadata'
 							);
+
+							// Track generation completion analytics (only once)
+							if (generationStartTime && !analyticsTracked) {
+								const durationSeconds = Math.round((Date.now() - generationStartTime) / 1000);
+								trackGenerationCompleted(allImages.length, durationSeconds);
+								analyticsTracked = true;
+							}
+
 							await packageZip(allImages, allMetadata);
 						}
 						break;

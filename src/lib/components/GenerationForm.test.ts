@@ -8,7 +8,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { writable } from 'svelte/store';
 import GenerationForm from './GenerationForm.svelte';
-import { createMockProject, createMockProgressUpdate, createMockError, createMockCompletionMessage } from './test-utils';
+import {
+	createMockProject,
+	createMockProgressUpdate,
+	createMockError,
+	createMockCompletionMessage
+} from './test-utils';
 import type { Project } from '$lib/types/project';
 
 // Create mock functions first
@@ -248,20 +253,22 @@ describe('GenerationForm', () => {
 			const { startGeneration } = await import('$lib/domain/worker.service');
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Simulate progress update
-				const progressUpdate = createMockProgressUpdate(50, 100, 'Generating images...');
-				await messageHandler(progressUpdate);
-			});
+					// Simulate progress update
+					const progressUpdate = createMockProgressUpdate(50, 100, 'Generating images...');
+					await messageHandler(progressUpdate);
+				}
+			);
 
 			render(GenerationForm);
 
@@ -277,20 +284,22 @@ describe('GenerationForm', () => {
 			const { startGeneration } = await import('$lib/domain/worker.service');
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Simulate 50% progress
-				const progressUpdate = createMockProgressUpdate(50, 100, 'Halfway done...');
-				await messageHandler(progressUpdate);
-			});
+					// Simulate 50% progress
+					const progressUpdate = createMockProgressUpdate(50, 100, 'Halfway done...');
+					await messageHandler(progressUpdate);
+				}
+			);
 
 			render(GenerationForm);
 
@@ -306,32 +315,34 @@ describe('GenerationForm', () => {
 			const { startGeneration } = await import('$lib/domain/worker.service');
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Simulate progress with memory usage
-				const progressUpdate = {
-					type: 'progress',
-					payload: {
-						generatedCount: 25,
-						totalCount: 100,
-						statusText: 'Using memory...',
-						memoryUsage: {
-							used: 200 * 1024 * 1024, // 200MB
-							available: 500 * 1024 * 1024, // 500MB
-							units: 'bytes'
+					// Simulate progress with memory usage
+					const progressUpdate = {
+						type: 'progress',
+						payload: {
+							generatedCount: 25,
+							totalCount: 100,
+							statusText: 'Using memory...',
+							memoryUsage: {
+								used: 200 * 1024 * 1024, // 200MB
+								available: 500 * 1024 * 1024, // 500MB
+								units: 'bytes'
+							}
 						}
-					}
-				};
-				await messageHandler(progressUpdate);
-			});
+					};
+					await messageHandler(progressUpdate);
+				}
+			);
 
 			render(GenerationForm);
 
@@ -350,37 +361,39 @@ describe('GenerationForm', () => {
 			const { showSuccess } = await import('$lib/utils/error-handling');
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Simulate completion with images
-				const completionMessage = createMockCompletionMessage(
-					[
-						{
-							name: '1.png',
-							imageData: new ArrayBuffer(1000)
-						},
-						{
-							name: '2.png',
-							imageData: new ArrayBuffer(1000)
-						}
-					],
-					[
-						{
-							name: '1.json',
-							data: { name: 'NFT #1', attributes: [] }
-						}
-					]
-				);
-				await messageHandler(completionMessage);
-			});
+					// Simulate completion with images
+					const completionMessage = createMockCompletionMessage(
+						[
+							{
+								name: '1.png',
+								imageData: new ArrayBuffer(1000)
+							},
+							{
+								name: '2.png',
+								imageData: new ArrayBuffer(1000)
+							}
+						],
+						[
+							{
+								name: '1.json',
+								data: { name: 'NFT #1', attributes: [] }
+							}
+						]
+					);
+					await messageHandler(completionMessage);
+				}
+			);
 
 			render(GenerationForm);
 
@@ -402,27 +415,29 @@ describe('GenerationForm', () => {
 			const { startGeneration } = await import('$lib/domain/worker.service');
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Send first chunk
-				const chunk1 = createMockCompletionMessage(
-					[{ name: '1.png', imageData: new ArrayBuffer(1000) }],
-					[{ name: '1.json', data: { name: 'NFT #1' } }]
-				);
-				await messageHandler(chunk1);
+					// Send first chunk
+					const chunk1 = createMockCompletionMessage(
+						[{ name: '1.png', imageData: new ArrayBuffer(1000) }],
+						[{ name: '1.json', data: { name: 'NFT #1' } }]
+					);
+					await messageHandler(chunk1);
 
-				// Send final chunk (empty images to signal completion)
-				const chunk2 = createMockCompletionMessage([], []);
-				await messageHandler(chunk2);
-			});
+					// Send final chunk (empty images to signal completion)
+					const chunk2 = createMockCompletionMessage([], []);
+					await messageHandler(chunk2);
+				}
+			);
 
 			render(GenerationForm);
 
@@ -441,20 +456,22 @@ describe('GenerationForm', () => {
 			const { showError } = await import('$lib/utils/error-handling');
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Simulate error
-				const errorMessage = createMockError('Canvas rendering failed');
-				await messageHandler(errorMessage);
-			});
+					// Simulate error
+					const errorMessage = createMockError('Canvas rendering failed');
+					await messageHandler(errorMessage);
+				}
+			);
 
 			render(GenerationForm);
 
@@ -477,20 +494,22 @@ describe('GenerationForm', () => {
 			const { stopLoading } = await import('$lib/stores');
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Simulate error
-				const errorMessage = createMockError('Test error');
-				await messageHandler(errorMessage);
-			});
+					// Simulate error
+					const errorMessage = createMockError('Test error');
+					await messageHandler(errorMessage);
+				}
+			);
 
 			render(GenerationForm);
 
@@ -540,26 +559,28 @@ describe('GenerationForm', () => {
 			const { showInfo } = await import('$lib/utils/error-handling');
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Simulate cancellation from worker
-				const cancelMessage = {
-					type: 'cancelled',
-					payload: {
-						generatedCount: 25,
-						totalCount: 100
-					}
-				};
-				await messageHandler(cancelMessage);
-			});
+					// Simulate cancellation from worker
+					const cancelMessage = {
+						type: 'cancelled',
+						payload: {
+							generatedCount: 25,
+							totalCount: 100
+						}
+					};
+					await messageHandler(cancelMessage);
+				}
+			);
 
 			render(GenerationForm);
 
@@ -632,30 +653,32 @@ describe('GenerationForm', () => {
 			global.URL.revokeObjectURL = mockRevokeObjectURL;
 
 			let messageHandler: any;
-			(startGeneration as any).mockImplementation(async (
-				layers: any[],
-				count: number,
-				size: any,
-				name: string,
-				description: string,
-				handler: any
-			) => {
-				messageHandler = handler;
+			(startGeneration as any).mockImplementation(
+				async (
+					layers: any[],
+					count: number,
+					size: any,
+					name: string,
+					description: string,
+					handler: any
+				) => {
+					messageHandler = handler;
 
-				// Simulate preview generation
-				const previewMessage = {
-					type: 'preview',
-					payload: {
-						indexes: [0, 1],
-						previewData: [new ArrayBuffer(1000), new ArrayBuffer(1000)]
-					}
-				};
-				await messageHandler(previewMessage);
+					// Simulate preview generation
+					const previewMessage = {
+						type: 'preview',
+						payload: {
+							indexes: [0, 1],
+							previewData: [new ArrayBuffer(1000), new ArrayBuffer(1000)]
+						}
+					};
+					await messageHandler(previewMessage);
 
-				// Complete generation
-				const completionMessage = createMockCompletionMessage();
-				await messageHandler(completionMessage);
-			});
+					// Complete generation
+					const completionMessage = createMockCompletionMessage();
+					await messageHandler(completionMessage);
+				}
+			);
 
 			render(GenerationForm);
 
