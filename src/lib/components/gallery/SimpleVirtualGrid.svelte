@@ -26,7 +26,7 @@
 
 	// Virtual scrolling state
 	let scrollElement: HTMLDivElement;
-	let containerHeight = $state(600);
+	let containerHeight = $state(700); // Fixed height for better performance
 	let scrollTop = $state(0);
 
 	// Calculate visible range
@@ -39,22 +39,29 @@
 
 	// Update visible range with performance tracking
 	function calculateVisibleRange() {
-		const endTiming = debugTime('🎨 Virtual Grid Range Calculation');
+		// Only log slow grid calculations (>1ms)
+		const start = performance.now();
+		const endTiming = () => {
+			const end = performance.now();
+			if (end - start > 1) {
+				debugLog(`⏱️ Grid Range: ${(end - start).toFixed(2)}ms`);
+			}
+		};
 
 		if (!scrollElement || !nfts || nfts.length === 0) {
-			debugLog('🎨 No scroll element or NFTs');
 			endTiming();
 			return;
 		}
 
-		debugLog(`🎨 Calculating visible range for ${nfts.length} NFTs`);
-
+	
+		// Use fixed height for consistent performance
 		const rect = scrollElement.getBoundingClientRect();
-		containerHeight = rect.height || window.innerHeight || 600;
+		// Only update if rect height is very different from our fixed height
+		if (Math.abs(rect.height - containerHeight) > 100) {
+			containerHeight = Math.max(600, rect.height);
+			}
 
-		// Debug container height
-		debugLog(`🎨 Container height: ${containerHeight}px (rect: ${rect.height}px, window: ${window.innerHeight}px)`);
-
+	
 		// Calculate which rows are visible
 		const startRow = Math.floor(scrollTop / rowHeight);
 		const rowsVisible = Math.ceil(containerHeight / rowHeight);
@@ -68,21 +75,34 @@
 		visibleStart = overscanStartRow * columns;
 		visibleEnd = Math.min(nfts.length, overscanEndRow * columns);
 
-		debugLog(`🎨 Visible range: ${visibleStart}-${visibleEnd} (${visibleEnd - visibleStart} items)`);
 		endTiming();
 	}
 
-	// Update visible range when scrolling
+	// Update visible range when scrolling (debounced for performance)
 	function handleScroll() {
 		if (!scrollElement) return;
 
 		scrollTop = scrollElement.scrollTop;
-		calculateVisibleRange();
+
+		// Clear any pending timeout
+		if (scrollTimeout) {
+			clearTimeout(scrollTimeout);
+		}
+
+		// Debounce the calculation to prevent excessive calls during rapid scrolling
+		scrollTimeout = setTimeout(() => {
+			if (nfts && nfts.length > 0) {
+				calculateVisibleRange();
+			}
+		}, 16); // ~60fps
 	}
 
 	// Debounce cache to prevent rapid URL creation
 	const urlCache = new Map<string, string>();
 	let lastCacheClear = 0;
+
+	// Debounce scroll calculations
+	let scrollTimeout: number | null = null;
 
 	// LAZY image URL creation - only create when actually needed
 	let imageLoadQueue = new Set<string>();
@@ -97,15 +117,13 @@
 
 		// Check if imageData exists
 		if (!nft.imageData || nft.imageData.byteLength === 0) {
-			debugLog('🖼️ No image data for NFT');
 			return '';
 		}
 
 		// Add to queue for async loading
 		if (!imageLoadQueue.has(nft.id)) {
 			imageLoadQueue.add(nft.id);
-			debugLog(`🖼️ Queueing image for async loading: ${nft.id}`);
-
+	
 			// Load image in background without blocking UI
 			const loadTimeout = setTimeout(() => {
 				const startUrl = performance.now();
@@ -115,10 +133,12 @@
 					imageLoadQueue.delete(nft.id);
 
 					const endUrl = performance.now();
-					debugLog(`🖼️ ✅ Loaded image: ${(endUrl - startUrl).toFixed(2)}ms for ${nft.id}`);
-					debugLog(`🖼️ 🔄 UI updated for ${nft.id} with URL: ${url.substring(0, 50)}...`);
+					// Only log slow images (>5ms) or errors for cleaner console
+					if (endUrl - startUrl > 5) {
+						debugLog(`🖼️ Slow: ${nft.id} (${(endUrl - startUrl).toFixed(2)}ms)`);
+					}
 				} catch (error) {
-					debugLog(`🖼️ ❌ Failed to load image ${nft.id}:`, error);
+					debugLog(`🖼️ ❌ Failed: ${nft.id}`);
 					imageLoadQueue.delete(nft.id);
 					imageUrls[nft.id] = 'error';
 				}
@@ -127,7 +147,7 @@
 			// Add timeout protection (5 seconds max)
 			setTimeout(() => {
 				if (imageLoadQueue.has(nft.id)) {
-					debugLog(`🖼️ ⏰ Timeout loading image: ${nft.id}`);
+					debugLog(`🖼️ ⏰ Timeout: ${nft.id}`);
 					imageLoadQueue.delete(nft.id);
 					// Mark as failed to prevent infinite loading
 					imageUrls[nft.id] = 'error';
@@ -167,7 +187,6 @@
 	$effect(() => {
 		// Skip preloading to avoid the 44-216ms URL creation bottleneck
 		// Images will be loaded on-demand when they come into view
-		debugLog(`🎨 Skipping preloading for ${nfts.length} NFTs (avoiding URL creation bottleneck)`);
 	});
 
 	onMount(() => {
@@ -186,6 +205,15 @@
 		}
 	});
 
+	// Cleanup timeout on unmount
+	$effect(() => {
+		return () => {
+			if (scrollTimeout) {
+				clearTimeout(scrollTimeout);
+			}
+		};
+	});
+
 	// Calculate total height
 	const totalHeight = $derived(Math.ceil(nfts.length / columns) * rowHeight);
 </script>
@@ -199,7 +227,7 @@
 		</div>
 	{/if}
 
-	<div bind:this={scrollElement} class="relative overflow-y-auto" style="height: 600px; min-height: 400px;" onscroll={handleScroll}>
+	<div bind:this={scrollElement} class="relative overflow-y-auto" style="height: calc(100vh - 320px); min-height: 800px;" onscroll={handleScroll}>
 		<!-- Spacer for total height -->
 		<div style="height: {totalHeight}px; position: relative;">
 			<!-- Visible items -->

@@ -29,6 +29,9 @@ class GalleryStore {
 	private filteredCache = new Map<string, GalleryNFT[]>();
 	private lastFilterKey = '';
 
+	// Track last logged storage usage to reduce log frequency
+	private _lastLoggedUsage: number | null = null;
+
 	// Main state
 	private _state = $state<GalleryState>({
 		collections: [],
@@ -293,7 +296,12 @@ class GalleryStore {
 			if (estimate.quota > 0) {
 				const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
 				const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
-				console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`);
+				// Only log storage when usage changes significantly (>1MB)
+				const usage = parseFloat(usageMB);
+				if (!this._lastLoggedUsage || Math.abs(usage - this._lastLoggedUsage) > 1) {
+					console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`);
+					this._lastLoggedUsage = usage;
+				}
 			}
 		} catch (error) {
 			console.error('Failed to save gallery data:', error);
@@ -327,7 +335,12 @@ class GalleryStore {
 			if (estimate.quota > 0) {
 				const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
 				const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
-				console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`);
+				// Only log storage when usage changes significantly (>1MB)
+				const usage = parseFloat(usageMB);
+				if (!this._lastLoggedUsage || Math.abs(usage - this._lastLoggedUsage) > 1) {
+					console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`);
+					this._lastLoggedUsage = usage;
+				}
 			}
 		} catch (error) {
 			console.error('Failed to load gallery data:', error);
