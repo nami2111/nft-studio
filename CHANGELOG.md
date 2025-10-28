@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2025-10-28
+
+### Enhanced
+
+- **4-Level Responsive Breakpoint System**: Complete restructure of gallery responsiveness with device-specific layouts:
+  - **Mobile (< 640px)**: 3-column grid with bottom sheet details panel (phones)
+  - **Mobile Landscape (640px - 899px)**: 5-column grid with 300px fixed sidebar (iPhone landscape, small tablets)
+  - **Tablet Portrait (768px - 1023px)**: 4-column grid with 320px fixed sidebar (iPad mini/air portrait)
+  - **Desktop (≥ 1024px)**: 6-column grid with 30% sidebar (iPad landscape, laptops, desktops)
+
+### Fixed
+
+- **iPad Portrait Layout**: Fixed cramped 4-column layout by switching from percentage-based (40%) to fixed-width (320px) sidebar
+- **Mobile Landscape Usability**: Previously used mobile layout, now optimized with 5 columns and proper sidebar
+- **Name Sorting Natural Order**: Implemented natural numeric sorting for NFT names with numbers
+  - **Before**: "Foxinity #1", "Foxinity #10", "Foxinity #2" (lexicographic - wrong!)
+  - **After**: "Foxinity #1", "Foxinity #2", "Foxinity #10" (numeric - correct!)
+- **Number Extraction Algorithm**: Updated regex to find numbers anywhere in names (after #, -, space, _, :)
+- **Sorting Fallback**: Non-numeric names continue to sort alphabetically
+
+### Technical Improvements
+
+- **Fixed Sidebar Widths**: Replaced percentage-based widths with pixel values for consistent layouts:
+  - Mobile landscape: 300px fixed sidebar
+  - Tablet portrait: 320px fixed sidebar
+  - Desktop: 30% of screen width
+- **Grid Container Optimization**: Grid now uses `w-[100%] pr-[sidebarWidth]` pattern for clean separation
+- **Search Control Layout**: Mobile uses stacked layout, larger screens use inline controls
+- **naturalCompare() Function**: Enhanced sorting logic in both gallery page and gallery store:
+  - Handles "Foxinity #1", "NFT #42", "Item-5", "Card 10" formats
+  - Fallback to standard string comparison for non-numeric names
+  - Prioritizes names with numbers over names without numbers
+
+### Impact
+
+- **Device Coverage**: Now properly optimized for all device orientations:
+  - iPhone SE (375×667): Mobile layout ✓
+  - iPhone SE Landscape (667×375): Mobile landscape with 5 columns ✓
+  - iPad mini Portrait (768×1024): Tablet with 4 columns ✓
+  - iPad mini Landscape (1024×768): Desktop with 6 columns ✓
+  - iPad Air Portrait (820×1180): Tablet with 4 columns ✓
+  - iPad Air Landscape (1180×820): Desktop with 6 columns ✓
+- **User Experience**: Each device/orientation gets optimized layout and grid density
+- **Sorting**: NFT collections with numeric names now sort correctly (1, 2, 3... not 1, 10, 100...)
+
 ## [0.4.1] - 2025-10-28
 
 ### Fixed
