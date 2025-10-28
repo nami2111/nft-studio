@@ -153,13 +153,48 @@
 			const traitEnd = performance.now();
 		}
 
+		// Natural numeric sorting function for names
+		function naturalCompare(a: string, b: string): number {
+			// Extract numbers from anywhere in the string (handles "Foxinity #1", "#001", etc.)
+			const extractNumber = (str: string): { num: number | null; index: number } => {
+				// Try to find number after common delimiters like #, -, space
+				const match = str.match(/(?:[#\-\s:_]\s*)(\d+)/);
+				if (match) {
+					return { num: parseInt(match[1], 10), index: match.index || 0 };
+				}
+				// Try to find number at the very start
+				const startMatch = str.match(/^(\d+)/);
+				if (startMatch) {
+					return { num: parseInt(startMatch[1], 10), index: 0 };
+				}
+				return { num: null, index: -1 };
+			};
+
+			const aNum = extractNumber(a);
+			const bNum = extractNumber(b);
+
+			// If both have numbers, compare numerically
+			if (aNum.num !== null && bNum.num !== null) {
+				if (aNum.num !== bNum.num) {
+					return aNum.num - bNum.num;
+				}
+				// If numbers are equal, use standard string comparison
+				return a.localeCompare(b);
+			}
+			// If only one has a number, prioritize the one with numbers
+			if (aNum.num !== null) return -1;
+			if (bNum.num !== null) return 1;
+			// Otherwise, use standard string comparison
+			return a.localeCompare(b);
+		}
+
 		// Apply sorting
 		switch (selectedSort) {
 			case 'name-asc':
-				nfts.sort((a, b) => a.name.localeCompare(b.name));
+				nfts.sort((a, b) => naturalCompare(a.name, b.name));
 				break;
 			case 'name-desc':
-				nfts.sort((a, b) => b.name.localeCompare(a.name));
+				nfts.sort((a, b) => naturalCompare(b.name, a.name));
 				break;
 			case 'rarity-asc':
 				// Low to High = Common to rare (lowest score to highest score)
