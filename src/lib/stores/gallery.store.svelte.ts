@@ -21,9 +21,14 @@ import {
 	getStorageEstimate
 } from '$lib/utils/gallery-db';
 import { imageUrlCache } from '$lib/utils/object-url-cache';
+import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
 
 // Gallery store with Svelte 5 runes
 class GalleryStore {
+	// Simple cache for filtered results
+	private filteredCache = new Map<string, GalleryNFT[]>();
+	private lastFilterKey = '';
+
 	// Main state
 	private _state = $state<GalleryState>({
 		collections: [],
@@ -64,31 +69,50 @@ class GalleryStore {
 		return this._state.error;
 	}
 
-	// Computed properties
+	// Fast filtered and sorted NFTs with simple caching
 	get filteredAndSortedNFTs(): GalleryNFT[] {
-		let nfts: GalleryNFT[] = [];
+		const endTiming = debugTime('Gallery Filter Process');
 
-		// If a collection is selected, show only its NFTs
+		// Get source NFTs
+		let sourceNFTs: GalleryNFT[] = [];
 		if (this._state.selectedCollection) {
-			nfts = [...this._state.selectedCollection.nfts];
+			sourceNFTs = this._state.selectedCollection.nfts;
 		} else {
-			// Otherwise, show all NFTs from all collections
-			nfts = this._state.collections.flatMap((collection) => collection.nfts);
+			sourceNFTs = this._state.collections.flatMap((collection) => collection.nfts);
 		}
+		debugCount('Source NFTs', sourceNFTs.length);
+
+		// Create cache key
+		const filterKey = this.createFilterKey(sourceNFTs);
+
+		// Check cache first
+		if (this.filteredCache.has(filterKey)) {
+			debugLog('🎯 CACHE HIT! Using cached results');
+			endTiming();
+			return this.filteredCache.get(filterKey)!;
+		}
+
+		debugLog('❌ CACHE MISS - Running full filter process');
+
+		// Perform filtering
+		let filtered = [...sourceNFTs];
 
 		// Apply search filter
 		if (this._state.filterOptions.search) {
+			debugLog('🔍 Applying search filter');
 			const searchLower = this._state.filterOptions.search.toLowerCase();
-			nfts = nfts.filter(
+			filtered = filtered.filter(
 				(nft) =>
 					nft.name.toLowerCase().includes(searchLower) ||
 					nft.description?.toLowerCase().includes(searchLower)
 			);
+			debugCount('After search filter', filtered.length);
 		}
 
 		// Apply trait filters
 		if (this._state.filterOptions.selectedTraits) {
-			nfts = nfts.filter((nft) => {
+			debugLog('🏷️ Applying trait filters');
+			filtered = filtered.filter((nft) => {
 				for (const [layer, traits] of Object.entries(this._state.filterOptions.selectedTraits!)) {
 					const nftLayerTraits = nft.metadata.traits
 						.filter((t) => (t.layer || (t as any).trait_type) === layer)
@@ -100,37 +124,69 @@ class GalleryStore {
 				}
 				return true;
 			});
+			debugCount('After trait filters', filtered.length);
 		}
 
 		// Apply rarity range filter
 		if (this._state.filterOptions.rarityRange) {
+			debugLog('⭐ Applying rarity filter');
 			const [min, max] = this._state.filterOptions.rarityRange;
-			nfts = nfts.filter((nft) => nft.rarityScore >= min && nft.rarityScore <= max);
+			filtered = filtered.filter((nft) => nft.rarityScore >= min && nft.rarityScore <= max);
+			debugCount('After rarity filter', filtered.length);
 		}
 
 		// Apply sorting
+		debugLog('📊 Applying sorting');
 		switch (this._state.sortOption) {
 			case 'name-asc':
-				nfts.sort((a, b) => a.name.localeCompare(b.name));
+				filtered.sort((a, b) => a.name.localeCompare(b.name));
 				break;
 			case 'name-desc':
-				nfts.sort((a, b) => b.name.localeCompare(a.name));
+				filtered.sort((a, b) => b.name.localeCompare(a.name));
 				break;
 			case 'rarity-asc':
-				nfts.sort((a, b) => a.rarityRank - b.rarityRank);
+				filtered.sort((a, b) => a.rarityRank - b.rarityRank);
 				break;
 			case 'rarity-desc':
-				nfts.sort((a, b) => b.rarityRank - a.rarityRank);
+				filtered.sort((a, b) => b.rarityRank - a.rarityRank);
 				break;
 			case 'newest':
-				nfts.sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
+				filtered.sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
 				break;
 			case 'oldest':
-				nfts.sort((a, b) => new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime());
+				filtered.sort((a, b) => new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime());
 				break;
 		}
 
-		return nfts;
+		// Cache result
+		if (this.filteredCache.size > 50) {
+			const firstKey = this.filteredCache.keys().next().value;
+			if (firstKey) {
+				this.filteredCache.delete(firstKey);
+			}
+		}
+		this.filteredCache.set(filterKey, filtered);
+		this.lastFilterKey = filterKey;
+
+		debugCount('✅ FINAL RESULT', filtered.length);
+		endTiming();
+		return filtered;
+	}
+
+	/**
+	 * Create cache key for current filters
+	 */
+	private createFilterKey(sourceNFTs: GalleryNFT[]): string {
+		const search = this._state.filterOptions.search || '';
+		const traits = this._state.filterOptions.selectedTraits ?
+			JSON.stringify(Object.entries(this._state.filterOptions.selectedTraits).sort()) : '';
+		const rarity = this._state.filterOptions.rarityRange ?
+			`${this._state.filterOptions.rarityRange[0]}-${this._state.filterOptions.rarityRange[1]}` : '';
+		const sort = this._state.sortOption;
+		const collection = this._state.selectedCollection?.id || 'all';
+		const count = sourceNFTs.length;
+
+		return `${collection}:${count}:${search}:${traits}:${rarity}:${sort}`;
 	}
 
 	// Actions
@@ -145,10 +201,14 @@ class GalleryStore {
 
 	setFilterOptions(options: Partial<GalleryFilterOptions>) {
 		this._state.filterOptions = { ...this._state.filterOptions, ...options };
+		// Clear cache when filters change
+		this.filteredCache.clear();
 	}
 
 	setSortOption(option: GallerySortOption) {
 		this._state.sortOption = option;
+		// Clear cache when sort changes
+		this.filteredCache.clear();
 	}
 
 	setLoading(loading: boolean) {

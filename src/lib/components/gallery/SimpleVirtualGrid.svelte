@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { GalleryNFT } from '$lib/types/gallery';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
+	import { debugLog, debugTime } from '$lib/utils/simple-debug';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -36,12 +37,23 @@
 	// Calculate grid dimensions
 	const rowHeight = $derived(itemHeight + gap);
 
-	// Update visible range
+	// Update visible range with performance tracking
 	function calculateVisibleRange() {
-		if (!scrollElement || !nfts || nfts.length === 0) return;
+		const endTiming = debugTime('🎨 Virtual Grid Range Calculation');
+
+		if (!scrollElement || !nfts || nfts.length === 0) {
+			debugLog('🎨 No scroll element or NFTs');
+			endTiming();
+			return;
+		}
+
+		debugLog(`🎨 Calculating visible range for ${nfts.length} NFTs`);
 
 		const rect = scrollElement.getBoundingClientRect();
-		containerHeight = rect.height || 600;
+		containerHeight = rect.height || window.innerHeight || 600;
+
+		// Debug container height
+		debugLog(`🎨 Container height: ${containerHeight}px (rect: ${rect.height}px, window: ${window.innerHeight}px)`);
 
 		// Calculate which rows are visible
 		const startRow = Math.floor(scrollTop / rowHeight);
@@ -55,6 +67,9 @@
 		// Convert row indices to item indices (multiply by columns)
 		visibleStart = overscanStartRow * columns;
 		visibleEnd = Math.min(nfts.length, overscanEndRow * columns);
+
+		debugLog(`🎨 Visible range: ${visibleStart}-${visibleEnd} (${visibleEnd - visibleStart} items)`);
+		endTiming();
 	}
 
 	// Update visible range when scrolling
@@ -69,30 +84,59 @@
 	const urlCache = new Map<string, string>();
 	let lastCacheClear = 0;
 
-	// Get image URL with caching and error handling
-	function getImageUrl(nft: GalleryNFT): string {
-		// Check if imageData exists (might be missing if loaded from non-persisted state)
+	// LAZY image URL creation - only create when actually needed
+	let imageLoadQueue = new Set<string>();
+	let imageUrls = $state<Record<string, string>>({});
+
+	// Request image URL creation (async, non-blocking)
+	function requestImageUrl(nft: GalleryNFT): string {
+		// Check if already loaded
+		if (imageUrls[nft.id]) {
+			return imageUrls[nft.id];
+		}
+
+		// Check if imageData exists
 		if (!nft.imageData || nft.imageData.byteLength === 0) {
+			debugLog('🖼️ No image data for NFT');
 			return '';
 		}
 
-		// Check if we have a recent cached URL (within 1 second)
-		const now = Date.now();
-		const cached = urlCache.get(nft.id);
-		if (cached && now - lastCacheClear < 1000) {
-			return cached;
+		// Add to queue for async loading
+		if (!imageLoadQueue.has(nft.id)) {
+			imageLoadQueue.add(nft.id);
+			debugLog(`🖼️ Queueing image for async loading: ${nft.id}`);
+
+			// Load image in background without blocking UI
+			const loadTimeout = setTimeout(() => {
+				const startUrl = performance.now();
+				try {
+					const url = imageUrlCache.get(nft.id, nft.imageData);
+					imageUrls[nft.id] = url; // This triggers reactivity!
+					imageLoadQueue.delete(nft.id);
+
+					const endUrl = performance.now();
+					debugLog(`🖼️ ✅ Loaded image: ${(endUrl - startUrl).toFixed(2)}ms for ${nft.id}`);
+					debugLog(`🖼️ 🔄 UI updated for ${nft.id} with URL: ${url.substring(0, 50)}...`);
+				} catch (error) {
+					debugLog(`🖼️ ❌ Failed to load image ${nft.id}:`, error);
+					imageLoadQueue.delete(nft.id);
+					imageUrls[nft.id] = 'error';
+				}
+			}, 0);
+
+			// Add timeout protection (5 seconds max)
+			setTimeout(() => {
+				if (imageLoadQueue.has(nft.id)) {
+					debugLog(`🖼️ ⏰ Timeout loading image: ${nft.id}`);
+					imageLoadQueue.delete(nft.id);
+					// Mark as failed to prevent infinite loading
+					imageUrls[nft.id] = 'error';
+				}
+			}, 5000);
 		}
 
-		// Clear old cache entries periodically
-		if (now - lastCacheClear > 1000) {
-			urlCache.clear();
-			lastCacheClear = now;
-		}
-
-		// Get fresh URL and cache it
-		const url = imageUrlCache.get(nft.id, nft.imageData);
-		urlCache.set(nft.id, url);
-		return url;
+		// Return placeholder while loading
+		return '';
 	}
 
 	// Handle image loading errors with automatic retry
@@ -119,24 +163,11 @@
 		onselect?.(nft);
 	}
 
-	// Minimal preloading to avoid overwhelming the cache
+	// Minimal preloading to avoid overwhelming the cache - DISABLED FOR PERFORMANCE
 	$effect(() => {
-		if (!nfts || nfts.length === 0) return;
-
-		// Only preload images in immediate visible range (no buffer for large collections)
-		const preloadStart = visibleStart;
-		const preloadEnd = Math.min(nfts.length, visibleEnd + 10);
-
-		for (let i = preloadStart; i < preloadEnd; i++) {
-			const nft = nfts[i];
-			if (nft && nft.imageData) {
-				const stats = imageUrlCache.getStats();
-				// Be very conservative about preloading for large collections
-				if (stats.size < stats.maxSize * 0.6) {
-					imageUrlCache.preload(nft.id, nft.imageData);
-				}
-			}
-		}
+		// Skip preloading to avoid the 44-216ms URL creation bottleneck
+		// Images will be loaded on-demand when they come into view
+		debugLog(`🎨 Skipping preloading for ${nfts.length} NFTs (avoiding URL creation bottleneck)`);
 	});
 
 	onMount(() => {
@@ -168,7 +199,7 @@
 		</div>
 	{/if}
 
-	<div bind:this={scrollElement} class="relative overflow-y-auto" onscroll={handleScroll}>
+	<div bind:this={scrollElement} class="relative overflow-y-auto" style="height: 600px; min-height: 400px;" onscroll={handleScroll}>
 		<!-- Spacer for total height -->
 		<div style="height: {totalHeight}px; position: relative;">
 			<!-- Visible items -->
@@ -192,8 +223,8 @@
 						<!-- NFT Image -->
 						<div class="bg-muted h-full w-full overflow-hidden">
 							{#if nft.imageData && nft.imageData.byteLength > 0}
-								{@const imageUrl = getImageUrl(nft)}
-								{#if imageUrl}
+								{@const imageUrl = requestImageUrl(nft)}
+								{#if imageUrl && imageUrl !== 'error'}
 									<img
 										src={imageUrl}
 										alt={nft.name}
@@ -222,6 +253,30 @@
 											</svg>
 											<div>Image Unavailable</div>
 											<div class="mt-1 text-xs opacity-70">Loading failed</div>
+										</div>
+									</div>
+								{:else if imageUrl === 'error'}
+									<!-- Show error state -->
+									<div
+										class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
+									>
+										<div class="text-center">
+											<svg
+												class="mx-auto mb-1 h-6 w-6"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+													stroke-width="1"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+												/>
+											</svg>
+											<div>Load Error</div>
+											<div class="mt-1 text-xs opacity-70">Timeout</div>
 										</div>
 									</div>
 								{:else}

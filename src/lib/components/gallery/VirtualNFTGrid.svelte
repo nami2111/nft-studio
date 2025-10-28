@@ -53,25 +53,7 @@
 		return 'bg-blue-500 text-white';
 	}
 
-	// Preload images as they come into view
-	$effect(() => {
-		if (!nfts || nfts.length === 0) return;
-
-		// Preload images in the visible range plus buffer
-		const preloadStart = Math.max(0, visibleStart - 5);
-		const preloadEnd = Math.min(nfts.length, visibleEnd + 10);
-
-		for (let i = preloadStart; i < preloadEnd; i++) {
-			const nft = nfts[i];
-			if (nft) {
-				const stats = imageUrlCache.getStats();
-				// Only preload if cache is not at capacity
-				if (stats.size < stats.maxSize * 0.9) {
-					imageUrlCache.preload(nft.id, nft.imageData);
-				}
-			}
-		}
-	});
+	// Removed expensive preload effect for better performance
 
 	onMount(() => {
 		// Initial preload of first page of images
@@ -172,14 +154,14 @@
 		</div>
 	</div>
 
-	<!-- Cache stats for debugging -->
+	<!-- Debug stats for development -->
 	{#if import.meta.env.DEV}
 		<div class="fixed right-4 bottom-4 rounded bg-black/80 px-3 py-2 text-xs text-white">
-			Visible: {visibleStart}-{visibleEnd}/{nfts.length} | Cached: {imageUrlCache.getStats()
-				.size}/{imageUrlCache.getStats().maxSize} | Memory: {(
-				imageUrlCache.getStats().memory /
-				(1024 * 1024)
-			).toFixed(1)}MB
+			<div class="space-y-1">
+				<div>Visible: {visibleStart}-{visibleEnd}/{nfts.length}</div>
+				<div>Cached: {imageUrlCache.getStats().size}/{imageUrlCache.getStats().maxSize}</div>
+				<div>Memory: {(imageUrlCache.getStats().memory / (1024 * 1024)).toFixed(1)}MB</div>
+			</div>
 		</div>
 	{/if}
 </div>

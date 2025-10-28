@@ -25,16 +25,17 @@
 		{ value: 'rarity-desc', label: 'Least Rare' }
 	];
 
-	// Handle search with debouncing
+	// Handle search with aggressive debouncing for better performance
 	let searchTimeout: number;
 	function handleSearch(event: Event) {
 		const target = event.target as HTMLInputElement;
 		searchQuery = target.value;
 
 		clearTimeout(searchTimeout);
+		// Reduced debounce time for more responsive feel
 		searchTimeout = setTimeout(() => {
 			galleryStore.setFilterOptions({ search: searchQuery || undefined });
-		}, 300);
+		}, 150);
 	}
 
 	function handleCollectionChange(event: Event) {

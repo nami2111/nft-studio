@@ -11,17 +11,31 @@
 
 	let { class: className = '' }: Props = $props();
 
-	// Derive available traits from current NFTs
+	// Get source NFTs for trait extraction (avoid filtering overhead)
+	const sourceNFTs = $derived(() => {
+		if (galleryStore.selectedCollection) {
+			return galleryStore.selectedCollection.nfts;
+		} else {
+			return galleryStore.collections.flatMap((collection) => collection.nfts);
+		}
+	});
+
+	// Derive available traits from source NFTs (more efficient)
 	const availableTraits = $derived(() => {
-		const nfts = galleryStore.filteredAndSortedNFTs;
+		const nfts = sourceNFTs();
 		const traitMap = new Map<string, Set<string>>();
 
 		for (const nft of nfts) {
 			for (const trait of nft.metadata.traits) {
-				if (!traitMap.has(trait.layer)) {
-					traitMap.set(trait.layer, new Set());
+				const layer = trait.layer || (trait as any).trait_type;
+				const traitValue = trait.trait || (trait as any).value;
+
+				if (!layer || !traitValue) continue;
+
+				if (!traitMap.has(layer)) {
+					traitMap.set(layer, new Set());
 				}
-				traitMap.get(trait.layer)!.add(trait.trait);
+				traitMap.get(layer)!.add(traitValue);
 			}
 		}
 
@@ -70,9 +84,14 @@
 	}
 
 	function getTraitCount(layer: string, trait: string): number {
-		const nfts = galleryStore.filteredAndSortedNFTs;
+		// Use source NFTs for trait counts (more efficient)
+		const nfts = sourceNFTs();
 		return nfts.filter((nft) =>
-			nft.metadata.traits.some((t) => t.layer === layer && t.trait === trait)
+			nft.metadata.traits.some((t) => {
+				const tLayer = t.layer || (t as any).trait_type;
+				const tValue = t.trait || (t as any).value;
+				return tLayer === layer && tValue === trait;
+			})
 		).length;
 	}
 </script>

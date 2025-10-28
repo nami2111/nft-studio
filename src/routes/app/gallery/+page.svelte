@@ -2,10 +2,11 @@
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
 	import { onDestroy, onMount } from 'svelte';
-	import type { GalleryNFT } from '$lib/types/gallery';
+	import type { GalleryNFT, GalleryCollection } from '$lib/types/gallery';
 	import { trackGalleryPageVisit } from '$lib/utils/analytics';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
+	import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
 
 	let isLoading = $derived(galleryStore.isLoading);
 	let collections = $derived(galleryStore.collections);
@@ -21,39 +22,146 @@
 	let sortButtonRef = $state<HTMLButtonElement | null>(null);
 	let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
 	let selectedTraits = $state<Record<string, string[]>>({});
-	// Local filtering and sorting
-	let filteredNFTs = $derived.by(() => {
-		if (!selectedCollection) return [];
 
+	// Performance optimization: Cache for trait filtering
+	let traitFilterCache = new Map<string, Set<number>>();
+	let lastCollectionTraits = '';
+
+	// Cache for complete filter results
+	let filterResultCache = new Map<string, GalleryNFT[]>();
+	let lastFilterKey = '';
+
+	// Create cache key for current filter state
+	function createFilterKey(): string {
+		const search = searchQuery || '';
+		const traits = JSON.stringify(Object.entries(selectedTraits).sort());
+		const sort = selectedSort;
+		const collection = selectedCollection?.id || 'none';
+		return `${collection}:${search}:${traits}:${sort}`;
+	}
+
+	// Pre-build trait index for current collection
+	function buildTraitIndex(collection: GalleryCollection | null) {
+		if (!collection) {
+			traitFilterCache.clear();
+			return;
+		}
+
+		const collectionId = collection.id;
+		if (lastCollectionTraits === collectionId && traitFilterCache.size > 0) {
+			debugLog('🎯 Using cached trait index');
+			return;
+		}
+
+		debugLog('🔧 Building trait index for performance...');
+		const start = performance.now();
+
+		traitFilterCache.clear();
+
+		for (let i = 0; i < collection.nfts.length; i++) {
+			const nft = collection.nfts[i];
+			for (const trait of nft.metadata.traits) {
+				const layer = trait.layer || (trait as any).trait_type;
+				const value = trait.trait || (trait as any).value;
+				if (!layer || !value) continue;
+
+				const key = `${layer}:${value}`;
+				if (!traitFilterCache.has(key)) {
+					traitFilterCache.set(key, new Set());
+				}
+				traitFilterCache.get(key)!.add(i);
+			}
+		}
+
+		lastCollectionTraits = collectionId;
+		const end = performance.now();
+		debugLog(`🔧 Trait index built in ${(end - start).toFixed(2)}ms with ${traitFilterCache.size} entries`);
+	}
+
+	// Build trait index when collection changes
+	$effect(() => {
+		buildTraitIndex(selectedCollection);
+	});
+
+	// Optimized filtering and sorting with caching
+	let filteredNFTs = $derived.by(() => {
+		// Track if this is actually being called by UI
+		const filterStart = performance.now();
+		debugLog('🚀 === DERIVED.BY TRIGGERED! ===');
+
+		const endTiming = debugTime('🚀 OPTIMIZED GALLERY FILTER');
+		debugLog('🚀 OPTIMIZED FILTER TRIGGERED!');
+
+		if (!selectedCollection) {
+			debugLog('❌ No collection selected');
+			endTiming();
+			return [];
+		}
+
+		// Check cache first
+		const filterKey = createFilterKey();
+		if (filterResultCache.has(filterKey)) {
+			debugLog('🎯 FILTER CACHE HIT! Using cached results');
+			endTiming();
+			return filterResultCache.get(filterKey)!;
+		}
+
+		debugLog('⚡ FILTER CACHE MISS - Running optimized filtering');
 		let nfts = [...selectedCollection.nfts];
+		debugCount('🚀 Optimized filtering NFTs', nfts.length);
 
 		// Apply search filter
 		if (searchQuery) {
+			debugLog('🔍 Applying local search filter');
 			const searchLower = searchQuery.toLowerCase();
 			nfts = nfts.filter(
 				(nft) =>
 					nft.name.toLowerCase().includes(searchLower) ||
 					nft.description?.toLowerCase().includes(searchLower)
 			);
+			debugCount('🔍 After local search', nfts.length);
 		}
 
-		// Apply trait filters
+		// Apply trait filters - OPTIMIZED VERSION!
 		if (Object.keys(selectedTraits).length > 0) {
-			nfts = nfts.filter((nft) => {
-				for (const [layer, traits] of Object.entries(selectedTraits)) {
-					const nftLayerTraits = nft.metadata.traits
-						.filter((t) => (t.layer || (t as any).trait_type) === layer)
-						.map((t) => t.trait || (t as any).value);
+			debugLog('⚡ Applying OPTIMIZED trait filters');
+			const traitStart = performance.now();
 
-					if (!traits.some((trait) => nftLayerTraits.includes(trait))) {
-						return false;
+			// Use pre-built trait index for fast lookups
+			let candidateIndices = new Set<number>();
+			for (let i = 0; i < selectedCollection.nfts.length; i++) {
+				candidateIndices.add(i);
+			}
+
+			for (const [layer, traits] of Object.entries(selectedTraits)) {
+				let traitMatches = new Set<number>();
+
+				// Get all NFTs that match any of the selected traits for this layer
+				for (const trait of traits) {
+					const key = `${layer}:${trait}`;
+					const indices = traitFilterCache.get(key);
+					if (indices) {
+						for (const index of indices) {
+							traitMatches.add(index);
+						}
 					}
 				}
-				return true;
-			});
+
+				// Intersect with candidates
+				candidateIndices = new Set([...candidateIndices].filter(i => traitMatches.has(i)));
+				if (candidateIndices.size === 0) break;
+			}
+
+			// Convert indices back to NFTs
+			nfts = Array.from(candidateIndices).map(i => selectedCollection!.nfts[i]);
+
+			const traitEnd = performance.now();
+			debugLog(`⚡ OPTIMIZED trait filtering: ${(traitEnd - traitStart).toFixed(2)}ms`);
+			debugCount('⚡ After optimized traits', nfts.length);
 		}
 
 		// Apply sorting
+		debugLog('📊 Applying local sorting');
 		switch (selectedSort) {
 			case 'name-asc':
 				nfts.sort((a, b) => a.name.localeCompare(b.name));
@@ -71,12 +179,36 @@
 				break;
 		}
 
+		debugCount('🏁 OPTIMIZED FILTER FINAL RESULT', nfts.length);
+
+		// Cache result (limit cache size)
+		if (filterResultCache.size > 20) {
+			const firstKey = filterResultCache.keys().next().value;
+			if (firstKey) {
+				filterResultCache.delete(firstKey);
+			}
+		}
+		filterResultCache.set(filterKey, nfts);
+
+		endTiming();
+
+		// Track total time including derived.by overhead
+		const totalFilterTime = performance.now() - filterStart;
+		debugLog(`🏁 TOTAL DERIVED.BY TIME: ${totalFilterTime.toFixed(2)}ms`);
+
 		return nfts;
 	});
 
 	// Initialize store with selected collection
 	$effect(() => {
 		galleryStore.setSelectedCollection(selectedCollection || null);
+	});
+
+	// Performance monitoring for UI rendering
+	let renderCount = 0;
+	$effect(() => {
+		renderCount++;
+		debugLog(`🎨 UI RENDER #${renderCount}: NFTs=${filteredNFTs.length}, Collection=${selectedCollection?.name || 'none'}`);
 	});
 
 	// Get all unique traits for filters
