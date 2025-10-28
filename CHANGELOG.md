@@ -42,6 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reliability**: Data URLs cannot be garbage collected like blob URLs, eliminating the root cause of errors
 - **Performance**: Maintains excellent performance with automatic strategy switching based on collection size
 
+### Gallery Performance Optimizations
+
+- **Lazy Image Loading**: Implemented async loading queue for image URLs with on-demand creation instead of expensive preloading
+- **Debouncing Enhancements**: Reduced search debounce from 300ms to 150ms for faster UX, added scroll calculation debouncing for virtual grid
+- **Result Caching**: Added filter key-based result caching in gallery store to avoid redundant filtering operations
+- **Trait Filtering**: Optimized trait filtering with pre-built indices for faster trait value extraction and broader compatibility
+- **Debug Logging**: Cleaned up debug output with operation-specific thresholds (>1ms for grid, >5ms for images, >10ms for filters)
+- **Container Optimization**: Fixed container height calculation for consistent virtual scrolling performance across viewport changes
+- **Scroll Performance**: Debounced scroll calculations to prevent excessive calls during rapid scrolling
+
 ## [0.4.0] - 2025-10-28
 
 ### Major Changes
