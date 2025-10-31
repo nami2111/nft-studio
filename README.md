@@ -14,6 +14,8 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 ### Advanced Trait Features
 - **Ruler Traits**: Revolutionary trait compatibility system that controls which trait combinations can be generated
 - **Complex Rule Engine**: Create sophisticated compatibility rules with allowed/forbidden trait combinations
+- **Strict Pair Mode**: Advanced uniqueness tracking that prevents specific trait combinations from appearing more than once
+- **Multi-Layer Combinations**: Support for unlimited layer combinations (2+ layers) with automatic duplicate prevention
 - **Bulk Trait Operations**: Efficient batch editing, renaming, and deletion with progress tracking
 - **Smart Trait Filtering**: Advanced search and filtering capabilities with multi-dimensional trait selection
 
