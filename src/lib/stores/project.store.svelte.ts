@@ -5,6 +5,7 @@
 
 import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
 import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
+import type { StrictPairConfig } from '$lib/types/layer';
 import { fileToArrayBuffer } from '$lib/utils';
 import {
 	validateDimensions,
@@ -48,6 +49,7 @@ interface PersistedProject {
 	description: string;
 	outputSize: { width: number; height: number };
 	layers: PersistedLayer[];
+	strictPairConfig?: StrictPairConfig;
 	_needsProperLoad: boolean;
 }
 
@@ -78,6 +80,7 @@ function persistProject(projectToPersist: Project): void {
 				isOptional: layer.isOptional,
 				traits: [] // No traits for projects without images
 			})),
+			strictPairConfig: projectToPersist.strictPairConfig,
 			_needsProperLoad: true
 		};
 
@@ -131,6 +134,7 @@ function loadPersistedProject(): Project | null {
 					rulerRules: trait.rulerRules
 				}))
 			})),
+			strictPairConfig: parsedProject.strictPairConfig,
 			_needsProperLoad: true
 		};
 
@@ -167,6 +171,17 @@ function defaultProject(): Project {
 // Initialize project with persisted data or default
 const persistedProject = loadPersistedProject();
 export const project = $state<Project>(persistedProject || defaultProject());
+
+// Export a simple store wrapper for components
+export const projectStore = {
+	get currentProject() {
+		return project;
+	},
+	updateStrictPairConfig,
+	getStrictPairConfig,
+	isStrictPairEnabled,
+	getActiveLayerCombinations
+};
 
 // Auto-persist project when it changes using a proxy approach
 let persistTimeout: number | null = null;
@@ -560,6 +575,30 @@ export function hasPersistedData(): boolean {
 	} catch {
 		return false;
 	}
+}
+
+// Strict Pair management functions
+export function updateStrictPairConfig(projectId: ProjectId, config: StrictPairConfig): void {
+	if (project.id !== projectId) {
+		throw new Error('Project ID mismatch');
+	}
+
+	project.strictPairConfig = { ...config };
+	schedulePersist();
+}
+
+export function getStrictPairConfig(): StrictPairConfig | undefined {
+	return project.strictPairConfig ? { ...project.strictPairConfig } : undefined;
+}
+
+export function isStrictPairEnabled(): boolean {
+	return project.strictPairConfig?.enabled ?? false;
+}
+
+export function getActiveLayerCombinations(): string[] {
+	return project.strictPairConfig?.layerCombinations
+		.filter((layerCombination: any) => layerCombination.active)
+		.map((layerCombination: any) => layerCombination.id) ?? [];
 }
 
 export function resetProject(): void {

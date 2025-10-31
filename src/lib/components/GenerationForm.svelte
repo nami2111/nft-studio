@@ -86,6 +86,7 @@
 			outputSize: { width: number; height: number };
 			description?: string;
 			layers: Layer[];
+			strictPairConfig?: import('$lib/types/layer').StrictPairConfig;
 		};
 		updateProgress(images.length, images.length, 'Packaging files into a .zip...');
 
@@ -186,6 +187,7 @@
 				outputSize: { width: number; height: number };
 				description?: string;
 				layers: Layer[];
+				strictPairConfig?: import('$lib/types/layer').StrictPairConfig;
 			};
 
 			// Validate project has layers
@@ -327,6 +329,7 @@
 				projectData.outputSize,
 				projectData.name,
 				projectData.description || '',
+				projectData.strictPairConfig,
 				workerMessageHandler
 			);
 		} catch (error) {

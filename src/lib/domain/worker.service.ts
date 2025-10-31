@@ -8,6 +8,7 @@ import type {
 	ProgressMessage,
 	PreviewMessage
 } from '$lib/types/worker-messages';
+import type { StrictPairConfig } from '$lib/types/layer';
 import {
 	startGeneration as startWorkerGeneration,
 	cancelGeneration as cancelWorkerGeneration
@@ -25,6 +26,7 @@ export async function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
+	strictPairConfig?: StrictPairConfig,
 	onMessage?: (
 		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
 	) => void
@@ -63,6 +65,7 @@ export async function startGeneration(
 						outputSize,
 						projectName,
 						projectDescription,
+						strictPairConfig,
 						(message) => {
 							if (onMessage) {
 								onMessage(message);

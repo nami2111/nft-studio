@@ -4,6 +4,18 @@
 	import ProjectManagement from '$lib/components/ProjectManagement.svelte';
 	import GenerationForm from '$lib/components/GenerationForm.svelte';
 	import Preview from '$lib/components/Preview.svelte';
+	import StrictPair from '$lib/components/StrictPair.svelte';
+	import { projectStore } from '$lib/stores/project.store.svelte';
+	import type { StrictPairConfig } from '$lib/types/layer';
+
+	let currentProject = $derived(projectStore.currentProject);
+
+	// Handle Strict Pair config updates
+	function handleStrictPairUpdate(config: StrictPairConfig) {
+		if (currentProject) {
+			projectStore.updateStrictPairConfig(currentProject.id, config);
+		}
+	}
 </script>
 
 <div class="container mx-auto max-w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
@@ -32,12 +44,20 @@
 			</div>
 		</div>
 
-		<!-- Right Column: Preview and Generation -->
+		<!-- Right Column: Preview, Strict Pair, and Generation -->
 		<div class="space-y-3 sm:space-y-4 lg:col-span-4 xl:col-span-5">
 			<!-- Preview -->
 			<div class="lg:sticky lg:top-4 xl:top-6">
 				<Preview />
 			</div>
+
+			<!-- Strict Pair Card -->
+			{#if currentProject}
+				<StrictPair
+					project={currentProject}
+					onupdateStrictPairConfig={handleStrictPairUpdate}
+				/>
+			{/if}
 
 			<!-- Generation Card -->
 			<div class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">

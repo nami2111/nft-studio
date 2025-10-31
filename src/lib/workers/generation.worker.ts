@@ -13,6 +13,22 @@ import type {
 } from '$lib/types/worker-messages';
 import { createTaskId, type TaskId } from '$lib/types/ids';
 
+// Strict Pair types (local definition to avoid circular dependencies)
+interface StrictPairConfig {
+	enabled: boolean;
+	layerCombinations: Array<{
+		id: string;
+		layerIds: string[];
+		description: string;
+		active: boolean;
+	}>;
+}
+
+// Track used combinations for each layer combination
+interface UsedCombination {
+	traitIds: string[];
+}
+
 // No WASM imports needed - using direct Canvas API for optimal performance
 
 // Simple worker-level LRU cache for ArrayBuffers instead of ImageBitmaps
@@ -120,11 +136,124 @@ function getCompatibleTraits(
 	return layer.traits.filter((trait) => isTraitCompatible(trait, layer.id, selectedTraits, layers));
 }
 
+// Strict Pair validation logic
+interface GeneratedCombination {
+	combinationId: string;
+	traitIds: string[];
+	used: boolean;
+}
+
+// Track used combinations globally within the worker
+const usedCombinations = new Map<string, Set<string>>();
+
+// Generate a unique key for a specific trait combination
+function generateTraitCombinationKey(traitIds: string[]): string {
+	// Sort trait IDs to ensure consistent key regardless of order
+	const sortedIds = [...traitIds].sort();
+	return sortedIds.join('|');
+}
+
+// Check if a trait combination violates Strict Pair rules
+function checkStrictPairViolation(
+	proposedTraits: { traitId: string; layerId: string }[],
+	strictPairConfig: StrictPairConfig | undefined
+): { hasViolation: boolean; violatedCombinationId?: string; description?: string } {
+	if (!strictPairConfig?.enabled) {
+		return { hasViolation: false };
+	}
+
+	// Check each active layer combination
+	for (const layerCombination of strictPairConfig.layerCombinations) {
+		if (!layerCombination.active) continue;
+
+		// Find the traits from all layers in the proposed selection
+		const foundTraits: string[] = [];
+		let allLayersPresent = true;
+
+		for (const layerId of layerCombination.layerIds) {
+			const trait = proposedTraits.find(t => t.layerId === layerId);
+			if (trait) {
+				foundTraits.push(trait.traitId);
+			} else {
+				allLayersPresent = false;
+				break;
+			}
+		}
+
+		// All layers must be present in the proposed selection for this rule to apply
+		if (!allLayersPresent) continue;
+
+		// Generate the combination key
+		const combinationKey = generateTraitCombinationKey(foundTraits);
+
+		// Check if this combination was already used
+		if (!usedCombinations.has(layerCombination.id)) {
+			usedCombinations.set(layerCombination.id, new Set());
+		}
+
+		const usedSet = usedCombinations.get(layerCombination.id)!;
+		if (usedSet.has(combinationKey)) {
+			return {
+				hasViolation: true,
+				violatedCombinationId: layerCombination.id,
+				description: `Layer combination "${layerCombination.description}" already used`
+			};
+		}
+	}
+
+	return { hasViolation: false };
+}
+
+// Mark a trait combination as used
+function markCombinationAsUsed(
+	selectedTraits: { traitId: string; layerId: string }[],
+	strictPairConfig: StrictPairConfig | undefined
+): void {
+	if (!strictPairConfig?.enabled) return;
+
+	for (const layerCombination of strictPairConfig.layerCombinations) {
+		if (!layerCombination.active) continue;
+
+		// Find the traits from all layers in the selected traits
+		const foundTraits: string[] = [];
+		let allLayersPresent = true;
+
+		for (const layerId of layerCombination.layerIds) {
+			const trait = selectedTraits.find(t => t.layerId === layerId);
+			if (trait) {
+				foundTraits.push(trait.traitId);
+			} else {
+				allLayersPresent = false;
+				break;
+			}
+		}
+
+		// All layers must be present in the selected traits for this rule to apply
+		if (!allLayersPresent) continue;
+
+		// Generate and mark the combination
+		const combinationKey = generateTraitCombinationKey(foundTraits);
+
+		if (!usedCombinations.has(layerCombination.id)) {
+			usedCombinations.set(layerCombination.id, new Set());
+		}
+
+		const usedSet = usedCombinations.get(layerCombination.id)!;
+		usedSet.add(combinationKey);
+	}
+}
+
+// Clear used combinations for a new generation
+function clearUsedCombinations(): void {
+	usedCombinations.clear();
+}
+
 // Rarity algorithm with compatibility checking
 function selectTrait(
 	layer: TransferrableLayer,
 	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[]
+	layers: TransferrableLayer[],
+	strictPairConfig?: StrictPairConfig
 ): TransferrableTrait | null {
 	// Handle optional layers first
 	if (layer.isOptional) {
@@ -140,20 +269,82 @@ function selectTrait(
 		return null; // No compatible traits available
 	}
 
-	const totalWeight = compatibleTraits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
+	// Filter traits that would violate Strict Pair rules
+	let validTraits = compatibleTraits;
+	if (strictPairConfig?.enabled) {
+		validTraits = compatibleTraits.filter(trait => {
+			// Create a temporary selection including this trait
+			const proposedSelection = [
+				...selectedTraits.map(t => ({ traitId: t.traitId, layerId: t.layerId })),
+				{ traitId: trait.id, layerId: layer.id }
+			];
+
+			const violation = checkStrictPairViolation(proposedSelection, strictPairConfig);
+			return !violation.hasViolation;
+		});
+
+		// If no valid traits due to Strict Pair, fallback to compatible traits
+		// (but log a warning for debugging)
+		if (validTraits.length === 0) {
+			console.warn('Strict Pair constraints eliminated all valid traits for layer:', layer.name);
+			validTraits = compatibleTraits; // Fallback to allow generation to continue
+		}
+	}
+
+	if (validTraits.length === 0) {
+		return null;
+	}
+
+	const totalWeight = validTraits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
 	if (totalWeight === 0) {
 		return null;
 	}
 
 	let randomNum = Math.random() * totalWeight;
 
-	for (const trait of compatibleTraits) {
+	for (const trait of validTraits) {
 		if (randomNum < trait.rarityWeight) {
 			return trait;
 		}
 		randomNum -= trait.rarityWeight;
 	}
 	return null;
+}
+
+// Enhanced trait selection with Strict Pair retry logic
+function selectTraitWithRetry(
+	layer: TransferrableLayer,
+	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
+	layers: TransferrableLayer[],
+	strictPairConfig?: StrictPairConfig,
+	maxRetries: number = 50
+): TransferrableTrait | null {
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
+		const selectedTrait = selectTrait(layer, selectedTraits, layers, strictPairConfig);
+		if (!selectedTrait) return null;
+
+		// Create the proposed selection with this trait
+		const proposedSelection = [
+			...selectedTraits.map(t => ({ traitId: t.traitId, layerId: t.layerId })),
+			{ traitId: selectedTrait.id, layerId: layer.id }
+		];
+
+		// Check if this would violate Strict Pair rules
+		const violation = checkStrictPairViolation(proposedSelection, strictPairConfig);
+		if (!violation.hasViolation) {
+			return selectedTrait;
+		}
+
+		// If we have a violation and we're close to max retries, try to be more flexible
+		if (attempt >= maxRetries - 10) {
+			console.warn(`Strict Pair constraint causing difficulty on layer ${layer.name}, attempt ${attempt + 1}`);
+		}
+	}
+
+	// If we couldn't find a valid trait after max retries, return the last selected one
+	// This allows generation to continue even with tight constraints
+	console.warn(`Could not satisfy Strict Pair constraints for layer ${layer.name} after ${maxRetries} attempts`);
+	return selectTrait(layer, selectedTraits, layers); // Fallback without Strict Pair filtering
 }
 
 // Create an ImageBitmap from ArrayBuffer - optimized for performance
@@ -376,8 +567,11 @@ async function generateCollection(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
+	strictPairConfig?: StrictPairConfig,
 	taskId?: TaskId
 ) {
+	// Clear any existing combination data for this generation
+	clearUsedCombinations();
 	// Use a smaller initial array size to reduce memory footprint
 	const metadata: { name: string; data: object }[] = [];
 
@@ -453,6 +647,7 @@ async function generateCollection(
 				projectDescription,
 				collectionSize,
 				metadata,
+				strictPairConfig,
 				undefined, // no chunkImages for streaming
 				taskId
 			);
@@ -481,6 +676,7 @@ async function generateCollection(
 					projectDescription,
 					collectionSize,
 					metadata,
+					strictPairConfig,
 					chunkImages,
 					taskId
 				);
@@ -580,6 +776,7 @@ async function generateAndStreamItem(
 	projectDescription: string,
 	collectionSize: number,
 	metadata: { name: string; data: object }[],
+	strictPairConfig?: StrictPairConfig,
 	chunkImages?: { name: string; blob: Blob }[],
 	taskId?: TaskId
 ): Promise<void> {
@@ -598,8 +795,8 @@ async function generateAndStreamItem(
 				continue;
 			}
 
-			// Select a trait based on the rarity algorithm with compatibility checking
-			const selectedTrait = selectTrait(layer, selectedTraits, layers);
+			// Select a trait based on the rarity algorithm with compatibility checking and Strict Pair validation
+			const selectedTrait = selectTraitWithRetry(layer, selectedTraits, layers, strictPairConfig);
 
 			// If a trait is selected, draw it
 			if (selectedTrait) {
@@ -622,6 +819,12 @@ async function generateAndStreamItem(
 				// Clean up the ImageBitmap immediately to free memory
 				imageBitmap.close();
 			}
+		}
+
+		// After selecting all traits, mark the combination as used for Strict Pair tracking
+		if (strictPairConfig?.enabled) {
+			const simpleSelectedTraits = selectedTraits.map(t => ({ traitId: t.traitId, layerId: t.layerId }));
+			markCombinationAsUsed(simpleSelectedTraits, strictPairConfig);
 		}
 
 		// Convert the canvas to blob after all layers are drawn
@@ -902,6 +1105,7 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 					startPayload.outputSize,
 					startPayload.projectName,
 					startPayload.projectDescription,
+					startPayload.strictPairConfig,
 					taskId
 				);
 			} catch (error) {
