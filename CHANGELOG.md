@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2025-10-31
+
+### Added
+
+- **Multi-Layer Strict Pair Feature**: Complete implementation of flexible layer combination tracking for preventing duplicate trait combinations across 2 or more layers
+- **Unlimited Layer Combinations**: Users can now select any number of layers (2+) instead of being limited to just 2 layers
+- **Automatic Combination Calculation**: Smart calculation system showing total possible combinations for selected layers (traits_in_layer1 × traits_in_layer2 × traits_in_layer3 × ...)
+- **Enhanced Data Model**: New `LayerCombination` interface with flexible `layerIds` array replacing rigid 2-layer `LayerPair` structure
+- **Multi-Layer Worker Logic**: Updated generation worker to handle complex multi-layer combination validation and tracking
+- **Flexible Selection UI**: Enhanced modal interface allowing selection of 2 or more layers with real-time combination count display
+
+### Enhanced
+
+- **Strict Pair Flexibility**: Evolved from limited 2-layer pairs to unlimited multi-layer combinations
+  - **Before**: Only BASE + HEAD combinations (4 × 3 = 12 combinations)
+  - **After**: BASE + HEAD + ACCESSORY + CLOTHING (4 × 3 × 5 × 6 = 360 combinations)
+- **Combination Tracking**: Advanced trait combination key generation supporting any number of layers with sorted trait IDs for consistent tracking
+- **User Interface**: Updated terminology and UI elements to reflect multi-layer capability ("Layer Combinations" instead of "Layer Pairs")
+- **Worker Performance**: Optimized violation detection for complex multi-layer scenarios with efficient all-layers-present validation
+
+### Technical Changes
+
+- **Data Model Evolution**:
+  - `StrictPairConfig.layerCombinations` array with `LayerCombination[]` type
+  - `LayerCombination` interface: `{ id, layerIds: LayerId[], description, active }`
+  - `GeneratedTraitCombination` interface: `{ traitIds: TraitId[], used }`
+- **Worker Logic Updates**:
+  - `generateTraitCombinationKey()` function handles variable number of trait IDs
+  - `checkStrictPairViolation()` validates all layers present before checking combinations
+  - `markCombinationAsUsed()` tracks complex multi-layer trait combinations
+- **UI Component Updates**:
+  - Selection validation: minimum 2 layers, unlimited maximum
+  - Real-time combination count: `calculateTotalCombinations()` with multiplicative calculation
+  - Enhanced accessibility with proper fieldset/legend structure
+- **Store Integration**: Updated `project.store.svelte.ts` with `getActiveLayerCombinations()` function
+
+### Examples
+
+**Simple 2-Layer (backward compatible):**
+- BASE + HEAD = 4 × 3 = **12 unique combinations**
+
+**Complex 4-Layer (new capability):**
+- BASE + HEAD + ACCESSORY + CLOTHING = 4 × 3 × 5 × 6 = **360 unique combinations**
+
+**How it works:**
+1. User selects layers: BASE (4 traits) + HEAD (3 traits) + ACCESSORY (5 traits)
+2. System calculates: 4 × 3 × 5 = **60 possible combinations**
+3. During generation, each specific combination (e.g., Light Skin + Beanie + Sunglasses) appears only once
+4. Duplicates are automatically blocked and regenerated with different trait combinations
+
+### Impact
+
+- **Creative Freedom**: Users can now create complex constraints across multiple layers for more sophisticated NFT collections
+- **Backward Compatibility**: Existing 2-layer combinations continue to work exactly as before
+- **Scalability**: System efficiently handles combinations from 2 layers up to unlimited layers
+- **User Experience**: Same simple selection process (just pick layers) but with much more powerful capabilities
+- **Generation Intelligence**: Smart duplicate prevention works across any number of selected layers
+
 ## [0.4.2] - 2025-10-28
 
 ### Enhanced
