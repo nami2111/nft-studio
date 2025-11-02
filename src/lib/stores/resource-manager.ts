@@ -9,6 +9,7 @@ import {
 	ArrayBufferCache,
 	type CacheMetrics
 } from '$lib/utils/advanced-cache';
+import { performanceMonitor } from '$lib/utils/performance-monitor';
 
 export interface CacheConfig {
 	imageBitmap?: {
@@ -39,6 +40,8 @@ export class ResourceManager {
 		cacheMisses: 0,
 		memoryUsage: 0
 	};
+	private memoryPressureListener?: (event: Event) => void;
+	private cleanupTimeout: number | null = null;
 
 	constructor(config: CacheConfig = {}) {
 		// Initialize specialized caches with optimized defaults
@@ -62,6 +65,118 @@ export class ResourceManager {
 			defaultTtl: config.arrayBuffer?.ttl || 60 * 60 * 1000, // 1 hour
 			evictionPolicy: 'lru'
 		});
+
+		// Set up memory pressure event handling for proactive cleanup
+		this.setupMemoryPressureHandling();
+
+		// Set up periodic cache metrics collection
+		this.setupCacheMetricsCollection();
+	}
+
+	/**
+	 * Set up memory pressure event handling
+	 */
+	private setupMemoryPressureHandling(): void {
+		if (typeof window === 'undefined') return;
+
+		this.memoryPressureListener = () => {
+			console.warn('Memory pressure detected, performing emergency cleanup');
+			this.handleMemoryPressure();
+		};
+
+		// Listen for memory pressure events (supported in some browsers)
+		if (typeof window !== 'undefined' && 'addEventListener' in window) {
+			window.addEventListener('memorypressure', this.memoryPressureListener);
+			
+			// Also add a periodic cleanup check every 5 minutes
+			this.cleanupTimeout = window.setInterval(() => {
+				this.performPeriodicCleanup();
+			}, 5 * 60 * 1000);
+		}
+	}
+
+	/**
+	 * Handle memory pressure by evicting cached resources
+	 */
+	private handleMemoryPressure(): void {
+		const currentUsage = this.getCacheMetrics().overall.totalMemoryUsage;
+		
+		// If using more than 100MB, start aggressive cleanup
+		if (currentUsage > 100 * 1024 * 1024) {
+			// Clean up some object URLs
+			const urlsToClean = Math.min(this.objectUrls.size * 0.2, 50);
+			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
+			urlArray.forEach(url => this.removeObjectUrl(url));
+			
+			console.warn('Memory pressure cleanup completed: aggressive');
+		}
+		// If using more than 50MB, do moderate cleanup
+		else if (currentUsage > 50 * 1024 * 1024) {
+			// Clean up fewer object URLs
+			const urlsToClean = Math.min(this.objectUrls.size * 0.1, 25);
+			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
+			urlArray.forEach(url => this.removeObjectUrl(url));
+			
+			console.warn('Memory pressure cleanup completed: moderate');
+		}
+
+		this.updateMetrics();
+	}
+
+	/**
+	 * Perform periodic cleanup to prevent memory buildup
+	 */
+	private performPeriodicCleanup(): void {
+		const currentUsage = this.getCacheMetrics().overall.totalMemoryUsage;
+		
+		// If using more than 20MB, perform light cleanup
+		if (currentUsage > 20 * 1024 * 1024) {
+			// Clean up some object URLs
+			const urlsToClean = Math.min(this.objectUrls.size * 0.05, 10);
+			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
+			urlArray.forEach(url => this.removeObjectUrl(url));
+			
+			this.updateMetrics();
+		}
+	}
+
+	/**
+	 * Set up periodic cache metrics collection for performance monitoring
+	 */
+	private setupCacheMetricsCollection(): void {
+		// Collect cache metrics every 30 seconds
+		setInterval(() => {
+			this.collectAndReportCacheMetrics();
+		}, 30 * 1000);
+
+		// Also collect metrics immediately
+		setTimeout(() => {
+			this.collectAndReportCacheMetrics();
+		}, 5 * 1000); // Initial collection after 5 seconds
+	}
+
+	/**
+	 * Collect cache metrics and report to performance monitor
+	 */
+	private collectAndReportCacheMetrics(): void {
+		try {
+			const bitmapMetrics = this.imageBitmapCache.getMetrics();
+			const imageMetrics = this.imageCache.getMetrics();
+			const bufferMetrics = this.arrayBufferCache.getMetrics();
+
+			// Convert cache metrics to the format expected by performance monitor
+			if (bitmapMetrics) {
+				performanceMonitor.addCacheMetrics('imageBitmap', bitmapMetrics as CacheMetrics);
+			}
+			if (imageMetrics) {
+				performanceMonitor.addCacheMetrics('imageData', imageMetrics as CacheMetrics);
+			}
+			if (bufferMetrics) {
+				performanceMonitor.addCacheMetrics('arrayBuffer', bufferMetrics as CacheMetrics);
+			}
+		} catch (error) {
+			console.warn('Failed to collect cache metrics:', error);
+		}
 	}
 
 	/**
@@ -84,19 +199,42 @@ export class ResourceManager {
 	}
 
 	/**
-	 * Clean up all tracked object URLs
+	 * Clean up all tracked object URLs and perform cache cleanup
 	 */
 	cleanup(): void {
+		// Clean up object URLs
 		this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
 		this.objectUrls.clear();
 		this.metrics.objectUrls = 0;
+		
+		// Clear all caches
+		this.imageBitmapCache.clear();
+		this.imageCache.clear();
+		this.arrayBufferCache.clear();
+		
+		// Update metrics
+		this.updateMetrics();
 	}
 
 	/**
 	 * Destroy all resources and caches
 	 */
 	destroy(): void {
+		// Clean up event listeners and intervals
+		if (this.memoryPressureListener && typeof window !== 'undefined') {
+			window.removeEventListener('memorypressure', this.memoryPressureListener);
+			this.memoryPressureListener = undefined;
+		}
+		
+		if (this.cleanupTimeout) {
+			clearInterval(this.cleanupTimeout);
+			this.cleanupTimeout = null;
+		}
+		
+		// Clean up all resources
 		this.cleanup();
+		
+		// Destroy all caches
 		this.imageBitmapCache.destroy();
 		this.imageCache.destroy();
 		this.arrayBufferCache.destroy();

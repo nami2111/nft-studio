@@ -24,7 +24,8 @@ enum WorkerHealth {
 	HEALTHY = 'healthy',
 	UNRESPONSIVE = 'unresponsive',
 	ERROR = 'error',
-	DEGRADED = 'degraded'
+	DEGRADED = 'degraded',
+	REMOVED = 'removed'
 }
 
 // Worker pool configuration
@@ -756,6 +757,48 @@ async function addSingleWorker(): Promise<void> {
 }
 
 /**
+ * Properly remove a worker with full cleanup
+ */
+function removeWorker(workerIndex: number): void {
+	if (!workerPool) return;
+
+	console.log(`Removing worker ${workerIndex} with proper cleanup`);
+
+	// Terminate the worker
+	if (workerPool.workers[workerIndex]) {
+		workerPool.workers[workerIndex].terminate();
+		workerPool.workers[workerIndex] = null as unknown as Worker;
+	}
+
+	// Update status arrays
+	workerPool.workerStatus[workerIndex] = false;
+	workerPool.workerHealth[workerIndex] = WorkerHealth.REMOVED;
+
+	// Clear any queued tasks assigned to this worker
+	const removedTasks: WorkerTask[] = [];
+	workerPool.taskQueue = workerPool.taskQueue.filter((task) => {
+		if (task.assignedWorker === workerIndex) {
+			removedTasks.push(task);
+			return false; // Remove from queue
+		}
+		return true;
+	});
+
+	// Reject any removed tasks
+	for (const task of removedTasks) {
+		if (task._reject) {
+			task._reject(new Error('Task cancelled due to worker removal'));
+		}
+		workerPool.activeTasks.delete(task.id);
+	}
+
+	console.log(
+		`Worker ${workerIndex} removed successfully. ` +
+			`Cleaned up ${removedTasks.length} queued tasks and freed resources.`
+	);
+}
+
+/**
  * Remove idle workers from the pool
  */
 function removeIdleWorkers(count: number): void {
@@ -781,12 +824,8 @@ function removeIdleWorkers(count: number): void {
 
 			if (!hasActiveTasks) {
 				// Safe to remove
-				worker.terminate();
-				workerPool.workers[i] = null as unknown as Worker;
-				workerPool.workerStatus[i] = false;
-				workerPool.workerHealth[i] = WorkerHealth.ERROR; // Mark as removed
+				removeWorker(i);
 				removedCount++;
-				console.log(`Removed idle worker ${i}`);
 			}
 		}
 	}

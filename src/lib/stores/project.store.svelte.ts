@@ -221,6 +221,130 @@ export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial
 	}
 }
 
+// Batch update system for multiple operations
+interface BatchUpdate {
+	layerId?: LayerId;
+	traitId?: TraitId;
+	updates: Partial<Project | Layer | Trait>;
+	type: 'project' | 'layer' | 'trait';
+}
+
+let batchQueue: BatchUpdate[] = [];
+let batchTimeout: number | null = null;
+
+function processBatchQueue(): void {
+	if (batchQueue.length === 0) return;
+
+	const updates = [...batchQueue];
+	batchQueue = [];
+
+	// Apply all updates
+	for (const update of updates) {
+		switch (update.type) {
+			case 'project':
+				Object.assign(project, update.updates);
+				break;
+			case 'layer':
+				if (update.layerId) {
+					const layerIndex = project.layers.findIndex((l) => l.id === update.layerId);
+					if (layerIndex !== -1) {
+						Object.assign(project.layers[layerIndex], update.updates);
+					}
+				}
+				break;
+			case 'trait':
+				if (update.layerId && update.traitId) {
+					const layer = project.layers.find((l) => l.id === update.layerId);
+					if (layer) {
+						const traitIndex = layer.traits.findIndex((t) => t.id === update.traitId);
+						if (traitIndex !== -1) {
+							Object.assign(layer.traits[traitIndex], update.updates);
+						}
+					}
+				}
+				break;
+		}
+	}
+
+	// Persist once for all updates
+	persistProject(project);
+}
+
+function scheduleBatchPersist(): void {
+	// Clear existing timeout
+	if (batchTimeout) {
+		clearTimeout(batchTimeout);
+	}
+
+	// Set new timeout for batch completion
+	batchTimeout = setTimeout(() => {
+		processBatchQueue();
+		batchTimeout = null;
+	}, 1000); // Wait 1 second for batch completion
+}
+
+export function updateTraitsBatch(updates: Array<{
+	layerId: LayerId;
+	traitId: TraitId;
+	updates: Partial<Trait>;
+}>): void {
+	// Add all updates to batch queue
+	for (const update of updates) {
+		batchQueue.push({
+			layerId: update.layerId,
+			traitId: update.traitId,
+			updates: update.updates,
+			type: 'trait'
+		});
+	}
+
+	scheduleBatchPersist();
+}
+
+export function updateLayersBatch(updates: Array<{
+	layerId: LayerId;
+	updates: Partial<Layer>;
+}>): void {
+	// Add all updates to batch queue
+	for (const update of updates) {
+		batchQueue.push({
+			layerId: update.layerId,
+			updates: update.updates,
+			type: 'layer'
+		});
+	}
+
+	scheduleBatchPersist();
+}
+
+export function addTraitsBatch(layerId: LayerId, traits: Trait[]): void {
+	const layerIndex = project.layers.findIndex((l) => l.id === layerId);
+	if (layerIndex !== -1) {
+		// Add traits immediately to the project (for UI responsiveness)
+		project.layers[layerIndex].traits.push(...traits);
+		
+		// Track object URLs for cleanup
+		traits.forEach((trait) => {
+			if (trait.imageUrl) {
+				globalResourceManager.addObjectUrl(trait.imageUrl);
+			}
+		});
+	}
+
+	// Schedule persistence for metadata updates
+	schedulePersist();
+}
+
+export function flushBatch(): void {
+	if (batchQueue.length > 0) {
+		processBatchQueue();
+	}
+	if (batchTimeout) {
+		clearTimeout(batchTimeout);
+		batchTimeout = null;
+	}
+}
+
 import type { LoadingState } from './loading-state';
 
 // Derived state functions

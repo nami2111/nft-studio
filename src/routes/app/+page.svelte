@@ -1,14 +1,25 @@
 <script lang="ts">
 	import ProjectSettings from '$lib/components/ProjectSettings.svelte';
-	import LayerManager from '$lib/components/LayerManager.svelte';
 	import ProjectManagement from '$lib/components/ProjectManagement.svelte';
 	import GenerationForm from '$lib/components/GenerationForm.svelte';
 	import Preview from '$lib/components/Preview.svelte';
 	import StrictPair from '$lib/components/StrictPair.svelte';
 	import { projectStore } from '$lib/stores/project.store.svelte';
 	import type { StrictPairConfig } from '$lib/types/layer';
+	import { onMount } from 'svelte';
 
 	let currentProject = $derived(projectStore.currentProject);
+	
+	// Lazy-loaded components for code splitting
+	let LayerManager = $state<any>(null);
+	let PerformanceMonitor = $state<any>(null);
+	let CacheMonitor = $state<any>(null);
+	let ErrorBoundary = $state<any>(null);
+
+	// Loading states for lazy components
+	let isLoadingLayerManager = $state(false);
+	let isLoadingPerformanceMonitor = $state(false);
+	let isLoadingCacheMonitor = $state(false);
 
 	// Handle Strict Pair config updates
 	function handleStrictPairUpdate(config: StrictPairConfig) {
@@ -16,6 +27,61 @@
 			projectStore.updateStrictPairConfig(currentProject.id, config);
 		}
 	}
+
+	// Lazy load Layer Manager when needed
+	async function loadLayerManager() {
+		if (!LayerManager && !isLoadingLayerManager) {
+			isLoadingLayerManager = true;
+			try {
+				const module = await import('$lib/components/LayerManager.svelte');
+				LayerManager = module.default;
+			} catch (error) {
+				console.error('Failed to load LayerManager:', error);
+			} finally {
+				isLoadingLayerManager = false;
+			}
+		}
+	}
+
+	// Lazy load Performance Monitor (for development/optimization)
+	async function loadPerformanceMonitor() {
+		if (!PerformanceMonitor && !isLoadingPerformanceMonitor) {
+			isLoadingPerformanceMonitor = true;
+			try {
+				const module = await import('$lib/components/PerformanceMonitor.svelte');
+				PerformanceMonitor = module.default;
+			} catch (error) {
+				console.error('Failed to load PerformanceMonitor:', error);
+			} finally {
+				isLoadingPerformanceMonitor = false;
+			}
+		}
+	}
+
+	// Lazy load Cache Monitor
+	async function loadCacheMonitor() {
+		if (!CacheMonitor && !isLoadingCacheMonitor) {
+			isLoadingCacheMonitor = true;
+			try {
+				const module = await import('$lib/components/CacheMonitor.svelte');
+				CacheMonitor = module.default;
+			} catch (error) {
+				console.error('Failed to load CacheMonitor:', error);
+			} finally {
+				isLoadingCacheMonitor = false;
+			}
+		}
+	}
+
+	// Load development tools only in development mode
+	onMount(() => {
+		if (import.meta.env.DEV) {
+			// Preload performance monitor after a delay in development
+			setTimeout(() => {
+				loadPerformanceMonitor();
+			}, 2000);
+		}
+	});
 </script>
 
 <div class="container mx-auto max-w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
@@ -40,7 +106,30 @@
 
 			<!-- Layer Manager -->
 			<div class="mt-3 sm:mt-4 lg:mt-6">
-				<LayerManager />
+				{#if LayerManager}
+					<LayerManager />
+				{:else if isLoadingLayerManager}
+					<div class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
+						<div class="border-b px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+							<h2 class="text-base font-semibold sm:text-lg lg:text-xl">Layer Manager</h2>
+						</div>
+						<div class="p-3 sm:p-4 lg:p-6">
+							<div class="flex items-center justify-center py-8">
+								<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+								<span class="ml-2 text-sm text-muted-foreground">Loading Layer Manager...</span>
+							</div>
+						</div>
+					</div>
+				{:else}
+					<button
+						onclick={loadLayerManager}
+						class="w-full bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm p-4 hover:bg-card/100 transition-colors"
+					>
+						<div class="flex items-center justify-center py-4">
+							<span class="text-sm text-muted-foreground">Click to load Layer Manager</span>
+						</div>
+					</button>
+				{/if}
 			</div>
 		</div>
 
