@@ -90,8 +90,8 @@ function reportCacheStats() {
 	const now = Date.now();
 	const totalOps = cacheStats.hits + cacheStats.misses;
 
-	// Report every 10 seconds or every 50 operations, whichever comes first
-	if (now - cacheStats.lastReport > 10000 || totalOps % 50 === 0) {
+	// Report every 30 seconds or every 200 operations, whichever comes first
+	if (now - cacheStats.lastReport > 30000 || totalOps % 200 === 0) {
 		const hitRate = totalOps > 0 ? ((cacheStats.hits / totalOps) * 100).toFixed(1) : '0.0';
 		console.log(
 			`🎯 Worker Cache: ${workerArrayBufferCache.size} entries, ` +
