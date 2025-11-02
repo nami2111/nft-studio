@@ -283,11 +283,11 @@ function selectTrait(
 			return !violation.hasViolation;
 		});
 
-		// If no valid traits due to Strict Pair, fallback to compatible traits
-		// (but log a warning for debugging)
+		// If no valid traits due to Strict Pair, return null immediately
+		// This ensures strict pair violations never occur
 		if (validTraits.length === 0) {
-			console.warn('Strict Pair constraints eliminated all valid traits for layer:', layer.name);
-			validTraits = compatibleTraits; // Fallback to allow generation to continue
+			console.warn(`No valid traits available for layer "${layer.name}" due to Strict Pair constraints`);
+			return null; // Don't allow invalid combinations
 		}
 	}
 
@@ -335,16 +335,16 @@ function selectTraitWithRetry(
 			return selectedTrait;
 		}
 
-		// If we have a violation and we're close to max retries, try to be more flexible
+		// If we have a violation and we're close to max retries, log a warning
 		if (attempt >= maxRetries - 10) {
 			console.warn(`Strict Pair constraint causing difficulty on layer ${layer.name}, attempt ${attempt + 1}`);
 		}
 	}
 
-	// If we couldn't find a valid trait after max retries, return the last selected one
-	// This allows generation to continue even with tight constraints
-	console.warn(`Could not satisfy Strict Pair constraints for layer ${layer.name} after ${maxRetries} attempts`);
-	return selectTrait(layer, selectedTraits, layers); // Fallback without Strict Pair filtering
+	// If we couldn't find a valid trait after max retries, return null
+	// This ensures strict pair constraints are never violated
+	console.warn(`Could not satisfy Strict Pair constraints for layer ${layer.name} after ${maxRetries} attempts - skipping this combination`);
+	return null;
 }
 
 // Create an ImageBitmap from ArrayBuffer - optimized for performance
@@ -635,8 +635,10 @@ async function generateCollection(
 	// Generate each NFT with streaming or chunking based on collection size
 	if (useStreaming) {
 		// Streaming approach for smaller collections
-		for (let i = 0; i < collectionSize && !isCancelled; i++) {
-			await generateAndStreamItem(
+		let successfulGenerations = 0;
+		let consecutiveFailures = 0;
+		for (let i = 0; i < collectionSize && !isCancelled && successfulGenerations < collectionSize; i++) {
+			const success = await generateAndStreamItem(
 				i,
 				layers,
 				reusableCanvas,
@@ -651,12 +653,36 @@ async function generateCollection(
 				undefined, // no chunkImages for streaming
 				taskId
 			);
+			
+			if (success) {
+				successfulGenerations++;
+				consecutiveFailures = 0;
+			} else {
+				// Generation failed due to strict pair constraints, try again
+				consecutiveFailures++;
+				i--; // Retry the same index
+				
+				// Safety check: if we have too many consecutive failures, we might be out of valid combinations
+				if (consecutiveFailures > 1000) {
+					const errorMessage: ErrorMessage = {
+						type: 'error',
+						taskId,
+						payload: {
+							message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available with the current strict pair configuration.`
+						}
+					};
+					self.postMessage(errorMessage);
+					break;
+				}
+			}
 		}
 	} else {
 		// Chunked approach for larger collections
+		let successfulGenerations = 0;
+		let consecutiveFailures = 0;
 		for (
 			let chunkStart = 0;
-			chunkStart < collectionSize && !isCancelled;
+			chunkStart < collectionSize && !isCancelled && successfulGenerations < collectionSize;
 			chunkStart += CHUNK_SIZE
 		) {
 			const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, collectionSize);
@@ -664,8 +690,8 @@ async function generateCollection(
 			// Create a temporary array to hold only the current chunk's images
 			const chunkImages: { name: string; blob: Blob }[] = [];
 
-			for (let i = chunkStart; i < chunkEnd && !isCancelled; i++) {
-				await generateAndStreamItem(
+			for (let i = chunkStart; i < chunkEnd && !isCancelled && successfulGenerations < collectionSize; i++) {
+				const success = await generateAndStreamItem(
 					i,
 					layers,
 					reusableCanvas,
@@ -680,6 +706,28 @@ async function generateCollection(
 					chunkImages,
 					taskId
 				);
+				
+				if (success) {
+					successfulGenerations++;
+					consecutiveFailures = 0;
+				} else {
+					// Generation failed due to strict pair constraints, try again
+					consecutiveFailures++;
+					i--; // Retry the same index
+					
+					// Safety check: if we have too many consecutive failures, we might be out of valid combinations
+					if (consecutiveFailures > 1000) {
+						const errorMessage: ErrorMessage = {
+							type: 'error',
+							taskId,
+							payload: {
+								message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available with the current strict pair configuration.`
+							}
+						};
+						self.postMessage(errorMessage);
+						break;
+					}
+				}
 
 				// Send progress update for each item in large chunks to show progress
 				if (!isCancelled && (i + 1) % 50 === 0) {
@@ -779,7 +827,7 @@ async function generateAndStreamItem(
 	strictPairConfig?: StrictPairConfig,
 	chunkImages?: { name: string; blob: Blob }[],
 	taskId?: TaskId
-): Promise<void> {
+): Promise<boolean> {
 	try {
 		// Always use optimized Canvas compositing
 		// Clear the reusable canvas for this item
@@ -787,6 +835,7 @@ async function generateAndStreamItem(
 
 		// Selected traits for this NFT
 		const selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[] = [];
+		let hasRequiredLayerFailure = false;
 
 		// Iterate through the layers in their specified order
 		for (const layer of layers) {
@@ -818,7 +867,16 @@ async function generateAndStreamItem(
 
 				// Clean up the ImageBitmap immediately to free memory
 				imageBitmap.close();
+			} else if (!layer.isOptional) {
+				// Failed to select a trait for a required layer - this indicates strict pair constraints
+				hasRequiredLayerFailure = true;
+				break; // Exit early, cannot generate this combination
 			}
+		}
+
+		// If required layer failed due to strict pair constraints, return false
+		if (hasRequiredLayerFailure) {
+			return false;
 		}
 
 		// After selecting all traits, mark the combination as used for Strict Pair tracking
@@ -909,6 +967,8 @@ async function generateAndStreamItem(
 		if (collectionSize > 1000 && typeof globalThis !== 'undefined' && 'gc' in globalThis) {
 			(globalThis as { gc?: () => void }).gc?.();
 		}
+
+		return true; // Generation successful
 	} catch (error) {
 		const errorMessage: ErrorMessage = {
 			type: 'error',
@@ -918,7 +978,8 @@ async function generateAndStreamItem(
 			}
 		};
 		self.postMessage(errorMessage);
-		throw error; // Stop generation on error
+
+		return false; // Generation failed
 	}
 }
 
@@ -1068,6 +1129,161 @@ function getMemoryUsage() {
 	return null;
 }
 
+// Validate that the requested collection size is achievable with all constraints
+function validateCollectionSize(
+	layers: TransferrableLayer[], 
+	requestedSize: number, 
+	strictPairConfig?: StrictPairConfig
+): string | null {
+	// Calculate maximum possible combinations accounting for all constraints
+	const maxCombinations = calculateMaxPossibleCombinations(layers, strictPairConfig);
+	
+	if (maxCombinations === 0) {
+		return 'Invalid configuration: No valid trait combinations are possible with the current settings. Check your ruler rules and layer configurations.';
+	}
+	
+	if (requestedSize > maxCombinations) {
+		return `Collection size too large: Requested ${requestedSize} NFTs but the current configuration only allows approximately ${maxCombinations} unique combinations. This limit is due to strict pair constraints and ruler compatibility rules. Reduce collection size or modify your configuration.`;
+	}
+	
+	return null; // Validation passes
+}
+
+// Calculate maximum possible combinations accounting for all constraints
+function calculateMaxPossibleCombinations(
+	layers: TransferrableLayer[], 
+	strictPairConfig?: StrictPairConfig
+): number {
+	// If no strict pair constraints, estimate based on all possible combinations
+	if (!strictPairConfig?.enabled || !strictPairConfig.layerCombinations.length) {
+		return calculateAllPossibleCombinations(layers);
+	}
+	
+	let maxCombinations = 0;
+	
+	// Calculate for each strict pair combination
+	for (const layerCombination of strictPairConfig.layerCombinations) {
+		if (!layerCombination.active) continue;
+		
+		// Get layers in this combination
+		const combinationLayers = layerCombination.layerIds
+			.map(layerId => layers.find(l => l.id === layerId))
+			.filter(layer => layer && layer.traits && layer.traits.length > 0) as TransferrableLayer[];
+		
+		if (combinationLayers.length !== layerCombination.layerIds.length) {
+			continue; // Skip if any layer is missing
+		}
+		
+		// Calculate valid combinations for this layer set considering ruler compatibility
+		const validCombinations = calculateValidCombinationsForLayers(combinationLayers);
+		maxCombinations += validCombinations;
+	}
+	
+	return maxCombinations;
+}
+
+// Calculate all possible combinations without strict pair constraints
+function calculateAllPossibleCombinations(layers: TransferrableLayer[]): number {
+	return layers
+		.filter(layer => layer.traits && layer.traits.length > 0)
+		.reduce((total, layer) => total * layer.traits!.length, 1);
+}
+
+// Calculate valid combinations for a specific set of layers considering ruler compatibility
+function calculateValidCombinationsForLayers(layers: TransferrableLayer[]): number {
+	if (layers.length === 0) return 0;
+	if (layers.length === 1) return layers[0].traits?.length || 0;
+	
+	// For multiple layers, we need to account for ruler compatibility
+	// This is a simplified calculation - actual generation may find fewer valid combinations
+	let totalValidCombinations = 0;
+	
+	// Generate all possible combinations and check ruler compatibility
+	const layerCount = layers.length;
+	
+	function* generateCombinations(traitIndex: number, currentSelection: { traitId: string; layerId: string; trait: TransferrableTrait }[]): Generator<{ traitId: string; layerId: string; trait: TransferrableTrait }[]> {
+		if (traitIndex === layerCount) {
+			yield currentSelection;
+			return;
+		}
+		
+		const currentLayer = layers[traitIndex];
+		for (const trait of currentLayer.traits || []) {
+			// Check ruler compatibility
+			if (isRulerCompatible(currentSelection, trait, currentLayer, layers)) {
+				yield* generateCombinations(traitIndex + 1, [...currentSelection, { traitId: trait.id, layerId: currentLayer.id, trait }]);
+			}
+		}
+	}
+	
+	// Count valid combinations with performance limit
+	const MAX_COMBINATIONS_TO_COUNT = 100000; // Prevent excessive computation time
+	for (const _ of generateCombinations(0, [])) {
+		totalValidCombinations++;
+		if (totalValidCombinations >= MAX_COMBINATIONS_TO_COUNT) {
+			// If we reach the performance limit, return the estimated count
+			// This gives a conservative estimate that won't cause validation to fail
+			return Math.max(totalValidCombinations, layers.reduce((product, layer) => product * (layer.traits?.length || 1), 1) * 0.8);
+		}
+	}
+	
+	return totalValidCombinations;
+}
+
+// Check if a trait is compatible with current selection considering ruler rules
+function isRulerCompatible(
+	currentSelection: { traitId: string; layerId: string; trait: TransferrableTrait }[],
+	newTrait: TransferrableTrait,
+	newLayer: TransferrableLayer,
+	allLayers: TransferrableLayer[]
+): boolean {
+	// Check ruler rules for the new trait
+	if (newTrait.rulerRules) {
+		for (const rule of newTrait.rulerRules) {
+			const targetLayer = allLayers.find(l => l.id === rule.layerId);
+			if (!targetLayer) continue;
+			
+			const selectedTrait = currentSelection.find(t => t.layerId === targetLayer.id);
+			if (!selectedTrait) continue;
+			
+			// Check allowed traits
+			if (rule.allowedTraitIds.length > 0) {
+				if (!rule.allowedTraitIds.includes(selectedTrait.trait.id)) {
+					return false;
+				}
+			}
+			
+			// Check forbidden traits
+			if (rule.forbiddenTraitIds.includes(selectedTrait.trait.id)) {
+				return false;
+			}
+		}
+	}
+	
+	// Check existing traits' ruler rules
+	for (const selectedTrait of currentSelection) {
+		if (selectedTrait.trait.rulerRules) {
+			for (const rule of selectedTrait.trait.rulerRules) {
+				if (rule.layerId === newLayer.id) {
+					// Check allowed traits
+					if (rule.allowedTraitIds.length > 0) {
+						if (!rule.allowedTraitIds.includes(newTrait.id)) {
+							return false;
+						}
+					}
+					
+					// Check forbidden traits
+					if (rule.forbiddenTraitIds.includes(newTrait.id)) {
+						return false;
+					}
+				}
+			}
+		}
+	}
+	
+	return true;
+}
+
 // Main worker message handler
 self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 	const {
@@ -1099,6 +1315,25 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 		case 'start':
 			try {
 				const startPayload = payload as StartMessage['payload'];
+				
+				// Validate that the requested collection size is achievable with strict pair constraints
+				const validationError = validateCollectionSize(
+					startPayload.layers, 
+					startPayload.collectionSize, 
+					startPayload.strictPairConfig
+				);
+				if (validationError) {
+					const errorMessage: ErrorMessage = {
+						type: 'error',
+						taskId,
+						payload: {
+							message: validationError
+						}
+					};
+					self.postMessage(errorMessage);
+					return;
+				}
+				
 				await generateCollection(
 					startPayload.layers,
 					startPayload.collectionSize,
