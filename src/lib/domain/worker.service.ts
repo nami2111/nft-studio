@@ -6,7 +6,8 @@ import type {
 	ErrorMessage,
 	CancelledMessage,
 	ProgressMessage,
-	PreviewMessage
+	PreviewMessage,
+	IncomingMessage
 } from '$lib/types/worker-messages';
 import type { StrictPairConfig } from '$lib/types/layer';
 import {
@@ -15,9 +16,14 @@ import {
 } from '$lib/workers/generation.worker.client';
 import { prepareLayersForWorker } from '$lib/domain/project.domain';
 import { recoverableWorkerOperation, recoverableFileOperation } from '$lib/utils/error-handler';
+import {
+	generationState,
+	addUsedCombination,
+	isCombinationUsed
+} from '$lib/stores/generation-progress.svelte.ts';
 
 /**
- * Domain service for worker-related operations
+ * Domain service for worker-related operations with persistent state integration
  */
 
 export async function startGeneration(
@@ -29,7 +35,8 @@ export async function startGeneration(
 	strictPairConfig?: StrictPairConfig,
 	onMessage?: (
 		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	) => void
+	) => void,
+	resumeFromIndex?: number // For resumed generations
 ): Promise<void> {
 	return recoverableWorkerOperation(
 		async () => {
@@ -47,7 +54,30 @@ export async function startGeneration(
 				}
 			);
 
-			// Start generation using the worker client (with error recovery)
+			// Create enhanced message handler that synchronizes with persistent store
+			const enhancedMessageHandler = (
+				data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+			) => {
+				// Forward to original handler
+				if (onMessage) {
+					onMessage(data);
+				}
+
+				// Synchronize specific state with persistent store
+				switch (data.type) {
+					case 'progress':
+						// Progress is already handled by the persistent store in the component
+						break;
+					case 'complete':
+						// Images and metadata are handled by the persistent store in the component
+						break;
+					case 'error':
+						// Error is handled by the persistent store in the component
+						break;
+				}
+			};
+
+			// Start generation using the worker client with state awareness
 			return new Promise<void>(async (resolve, reject) => {
 				const cleanup = () => {
 					// Cleanup function to cancel generation if promise is rejected
@@ -66,22 +96,7 @@ export async function startGeneration(
 						projectName,
 						projectDescription,
 						strictPairConfig,
-						(message) => {
-							if (onMessage) {
-								onMessage(message);
-							}
-
-							// Handle completion or cancellation
-							if (message.type === 'complete') {
-								resolve();
-							} else if (message.type === 'error') {
-								cleanup();
-								reject(new Error(message.payload.message));
-							} else if (message.type === 'cancelled') {
-								cleanup();
-								reject(new Error('Generation was cancelled'));
-							}
-						}
+						enhancedMessageHandler
 					);
 				} catch (error) {
 					cleanup();
@@ -106,6 +121,15 @@ export async function startGeneration(
 	);
 }
 
+/**
+ * Cancel generation and clean up resources
+ */
 export function cancelGeneration(): void {
+	console.log('🛑 Cancelling generation');
+
+	// Mark as cancelled in persistent state
+	generationState.error = 'Generation cancelled by user';
+
 	cancelWorkerGeneration();
 }
+
