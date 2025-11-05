@@ -1,10 +1,9 @@
 <script lang="ts">
 	// JSZip will be imported dynamically when needed
-	import { project, loadingStates, startLoading, stopLoading } from '$lib/stores';
-	import { startGeneration, cancelGeneration } from '$lib/domain/worker.service';
-	import { Play } from 'lucide-svelte';
-	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
-	import { Progress } from '$lib/components/ui/progress';
+	import { project } from '$lib/stores';
+	import { startGeneration as startWorkerGeneration, cancelGeneration as cancelWorkerGeneration } from '$lib/domain/worker.service';
+	import { Play, AlertCircle } from 'lucide-svelte';
+		import { Progress } from '$lib/components/ui/progress';
 	import { Button } from '$lib/components/ui/button';
 	import type {
 		ProgressMessage,
@@ -18,59 +17,93 @@
 	import { trackGenerationCompleted } from '$lib/utils/analytics';
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
+	import {
+		generationState,
+		generationStateManager,
+		startGeneration,
+		pauseGeneration,
+		completeGeneration,
+		cancelGeneration,
+		updateProgress,
+		addImages,
+		addMetadata,
+		addPreviews,
+		addUsedCombination,
+		isCombinationUsed,
+		handleError,
+		addWarning,
+		resetState,
+		getMemorySummary,
+		getSummary
+	} from '$lib/stores/generation-progress.svelte.ts';
+	import { onDestroy } from 'svelte';
 
-	// State
+	// Local UI state
 	let collectionSize = $state(100);
-	let isGenerating = $derived(loadingStates['generation'] as boolean);
-	let progress = $state(0);
-	let statusText = $state('Ready to generate');
-	let memoryUsage = $state<{ used: number; available: number; units: string } | null>(null);
-	// Accumulators for chunked data
-	let allImages: { name: string; imageData: ArrayBuffer }[] = [];
-	let allMetadata: { name: string; data: Record<string, unknown> }[] = [];
-	let previews = $state([] as { index: number; url: string }[]);
-	// Track if we've started packaging to prevent duplicate calls
+	let isComponentDestroyed = $state(false);
 	let isPackaging = $state(false);
-	// Track generation start time for analytics
-	let generationStartTime = $state<number | null>(null);
-	// Track if analytics event has been sent to prevent duplicates
 	let analyticsTracked = $state(false);
 
-	// Progress update function
-	function updateProgress(
+	// Derived state from persistent store
+	let isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
+	let isBackground = $derived(generationState.isBackground);
+	let isPaused = $derived(generationState.isPaused);
+	let progress = $derived(generationState.progress);
+	let statusText = $derived(generationState.statusText);
+	let memoryUsage = $derived(generationState.memoryUsage);
+	let previews = $derived(generationState.previews);
+	let currentSessionId = $derived(generationState.sessionId);
+
+	
+	// Component lifecycle management
+	onDestroy(() => {
+		isComponentDestroyed = true;
+
+		console.log('🧹 GenerationForm component destroyed');
+
+		// Clean up UI resources only
+		previews.forEach(p => {
+			try {
+				URL.revokeObjectURL(p.url);
+			} catch (error) {
+				console.warn('Failed to revoke ObjectURL during cleanup:', error);
+			}
+		});
+
+		// If generation is active, move to background mode instead of cancelling
+		if (generationState.isGenerating && !generationState.isBackground) {
+			console.log('🔄 Moving generation to background mode');
+			pauseGeneration('Component unmounted - continuing in background');
+
+			// Set timeout to prevent infinite background generation
+			setTimeout(() => {
+				if (generationState.isGenerating && isComponentDestroyed) {
+					console.log('⏰ Background generation timeout - cancelling');
+					cancelGeneration();
+					addWarning('Generation stopped due to timeout.');
+				}
+			}, 600000); // 10 minutes timeout
+		}
+	});
+
+	// Update progress function now delegates to persistent store
+	function updateProgressLocal(
 		generated: number,
 		total: number,
 		text: string,
 		memory?: { used: number; available: number; units: string }
 	) {
-		// Prevent division by zero which would result in non-finite values
-		if (total <= 0) {
-			progress = 0;
-		} else {
-			// Ensure the ratio is finite before calculating percentage
-			const ratio = generated / total;
-			if (isFinite(ratio)) {
-				progress = Math.round(ratio * 100);
-			} else {
-				progress = 0;
-			}
-		}
-		statusText = text;
-		memoryUsage = memory || null;
+		// This is now handled by the persistent store
+		// Keep for backward compatibility with existing code
 	}
 
-	function resetState() {
+	function resetLocalState() {
 		stopLoading('generation');
-		updateProgress(0, 0, 'Ready to generate.');
-		// Clear accumulators
-		allImages = [];
-		allMetadata = [];
 		isPackaging = false;
-		memoryUsage = null;
-		generationStartTime = null;
 		analyticsTracked = false;
-		previews.forEach((p) => URL.revokeObjectURL(p.url));
-		previews = [];
+
+		// Reset persistent state
+		resetState();
 	}
 
 	async function packageZip(
@@ -88,7 +121,9 @@
 			layers: Layer[];
 			strictPairConfig?: import('$lib/types/layer').StrictPairConfig;
 		};
-		updateProgress(images.length, images.length, 'Packaging files into a .zip...');
+
+		// Update status in persistent store
+		generationState.statusText = 'Packaging files into a .zip...';
 
 		try {
 			// Save to gallery first
@@ -154,18 +189,31 @@
 				URL.revokeObjectURL(url);
 			}
 
-			statusText = 'Download started.';
+			// Update persistent state
+			generationState.statusText = 'Download started.';
+
+			// Track generation completion analytics (only once)
+			if (!analyticsTracked && generationState.startTime) {
+				const durationSeconds = Math.round((Date.now() - generationState.startTime) / 1000);
+				trackGenerationCompleted(images.length, durationSeconds);
+				analyticsTracked = true;
+			}
+
 			showSuccess('Generation complete', {
 				description: 'Your download has started and NFTs have been added to the gallery.'
 			});
+
+			// Complete the generation in persistent store
+			completeGeneration();
 		} catch (error) {
 			showError(error, {
 				title: 'Package Error',
 				description: 'Failed to create .zip file. Please try again.'
 			});
-			statusText = 'Error: Failed to create .zip file.';
+			generationState.statusText = 'Error: Failed to create .zip file.';
+			generationState.error = error instanceof Error ? error.message : 'Packaging failed';
 		} finally {
-			resetState();
+			isPackaging = false;
 		}
 	}
 
@@ -175,13 +223,10 @@
 			event.preventDefault();
 		}
 
-		// Reset state
-		resetState();
+		// Reset local UI state
+		resetLocalState();
 
 		try {
-			// Record generation start time for analytics
-			generationStartTime = Date.now();
-
 			const projectData = project as {
 				name: string;
 				outputSize: { width: number; height: number };
@@ -237,93 +282,109 @@
 
 			// Start loading state
 			startLoading('generation');
-			updateProgress(0, collectionSize, 'Validating project data...');
 
-			// Set up a simple event system to handle messages from workers
+			// Start generation using persistent store
+			const sessionId = startGeneration({
+				projectName: projectData.name || 'Untitled Collection',
+				projectDescription: projectData.description || '',
+				outputSize: projectData.outputSize,
+				layers: projectData.layers,
+				collectionSize,
+				strictPairConfig: projectData.strictPairConfig
+			});
+
+			console.log(`🚀 Starting generation session: ${sessionId}`);
+
+			// Set up worker message handler that delegates to persistent store
 			const workerMessageHandler = async (
 				data: ProgressMessage | CompleteMessage | ErrorMessage | CancelledMessage | PreviewMessage
 			) => {
 				const message = data;
 
+				// Skip processing if component was destroyed and generation is in background
+				if (isComponentDestroyed && generationState.isBackground) {
+					// Still update persistent store but don't update UI
+					switch (message.type) {
+						case 'progress':
+							updateProgress(message);
+							break;
+						case 'complete':
+							if (message.payload.images) addImages(message.payload.images);
+							if (message.payload.metadata) addMetadata(message.payload.metadata);
+							// Check if generation is complete
+							if (generationState.allImages.length >= collectionSize) {
+								// Package in background if possible, or wait for user to return
+								console.log('🎉 Generation completed in background');
+							}
+							break;
+						case 'error':
+							handleError(message);
+							break;
+						case 'cancelled':
+							completeGeneration(); // Mark as complete but cancelled
+							break;
+					}
+					return;
+				}
+
+				// Process messages for active component
 				switch (message.type) {
 					case 'progress':
-						updateProgress(
-							message.payload.generatedCount,
-							message.payload.totalCount,
-							message.payload.statusText,
-							message.payload.memoryUsage
-						);
+						updateProgress(message);
 						break;
 					case 'preview': {
 						const { payload } = message as PreviewMessage;
+						const newPreviews: { index: number; url: string }[] = [];
 						for (let j = 0; j < payload.indexes.length; j++) {
 							const buffer = payload.previewData[j];
 							const blob = new Blob([buffer], { type: 'image/png' });
 							const url = URL.createObjectURL(blob);
-							previews.push({ index: payload.indexes[j], url });
+							newPreviews.push({ index: payload.indexes[j], url });
 						}
+						addPreviews(newPreviews);
 						break;
 					}
 					case 'complete':
 						// Handle chunked image data
 						if (message.payload.images && message.payload.images.length > 0) {
-							// This is a chunk of images, accumulate them
-							allImages.push(...message.payload.images);
+							addImages(message.payload.images);
 						}
 						if (message.payload.metadata && message.payload.metadata.length > 0) {
-							// This is a chunk of metadata, accumulate them
-							allMetadata.push(
-								...message.payload.metadata.map((meta) => ({
-									name: meta.name,
-									data: meta.data as Record<string, unknown>
-								}))
-							);
+							addMetadata(message.payload.metadata);
 						}
-						// If this is the final message (no more chunks expected)
-						// In our new system, we'll know it's done when we've received all expected items
-						if (allImages.length >= collectionSize || message.payload.images.length === 0) {
+
+						// Check if generation is complete
+						if (generationState.allImages.length >= collectionSize || message.payload.images.length === 0) {
 							console.log(
 								'Generation complete, packaging:',
-								allImages.length,
+								generationState.allImages.length,
 								'images,',
-								allMetadata.length,
+								generationState.allMetadata.length,
 								'metadata'
 							);
 
-							// Track generation completion analytics (only once)
-							if (generationStartTime && !analyticsTracked) {
-								const durationSeconds = Math.round((Date.now() - generationStartTime) / 1000);
-								trackGenerationCompleted(allImages.length, durationSeconds);
-								analyticsTracked = true;
-							}
-
-							await packageZip(allImages, allMetadata);
+							// Package the completed generation
+							await packageZip(generationState.allImages, generationState.allMetadata);
 						}
 						break;
 					case 'cancelled':
-						updateProgress(
-							message.payload.generatedCount ?? 0,
-							message.payload.totalCount ?? collectionSize,
-							'Generation cancelled by user.'
-						);
-						// Show info message for cancellation
+						completeGeneration();
 						showInfo('Generation has been cancelled.');
-						resetState();
 						break;
 					case 'error':
+						handleError(message);
 						showError(new Error(message.payload.message), {
 							title: 'Generation Error',
 							description: 'An error occurred during generation. Please try again.'
 						});
-						resetState();
 						break;
 					default:
 						console.warn('Unknown message type from worker:', (message as { type: string }).type);
 				}
 			};
 
-			// Start generation using the domain service
-			await startGeneration(
+			// Start generation using the domain service with worker message handler
+			await startWorkerGeneration(
 				projectData.layers,
 				collectionSize,
 				projectData.outputSize,
@@ -342,12 +403,22 @@
 	}
 
 	function handleCancel() {
-		// Use the public cancel API to terminate all workers
+		// Cancel generation and clean up all resources
 		cancelGeneration();
 		stopLoading('generation');
-		updateProgress(0, collectionSize, 'Generation cancelled by user.');
 		showInfo('Generation has been cancelled.');
-		resetState();
+	}
+
+	// Get generation status summary for UI
+	function getGenerationStatus() {
+		const summary = getSummary();
+		return {
+			...summary,
+			memoryUsage: getMemorySummary(),
+			hasPreviews: generationState.previews.length > 0,
+			warnings: generationState.warnings,
+			error: generationState.error
+		};
 	}
 </script>
 
@@ -367,12 +438,46 @@
 			/>
 		</div>
 
+		<!-- Background Generation Status -->
+		{#if isBackground}
+			<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+				<div class="flex items-center gap-2">
+					<AlertCircle class="h-4 w-4 text-yellow-600" />
+					<div class="flex-1">
+						<p class="text-sm font-medium text-yellow-800">Generation Running in Background</p>
+						<p class="text-xs text-yellow-600">
+							Session {currentSessionId?.slice(0, 8)}... • {generationState.currentIndex} of {generationState.totalItems} items
+						</p>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		
 		<!-- Progress Section - Responsive Layout -->
 		<div class="grid gap-2 sm:grid-cols-[1fr_3fr] sm:items-center sm:gap-4">
-			<label class="text-sm font-medium sm:text-right" for="gen-progress">Progress</label>
+			<label class="text-sm font-medium sm:text-right" for="gen-progress">
+				{isBackground ? 'Background Progress' : 'Progress'}
+			</label>
 			<div class="space-y-2">
 				<Progress value={progress} max={100} class="w-full" />
 				<p class="text-muted-foreground text-sm break-words">{statusText}</p>
+
+				<!-- Generation Status Details -->
+				{#if currentSessionId}
+					<div class="text-xs text-muted-foreground space-y-1">
+						<p>Session: {currentSessionId.slice(0, 12)}...</p>
+						{#if generationState.startTime}
+							<p>Started: {new Date(generationState.startTime).toLocaleTimeString()}</p>
+						{/if}
+						{#if isPaused}
+							<p class="text-yellow-600">⏸️ Paused</p>
+						{:else if isBackground}
+							<p class="text-blue-600">🔄 Running in background</p>
+						{/if}
+					</div>
+				{/if}
+
 				{#if memoryUsage}
 					<p class="text-muted-foreground text-sm">
 						Memory: {Math.round(memoryUsage.used / 1024 / 1024)}MB / {Math.round(
@@ -380,17 +485,42 @@
 						)}MB
 					</p>
 				{/if}
+
+				<!-- Warnings -->
+				{#if generationState.warnings.length > 0}
+					<div class="text-xs text-yellow-600 space-y-1">
+						{#each generationState.warnings as warning}
+							<p>⚠️ {warning}</p>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Error Display -->
+				{#if generationState.error}
+					<div class="text-xs text-red-600 p-2 bg-red-50 rounded">
+						❌ {generationState.error}
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
 
 	<!-- Action Buttons - Responsive Layout -->
 	<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-		{#if isGenerating}
+		<!-- Background Generation Controls -->
+		{#if isBackground}
+			<div class="flex gap-2 w-full sm:w-auto">
+				<Button variant="outline" onclick={handleCancel} size="sm">
+					Stop Background Generation
+				</Button>
+			</div>
+		{:else if isGenerating}
 			<Button variant="outline" onclick={handleCancel} size="sm" class="w-full sm:w-auto">
 				<LoadingIndicator operation="generation" message="Canceling..." />
 			</Button>
 		{/if}
+
+		<!-- Main Generate Button -->
 		<Button
 			variant="outline"
 			onclick={handleGenerate}
@@ -405,5 +535,6 @@
 				<span class="text-sm">Generate</span>
 			{/if}
 		</Button>
-	</div>
+
+			</div>
 </div>
