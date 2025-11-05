@@ -5,6 +5,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 ## Features
 
 ### Core Generation System
+
 - **Advanced Layer Management**: Organize collections with multiple layers (background, character, accessories, etc.) with drag-and-drop reordering
 - **Sophisticated Trait System**: Define traits with customizable rarity weights (1-5 scale) and advanced compatibility rules
 - **Real-time Canvas Preview**: Instant visual feedback with debounced updates and intelligent caching
@@ -12,6 +13,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Smart Memory Management**: Three-tier caching system (ImageBitmap/ImageData/ArrayBuffer) with automatic cleanup
 
 ### Advanced Trait Features
+
 - **Ruler Traits**: Revolutionary trait compatibility system that controls which trait combinations can be generated
 - **Complex Rule Engine**: Create sophisticated compatibility rules with allowed/forbidden trait combinations
 - **Strict Pair Mode**: Advanced uniqueness tracking that prevents specific trait combinations from appearing more than once
@@ -20,6 +22,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Smart Trait Filtering**: Advanced search and filtering capabilities with multi-dimensional trait selection
 
 ### Gallery & Collection Management
+
 - **Virtual Scrolling Gallery**: Optimized for large collections with responsive layouts (3-6 columns based on device)
 - **Interactive Trait Filtering**: Click any trait in NFT details to instantly filter the entire collection
 - **Automatic Rarity Calculation**: Advanced rarity scoring system with natural numeric sorting
@@ -27,6 +30,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Multi-Collection Support**: Manage multiple collections with independent statistics and filtering
 
 ### Performance Architecture
+
 - **Intelligent Worker Pool**: Dynamic scaling based on device capabilities and task complexity classification
 - **Adaptive Chunking**: Real-time memory monitoring with dynamic chunk sizing for large collections
 - **Transferable Objects**: Zero-copy ArrayBuffer transfers for maximum performance
@@ -34,6 +38,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Performance Monitoring**: Decorator-based timing with automatic metric collection
 
 ### Modern Development Stack
+
 - **Svelte 5 Runes**: Reactive state management using `$state`, `$derived`, and `$effect`
 - **TypeScript**: Comprehensive type safety with branded types and Zod validation
 - **Modular Architecture**: Clean separation of concerns with SRP-based design patterns
@@ -41,12 +46,14 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Responsive Design**: Mobile-first approach with device-optimized layouts
 
 ### File Operations & Persistence
+
 - **Drag & Drop Upload**: Intuitive file handling with progress tracking and security validation
 - **Project Auto-Save**: Intelligent persistence that skips projects with traits to avoid broken references
 - **ZIP Export**: Complete collection packaging with images, metadata, and project configuration
 - **IndexedDB Storage**: Client-side database for gallery collections with quota monitoring
 
 ### User Experience
+
 - **Real-time Previews**: Instant feedback with 200ms debounced updates and adjacent trait preloading
 - **Natural Sorting**: Handles "Foxinity #1", "#001", etc. patterns automatically
 - **Theme Support**: Built-in theme switching capabilities
@@ -56,36 +63,42 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 ## Tech Stack
 
 ### Core Framework
+
 - **Frontend**: SvelteKit 2, Svelte 5 with runes, TypeScript
 - **Styling**: Tailwind CSS 4, bits-ui components, lucide-svelte icons
 - **State Management**: Svelte 5 runes ($state, $derived, $effect) with modular store architecture
 - **Build System**: Vite with static adapter, bundle visualization, and PWA support
 
 ### Performance & Processing
+
 - **Image Processing**: Canvas API with Web Workers for background processing
 - **Worker Architecture**: Advanced worker pool with dynamic scaling and health monitoring
 - **Memory Management**: Three-tier caching (ImageBitmap/ImageData/ArrayBuffer) with LRU eviction
 - **Performance Monitoring**: Decorator-based timing with automatic metric collection
 
 ### Data & Storage
+
 - **Persistence**: IndexedDB for gallery collections, LocalStorage for project settings
 - **File Operations**: JSZip for import/export, ObjectURL management for image handling
 - **Validation**: Zod schemas with branded types for compile-time and runtime safety
 - **Data Structures**: Maps and Sets for optimized filtering and indexing
 
 ### UI/UX Components
+
 - **Custom Components**: Modal system, virtual scrolling grid, interactive trait filters
 - **Notifications**: svelte-sonner for toast notifications and user feedback
 - **Theme System**: mode-watcher for dark/light theme switching
 - **Responsive Design**: Mobile-first approach with adaptive layouts
 
 ### Development & Testing
+
 - **Testing**: Vitest with @testing-library/svelte, jsdom environment
 - **Code Quality**: ESLint (flat config), Prettier, TypeScript ESLint
 - **Validation**: Comprehensive type coverage with strict TypeScript configuration
 - **Documentation**: JSDoc for API documentation with automated formatting
 
 ### Deployment & Analytics
+
 - **Platform**: ICP Blockchain deployment with Juno hosting
 - **PWA Support**: Service worker, manifest file, offline capabilities
 - **Analytics**: Generation completion tracking and page visit analytics
@@ -224,17 +237,20 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 ### Performance-First Features
 
 #### Three-Tier Caching System
+
 - **ImageBitmap Cache**: 100MB, 500 entries, 30min TTL for fast rendering
 - **ImageData Cache**: 50MB, 200 entries, 15min TTL for manipulation operations
 - **ArrayBuffer Cache**: 200MB, 1,000 entries, 1hr TTL for worker transfers
 
 #### Intelligent Memory Management
+
 - **Adaptive Chunking**: Dynamic sizing based on runtime memory monitoring
 - **LRU Eviction**: Least recently used items purged first
 - **Transferable Objects**: Zero-copy ArrayBuffer transfers for maximum performance
 - **Resource Cleanup**: Automatic ObjectURL tracking and cleanup
 
 #### Domain-Driven Design
+
 - **Zod Validation System**: Runtime type safety with branded types and error context
 - **Factory Pattern**: Consistent entity creation with validation and error handling
 - **Multi-Schema Validation**: Separate schemas for import/export vs runtime operations
@@ -243,12 +259,14 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 ### Component Architecture
 
 #### Reactivity and Performance
+
 - **Svelte 5 Runes**: `$state`, `$derived`, `$effect` for fine-grained reactivity
 - **Batch Processing**: 100ms debounced trait updates for improved performance
 - **Virtual Scrolling**: Efficient rendering of large NFT collections
 - **Progressive Loading**: Real-time preview updates during generation
 
 #### Modular Component System
+
 - **Layer Management**: Drag & drop, bulk operations, trait filtering with performance optimization
 - **Preview System**: Canvas rendering with debounced updates and adjacent trait preloading
 - **Gallery Interface**: Virtual scrolling, interactive filtering, responsive layouts
@@ -257,6 +275,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 ### Type Safety and Validation
 
 #### Comprehensive TypeScript Coverage
+
 - **Branded Types**: Compile-time safety for IDs (ProjectId, LayerId, TraitId)
 - **Strict Configuration**: Full type coverage across the codebase
 - **Zod Schemas**: Runtime validation with detailed error context

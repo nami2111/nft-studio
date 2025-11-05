@@ -5,7 +5,13 @@
  */
 
 import type { Layer, StrictPairConfig } from '$lib/types/layer';
-import type { ProgressMessage, CompleteMessage, ErrorMessage, CancelledMessage, PreviewMessage } from '$lib/types/worker-messages';
+import type {
+	ProgressMessage,
+	CompleteMessage,
+	ErrorMessage,
+	CancelledMessage,
+	PreviewMessage
+} from '$lib/types/worker-messages';
 
 // Generation state interface
 export interface GenerationState {
@@ -98,6 +104,9 @@ class GenerationStateManager {
 		// Load any saved state from sessionStorage
 		this.loadSavedState();
 
+		// Clean up old completed states on init
+		this.cleanupOldCompletedStates();
+
 		// Set up periodic auto-save
 		this.setupAutoSave();
 	}
@@ -155,7 +164,6 @@ class GenerationStateManager {
 		console.log(`⏸️ Generation paused: ${generationState.sessionId}`);
 	}
 
-	
 	/**
 	 * Complete the current generation
 	 */
@@ -173,7 +181,9 @@ class GenerationStateManager {
 		// Save final state
 		this.saveState();
 
-		
+		// Schedule auto-cleanup of completed state after 30 minutes
+		this.scheduleStateCleanup();
+
 		console.log(`✅ Generation completed: ${generationState.sessionId}`);
 	}
 
@@ -326,7 +336,10 @@ class GenerationStateManager {
 		totalBytes += generationState.allImages.reduce((sum, img) => sum + img.imageData.byteLength, 0);
 
 		// Metadata memory (rough estimate)
-		totalBytes += generationState.allMetadata.reduce((sum, meta) => sum + JSON.stringify(meta.data).length * 2, 0);
+		totalBytes += generationState.allMetadata.reduce(
+			(sum, meta) => sum + JSON.stringify(meta.data).length * 2,
+			0
+		);
 
 		// Used combinations memory (rough estimate)
 		let combinationCount = 0;
@@ -346,7 +359,9 @@ class GenerationStateManager {
 		const maxUsage = 500 * 1024 * 1024; // 500MB limit
 
 		if (currentUsage > maxUsage) {
-			this.addWarning(`Memory usage high: ${Math.round(currentUsage / 1024 / 1024)}MB. Consider smaller collection sizes.`);
+			this.addWarning(
+				`Memory usage high: ${Math.round(currentUsage / 1024 / 1024)}MB. Consider smaller collection sizes.`
+			);
 		}
 	}
 
@@ -355,7 +370,7 @@ class GenerationStateManager {
 	 */
 	private cleanupResources(): void {
 		// Revoke all preview ObjectURLs
-		generationState.previews.forEach(preview => {
+		generationState.previews.forEach((preview) => {
 			try {
 				URL.revokeObjectURL(preview.url);
 			} catch (error) {
@@ -388,7 +403,6 @@ class GenerationStateManager {
 		}
 	}
 
-	
 	/**
 	 * Load saved state from sessionStorage
 	 */
@@ -407,14 +421,13 @@ class GenerationStateManager {
 		}
 	}
 
-	
 	/**
 	 * Serialize state for storage
 	 */
 	private serializeState(): any {
 		return {
 			...generationState,
-			usedCombinations: Array.from(generationState.usedCombinations.entries()),
+			usedCombinations: Array.from(generationState.usedCombinations.entries())
 			// Convert Map to array for serialization
 		};
 	}
@@ -426,7 +439,10 @@ class GenerationStateManager {
 		// Convert arrays back to Maps
 		if (serializedState.usedCombinations) {
 			serializedState.usedCombinations = new Map(
-				serializedState.usedCombinations.map(([key, value]: [string, string[]]) => [key, new Set(value)])
+				serializedState.usedCombinations.map(([key, value]: [string, string[]]) => [
+					key,
+					new Set(value)
+				])
 			);
 		}
 
@@ -461,7 +477,43 @@ class GenerationStateManager {
 		}, 2000); // 2 second debounce
 	}
 
-	
+	/**
+	 * Schedule cleanup of completed generation state
+	 * Clears state after 30 minutes to prevent persistent UI messages
+	 */
+	private scheduleStateCleanup(): void {
+		// Clear after 30 minutes (1800000 ms)
+		setTimeout(() => {
+			if (!generationState.isGenerating && generationState.completionTime) {
+				const age = Date.now() - generationState.completionTime;
+				// Only clear if generation is not currently running and state is old enough
+				if (age >= 1800000) {
+					console.log('🧹 Auto-clearing old completed generation state');
+					this.resetState();
+				}
+			}
+		}, 1800000);
+	}
+
+	/**
+	 * Check and clean up old completed states on initialization
+	 * This handles states that were completed a while ago or refreshes
+	 */
+	private cleanupOldCompletedStates(): void {
+		if (!generationState.isGenerating && generationState.completionTime) {
+			const age = Date.now() - generationState.completionTime;
+			const AUTO_CLEAR_AGE = 5 * 60 * 1000; // 5 minutes - clear on refresh
+			const MAX_AGE = 2 * 60 * 60 * 1000; // 2 hours - hard limit
+
+			// Clear any completed state on refresh (within 5 minutes of completion)
+			// or any state older than 2 hours
+			if (age < AUTO_CLEAR_AGE || age > MAX_AGE) {
+				console.log('🧹 Cleaning up completed generation state on page load');
+				this.resetState();
+			}
+		}
+	}
+
 	/**
 	 * Get human-readable memory usage
 	 */
@@ -473,7 +525,6 @@ class GenerationStateManager {
 		return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 	}
 
-	
 	/**
 	 * Get summary of current generation state
 	 */
@@ -509,16 +560,21 @@ generationStateManager.initialize();
 // Export convenience functions
 export const startGeneration = generationStateManager.startGeneration.bind(generationStateManager);
 export const pauseGeneration = generationStateManager.pauseGeneration.bind(generationStateManager);
-export const completeGeneration = generationStateManager.completeGeneration.bind(generationStateManager);
-export const cancelGeneration = generationStateManager.cancelGeneration.bind(generationStateManager);
+export const completeGeneration =
+	generationStateManager.completeGeneration.bind(generationStateManager);
+export const cancelGeneration =
+	generationStateManager.cancelGeneration.bind(generationStateManager);
 export const updateProgress = generationStateManager.updateProgress.bind(generationStateManager);
 export const addImages = generationStateManager.addImages.bind(generationStateManager);
 export const addMetadata = generationStateManager.addMetadata.bind(generationStateManager);
 export const addPreviews = generationStateManager.addPreviews.bind(generationStateManager);
-export const addUsedCombination = generationStateManager.addUsedCombination.bind(generationStateManager);
-export const isCombinationUsed = generationStateManager.isCombinationUsed.bind(generationStateManager);
+export const addUsedCombination =
+	generationStateManager.addUsedCombination.bind(generationStateManager);
+export const isCombinationUsed =
+	generationStateManager.isCombinationUsed.bind(generationStateManager);
 export const handleError = generationStateManager.handleError.bind(generationStateManager);
 export const addWarning = generationStateManager.addWarning.bind(generationStateManager);
 export const resetState = generationStateManager.resetState.bind(generationStateManager);
-export const getMemorySummary = generationStateManager.getMemorySummary.bind(generationStateManager);
+export const getMemorySummary =
+	generationStateManager.getMemorySummary.bind(generationStateManager);
 export const getSummary = generationStateManager.getSummary.bind(generationStateManager);

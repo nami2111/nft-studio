@@ -9,7 +9,7 @@
 	import { onMount } from 'svelte';
 
 	let currentProject = $derived(projectStore.currentProject);
-	
+
 	// Lazy-loaded components for code splitting
 	let LayerManager = $state<any>(null);
 	let PerformanceMonitor = $state<any>(null);
@@ -115,18 +115,18 @@
 						</div>
 						<div class="p-3 sm:p-4 lg:p-6">
 							<div class="flex items-center justify-center py-8">
-								<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-								<span class="ml-2 text-sm text-muted-foreground">Loading Layer Manager...</span>
+								<div class="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+								<span class="text-muted-foreground ml-2 text-sm">Loading Layer Manager...</span>
 							</div>
 						</div>
 					</div>
 				{:else}
 					<button
 						onclick={loadLayerManager}
-						class="w-full bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm p-4 hover:bg-card/100 transition-colors"
+						class="bg-card/95 hover:bg-card/100 w-full rounded-lg border p-4 shadow-sm backdrop-blur-sm transition-colors"
 					>
 						<div class="flex items-center justify-center py-4">
-							<span class="text-sm text-muted-foreground">Click to load Layer Manager</span>
+							<span class="text-muted-foreground text-sm">Click to load Layer Manager</span>
 						</div>
 					</button>
 				{/if}
@@ -142,10 +142,7 @@
 
 			<!-- Strict Pair Card -->
 			{#if currentProject}
-				<StrictPair
-					project={currentProject}
-					onupdateStrictPairConfig={handleStrictPairUpdate}
-				/>
+				<StrictPair project={currentProject} onupdateStrictPairConfig={handleStrictPairUpdate} />
 			{/if}
 
 			<!-- Generation Card -->

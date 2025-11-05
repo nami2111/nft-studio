@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Resource Manager**: Enhanced cleanup with periodic memory pressure handling, event listeners, and comprehensive cache clearing
 - **Cache Eviction Policies**: Added memory pressure-aware eviction with adaptive limits based on usage patterns:
   - High usage (>500MB): 30% reduction
-  - Medium usage (>300MB): 15% reduction  
+  - Medium usage (>300MB): 15% reduction
   - Low usage (<100MB): 10% increase (capped at 2x original)
 - **Error Recovery System**: Enhanced error boundaries with automatic retry for recoverable errors and contextual recovery actions
 - **Performance Monitoring**: Real-time metrics collection with 2-second update intervals and visual cache performance breakdown
@@ -105,12 +105,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Examples
 
 **Simple 2-Layer (backward compatible):**
+
 - BASE + HEAD = 4 × 3 = **12 unique combinations**
 
 **Complex 4-Layer (new capability):**
+
 - BASE + HEAD + ACCESSORY + CLOTHING = 4 × 3 × 5 × 6 = **360 unique combinations**
 
 **How it works:**
+
 1. User selects layers: BASE (4 traits) + HEAD (3 traits) + ACCESSORY (5 traits)
 2. System calculates: 4 × 3 × 5 = **60 possible combinations**
 3. During generation, each specific combination (e.g., Light Skin + Beanie + Sunglasses) appears only once
@@ -141,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Name Sorting Natural Order**: Implemented natural numeric sorting for NFT names with numbers
   - **Before**: "Foxinity #1", "Foxinity #10", "Foxinity #2" (lexicographic - wrong!)
   - **After**: "Foxinity #1", "Foxinity #2", "Foxinity #10" (numeric - correct!)
-- **Number Extraction Algorithm**: Updated regex to find numbers anywhere in names (after #, -, space, _, :)
+- **Number Extraction Algorithm**: Updated regex to find numbers anywhere in names (after #, -, space, \_, :)
 - **Sorting Fallback**: Non-numeric names continue to sort alphabetically
 
 ### Technical Improvements

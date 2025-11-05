@@ -1,7 +1,16 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { AlertCircle, RefreshCw, Home, FileText, Wifi, Database, Cpu, HardDrive } from 'lucide-svelte';
+	import {
+		AlertCircle,
+		RefreshCw,
+		Home,
+		FileText,
+		Wifi,
+		Database,
+		Cpu,
+		HardDrive
+	} from 'lucide-svelte';
 	import { handleError, getDetailedErrorInfo } from '$lib/utils/error-handler';
 	import { AppError } from '$lib/utils/error-handling';
 
@@ -13,7 +22,14 @@
 
 	// Enhanced error context with granular error types and recovery options
 	interface EnhancedErrorInfo extends ErrorInfo {
-		errorType: 'network' | 'storage' | 'memory' | 'generation' | 'validation' | 'worker' | 'unknown';
+		errorType:
+			| 'network'
+			| 'storage'
+			| 'memory'
+			| 'generation'
+			| 'validation'
+			| 'worker'
+			| 'unknown';
 		recoveryOptions: string[];
 		suggestedActions: string[];
 		severity: 'low' | 'medium' | 'high' | 'critical';
@@ -31,7 +47,15 @@
 		maxRetries?: number; // Maximum retry attempts
 	}
 
-	let { children, fallback, onError, componentName, resetOnNavigation = true, enableRetry = true, maxRetries = 3 }: Props = $props();
+	let {
+		children,
+		fallback,
+		onError,
+		componentName,
+		resetOnNavigation = true,
+		enableRetry = true,
+		maxRetries = 3
+	}: Props = $props();
 
 	let error: Error | null = $state(null);
 	let errorInfo: EnhancedErrorInfo | null = $state(null);
@@ -59,13 +83,21 @@
 				type: 'network',
 				severity: 'high',
 				recoveryOptions: ['retry', 'offline-mode', 'check-connection'],
-				suggestedActions: ['Check your internet connection', 'Try again in a moment', 'Use offline mode'],
+				suggestedActions: [
+					'Check your internet connection',
+					'Try again in a moment',
+					'Use offline mode'
+				],
 				icon: Wifi
 			};
 		}
 
 		// Storage errors
-		if (message.includes('storage') || message.includes('localstorage') || message.includes('indexeddb')) {
+		if (
+			message.includes('storage') ||
+			message.includes('localstorage') ||
+			message.includes('indexeddb')
+		) {
 			return {
 				type: 'storage',
 				severity: 'medium',
@@ -76,7 +108,11 @@
 		}
 
 		// Memory errors
-		if (message.includes('memory') || message.includes('heap') || message.includes('out of memory')) {
+		if (
+			message.includes('memory') ||
+			message.includes('heap') ||
+			message.includes('out of memory')
+		) {
 			return {
 				type: 'memory',
 				severity: 'critical',
@@ -98,7 +134,11 @@
 		}
 
 		// Worker errors
-		if (message.includes('worker') || message.includes('thread') || message.includes('web worker')) {
+		if (
+			message.includes('worker') ||
+			message.includes('thread') ||
+			message.includes('web worker')
+		) {
 			return {
 				type: 'worker',
 				severity: 'high',
@@ -131,7 +171,7 @@
 
 	function handleComponentError(err: Error, info: ErrorInfo) {
 		const categorization = categorizeError(err);
-		
+
 		error = err;
 		errorInfo = {
 			...info,
@@ -306,7 +346,7 @@
 		<div class="flex min-h-[400px] items-center justify-center p-6" role="alert" aria-live="polite">
 			<div class="max-w-2xl">
 				<!-- Header with error type icon -->
-				<div class="text-center mb-6">
+				<div class="mb-6 text-center">
 					<div class="mb-4 flex justify-center">
 						{#if errorInfo && error}
 							{@const errorCategory = categorizeError(error)}
@@ -315,7 +355,7 @@
 							<AlertCircle class="h-16 w-16 text-red-500" aria-hidden="true" />
 						{/if}
 					</div>
-					<h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+					<h1 class="mb-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
 						{#if errorInfo?.errorType === 'network'}Connection Error
 						{:else if errorInfo?.errorType === 'storage'}Storage Error
 						{:else if errorInfo?.errorType === 'memory'}Memory Error
@@ -325,10 +365,14 @@
 						{:else}Something went wrong{/if}
 					</h1>
 					<div class="flex items-center justify-center space-x-2">
-						<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-							{errorInfo?.severity === 'critical' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200' :
-							errorInfo?.severity === 'high' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-200' :
-							'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200'}">
+						<span
+							class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+							{errorInfo?.severity === 'critical'
+								? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200'
+								: errorInfo?.severity === 'high'
+									? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-200'
+									: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200'}"
+						>
 							{errorInfo?.severity || 'medium'} severity
 						</span>
 						{#if componentName}
@@ -340,7 +384,7 @@
 
 				{#if error}
 					<div class="mb-6 rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
-						<p class="text-sm text-red-800 dark:text-red-200 mb-2">
+						<p class="mb-2 text-sm text-red-800 dark:text-red-200">
 							{error.message}
 						</p>
 						{#if error instanceof AppError && error.code}
@@ -354,11 +398,11 @@
 				<!-- Contextual Recovery Actions -->
 				{#if errorInfo?.suggestedActions && errorInfo.suggestedActions.length > 0}
 					<div class="mb-6">
-						<h3 class="text-lg font-medium mb-3">What you can try:</h3>
+						<h3 class="mb-3 text-lg font-medium">What you can try:</h3>
 						<div class="grid gap-2">
 							{#each errorInfo.suggestedActions as action}
 								<div class="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
-									<div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+									<div class="h-2 w-2 rounded-full bg-blue-500"></div>
 									<span>{action}</span>
 								</div>
 							{/each}
@@ -405,7 +449,7 @@
 					<!-- Contextual Recovery Buttons -->
 					{#if errorInfo?.recoveryOptions && errorInfo.recoveryOptions.length > 0}
 						<div class="border-t pt-3">
-							<h4 class="text-sm font-medium mb-2">Quick fixes:</h4>
+							<h4 class="mb-2 text-sm font-medium">Quick fixes:</h4>
 							<div class="grid grid-cols-1 gap-2">
 								{#each errorInfo.recoveryOptions as option}
 									<Button

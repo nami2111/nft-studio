@@ -69,12 +69,10 @@
 		try {
 			// Get cache metrics from resource manager
 			const cacheMetrics = globalResourceManager.getCacheMetrics();
-			
+
 			// Calculate average cache hit rate from the metrics
 			const totalOps = cacheMetrics.overall.totalHits + cacheMetrics.overall.totalMisses;
-			const avgCacheHitRate = totalOps > 0 
-				? cacheMetrics.overall.totalHits / totalOps 
-				: 0;
+			const avgCacheHitRate = totalOps > 0 ? cacheMetrics.overall.totalHits / totalOps : 0;
 
 			// Update metrics (placeholder values for worker stats)
 			realTimeMetrics = {
@@ -85,17 +83,17 @@
 				generationSpeed: Math.floor(Math.random() * 10) + 1, // Mock generation speed
 				queueLength: Math.floor(Math.random() * 5), // Mock queue length
 				cacheStats: {
-					imageBitmap: { 
-						hitRate: cacheMetrics.imageBitmap.hitRate, 
-						entries: cacheMetrics.imageBitmap.currentEntries 
+					imageBitmap: {
+						hitRate: cacheMetrics.imageBitmap.hitRate,
+						entries: cacheMetrics.imageBitmap.currentEntries
 					},
-					imageData: { 
-						hitRate: cacheMetrics.imageData.hitRate, 
-						entries: cacheMetrics.imageData.currentEntries 
+					imageData: {
+						hitRate: cacheMetrics.imageData.hitRate,
+						entries: cacheMetrics.imageData.currentEntries
 					},
-					arrayBuffer: { 
-						hitRate: cacheMetrics.arrayBuffer.hitRate, 
-						entries: cacheMetrics.arrayBuffer.currentEntries 
+					arrayBuffer: {
+						hitRate: cacheMetrics.arrayBuffer.hitRate,
+						entries: cacheMetrics.arrayBuffer.currentEntries
 					}
 				}
 			};
@@ -107,7 +105,7 @@
 	onMount(() => {
 		// Update metrics every 2 seconds
 		updateInterval = setInterval(updateRealTimeMetrics, 2000);
-		
+
 		// Initial update
 		updateRealTimeMetrics();
 
@@ -153,13 +151,11 @@
 	<!-- Real-time Performance Dashboard -->
 	{#if isEnabled && showRealTime}
 		<div class="border-t pt-4">
-			<div class="flex items-center justify-between mb-3">
+			<div class="mb-3 flex items-center justify-between">
 				<h4 class="text-md font-semibold">Real-time Performance</h4>
-				<div class="text-xs text-muted-foreground">
-					Updated every 2s
-				</div>
+				<div class="text-muted-foreground text-xs">Updated every 2s</div>
 			</div>
-			
+
 			<div class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
 				<Card>
 					<CardHeader class="pb-1">
@@ -167,7 +163,7 @@
 					</CardHeader>
 					<CardContent class="pt-0">
 						<div class="text-xl font-bold text-blue-600">{realTimeMetrics.activeWorkers}</div>
-						<div class="text-xs text-muted-foreground">running</div>
+						<div class="text-muted-foreground text-xs">running</div>
 					</CardContent>
 				</Card>
 
@@ -179,7 +175,7 @@
 						<div class="text-xl font-bold text-green-600">
 							{(realTimeMetrics.cacheHitRate * 100).toFixed(1)}%
 						</div>
-						<div class="text-xs text-muted-foreground">average</div>
+						<div class="text-muted-foreground text-xs">average</div>
 					</CardContent>
 				</Card>
 
@@ -191,7 +187,7 @@
 						<div class="text-xl font-bold text-purple-600">
 							{formatBytes(realTimeMetrics.memoryUsage)}
 						</div>
-						<div class="text-xs text-muted-foreground">caches + URLs</div>
+						<div class="text-muted-foreground text-xs">caches + URLs</div>
 					</CardContent>
 				</Card>
 
@@ -203,7 +199,7 @@
 						<div class="text-xl font-bold text-orange-600">
 							{realTimeMetrics.generationSpeed}
 						</div>
-						<div class="text-xs text-muted-foreground">NFTs/sec</div>
+						<div class="text-muted-foreground text-xs">NFTs/sec</div>
 					</CardContent>
 				</Card>
 
@@ -215,21 +211,21 @@
 						<div class="text-xl font-bold text-red-600">
 							{realTimeMetrics.queueLength}
 						</div>
-						<div class="text-xs text-muted-foreground">pending</div>
+						<div class="text-muted-foreground text-xs">pending</div>
 					</CardContent>
 				</Card>
 			</div>
 
 			<!-- Cache Breakdown -->
 			<div class="mt-3">
-				<h5 class="text-sm font-medium mb-2">Cache Performance</h5>
+				<h5 class="mb-2 text-sm font-medium">Cache Performance</h5>
 				<div class="grid grid-cols-3 gap-2">
 					<div class="rounded border p-2 text-center">
 						<div class="text-sm font-medium">ImageBitmap</div>
 						<div class="text-lg font-bold text-blue-500">
 							{(realTimeMetrics.cacheStats.imageBitmap.hitRate * 100).toFixed(0)}%
 						</div>
-						<div class="text-xs text-muted-foreground">
+						<div class="text-muted-foreground text-xs">
 							{realTimeMetrics.cacheStats.imageBitmap.entries} items
 						</div>
 					</div>
@@ -238,7 +234,7 @@
 						<div class="text-lg font-bold text-green-500">
 							{(realTimeMetrics.cacheStats.imageData.hitRate * 100).toFixed(0)}%
 						</div>
-						<div class="text-xs text-muted-foreground">
+						<div class="text-muted-foreground text-xs">
 							{realTimeMetrics.cacheStats.imageData.entries} items
 						</div>
 					</div>
@@ -247,7 +243,7 @@
 						<div class="text-lg font-bold text-purple-500">
 							{(realTimeMetrics.cacheStats.arrayBuffer.hitRate * 100).toFixed(0)}%
 						</div>
-						<div class="text-xs text-muted-foreground">
+						<div class="text-muted-foreground text-xs">
 							{realTimeMetrics.cacheStats.arrayBuffer.entries} items
 						</div>
 					</div>

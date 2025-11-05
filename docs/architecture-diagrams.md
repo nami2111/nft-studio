@@ -206,6 +206,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 ### Ruler Trait System
 
 **Revolutionary Trait Compatibility Engine**:
+
 - Complex rule definitions with allowed/forbidden combinations
 - Visual indicators (crown icons, color-coded badges)
 - Interactive rule configuration interface
@@ -214,6 +215,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 ### Interactive Gallery Filtering
 
 **Multi-Dimensional Trait Filtering**:
+
 - Click any trait in NFT details to instantly filter collections
 - Build complex filters by selecting multiple traits
 - Visual feedback with selected trait highlighting
@@ -222,6 +224,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 ### Progressive Generation
 
 **Real-Time Preview During Batch Processing**:
+
 - Streaming generation with preview updates
 - Adaptive preview frequency based on collection size
 - Performance monitoring with automatic optimization

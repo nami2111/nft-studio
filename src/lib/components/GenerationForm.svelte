@@ -1,9 +1,12 @@
 <script lang="ts">
 	// JSZip will be imported dynamically when needed
 	import { project } from '$lib/stores';
-	import { startGeneration as startWorkerGeneration, cancelGeneration as cancelWorkerGeneration } from '$lib/domain/worker.service';
+	import {
+		startGeneration as startWorkerGeneration,
+		cancelGeneration as cancelWorkerGeneration
+	} from '$lib/domain/worker.service';
 	import { Play, AlertCircle } from 'lucide-svelte';
-		import { Progress } from '$lib/components/ui/progress';
+	import { Progress } from '$lib/components/ui/progress';
 	import { Button } from '$lib/components/ui/button';
 	import type {
 		ProgressMessage,
@@ -54,7 +57,6 @@
 	let previews = $derived(generationState.previews);
 	let currentSessionId = $derived(generationState.sessionId);
 
-	
 	// Component lifecycle management
 	onDestroy(() => {
 		isComponentDestroyed = true;
@@ -62,7 +64,7 @@
 		console.log('🧹 GenerationForm component destroyed');
 
 		// Clean up UI resources only
-		previews.forEach(p => {
+		previews.forEach((p) => {
 			try {
 				URL.revokeObjectURL(p.url);
 			} catch (error) {
@@ -308,7 +310,10 @@
 							break;
 						case 'complete':
 							if (message.payload.images) addImages(message.payload.images);
-							if (message.payload.metadata) addMetadata(message.payload.metadata as { name: string; data: Record<string, unknown> }[]);
+							if (message.payload.metadata)
+								addMetadata(
+									message.payload.metadata as { name: string; data: Record<string, unknown> }[]
+								);
 							// Check if generation is complete
 							if (generationState.allImages.length >= collectionSize) {
 								// Package in background if possible, or wait for user to return
@@ -348,11 +353,16 @@
 							addImages(message.payload.images);
 						}
 						if (message.payload.metadata && message.payload.metadata.length > 0) {
-							addMetadata(message.payload.metadata as { name: string; data: Record<string, unknown> }[]);
+							addMetadata(
+								message.payload.metadata as { name: string; data: Record<string, unknown> }[]
+							);
 						}
 
 						// Check if generation is complete
-						if (generationState.allImages.length >= collectionSize || message.payload.images.length === 0) {
+						if (
+							generationState.allImages.length >= collectionSize ||
+							message.payload.images.length === 0
+						) {
 							console.log(
 								'Generation complete, packaging:',
 								generationState.allImages.length,
@@ -417,12 +427,17 @@
 			error: generationState.error
 		};
 	}
+
+	function handleClearState() {
+		resetLocalState();
+		showInfo('Generation state cleared');
+	}
 </script>
 
 <div class="space-y-4 sm:space-y-6">
 	<div class="space-y-4 py-4">
 		<!-- Collection Size Input - Responsive Layout -->
-		<div class="grid gap-2 sm:grid-cols-[1fr_3fr] sm:items-center sm:gap-4">
+		<div class="grid gap-2 pb-2 sm:grid-cols-[1fr_3fr] sm:items-center sm:gap-4">
 			<label class="text-sm font-medium sm:text-right" for="collectionSize">Collection Size</label>
 			<input
 				id="collectionSize"
@@ -437,22 +452,22 @@
 
 		<!-- Background Generation Status -->
 		{#if isBackground}
-			<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+			<div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
 				<div class="flex items-center gap-2">
 					<AlertCircle class="h-4 w-4 text-yellow-600" />
 					<div class="flex-1">
 						<p class="text-sm font-medium text-yellow-800">Generation Running in Background</p>
 						<p class="text-xs text-yellow-600">
-							Session {currentSessionId?.slice(0, 8)}... • {generationState.currentIndex} of {generationState.totalItems} items
+							Session {currentSessionId?.slice(0, 8)}... • {generationState.currentIndex} of {generationState.totalItems}
+							items
 						</p>
 					</div>
 				</div>
 			</div>
 		{/if}
 
-		
 		<!-- Progress Section - Responsive Layout -->
-		<div class="grid gap-2 sm:grid-cols-[1fr_3fr] sm:items-center sm:gap-4">
+		<div class="grid gap-2 pb-2 sm:grid-cols-[1fr_3fr] sm:items-start sm:gap-4">
 			<label class="text-sm font-medium sm:text-right" for="gen-progress">
 				{isBackground ? 'Background Progress' : 'Progress'}
 			</label>
@@ -462,15 +477,27 @@
 
 				<!-- Generation Status Details -->
 				{#if currentSessionId}
-					<div class="text-xs text-muted-foreground space-y-1">
-						<p>Session: {currentSessionId.slice(0, 12)}...</p>
+					<div class="text-muted-foreground space-y-1 text-xs">
+						<p class="text-xs">Session: {currentSessionId.slice(0, 12)}...</p>
 						{#if generationState.startTime}
-							<p>Started: {new Date(generationState.startTime).toLocaleTimeString()}</p>
+							<p class="text-xs">
+								Started: {new Date(generationState.startTime).toLocaleTimeString()}
+							</p>
 						{/if}
 						{#if isPaused}
 							<p class="text-yellow-600">⏸️ Paused</p>
 						{:else if isBackground}
 							<p class="text-blue-600">🔄 Running in background</p>
+						{:else if !isGenerating && generationState.completionTime}
+							<div class="flex items-center justify-between">
+								<p class="text-green-600">✅ Completed</p>
+								<button
+									onclick={handleClearState}
+									class="text-muted-foreground hover:text-foreground text-xs underline"
+								>
+									Clear
+								</button>
+							</div>
 						{/if}
 					</div>
 				{/if}
@@ -485,8 +512,8 @@
 
 				<!-- Warnings -->
 				{#if generationState.warnings.length > 0}
-					<div class="text-xs text-yellow-600 space-y-1">
-						{#each generationState.warnings as warning}
+					<div class="space-y-1 text-xs text-yellow-600">
+						{#each generationState.warnings as warning (warning)}
 							<p>⚠️ {warning}</p>
 						{/each}
 					</div>
@@ -494,7 +521,7 @@
 
 				<!-- Error Display -->
 				{#if generationState.error}
-					<div class="text-xs text-red-600 p-2 bg-red-50 rounded">
+					<div class="rounded bg-red-50 p-2 text-xs text-red-600">
 						❌ {generationState.error}
 					</div>
 				{/if}
@@ -506,7 +533,7 @@
 	<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
 		<!-- Background Generation Controls -->
 		{#if isBackground}
-			<div class="flex gap-2 w-full sm:w-auto">
+			<div class="flex w-full gap-2 sm:w-auto">
 				<Button variant="outline" onclick={handleCancel} size="sm">
 					Stop Background Generation
 				</Button>
@@ -532,6 +559,5 @@
 				<span class="text-sm">Generate</span>
 			{/if}
 		</Button>
-
-			</div>
+	</div>
 </div>

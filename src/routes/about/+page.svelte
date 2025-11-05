@@ -910,10 +910,10 @@
 									<div>
 										<h3 class="text-foreground mb-4 font-semibold">What is Strict Pair Mode?</h3>
 										<p class="text-muted-foreground mb-4">
-											Strict Pair Mode is an advanced feature that prevents specific trait combinations
-											from appearing more than once in your NFT collection. This gives you precise
-											control over the uniqueness of specific trait combinations, allowing you to create
-											more valuable and strategically designed collections.
+											Strict Pair Mode is an advanced feature that prevents specific trait
+											combinations from appearing more than once in your NFT collection. This gives
+											you precise control over the uniqueness of specific trait combinations,
+											allowing you to create more valuable and strategically designed collections.
 										</p>
 										<div class="border-border bg-muted rounded-lg border p-4">
 											<p class="text-foreground text-sm">
@@ -926,13 +926,13 @@
 									<div>
 										<h3 class="text-foreground mb-4 font-semibold">Multi-Layer Combinations</h3>
 										<p class="text-muted-foreground mb-4">
-											Unlike simple 2-layer systems, Strict Pair Mode supports unlimited layer combinations,
-											giving you maximum flexibility for creating complex constraints.
+											Unlike simple 2-layer systems, Strict Pair Mode supports unlimited layer
+											combinations, giving you maximum flexibility for creating complex constraints.
 										</p>
 										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 											<div class="border-border bg-muted rounded-lg border p-4">
 												<h4 class="text-foreground mb-2 font-semibold">2-Layer Example</h4>
-												<p class="text-muted-foreground text-sm mb-2">
+												<p class="text-muted-foreground mb-2 text-sm">
 													BASE + HEAD = 4 × 3 = <strong>12 unique combinations</strong>
 												</p>
 												<p class="text-muted-foreground text-xs">
@@ -941,8 +941,10 @@
 											</div>
 											<div class="border-border bg-muted rounded-lg border p-4">
 												<h4 class="text-foreground mb-2 font-semibold">4-Layer Example</h4>
-												<p class="text-muted-foreground text-sm mb-2">
-													BASE + HEAD + ACCESSORY + CLOTHING = 4 × 3 × 5 × 6 = <strong>360 unique combinations</strong>
+												<p class="text-muted-foreground mb-2 text-sm">
+													BASE + HEAD + ACCESSORY + CLOTHING = 4 × 3 × 5 × 6 = <strong
+														>360 unique combinations</strong
+													>
 												</p>
 												<p class="text-muted-foreground text-xs">
 													Ideal for complex multi-layer constraints and rarity control.
@@ -956,18 +958,20 @@
 										<div class="space-y-4">
 											<ol class="text-muted-foreground ml-6 list-decimal space-y-2">
 												<li>
-													<strong>Enable Strict Pair Mode:</strong> Toggle the feature in the project settings panel
+													<strong>Enable Strict Pair Mode:</strong> Toggle the feature in the project
+													settings panel
 												</li>
 												<li>
-													<strong>Create Layer Combinations:</strong> Select 2 or more layers to track (e.g., BASE + HEAD)
+													<strong>Create Layer Combinations:</strong> Select 2 or more layers to track
+													(e.g., BASE + HEAD)
 												</li>
 												<li>
-													<strong>Automatic Tracking:</strong> System automatically tracks all possible trait combinations
-													between selected layers
+													<strong>Automatic Tracking:</strong> System automatically tracks all possible
+													trait combinations between selected layers
 												</li>
 												<li>
-													<strong>Generation Prevention:</strong> During NFT generation, duplicate combinations are
-													automatically blocked and regenerated with different traits
+													<strong>Generation Prevention:</strong> During NFT generation, duplicate combinations
+													are automatically blocked and regenerated with different traits
 												</li>
 											</ol>
 										</div>
@@ -994,8 +998,8 @@
 										<div class="border-border bg-muted rounded-lg border p-4">
 											<p class="text-foreground text-sm">
 												<strong>💡 Pro Tip:</strong> The system automatically calculates how many unique
-												combinations will be tracked. For example, selecting BASE (4 traits) + HEAD (3 traits)
-												results in 4 × 3 = 12 tracked combinations.
+												combinations will be tracked. For example, selecting BASE (4 traits) + HEAD (3
+												traits) results in 4 × 3 = 12 tracked combinations.
 											</p>
 										</div>
 									</div>
@@ -1006,8 +1010,8 @@
 											<div class="border-border bg-muted rounded-lg border p-4">
 												<h4 class="text-foreground mb-2 font-semibold">Ultra-Rare Combinations</h4>
 												<p class="text-muted-foreground text-sm">
-													Create legendary combinations that appear only once, making them extremely valuable
-													and sought after by collectors.
+													Create legendary combinations that appear only once, making them extremely
+													valuable and sought after by collectors.
 												</p>
 											</div>
 											<div class="border-border bg-muted rounded-lg border p-4">
@@ -1020,8 +1024,8 @@
 											<div class="border-border bg-muted rounded-lg border p-4">
 												<h4 class="text-foreground mb-2 font-semibold">Rarity Engineering</h4>
 												<p class="text-muted-foreground text-sm">
-													Design the exact rarity distribution for specific trait combinations in your
-													collection.
+													Design the exact rarity distribution for specific trait combinations in
+													your collection.
 												</p>
 											</div>
 											<div class="border-border bg-muted rounded-lg border p-4">
@@ -1037,19 +1041,22 @@
 									<div>
 										<h3 class="text-foreground mb-4 font-semibold">Managing Layer Combinations</h3>
 										<p class="text-muted-foreground mb-4">
-											Once created, you can manage your layer combinations through the intuitive interface.
+											Once created, you can manage your layer combinations through the intuitive
+											interface.
 										</p>
 										<div class="space-y-2">
 											<div class="flex items-center space-x-3">
 												<span class="text-blue-500">📊</span>
 												<span class="text-muted-foreground text-sm">
-													<strong>Combination Counter:</strong> Shows total unique combinations that will be tracked
+													<strong>Combination Counter:</strong> Shows total unique combinations that
+													will be tracked
 												</span>
 											</div>
 											<div class="flex items-center space-x-3">
 												<span class="text-blue-500">👁️</span>
 												<span class="text-muted-foreground text-sm">
-													<strong>Active/Inactive Toggle:</strong> Enable or disable combinations without deleting them
+													<strong>Active/Inactive Toggle:</strong> Enable or disable combinations without
+													deleting them
 												</span>
 											</div>
 											<div class="flex items-center space-x-3">
@@ -1061,7 +1068,8 @@
 											<div class="flex items-center space-x-3">
 												<span class="text-blue-500">ℹ️</span>
 												<span class="text-muted-foreground text-sm">
-													<strong>Info Button:</strong> View details about the combination and its current status
+													<strong>Info Button:</strong> View details about the combination and its current
+													status
 												</span>
 											</div>
 										</div>
@@ -1071,21 +1079,40 @@
 										<h3 class="text-foreground mb-4 font-semibold">Real-World Examples</h3>
 										<div class="space-y-4">
 											<div class="border-border bg-muted rounded-lg border p-4">
-												<h4 class="text-foreground mb-2 font-semibold">Example 1: Character + Accessory Pairs</h4>
-												<div class="text-muted-foreground text-sm space-y-2">
-													<p><strong>Layers:</strong> CHARACTER (5 traits) + ACCESSORY (4 traits)</p>
+												<h4 class="text-foreground mb-2 font-semibold">
+													Example 1: Character + Accessory Pairs
+												</h4>
+												<div class="text-muted-foreground space-y-2 text-sm">
+													<p>
+														<strong>Layers:</strong> CHARACTER (5 traits) + ACCESSORY (4 traits)
+													</p>
 													<p><strong>Total Combinations:</strong> 5 × 4 = 20 unique combinations</p>
-													<p><strong>Result:</strong> Each character-accessory pair appears only once in the collection</p>
-													<p><strong>Use Case:</strong> Create 20 unique character outfits, each with guaranteed uniqueness</p>
+													<p>
+														<strong>Result:</strong> Each character-accessory pair appears only once
+														in the collection
+													</p>
+													<p>
+														<strong>Use Case:</strong> Create 20 unique character outfits, each with
+														guaranteed uniqueness
+													</p>
 												</div>
 											</div>
 											<div class="border-border bg-muted rounded-lg border p-4">
-												<h4 class="text-foreground mb-2 font-semibold">Example 2: Multi-Layer Trait Sets</h4>
-												<div class="text-muted-foreground text-sm space-y-2">
-													<p><strong>Layers:</strong> BASE (4) + HEAD (3) + ACCESSORY (5) + CLOTHING (6)</p>
-													<p><strong>Total Combinations:</strong> 4 × 3 × 5 × 6 = 360 unique combinations</p>
+												<h4 class="text-foreground mb-2 font-semibold">
+													Example 2: Multi-Layer Trait Sets
+												</h4>
+												<div class="text-muted-foreground space-y-2 text-sm">
+													<p>
+														<strong>Layers:</strong> BASE (4) + HEAD (3) + ACCESSORY (5) + CLOTHING (6)
+													</p>
+													<p>
+														<strong>Total Combinations:</strong> 4 × 3 × 5 × 6 = 360 unique combinations
+													</p>
 													<p><strong>Result:</strong> Each 4-layer combination appears only once</p>
-													<p><strong>Use Case:</strong> Create highly structured collections with controlled trait distribution</p>
+													<p>
+														<strong>Use Case:</strong> Create highly structured collections with controlled
+														trait distribution
+													</p>
 												</div>
 											</div>
 										</div>
@@ -1095,24 +1122,24 @@
 										<h3 class="text-foreground mb-4 font-semibold">Best Practices</h3>
 										<ul class="text-muted-foreground ml-6 list-disc space-y-2">
 											<li>
-												<strong>Plan Your Strategy:</strong> Decide which combinations should be rare before
-												creating large collections
+												<strong>Plan Your Strategy:</strong> Decide which combinations should be rare
+												before creating large collections
 											</li>
 											<li>
-												<strong>Test Generation:</strong> Run small test generations to verify Strict Pair
-												mode works as expected
+												<strong>Test Generation:</strong> Run small test generations to verify Strict
+												Pair mode works as expected
 											</li>
 											<li>
-												<strong>Balance Rarity:</strong> Use Strict Pair for ultra-rare combinations, but allow
-												other combinations to generate normally for natural rarity distribution
+												<strong>Balance Rarity:</strong> Use Strict Pair for ultra-rare combinations,
+												but allow other combinations to generate normally for natural rarity distribution
 											</li>
 											<li>
-												<strong>Document Logic:</strong> Keep track of your Strict Pair combinations and their
-												intended purpose
+												<strong>Document Logic:</strong> Keep track of your Strict Pair combinations
+												and their intended purpose
 											</li>
 											<li>
-												<strong>Monitor Generation:</strong> Watch the generation process to ensure the system
-												is working correctly with your constraints
+												<strong>Monitor Generation:</strong> Watch the generation process to ensure the
+												system is working correctly with your constraints
 											</li>
 										</ul>
 									</div>
@@ -1120,36 +1147,37 @@
 									<div>
 										<h3 class="text-foreground mb-4 font-semibold">Technical Implementation</h3>
 										<p class="text-muted-foreground mb-4">
-											Strict Pair Mode uses sophisticated tracking technology to ensure reliable duplicate
-											prevention during generation.
+											Strict Pair Mode uses sophisticated tracking technology to ensure reliable
+											duplicate prevention during generation.
 										</p>
 										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 											<div>
 												<h4 class="text-foreground mb-2 font-semibold">Worker-Level Tracking</h4>
 												<p class="text-muted-foreground text-sm">
-													Duplicate prevention happens at the worker level for maximum performance and
-													reliability, ensuring consistent results across all generation processes.
+													Duplicate prevention happens at the worker level for maximum performance
+													and reliability, ensuring consistent results across all generation
+													processes.
 												</p>
 											</div>
 											<div>
 												<h4 class="text-foreground mb-2 font-semibold">Intelligent Retry Logic</h4>
 												<p class="text-muted-foreground text-sm">
-													When duplicates are detected, the system automatically retries with different
-													traits, maintaining generation efficiency.
+													When duplicates are detected, the system automatically retries with
+													different traits, maintaining generation efficiency.
 												</p>
 											</div>
 											<div>
 												<h4 class="text-foreground mb-2 font-semibold">Memory-Efficient Storage</h4>
 												<p class="text-muted-foreground text-sm">
-													Used combinations are tracked efficiently with automatic cleanup to prevent
-													memory issues during large generation jobs.
+													Used combinations are tracked efficiently with automatic cleanup to
+													prevent memory issues during large generation jobs.
 												</p>
 											</div>
 											<div>
 												<h4 class="text-foreground mb-2 font-semibold">Persistent Configuration</h4>
 												<p class="text-muted-foreground text-sm">
-													Your Strict Pair configurations are saved with your project and persist across
-													sessions.
+													Your Strict Pair configurations are saved with your project and persist
+													across sessions.
 												</p>
 											</div>
 										</div>

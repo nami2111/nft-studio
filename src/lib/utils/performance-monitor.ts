@@ -265,7 +265,10 @@ export class PerformanceMonitor {
 	 * @param cacheType - Type of cache ('imageBitmap', 'imageData', 'arrayBuffer')
 	 * @param metrics - Cache performance metrics
 	 */
-	addCacheMetrics(cacheType: 'imageBitmap' | 'imageData' | 'arrayBuffer', metrics: CacheMetrics): void {
+	addCacheMetrics(
+		cacheType: 'imageBitmap' | 'imageData' | 'arrayBuffer',
+		metrics: CacheMetrics
+	): void {
 		if (!this.enabled) return;
 
 		// Record cache hit rate as a performance metric
@@ -298,10 +301,13 @@ export class PerformanceMonitor {
 
 		// Log cache performance periodically
 		const totalOps = metrics.hits + metrics.misses;
-		if (totalOps > 0 && totalOps % 50 === 0) { // Every 50 operations
+		if (totalOps > 0 && totalOps % 50 === 0) {
+			// Every 50 operations
 			const hitRatePercent = (metrics.hitRate * 100).toFixed(1);
 			const memoryUsageMB = (metrics.memoryUsage / (1024 * 1024)).toFixed(2);
-			console.log(`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`);
+			console.log(
+				`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`
+			);
 		}
 	}
 

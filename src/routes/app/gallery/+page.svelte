@@ -52,7 +52,7 @@
 			return;
 		}
 
-				const start = performance.now();
+		const start = performance.now();
 
 		traitFilterCache.clear();
 
@@ -84,7 +84,7 @@
 	let filteredNFTs = $derived.by(() => {
 		// Track if this is actually being called by UI
 		const filterStart = performance.now();
-		
+
 		// Only log slow filter operations (>10ms)
 		const start = performance.now();
 		const endTiming = () => {
@@ -93,7 +93,7 @@
 				debugLog(`⏱️ Filter: ${(end - start).toFixed(2)}ms`);
 			}
 		};
-		
+
 		if (!selectedCollection) {
 			endTiming();
 			return [];
@@ -106,11 +106,11 @@
 			return filterResultCache.get(filterKey)!;
 		}
 
-				let nfts = [...selectedCollection.nfts];
+		let nfts = [...selectedCollection.nfts];
 
 		// Apply search filter
 		if (searchQuery) {
-						const searchLower = searchQuery.toLowerCase();
+			const searchLower = searchQuery.toLowerCase();
 			nfts = nfts.filter(
 				(nft) =>
 					nft.name.toLowerCase().includes(searchLower) ||
@@ -143,12 +143,12 @@
 				}
 
 				// Intersect with candidates
-				candidateIndices = new Set([...candidateIndices].filter(i => traitMatches.has(i)));
+				candidateIndices = new Set([...candidateIndices].filter((i) => traitMatches.has(i)));
 				if (candidateIndices.size === 0) break;
 			}
 
 			// Convert indices back to NFTs
-			nfts = Array.from(candidateIndices).map(i => selectedCollection!.nfts[i]);
+			nfts = Array.from(candidateIndices).map((i) => selectedCollection!.nfts[i]);
 
 			const traitEnd = performance.now();
 		}
@@ -206,7 +206,6 @@
 				break;
 		}
 
-		
 		// Cache result (limit cache size)
 		if (filterResultCache.size > 20) {
 			const firstKey = filterResultCache.keys().next().value;
@@ -220,7 +219,7 @@
 
 		// Track total time including derived.by overhead
 		const totalFilterTime = performance.now() - filterStart;
-		
+
 		return nfts;
 	});
 
@@ -229,7 +228,6 @@
 		galleryStore.setSelectedCollection(selectedCollection || null);
 	});
 
-	
 	// Get all unique traits for filters
 	let allTraits = $derived(() => {
 		if (!selectedCollection) return {};
@@ -649,7 +647,9 @@
 						<h2 class="text-xl font-bold">{selectedCollection.name}</h2>
 						<p class="text-muted-foreground mt-1">{selectedCollection.description}</p>
 						<div class="text-muted-foreground mt-1 text-sm">
-							{selectedCollection.totalSupply} NFTs • {new Date(selectedCollection.generatedAt).toLocaleDateString()}
+							{selectedCollection.totalSupply} NFTs • {new Date(
+								selectedCollection.generatedAt
+							).toLocaleDateString()}
 						</div>
 					</div>
 
@@ -713,7 +713,9 @@
 									<h3 class="mb-4 font-semibold">NFT Details</h3>
 
 									<!-- NFT Image -->
-									<div class="bg-muted mx-auto mb-4 aspect-square max-w-[250px] overflow-hidden rounded-lg">
+									<div
+										class="bg-muted mx-auto mb-4 aspect-square max-w-[250px] overflow-hidden rounded-lg"
+									>
 										{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
 											<img
 												src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
@@ -721,7 +723,9 @@
 												class="h-full w-full object-contain"
 											/>
 										{:else}
-											<div class="text-muted-foreground flex h-full w-full items-center justify-center text-sm">
+											<div
+												class="text-muted-foreground flex h-full w-full items-center justify-center text-sm"
+											>
 												No Image
 											</div>
 										{/if}
@@ -764,16 +768,26 @@
 																toggleTraitFilter(layer, traitValue);
 															}
 														}}
-														title={isSelected ? 'Click to remove filter' : 'Click to filter by this trait'}
+														title={isSelected
+															? 'Click to remove filter'
+															: 'Click to filter by this trait'}
 													>
 														<div class="flex items-center gap-2">
-															<div class="h-2 w-2 rounded-full {isSelected ? 'bg-primary-foreground' : 'bg-muted-foreground'}"></div>
+															<div
+																class="h-2 w-2 rounded-full {isSelected
+																	? 'bg-primary-foreground'
+																	: 'bg-muted-foreground'}"
+															></div>
 															<span class="font-medium">{layer}:</span>
-															<span class={isSelected ? 'text-primary-foreground' : ''}>{traitValue}</span>
+															<span class={isSelected ? 'text-primary-foreground' : ''}
+																>{traitValue}</span
+															>
 														</div>
 														{#if trait.rarity}
 															<span
-																class="{isSelected ? 'text-primary-foreground bg-primary-foreground/20' : 'text-muted-foreground bg-background'} rounded px-2 py-1 text-xs"
+																class="{isSelected
+																	? 'text-primary-foreground bg-primary-foreground/20'
+																	: 'text-muted-foreground bg-background'} rounded px-2 py-1 text-xs"
 																>{trait.rarity}%</span
 															>
 														{/if}
@@ -782,7 +796,11 @@
 											</div>
 											{#if Object.keys(selectedTraits).length > 0}
 												<div class="text-muted-foreground mt-2 text-xs">
-													{Object.values(selectedTraits).flat().length} trait{Object.values(selectedTraits).flat().length !== 1 ? 's' : ''} selected
+													{Object.values(selectedTraits).flat().length} trait{Object.values(
+														selectedTraits
+													).flat().length !== 1
+														? 's'
+														: ''} selected
 												</div>
 											{/if}
 										</div>
@@ -805,9 +823,24 @@
 												stroke-linejoin="round"
 											/>
 											<circle cx="12" cy="13" r="3" stroke-width="1" />
-											<path d="M12 13v.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-											<path d="M16 11h.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-											<path d="M8 11h.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+											<path
+												d="M12 13v.01"
+												stroke-width="1"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
+											<path
+												d="M16 11h.01"
+												stroke-width="1"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
+											<path
+												d="M8 11h.01"
+												stroke-width="1"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
 										</svg>
 										<div class="text-sm">Click an NFT to view details</div>
 									</div>
@@ -826,7 +859,9 @@
 						<h2 class="text-xl font-bold">{selectedCollection.name}</h2>
 						<p class="text-muted-foreground mt-1">{selectedCollection.description}</p>
 						<div class="text-muted-foreground mt-2 text-sm">
-							{selectedCollection.totalSupply} NFTs • {new Date(selectedCollection.generatedAt).toLocaleDateString()}
+							{selectedCollection.totalSupply} NFTs • {new Date(
+								selectedCollection.generatedAt
+							).toLocaleDateString()}
 						</div>
 					</div>
 
@@ -884,10 +919,14 @@
 														<button
 															type="button"
 															onclick={() => toggleTraitFilter(layer, value)}
-															class="rounded border px-2 py-1 text-xs transition-all {selectedTraits[layer]?.includes(value)
+															class="rounded border px-2 py-1 text-xs transition-all {selectedTraits[
+																layer
+															]?.includes(value)
 																? 'bg-primary text-primary-foreground border-primary shadow-sm'
 																: 'hover:bg-muted border-border text-foreground'}"
-															title={selectedTraits[layer]?.includes(value) ? 'Remove filter' : 'Filter by this trait'}
+															title={selectedTraits[layer]?.includes(value)
+																? 'Remove filter'
+																: 'Filter by this trait'}
 														>
 															{value}
 															{#if selectedTraits[layer]?.includes(value)}
@@ -898,7 +937,10 @@
 														</button>
 													{/each}
 													{#if values.length > 8}
-														<button type="button" class="text-muted-foreground hover:bg-muted rounded border px-2 py-1 text-xs">
+														<button
+															type="button"
+															class="text-muted-foreground hover:bg-muted rounded border px-2 py-1 text-xs"
+														>
 															+{values.length - 8}
 														</button>
 													{/if}
@@ -943,7 +985,9 @@
 									<h3 class="mb-4 font-semibold">NFT Details</h3>
 
 									<!-- NFT Image - Tablet -->
-									<div class="bg-muted mx-auto mb-4 aspect-square max-w-[300px] overflow-hidden rounded-lg">
+									<div
+										class="bg-muted mx-auto mb-4 aspect-square max-w-[300px] overflow-hidden rounded-lg"
+									>
 										{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
 											<img
 												src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
@@ -951,7 +995,9 @@
 												class="h-full w-full object-contain"
 											/>
 										{:else}
-											<div class="text-muted-foreground flex h-full w-full items-center justify-center text-sm">
+											<div
+												class="text-muted-foreground flex h-full w-full items-center justify-center text-sm"
+											>
 												No Image
 											</div>
 										{/if}
@@ -994,16 +1040,26 @@
 																toggleTraitFilter(layer, traitValue);
 															}
 														}}
-														title={isSelected ? 'Click to remove filter' : 'Click to filter by this trait'}
+														title={isSelected
+															? 'Click to remove filter'
+															: 'Click to filter by this trait'}
 													>
 														<div class="flex items-center gap-2">
-															<div class="h-2 w-2 rounded-full {isSelected ? 'bg-primary-foreground' : 'bg-muted-foreground'}"></div>
+															<div
+																class="h-2 w-2 rounded-full {isSelected
+																	? 'bg-primary-foreground'
+																	: 'bg-muted-foreground'}"
+															></div>
 															<span class="font-medium">{layer}:</span>
-															<span class={isSelected ? 'text-primary-foreground' : ''}>{traitValue}</span>
+															<span class={isSelected ? 'text-primary-foreground' : ''}
+																>{traitValue}</span
+															>
 														</div>
 														{#if trait.rarity}
 															<span
-																class="{isSelected ? 'text-primary-foreground bg-primary-foreground/20' : 'text-muted-foreground bg-background'} rounded px-2 py-1 text-xs"
+																class="{isSelected
+																	? 'text-primary-foreground bg-primary-foreground/20'
+																	: 'text-muted-foreground bg-background'} rounded px-2 py-1 text-xs"
 																>{trait.rarity}%</span
 															>
 														{/if}
@@ -1012,7 +1068,11 @@
 											</div>
 											{#if Object.keys(selectedTraits).length > 0}
 												<div class="text-muted-foreground mt-2 text-xs">
-													{Object.values(selectedTraits).flat().length} trait{Object.values(selectedTraits).flat().length !== 1 ? 's' : ''} selected
+													{Object.values(selectedTraits).flat().length} trait{Object.values(
+														selectedTraits
+													).flat().length !== 1
+														? 's'
+														: ''} selected
 												</div>
 											{/if}
 										</div>
@@ -1035,9 +1095,24 @@
 												stroke-linejoin="round"
 											/>
 											<circle cx="12" cy="13" r="3" stroke-width="1" />
-											<path d="M12 13v.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-											<path d="M16 11h.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-											<path d="M8 11h.01" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+											<path
+												d="M12 13v.01"
+												stroke-width="1"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
+											<path
+												d="M16 11h.01"
+												stroke-width="1"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
+											<path
+												d="M8 11h.01"
+												stroke-width="1"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
 										</svg>
 										<div class="text-sm">Click an NFT to view details</div>
 									</div>
@@ -1397,7 +1472,10 @@
 					selectedSort = 'name-asc';
 					sortDropdownOpen = false;
 				}}
-				class="hover:bg-muted w-full rounded-t-md px-3 py-2 text-left text-sm {selectedSort === 'name-asc' ? 'bg-primary text-primary-foreground' : ''}"
+				class="hover:bg-muted w-full rounded-t-md px-3 py-2 text-left text-sm {selectedSort ===
+				'name-asc'
+					? 'bg-primary text-primary-foreground'
+					: ''}"
 			>
 				Name (A-Z)
 			</button>
@@ -1407,7 +1485,9 @@
 					selectedSort = 'name-desc';
 					sortDropdownOpen = false;
 				}}
-				class="hover:bg-muted w-full px-3 py-2 text-left text-sm {selectedSort === 'name-desc' ? 'bg-primary text-primary-foreground' : ''}"
+				class="hover:bg-muted w-full px-3 py-2 text-left text-sm {selectedSort === 'name-desc'
+					? 'bg-primary text-primary-foreground'
+					: ''}"
 			>
 				Name (Z-A)
 			</button>
@@ -1417,7 +1497,9 @@
 					selectedSort = 'rarity-asc';
 					sortDropdownOpen = false;
 				}}
-				class="hover:bg-muted w-full px-3 py-2 text-left text-sm {selectedSort === 'rarity-asc' ? 'bg-primary text-primary-foreground' : ''}"
+				class="hover:bg-muted w-full px-3 py-2 text-left text-sm {selectedSort === 'rarity-asc'
+					? 'bg-primary text-primary-foreground'
+					: ''}"
 			>
 				Rarity (Low to High)
 			</button>
@@ -1427,7 +1509,10 @@
 					selectedSort = 'rarity-desc';
 					sortDropdownOpen = false;
 				}}
-				class="hover:bg-muted w-full rounded-b-md px-3 py-2 text-left text-sm {selectedSort === 'rarity-desc' ? 'bg-primary text-primary-foreground' : ''}"
+				class="hover:bg-muted w-full rounded-b-md px-3 py-2 text-left text-sm {selectedSort ===
+				'rarity-desc'
+					? 'bg-primary text-primary-foreground'
+					: ''}"
 			>
 				Rarity (High to Low)
 			</button>

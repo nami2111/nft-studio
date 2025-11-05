@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { generationState, getSummary, cancelGeneration } from '$lib/stores/generation-progress.svelte';
+	import {
+		generationState,
+		getSummary,
+		cancelGeneration
+	} from '$lib/stores/generation-progress.svelte';
 	import { AlertCircle, X } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 
@@ -32,15 +36,15 @@
 
 {#if isBackground && !isMinimized}
 	<div
-		class="fixed bottom-4 right-4 z-50 max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg p-4 space-y-3"
+		class="fixed right-4 bottom-4 z-50 max-w-sm space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
 		role="alert"
 		aria-live="polite"
 	>
 		<!-- Header -->
 		<div class="flex items-start justify-between">
-			<div class="flex items-center gap-2 flex-1">
+			<div class="flex flex-1 items-center gap-2">
 				<div class="flex-shrink-0">
-					<AlertCircle class="h-5 w-5 text-blue-500 animate-pulse" />
+					<AlertCircle class="h-5 w-5 animate-pulse text-blue-500" />
 				</div>
 				<div>
 					<h3 class="text-sm font-medium text-gray-900">Background Generation</h3>
@@ -65,9 +69,9 @@
 				<span>{currentItems} / {totalItems} items</span>
 				<span>{Math.round(progress)}%</span>
 			</div>
-			<div class="w-full bg-gray-200 rounded-full h-1.5">
+			<div class="h-1.5 w-full rounded-full bg-gray-200">
 				<div
-					class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+					class="h-1.5 rounded-full bg-blue-500 transition-all duration-300"
 					style="width: {progress}%"
 				></div>
 			</div>
@@ -76,7 +80,7 @@
 
 		<!-- Warnings -->
 		{#if warnings.length > 0}
-			<div class="text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
+			<div class="rounded bg-yellow-50 p-2 text-xs text-yellow-600">
 				<p class="font-medium">⚠️ {warnings.length} warning{warnings.length > 1 ? 's' : ''}</p>
 				{#if warnings[0]}
 					<p>{warnings[0]}</p>
@@ -86,15 +90,20 @@
 
 		<!-- Error -->
 		{#if error}
-			<div class="text-xs text-red-600 bg-red-50 p-2 rounded">
+			<div class="rounded bg-red-50 p-2 text-xs text-red-600">
 				<p class="font-medium">❌ Error</p>
 				<p>{error}</p>
 			</div>
 		{/if}
 
 		<!-- Actions -->
-		<div class="flex gap-2 pt-2 border-t border-gray-100">
-			<Button variant="outline" size="sm" onclick={handleStop} class="flex-1 text-red-600 hover:text-red-700">
+		<div class="flex gap-2 border-t border-gray-100 pt-2">
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={handleStop}
+				class="flex-1 text-red-600 hover:text-red-700"
+			>
 				Stop Background Generation
 			</Button>
 		</div>
@@ -104,17 +113,16 @@
 <!-- Minimized indicator -->
 {#if isBackground && isMinimized}
 	<div
-		class="fixed bottom-4 right-4 z-50 bg-blue-500 text-white px-3 py-2 rounded-full shadow-lg flex items-center gap-2 cursor-pointer hover:bg-blue-600 transition-colors"
-		onclick={() => isMinimized = false}
+		class="fixed right-4 bottom-4 z-50 flex cursor-pointer items-center gap-2 rounded-full bg-blue-500 px-3 py-2 text-white shadow-lg transition-colors hover:bg-blue-600"
+		onclick={() => (isMinimized = false)}
 		role="button"
 		tabindex="0"
 		onkeydown={(e) => e.key === 'Enter' && (isMinimized = false)}
 	>
-		<div class="h-2 w-2 bg-white rounded-full animate-pulse"></div>
+		<div class="h-2 w-2 animate-pulse rounded-full bg-white"></div>
 		<span class="text-xs font-medium">Background: {Math.round(progress)}%</span>
 	</div>
 {/if}
-
 
 <style>
 	/* Custom animations */
@@ -130,7 +138,8 @@
 	}
 
 	@keyframes pulse {
-		0%, 100% {
+		0%,
+		100% {
 			opacity: 1;
 		}
 		50% {

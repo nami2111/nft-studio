@@ -283,11 +283,13 @@ function scheduleBatchPersist(): void {
 	}, 1000); // Wait 1 second for batch completion
 }
 
-export function updateTraitsBatch(updates: Array<{
-	layerId: LayerId;
-	traitId: TraitId;
-	updates: Partial<Trait>;
-}>): void {
+export function updateTraitsBatch(
+	updates: Array<{
+		layerId: LayerId;
+		traitId: TraitId;
+		updates: Partial<Trait>;
+	}>
+): void {
 	// Add all updates to batch queue
 	for (const update of updates) {
 		batchQueue.push({
@@ -301,10 +303,12 @@ export function updateTraitsBatch(updates: Array<{
 	scheduleBatchPersist();
 }
 
-export function updateLayersBatch(updates: Array<{
-	layerId: LayerId;
-	updates: Partial<Layer>;
-}>): void {
+export function updateLayersBatch(
+	updates: Array<{
+		layerId: LayerId;
+		updates: Partial<Layer>;
+	}>
+): void {
 	// Add all updates to batch queue
 	for (const update of updates) {
 		batchQueue.push({
@@ -322,7 +326,7 @@ export function addTraitsBatch(layerId: LayerId, traits: Trait[]): void {
 	if (layerIndex !== -1) {
 		// Add traits immediately to the project (for UI responsiveness)
 		project.layers[layerIndex].traits.push(...traits);
-		
+
 		// Track object URLs for cleanup
 		traits.forEach((trait) => {
 			if (trait.imageUrl) {
@@ -720,9 +724,11 @@ export function isStrictPairEnabled(): boolean {
 }
 
 export function getActiveLayerCombinations(): string[] {
-	return project.strictPairConfig?.layerCombinations
-		.filter((layerCombination: any) => layerCombination.active)
-		.map((layerCombination: any) => layerCombination.id) ?? [];
+	return (
+		project.strictPairConfig?.layerCombinations
+			.filter((layerCombination: any) => layerCombination.active)
+			.map((layerCombination: any) => layerCombination.id) ?? []
+	);
 }
 
 export function resetProject(): void {

@@ -87,11 +87,14 @@ export class ResourceManager {
 		// Listen for memory pressure events (supported in some browsers)
 		if (typeof window !== 'undefined' && 'addEventListener' in window) {
 			window.addEventListener('memorypressure', this.memoryPressureListener);
-			
+
 			// Also add a periodic cleanup check every 5 minutes
-			this.cleanupTimeout = window.setInterval(() => {
-				this.performPeriodicCleanup();
-			}, 5 * 60 * 1000);
+			this.cleanupTimeout = window.setInterval(
+				() => {
+					this.performPeriodicCleanup();
+				},
+				5 * 60 * 1000
+			);
 		}
 	}
 
@@ -100,14 +103,14 @@ export class ResourceManager {
 	 */
 	private handleMemoryPressure(): void {
 		const currentUsage = this.getCacheMetrics().overall.totalMemoryUsage;
-		
+
 		// If using more than 100MB, start aggressive cleanup
 		if (currentUsage > 100 * 1024 * 1024) {
 			// Clean up some object URLs
 			const urlsToClean = Math.min(this.objectUrls.size * 0.2, 50);
 			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
-			urlArray.forEach(url => this.removeObjectUrl(url));
-			
+			urlArray.forEach((url) => this.removeObjectUrl(url));
+
 			console.warn('Memory pressure cleanup completed: aggressive');
 		}
 		// If using more than 50MB, do moderate cleanup
@@ -115,8 +118,8 @@ export class ResourceManager {
 			// Clean up fewer object URLs
 			const urlsToClean = Math.min(this.objectUrls.size * 0.1, 25);
 			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
-			urlArray.forEach(url => this.removeObjectUrl(url));
-			
+			urlArray.forEach((url) => this.removeObjectUrl(url));
+
 			console.warn('Memory pressure cleanup completed: moderate');
 		}
 
@@ -128,14 +131,14 @@ export class ResourceManager {
 	 */
 	private performPeriodicCleanup(): void {
 		const currentUsage = this.getCacheMetrics().overall.totalMemoryUsage;
-		
+
 		// If using more than 20MB, perform light cleanup
 		if (currentUsage > 20 * 1024 * 1024) {
 			// Clean up some object URLs
 			const urlsToClean = Math.min(this.objectUrls.size * 0.05, 10);
 			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
-			urlArray.forEach(url => this.removeObjectUrl(url));
-			
+			urlArray.forEach((url) => this.removeObjectUrl(url));
+
 			this.updateMetrics();
 		}
 	}
@@ -206,12 +209,12 @@ export class ResourceManager {
 		this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
 		this.objectUrls.clear();
 		this.metrics.objectUrls = 0;
-		
+
 		// Clear all caches
 		this.imageBitmapCache.clear();
 		this.imageCache.clear();
 		this.arrayBufferCache.clear();
-		
+
 		// Update metrics
 		this.updateMetrics();
 	}
@@ -225,15 +228,15 @@ export class ResourceManager {
 			window.removeEventListener('memorypressure', this.memoryPressureListener);
 			this.memoryPressureListener = undefined;
 		}
-		
+
 		if (this.cleanupTimeout) {
 			clearInterval(this.cleanupTimeout);
 			this.cleanupTimeout = null;
 		}
-		
+
 		// Clean up all resources
 		this.cleanup();
-		
+
 		// Destroy all caches
 		this.imageBitmapCache.destroy();
 		this.imageCache.destroy();

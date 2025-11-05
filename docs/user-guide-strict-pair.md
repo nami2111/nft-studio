@@ -82,21 +82,25 @@ Use Case: Create collector's items with extreme rarity and value
 ## Use Cases and Strategies
 
 ### Ultra-Rare Combinations
+
 - **Goal**: Create legendary combinations that appear only once
 - **Strategy**: Use 2-3 layers with small trait counts
 - **Result**: Extremely valuable NFTs sought after by collectors
 
 ### Thematic Consistency
+
 - **Goal**: Ensure traits match your artistic vision
 - **Strategy**: Group related layers (e.g., MEDIEVAL + FANTASY themes)
 - **Result**: Cohesive collections without unexpected combinations
 
 ### Rarity Engineering
+
 - **Goal**: Control exact rarity distribution
 - **Strategy**: Use Strict Pair for ultra-rare, allow normal generation for others
 - **Result**: Precise control over collection rarity curve
 
 ### Collection Structure
+
 - **Goal**: Create sub-collections within main collection
 - **Strategy**: Different trait combinations for different themes
 - **Result**: Organized collection with clear categorization
@@ -104,16 +108,19 @@ Use Case: Create collector's items with extreme rarity and value
 ## Best Practices
 
 ### Planning Phase
+
 1. **Design Your Strategy**: Decide which combinations should be rare before creating large collections
 2. **Calculate Impact**: Understand how many combinations will be tracked (traits_in_layer1 × traits_in_layer2 × ...)
 3. **Test Small**: Run small test generations (10-50 NFTs) to verify behavior
 
 ### Configuration Phase
+
 1. **Start Simple**: Begin with 2-3 layer combinations
 2. **Add Descriptions**: Document the purpose of each combination
 3. **Monitor Progress**: Watch generation to ensure system works correctly
 
 ### Generation Phase
+
 1. **Balance Rarity**: Use Strict Pair for ultra-rare, allow normal generation for common traits
 2. **Monitor Memory**: Large combinations may use more memory during generation
 3. **Review Results**: Check generated collection to ensure uniqueness constraints worked
@@ -121,6 +128,7 @@ Use Case: Create collector's items with extreme rarity and value
 ## Advanced Features
 
 ### Multiple Active Combinations
+
 You can create multiple layer combinations simultaneously:
 
 ```
@@ -131,12 +139,15 @@ Total: 40 unique constraints across different layer pairs
 ```
 
 ### Active/Inactive Management
+
 - **Active**: Currently tracking and preventing duplicates
 - **Inactive**: Configured but not affecting current generation
 - **Use Case**: Prepare combinations in advance, activate when needed
 
 ### Automatic Retry Logic
+
 When duplicates are detected:
+
 1. System automatically identifies the violation
 2. Generation retries with different trait combinations
 3. Process continues until all valid combinations are generated
@@ -144,16 +155,19 @@ When duplicates are detected:
 ## Technical Implementation
 
 ### Worker-Level Tracking
+
 - Duplicate prevention happens at the worker level for maximum performance
 - Ensures consistent results across all generation processes
 - Maintains tracking state across large generation jobs
 
 ### Memory Management
+
 - Used combinations are tracked efficiently
 - Automatic cleanup prevents memory issues
 - Supports large collections (10,000+ NFTs)
 
 ### Persistent Configuration
+
 - Your Strict Pair settings are saved with your project
 - Configurations persist across browser sessions
 - Easy to modify and extend as your project evolves
@@ -161,27 +175,34 @@ When duplicates are detected:
 ## Troubleshooting
 
 ### Generation Takes Longer Than Expected
+
 **Issue**: Strict Pair Mode may increase generation time due to duplicate prevention
 **Solution**: This is normal behavior. The system is working correctly to ensure uniqueness.
 
 ### Not Seeing Expected Uniqueness
+
 **Issue**: Combinations still appearing multiple times
 **Solution**:
+
 1. Verify Strict Pair Mode is enabled
 2. Check that the correct layers are selected
 3. Ensure the combination is marked as active
 4. Run a small test generation to verify
 
 ### Memory Issues with Large Combinations
+
 **Issue**: Browser becomes slow during generation
 **Solution**:
+
 1. Use fewer layers or traits per combination
 2. Generate in smaller batches
 3. Close other browser tabs to free memory
 
 ### Can't Select Layers
+
 **Issue**: Layer selection disabled or grayed out
 **Solution**:
+
 1. Ensure you have at least 2 layers with traits
 2. Check that layers have uploaded trait images
 3. Verify layers are properly configured in the project
@@ -189,24 +210,32 @@ When duplicates are detected:
 ## Tips and Tricks
 
 ### Pro Tip: Strategic Layer Selection
+
 Choose layers with complementary trait counts:
+
 - **Balanced**: Similar number of traits per layer (e.g., 4 × 4 = 16 combos)
 - **Focused**: One layer with few traits, others with many (e.g., 1 × 20 = 20 combos)
 
 ### Pro Tip: Combination Naming
+
 Use descriptive names for easy management:
+
 - "Legendary Weapons" (WEAPON + EFFECT)
 - "Royal Outfits" (CLOTHING + ACCESSORY + CROWN)
 - "Nature Themes" (BACKGROUND + CHARACTER + ACCESSORY)
 
 ### Pro Tip: Progressive Complexity
+
 Start simple and add complexity:
+
 1. **Phase 1**: Basic 2-layer combinations
 2. **Phase 2**: Add 3-layer combinations
 3. **Phase 3**: Complex 4+ layer combinations
 
 ### Pro Tip: Testing Strategy
+
 Always test with small collections first:
+
 1. Create test project with 2-3 traits per layer
 2. Generate 10-20 NFTs
 3. Verify uniqueness constraints work
@@ -215,16 +244,19 @@ Always test with small collections first:
 ## Integration with Other Features
 
 ### Working with Ruler Traits
+
 - **Strict Pair**: Controls uniqueness of specific combinations
 - **Ruler Traits**: Controls which combinations are allowed
 - **Combined Use**: Create complex rule systems with both constraints
 
 ### Gallery Mode Viewing
+
 - Generated collections show all NFTs with unique combinations
 - Interactive filtering works with Strict Pair combinations
 - Rarity calculations include Strict Pair constraints
 
 ### Import/Export
+
 - Strict Pair configurations saved with project files
 - Imported projects maintain Strict Pair settings
 - Export preserves all uniqueness constraints
@@ -249,6 +281,7 @@ A: Yes, it works with any supported image format (PNG, JPG, GIF, WebP, etc.).
 ## Examples and Templates
 
 ### Template 1: Simple Character Collection
+
 ```
 Layers: BODY (5) + HAIR (4) + EYES (3)
 Combinations: 5 × 4 × 3 = 60 unique character appearances
@@ -256,6 +289,7 @@ Purpose: Ensure each character combination is unique
 ```
 
 ### Template 2: Accessory Focused Collection
+
 ```
 Layers: BASE (8) + ACCESSORY (6)
 Combinations: 8 × 6 = 48 unique outfit combinations
@@ -263,6 +297,7 @@ Purpose: Create diverse accessory combinations
 ```
 
 ### Template 3: Ultra-Rare Legendary Items
+
 ```
 Layers: LEGENDARY_WEAPON (2) + MYTHICAL_ARMOR (3) + DIVINE_BACKGROUND (1)
 Combinations: 2 × 3 × 1 = 6 ultra-rare legendary sets

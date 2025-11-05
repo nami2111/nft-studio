@@ -301,7 +301,7 @@ export class AdvancedCache<T = any> {
 			const memoryInfo = (performance as any).memory;
 			if (memoryInfo) {
 				const usedMB = memoryInfo.usedJSHeapSize / 1024 / 1024;
-				
+
 				// High memory usage - reduce cache limits
 				if (usedMB > 500) {
 					this.options.maxEntries = Math.floor(this.options.maxEntries * 0.7);
@@ -315,7 +315,7 @@ export class AdvancedCache<T = any> {
 				// Low memory usage - restore to original limits if significantly below thresholds
 				else if (usedMB < 100) {
 					this.options.maxEntries = Math.min(
-						this.options.maxEntries * 1.1, 
+						this.options.maxEntries * 1.1,
 						this.options.maxEntries * 2 // Cap at 2x original
 					);
 					this.options.maxSize = Math.min(

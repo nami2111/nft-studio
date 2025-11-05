@@ -189,10 +189,14 @@ class GalleryStore {
 				filtered.sort((a, b) => b.rarityRank - a.rarityRank);
 				break;
 			case 'newest':
-				filtered.sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
+				filtered.sort(
+					(a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()
+				);
 				break;
 			case 'oldest':
-				filtered.sort((a, b) => new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime());
+				filtered.sort(
+					(a, b) => new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime()
+				);
 				break;
 		}
 
@@ -216,10 +220,12 @@ class GalleryStore {
 	 */
 	private createFilterKey(sourceNFTs: GalleryNFT[]): string {
 		const search = this._state.filterOptions.search || '';
-		const traits = this._state.filterOptions.selectedTraits ?
-			JSON.stringify(Object.entries(this._state.filterOptions.selectedTraits).sort()) : '';
-		const rarity = this._state.filterOptions.rarityRange ?
-			`${this._state.filterOptions.rarityRange[0]}-${this._state.filterOptions.rarityRange[1]}` : '';
+		const traits = this._state.filterOptions.selectedTraits
+			? JSON.stringify(Object.entries(this._state.filterOptions.selectedTraits).sort())
+			: '';
+		const rarity = this._state.filterOptions.rarityRange
+			? `${this._state.filterOptions.rarityRange[0]}-${this._state.filterOptions.rarityRange[1]}`
+			: '';
 		const sort = this._state.sortOption;
 		const collection = this._state.selectedCollection?.id || 'all';
 		const count = sourceNFTs.length;

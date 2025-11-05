@@ -33,16 +33,17 @@
 	// No event dispatcher needed - use callback prop directly
 
 	// Reactive strict pair config
-	let strictPairConfig = $derived.by(() => project.strictPairConfig || {
-		enabled: false,
-		layerCombinations: []
-	});
+	let strictPairConfig = $derived.by(
+		() =>
+			project.strictPairConfig || {
+				enabled: false,
+				layerCombinations: []
+			}
+	);
 
 	// Available layers for combinations
 	let availableLayers = $derived.by(() =>
-		project.layers
-			.filter(layer => layer.traits.length > 0)
-			.sort((a, b) => a.order - b.order)
+		project.layers.filter((layer) => layer.traits.length > 0).sort((a, b) => a.order - b.order)
 	);
 
 	// Toggle Strict Pair mode
@@ -63,7 +64,8 @@
 		const layerCombination: LayerCombination = {
 			id: crypto.randomUUID(),
 			layerIds: [...selectedLayerIds],
-			description: newLayerPairDescription || generateDefaultLayerCombinationDescription(selectedLayerIds),
+			description:
+				newLayerPairDescription || generateDefaultLayerCombinationDescription(selectedLayerIds),
 			active: true
 		};
 
@@ -86,7 +88,9 @@
 	function removeLayerCombination(layerCombinationId: string) {
 		const newConfig = {
 			...strictPairConfig,
-			layerCombinations: strictPairConfig.layerCombinations.filter(lc => lc.id !== layerCombinationId)
+			layerCombinations: strictPairConfig.layerCombinations.filter(
+				(lc) => lc.id !== layerCombinationId
+			)
 		};
 		if (onupdateStrictPairConfig) {
 			onupdateStrictPairConfig(newConfig);
@@ -97,7 +101,7 @@
 	function toggleLayerCombinationActive(layerCombinationId: string) {
 		const newConfig = {
 			...strictPairConfig,
-			layerCombinations: strictPairConfig.layerCombinations.map(lc =>
+			layerCombinations: strictPairConfig.layerCombinations.map((lc) =>
 				lc.id === layerCombinationId ? { ...lc, active: !lc.active } : lc
 			)
 		};
@@ -109,8 +113,8 @@
 	// Generate default description from layer IDs
 	function generateDefaultLayerCombinationDescription(layerIds: LayerId[]): string {
 		const layerNames = layerIds
-			.map(layerId => {
-				const layer = availableLayers.find(l => l.id === layerId);
+			.map((layerId) => {
+				const layer = availableLayers.find((l) => l.id === layerId);
 				return layer?.name || 'Unknown Layer';
 			})
 			.join(' + ');
@@ -135,13 +139,13 @@
 
 	// Get layer name by ID
 	function getLayerName(layerId: string): string {
-		const layer = availableLayers.find(l => l.id === layerId);
+		const layer = availableLayers.find((l) => l.id === layerId);
 		return layer?.name || 'Unknown Layer';
 	}
 
 	// Get layer traits count
 	function getLayerTraitsCount(layerId: string): number {
-		const layer = availableLayers.find(l => l.id === layerId);
+		const layer = availableLayers.find((l) => l.id === layerId);
 		return layer?.traits.length || 0;
 	}
 
@@ -150,7 +154,7 @@
 		let total = 1;
 
 		for (const layerId of layerCombination.layerIds) {
-			const layer = availableLayers.find(l => l.id === layerId);
+			const layer = availableLayers.find((l) => l.id === layerId);
 			if (!layer || layer.traits.length === 0) return 0;
 			total *= layer.traits.length;
 		}
@@ -160,23 +164,26 @@
 </script>
 
 <Card class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
-		<div class="border-b px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
-			<div class="flex items-center justify-between">
-				<h2 class="text-base font-semibold sm:text-lg lg:text-xl flex items-center gap-2">
-					<Settings class="size-4" />
-					Strict Pair Mode
-				</h2>
-				<Badge variant={strictPairConfig.enabled ? 'default' : 'secondary'}>
-					{strictPairConfig.enabled ? 'Enabled' : 'Disabled'}
-				</Badge>
-			</div>
+	<div class="border-b px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+		<div class="flex items-center justify-between">
+			<h2 class="flex items-center gap-2 text-base font-semibold sm:text-lg lg:text-xl">
+				<Settings class="size-4" />
+				Strict Pair Mode
+			</h2>
+			<Badge variant={strictPairConfig.enabled ? 'default' : 'secondary'}>
+				{strictPairConfig.enabled ? 'Enabled' : 'Disabled'}
+			</Badge>
 		</div>
+	</div>
 
 	<CardContent class="pt-0 pb-4">
 		<div class="space-y-4">
 			<!-- Description -->
-			<div class="text-sm text-muted-foreground">
-				<p>Prevent duplicate trait combinations between selected layer combinations. Each unique combination will only appear once.</p>
+			<div class="text-muted-foreground text-sm">
+				<p>
+					Prevent duplicate trait combinations between selected layer combinations. Each unique
+					combination will only appear once.
+				</p>
 			</div>
 
 			<!-- Toggle Button -->
@@ -209,27 +216,31 @@
 							<h4 class="text-sm font-medium">Layer Combinations</h4>
 
 							{#each strictPairConfig.layerCombinations as layerCombination}
-								<div class="group flex items-start justify-between rounded-lg border bg-card p-3 transition-all hover:bg-muted/50">
-									<div class="flex-1 min-w-0">
+								<div
+									class="group bg-card hover:bg-muted/50 flex items-start justify-between rounded-lg border p-3 transition-all"
+								>
+									<div class="min-w-0 flex-1">
 										<div class="flex items-center gap-2">
-											<span class="font-medium text-sm leading-tight break-words">{layerCombination.description}</span>
+											<span class="text-sm leading-tight font-medium break-words"
+												>{layerCombination.description}</span
+											>
 											<Badge
 												variant={layerCombination.active ? 'default' : 'secondary'}
-												class="text-xs shrink-0"
+												class="shrink-0 text-xs"
 											>
 												{layerCombination.active ? 'Active' : 'Inactive'}
 											</Badge>
-											<Badge variant="outline" class="text-xs shrink-0">
+											<Badge variant="outline" class="shrink-0 text-xs">
 												{calculateTotalCombinations(layerCombination)} combinations
 											</Badge>
 										</div>
 									</div>
 
-									<div class="flex items-center gap-1 ml-3 shrink-0">
+									<div class="ml-3 flex shrink-0 items-center gap-1">
 										<Button
 											variant="ghost"
 											size="sm"
-											class="h-8 w-8 p-0 opacity-60 hover:opacity-100 transition-opacity"
+											class="h-8 w-8 p-0 opacity-60 transition-opacity hover:opacity-100"
 											onclick={() => toggleLayerCombinationActive(layerCombination.id)}
 											title={layerCombination.active ? 'Deactivate' : 'Activate'}
 										>
@@ -238,7 +249,7 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											class="h-8 w-8 p-0 opacity-60 hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+											class="hover:bg-destructive/10 hover:text-destructive h-8 w-8 p-0 opacity-60 transition-all hover:opacity-100"
 											onclick={() => removeLayerCombination(layerCombination.id)}
 											title="Remove layer combination"
 										>
@@ -249,14 +260,18 @@
 							{/each}
 						</div>
 					{:else}
-						<div class="text-center py-6 px-4">
+						<div class="px-4 py-6 text-center">
 							<div class="flex flex-col items-center gap-3">
-								<div class="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-									<Settings class="size-6 text-muted-foreground" />
+								<div class="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
+									<Settings class="text-muted-foreground size-6" />
 								</div>
 								<div class="space-y-1">
-									<p class="text-sm font-medium text-muted-foreground">No layer combinations configured</p>
-									<p class="text-xs text-muted-foreground">Click "Add Layer Combination" to get started</p>
+									<p class="text-muted-foreground text-sm font-medium">
+										No layer combinations configured
+									</p>
+									<p class="text-muted-foreground text-xs">
+										Click "Add Layer Combination" to get started
+									</p>
 								</div>
 							</div>
 						</div>
@@ -280,13 +295,23 @@
 	<div class="space-y-6">
 		<!-- Layer Selection -->
 		<fieldset>
-			<legend id="layer-selection-label" class="text-sm font-medium mb-3">Select 2 or More Layers</legend>
-			<div class="mt-3 space-y-3 max-h-60 overflow-y-auto" role="group" aria-labelledby="layer-selection-label">
+			<legend id="layer-selection-label" class="mb-3 text-sm font-medium"
+				>Select 2 or More Layers</legend
+			>
+			<div
+				class="mt-3 max-h-60 space-y-3 overflow-y-auto"
+				role="group"
+				aria-labelledby="layer-selection-label"
+			>
 				{#each availableLayers as layer}
 					<div
 						role="button"
 						tabindex="0"
-						class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 {isLayerSelected(layer.id) ? 'bg-primary/10 border-primary' : ''}"
+						class="hover:bg-muted/50 flex cursor-pointer items-center space-x-3 rounded-lg border p-3 {isLayerSelected(
+							layer.id
+						)
+							? 'bg-primary/10 border-primary'
+							: ''}"
 						onclick={() => toggleLayerSelection(layer.id)}
 						onkeydown={(e) => {
 							if (e.key === 'Enter' || e.key === ' ') {
@@ -300,32 +325,36 @@
 						<input
 							type="checkbox"
 							checked={isLayerSelected(layer.id)}
-							class="rounded border-gray-300 text-primary focus:ring-primary"
+							class="text-primary focus:ring-primary rounded border-gray-300"
 							onchange={(e) => {
 								e.stopPropagation();
 								toggleLayerSelection(layer.id);
 							}}
 						/>
 						<div class="flex-1">
-							<div class="font-medium text-sm">{layer.name}</div>
-							<div class="text-xs text-muted-foreground">{layer.traits.length} traits</div>
+							<div class="text-sm font-medium">{layer.name}</div>
+							<div class="text-muted-foreground text-xs">{layer.traits.length} traits</div>
 						</div>
 					</div>
 				{/each}
 			</div>
-			<div class="mt-3 text-xs text-muted-foreground">
+			<div class="text-muted-foreground mt-3 text-xs">
 				{#if selectedLayerIds.length >= 2}
-					Selected: {selectedLayerIds.map(layerId => {
-						const layer = availableLayers.find(l => l.id === layerId);
-						return layer?.name || 'Unknown';
-					}).join(' + ')}
+					Selected: {selectedLayerIds
+						.map((layerId) => {
+							const layer = availableLayers.find((l) => l.id === layerId);
+							return layer?.name || 'Unknown';
+						})
+						.join(' + ')}
 					<div class="mt-1">
-						<strong>{calculateTotalCombinations({
-							id: 'temp',
-							layerIds: selectedLayerIds,
-							description: '',
-							active: true
-						})}</strong> unique combinations will be tracked
+						<strong
+							>{calculateTotalCombinations({
+								id: 'temp',
+								layerIds: selectedLayerIds,
+								description: '',
+								active: true
+							})}</strong
+						> unique combinations will be tracked
 					</div>
 				{:else if selectedLayerIds.length === 1}
 					1 layer selected, please select 1 or more layers
@@ -337,7 +366,9 @@
 
 		<!-- Description -->
 		<div>
-			<label for="layer-combination-description" class="text-sm font-medium">Description (optional)</label>
+			<label for="layer-combination-description" class="text-sm font-medium"
+				>Description (optional)</label
+			>
 			<input
 				id="layer-combination-description"
 				type="text"
@@ -348,7 +379,7 @@
 		</div>
 
 		<!-- Action Buttons -->
-		<div class="flex justify-end space-x-2 pt-6 mt-6 border-t-2 border-gray-300">
+		<div class="mt-6 flex justify-end space-x-2 border-t-2 border-gray-300 pt-6">
 			<Button
 				variant="outline"
 				size="sm"

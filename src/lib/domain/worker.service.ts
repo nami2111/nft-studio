@@ -132,4 +132,3 @@ export function cancelGeneration(): void {
 
 	cancelWorkerGeneration();
 }
-
