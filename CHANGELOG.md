@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2025-11-06
+
+### Fixed
+
+- **Persistent Generation Status Messages**: Eliminated "Generation completed" messages that incorrectly persisted after page refreshes
+- **Stale Background Generation State**: Removed misleading "Running in background" status that appeared after page refresh even though generation had stopped
+- **Session Persistence Logic**: Simplified generation state management to always start fresh on page load, eliminating complex stale state detection
+- **Redundant UI Elements**: Removed duplicate "✅ Completed" status that appeared alongside "Generation completed" message
+
+### Changed
+
+- **Page Refresh Behavior**: Generation state now clears immediately on page refresh (no persistence across page loads)
+- **State Initialization**: `initialize()` now calls `resetState()` immediately instead of loading saved state
+- **Completion State**: Generation completion status only shows for current session, cleared on page refresh
+- **Background Generation**: Removed complex logic for persisting background generation state (Web Workers cannot survive page refresh)
+- **Auto-Save Logic**: Auto-save only applies to active foreground generation, not background states
+
+### Technical Changes
+
+- **generation-progress.svelte.ts**:
+  - Simplified `initialize()` to always start fresh
+  - Removed `cleanupOldCompletedStates()` complexity
+  - Removed sessionStorage persistence in `completeGeneration()`
+  - Removed `scheduleStateCleanup()` timer logic
+  - Auto-save now excludes background generation
+
+- **GenerationForm.svelte**:
+  - Removed `$effect` for stale state detection
+  - Removed `stale-generation-cleared` event listener
+  - Simplified completion UI (removed redundant status text)
+  - Kept manual "Clear" button for user control
+
+### Impact
+
+- **Before**: Page refresh during/after generation showed confusing "Running in background" or "Generation completed" messages with no actual generation happening
+- **After**: Page refresh always provides clean slate - "Ready to generate" state
+- **User Experience**: Clear, predictable behavior - page refresh = fresh start
+- **Developer Experience**: Simpler codebase with removed complexity
+
+### Rationale
+
+Web Workers cannot survive page refreshes. Attempting to persist "background generation" state was fundamentally flawed and created misleading UI states. The simplified approach provides clear, predictable behavior: page refresh always starts fresh.
+
 ## [0.4.4] - 2025-11-02
 
 ### Added
