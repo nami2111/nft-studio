@@ -35,7 +35,7 @@
 		resetState,
 		getMemorySummary,
 		getSummary
-	} from '$lib/stores/generation-progress.svelte.ts';
+	} from '$lib/stores/generation-progress.svelte';
 	import { onDestroy } from 'svelte';
 
 	// Local UI state
@@ -98,7 +98,6 @@
 	}
 
 	function resetLocalState() {
-		stopLoading('generation');
 		isPackaging = false;
 		analyticsTracked = false;
 
@@ -280,8 +279,7 @@
 				return;
 			}
 
-			// Start loading state
-			startLoading('generation');
+			// Generation state is now managed by persistent store
 
 			// Start generation using persistent store
 			const sessionId = startGeneration({
@@ -310,7 +308,7 @@
 							break;
 						case 'complete':
 							if (message.payload.images) addImages(message.payload.images);
-							if (message.payload.metadata) addMetadata(message.payload.metadata);
+							if (message.payload.metadata) addMetadata(message.payload.metadata as { name: string; data: Record<string, unknown> }[]);
 							// Check if generation is complete
 							if (generationState.allImages.length >= collectionSize) {
 								// Package in background if possible, or wait for user to return
@@ -350,7 +348,7 @@
 							addImages(message.payload.images);
 						}
 						if (message.payload.metadata && message.payload.metadata.length > 0) {
-							addMetadata(message.payload.metadata);
+							addMetadata(message.payload.metadata as { name: string; data: Record<string, unknown> }[]);
 						}
 
 						// Check if generation is complete
@@ -405,7 +403,6 @@
 	function handleCancel() {
 		// Cancel generation and clean up all resources
 		cancelGeneration();
-		stopLoading('generation');
 		showInfo('Generation has been cancelled.');
 	}
 
@@ -516,7 +513,7 @@
 			</div>
 		{:else if isGenerating}
 			<Button variant="outline" onclick={handleCancel} size="sm" class="w-full sm:w-auto">
-				<LoadingIndicator operation="generation" message="Canceling..." />
+				Canceling...
 			</Button>
 		{/if}
 
@@ -529,7 +526,7 @@
 			class="w-full transition-all sm:w-auto"
 		>
 			{#if isGenerating}
-				<LoadingIndicator operation="generation" message="Generating..." />
+				Generating...
 			{:else}
 				<Play class="mr-2 h-4 w-4" />
 				<span class="text-sm">Generate</span>

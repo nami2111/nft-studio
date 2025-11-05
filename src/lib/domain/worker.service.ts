@@ -20,7 +20,7 @@ import {
 	generationState,
 	addUsedCombination,
 	isCombinationUsed
-} from '$lib/stores/generation-progress.svelte.ts';
+} from '$lib/stores/generation-progress.svelte';
 
 /**
  * Domain service for worker-related operations with persistent state integration

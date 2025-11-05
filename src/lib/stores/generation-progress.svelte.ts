@@ -100,9 +100,6 @@ class GenerationStateManager {
 
 		// Set up periodic auto-save
 		this.setupAutoSave();
-
-		// Clean up old partial states on initialization
-		this.cleanupOldStates();
 	}
 
 	/**
@@ -155,9 +152,6 @@ class GenerationStateManager {
 		generationState.statusText = reason || 'Generation paused';
 		generationState.saveTimestamp = Date.now();
 
-		// Save state for resuming
-		this.savePartialState(reason);
-
 		console.log(`⏸️ Generation paused: ${generationState.sessionId}`);
 	}
 
@@ -179,9 +173,7 @@ class GenerationStateManager {
 		// Save final state
 		this.saveState();
 
-		// Clear partial state if it exists
-		sessionStorage.removeItem(this.STORAGE_KEY_PARTIAL);
-
+		
 		console.log(`✅ Generation completed: ${generationState.sessionId}`);
 	}
 
@@ -521,7 +513,7 @@ export const completeGeneration = generationStateManager.completeGeneration.bind
 export const cancelGeneration = generationStateManager.cancelGeneration.bind(generationStateManager);
 export const updateProgress = generationStateManager.updateProgress.bind(generationStateManager);
 export const addImages = generationStateManager.addImages.bind(generationStateManager);
-export const addMetadata = generationStateManager.addImages.bind(generationStateManager);
+export const addMetadata = generationStateManager.addMetadata.bind(generationStateManager);
 export const addPreviews = generationStateManager.addPreviews.bind(generationStateManager);
 export const addUsedCombination = generationStateManager.addUsedCombination.bind(generationStateManager);
 export const isCombinationUsed = generationStateManager.isCombinationUsed.bind(generationStateManager);

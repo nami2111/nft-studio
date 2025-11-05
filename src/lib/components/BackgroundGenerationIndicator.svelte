@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { generationState, getSummary } from '$lib/stores/generation-progress.svelte.ts';
+	import { generationState, getSummary, cancelGeneration } from '$lib/stores/generation-progress.svelte';
 	import { AlertCircle, X } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 
@@ -17,8 +17,8 @@
 	let isMinimized = $state(false);
 
 	function handleStop() {
-		// Stop background generation
-		dispatchEvent(new CustomEvent('stop-background-generation'));
+		// Stop background generation directly
+		cancelGeneration();
 	}
 
 	function handleDismiss() {
@@ -115,8 +115,6 @@
 	</div>
 {/if}
 
-<!-- Global event listeners for custom events -->
-<svelte:window on:stop-background-generation={handleStop} />
 
 <style>
 	/* Custom animations */
