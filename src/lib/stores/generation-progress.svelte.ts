@@ -101,13 +101,10 @@ class GenerationStateManager {
 	 * Initialize the generation state manager
 	 */
 	initialize(): void {
-		// Load any saved state from sessionStorage
-		this.loadSavedState();
+		// Always start fresh on page load - background generation cannot survive page refresh
+		this.resetState();
 
-		// Clean up old completed states on init
-		this.cleanupOldCompletedStates();
-
-		// Set up periodic auto-save
+		// Set up periodic auto-save only for active generations
 		this.setupAutoSave();
 	}
 
@@ -178,11 +175,8 @@ class GenerationStateManager {
 		generationState.lastUpdate = Date.now();
 		generationState.statusText = 'Generation completed';
 
-		// Save final state
-		this.saveState();
-
-		// Schedule auto-cleanup of completed state after 30 minutes
-		this.scheduleStateCleanup();
+		// Do NOT save - page refresh will clear anyway
+		// This keeps completion message only for current session
 
 		console.log(`✅ Generation completed: ${generationState.sessionId}`);
 	}
@@ -452,18 +446,23 @@ class GenerationStateManager {
 
 	/**
 	 * Set up periodic auto-save
+	 * Only saves for active foreground generation, not background
 	 */
 	private setupAutoSave(): void {
-		// Save state every 30 seconds during generation
+		// Save state every 30 seconds only for active foreground generation
 		setInterval(() => {
-			if (generationState.isGenerating && !generationState.isPaused) {
+			if (
+				generationState.isGenerating &&
+				!generationState.isPaused &&
+				!generationState.isBackground
+			) {
 				this.saveState();
 			}
 		}, 30000);
 	}
 
 	/**
-	 * Schedule auto-save with debouncing
+	 * Schedule auto-save with debouncing (only for active generations)
 	 */
 	private scheduleAutoSave(): void {
 		if (this.saveTimeout) {
@@ -471,28 +470,11 @@ class GenerationStateManager {
 		}
 
 		this.saveTimeout = setTimeout(() => {
-			if (generationState.isGenerating) {
+			// Only save if generation is actively running and not in background
+			if (generationState.isGenerating && !generationState.isBackground) {
 				this.saveState();
 			}
 		}, 2000); // 2 second debounce
-	}
-
-	/**
-	 * Schedule cleanup of completed generation state
-	 * Clears state after 30 minutes to prevent persistent UI messages
-	 */
-	private scheduleStateCleanup(): void {
-		// Clear after 30 minutes (1800000 ms)
-		setTimeout(() => {
-			if (!generationState.isGenerating && generationState.completionTime) {
-				const age = Date.now() - generationState.completionTime;
-				// Only clear if generation is not currently running and state is old enough
-				if (age >= 1800000) {
-					console.log('🧹 Auto-clearing old completed generation state');
-					this.resetState();
-				}
-			}
-		}, 1800000);
 	}
 
 	/**
@@ -500,18 +482,8 @@ class GenerationStateManager {
 	 * This handles states that were completed a while ago or refreshes
 	 */
 	private cleanupOldCompletedStates(): void {
-		if (!generationState.isGenerating && generationState.completionTime) {
-			const age = Date.now() - generationState.completionTime;
-			const AUTO_CLEAR_AGE = 5 * 60 * 1000; // 5 minutes - clear on refresh
-			const MAX_AGE = 2 * 60 * 60 * 1000; // 2 hours - hard limit
-
-			// Clear any completed state on refresh (within 5 minutes of completion)
-			// or any state older than 2 hours
-			if (age < AUTO_CLEAR_AGE || age > MAX_AGE) {
-				console.log('🧹 Cleaning up completed generation state on page load');
-				this.resetState();
-			}
-		}
+		// Always start fresh - generation state does not persist across page refreshes
+		// This is because Web Workers cannot survive page refresh
 	}
 
 	/**

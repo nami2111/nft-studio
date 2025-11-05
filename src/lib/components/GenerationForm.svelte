@@ -489,8 +489,7 @@
 						{:else if isBackground}
 							<p class="text-blue-600">🔄 Running in background</p>
 						{:else if !isGenerating && generationState.completionTime}
-							<div class="flex items-center justify-between">
-								<p class="text-green-600">✅ Completed</p>
+							<div class="flex items-center justify-end">
 								<button
 									onclick={handleClearState}
 									class="text-muted-foreground hover:text-foreground text-xs underline"
