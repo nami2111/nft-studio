@@ -48,6 +48,8 @@ export interface Project {
 	description: string;
 	outputSize: ProjectDimensions;
 	layers: Layer[];
+	/** Strict Pair configuration for trait combination uniqueness */
+	strictPairConfig?: import('./layer').StrictPairConfig;
 	_needsProperLoad?: boolean;
 }
 

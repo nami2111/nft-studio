@@ -1,41 +1,108 @@
 # NFT Studio
 
-NFT Studio is a powerful web-based application for creating, managing, and generating Non-Fungible Tokens (NFTs). Built with SvelteKit, TypeScript, and modern web technologies, it provides an intuitive interface for artists and creators to design unique NFT collections.
+NFT Studio is a professional web application for creating and generating Non-Fungible Token collections. Built with SvelteKit 2, Svelte 5, TypeScript, and modern web technologies, it provides artists and creators with a comprehensive toolkit for building generative NFT collections through an intuitive, high-performance interface.
 
 ## Features
 
-- **Layer Management**: Organize your NFT collection with multiple layers (background, character, accessories, etc.)
-- **Trait System**: Define traits for each layer with customizable rarity weights (1-5)
-- **Visual Preview**: Real-time preview of your NFT collection as you build it
-- **Batch Generation**: Generate up to 10,000 unique NFT combinations
-- **Rarity Control**: Fine-tune the distribution of traits with adjustable rarity sliders
-- **Gallery Mode**: View, filter, and manage generated NFT collections with advanced search and trait filtering
-- **Interactive Traits**: Click on traits in NFT details to instantly filter collections by specific attributes
-- **Responsive Design**: Optimized layouts for mobile, tablet, and desktop screens
-- **Import Collections**: Import existing NFT collections from ZIP files with automatic metadata parsing
-- **Project Management**: Save, load, and export your projects
-- **Web Worker Processing**: Offload intensive image processing to background workers
-- **Progressive Previews**: Real-time preview generation during batch processing
-- **ZIP Export**: Complete collection packaging with images and metadata
-- **Performance Optimized**: Automatic memory management, adaptive chunking, and Canvas-based processing
-- **Modular Architecture**: Clean separation of concerns with SRP-based design
-- **Bulk Operations**: Efficient bulk trait editing, renaming, and deletion
-- **Drag & Drop**: Intuitive file upload with progress tracking
-- **Smart Caching**: LRU image caching for optimal performance
-- **Ruler System**: Advanced trait compatibility rules and conditional logic
+### Core Generation System
+
+- **Advanced Layer Management**: Organize collections with multiple layers (background, character, accessories, etc.) with drag-and-drop reordering
+- **Sophisticated Trait System**: Define traits with customizable rarity weights (1-5 scale) and advanced compatibility rules
+- **Real-time Canvas Preview**: Instant visual feedback with debounced updates and intelligent caching
+- **High-Performance Generation**: Generate up to 10,000 unique NFTs using optimized Canvas API with Web Worker processing
+- **Smart Memory Management**: Three-tier caching system (ImageBitmap/ImageData/ArrayBuffer) with automatic cleanup
+
+### Advanced Trait Features
+
+- **Ruler Traits**: Revolutionary trait compatibility system that controls which trait combinations can be generated
+- **Complex Rule Engine**: Create sophisticated compatibility rules with allowed/forbidden trait combinations
+- **Strict Pair Mode**: Advanced uniqueness tracking that prevents specific trait combinations from appearing more than once
+- **Multi-Layer Combinations**: Support for unlimited layer combinations (2+ layers) with automatic duplicate prevention
+- **Bulk Trait Operations**: Efficient batch editing, renaming, and deletion with progress tracking
+- **Smart Trait Filtering**: Advanced search and filtering capabilities with multi-dimensional trait selection
+
+### Gallery & Collection Management
+
+- **Virtual Scrolling Gallery**: Optimized for large collections with responsive layouts (3-6 columns based on device)
+- **Interactive Trait Filtering**: Click any trait in NFT details to instantly filter the entire collection
+- **Automatic Rarity Calculation**: Advanced rarity scoring system with natural numeric sorting
+- **Import/Export Support**: ZIP-based import for existing collections with automatic metadata parsing
+- **Multi-Collection Support**: Manage multiple collections with independent statistics and filtering
+
+### Performance Architecture
+
+- **Intelligent Worker Pool**: Dynamic scaling based on device capabilities and task complexity classification
+- **Adaptive Chunking**: Real-time memory monitoring with dynamic chunk sizing for large collections
+- **Transferable Objects**: Zero-copy ArrayBuffer transfers for maximum performance
+- **Progressive Generation**: Real-time preview updates during batch processing
+- **Performance Monitoring**: Decorator-based timing with automatic metric collection
+
+### Modern Development Stack
+
+- **Svelte 5 Runes**: Reactive state management using `$state`, `$derived`, and `$effect`
+- **TypeScript**: Comprehensive type safety with branded types and Zod validation
+- **Modular Architecture**: Clean separation of concerns with SRP-based design patterns
 - **PWA Support**: Installable web application with offline capabilities
+- **Responsive Design**: Mobile-first approach with device-optimized layouts
+
+### File Operations & Persistence
+
+- **Drag & Drop Upload**: Intuitive file handling with progress tracking and security validation
+- **Project Auto-Save**: Intelligent persistence that skips projects with traits to avoid broken references
+- **ZIP Export**: Complete collection packaging with images, metadata, and project configuration
+- **IndexedDB Storage**: Client-side database for gallery collections with quota monitoring
+
+### User Experience
+
+- **Real-time Previews**: Instant feedback with 200ms debounced updates and adjacent trait preloading
+- **Natural Sorting**: Handles "Foxinity #1", "#001", etc. patterns automatically
+- **Theme Support**: Built-in theme switching capabilities
+- **Analytics Integration**: Generation completion tracking and page visit analytics
+- **Comprehensive Error Handling**: Typed error hierarchy with graceful degradation
 
 ## Tech Stack
 
-- **Frontend**: SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS 4
-- **UI Components**: Custom modal system, bits-ui (progress, slider), lucide-svelte, svelte-sonner, mode-watcher
-- **State Management**: Svelte 5 runes ($state, $derived) and modular stores
-- **Image Processing**: Canvas API with Web Workers for performance
-- **Persistence**: IndexedDB for local storage, ZIP for export/import
-- **Build Tool**: Vite with static adapter, bundle visualization, and PWA support
-- **Deployment**: ICP Blockchain with Juno hosting, static hosting ready
-- **Testing**: Vitest with @testing-library/svelte and jsdom
-- **Validation**: Zod for runtime type checking and validation
+### Core Framework
+
+- **Frontend**: SvelteKit 2, Svelte 5 with runes, TypeScript
+- **Styling**: Tailwind CSS 4, bits-ui components, lucide-svelte icons
+- **State Management**: Svelte 5 runes ($state, $derived, $effect) with modular store architecture
+- **Build System**: Vite with static adapter, bundle visualization, and PWA support
+
+### Performance & Processing
+
+- **Image Processing**: Canvas API with Web Workers for background processing
+- **Worker Architecture**: Advanced worker pool with dynamic scaling and health monitoring
+- **Memory Management**: Three-tier caching (ImageBitmap/ImageData/ArrayBuffer) with LRU eviction
+- **Performance Monitoring**: Decorator-based timing with automatic metric collection
+
+### Data & Storage
+
+- **Persistence**: IndexedDB for gallery collections, LocalStorage for project settings
+- **File Operations**: JSZip for import/export, ObjectURL management for image handling
+- **Validation**: Zod schemas with branded types for compile-time and runtime safety
+- **Data Structures**: Maps and Sets for optimized filtering and indexing
+
+### UI/UX Components
+
+- **Custom Components**: Modal system, virtual scrolling grid, interactive trait filters
+- **Notifications**: svelte-sonner for toast notifications and user feedback
+- **Theme System**: mode-watcher for dark/light theme switching
+- **Responsive Design**: Mobile-first approach with adaptive layouts
+
+### Development & Testing
+
+- **Testing**: Vitest with @testing-library/svelte, jsdom environment
+- **Code Quality**: ESLint (flat config), Prettier, TypeScript ESLint
+- **Validation**: Comprehensive type coverage with strict TypeScript configuration
+- **Documentation**: JSDoc for API documentation with automated formatting
+
+### Deployment & Analytics
+
+- **Platform**: ICP Blockchain deployment with Juno hosting
+- **PWA Support**: Service worker, manifest file, offline capabilities
+- **Analytics**: Generation completion tracking and page visit analytics
+- **Static Hosting**: Ready for deployment to any static hosting service
 
 ## Getting Started
 
@@ -136,58 +203,92 @@ We maintain high code quality standards with a focus on maintainable architectur
 
 ## Architecture
 
-NFT Studio follows a clean, modular architecture built on Single Responsibility Principle (SRP) with modern Svelte 5 patterns:
+NFT Studio follows a sophisticated, performance-first architecture built on modern web technologies and Single Responsibility Principle (SRP) with Svelte 5 patterns:
 
 ### Core Architecture Layers
 
-1. **UI Layer**: Svelte 5 components with runes-based reactivity
-2. **Domain Layer**: Business logic and data models with Zod validation
-3. **Persistence Layer**: Data storage and retrieval (IndexedDB/ZIP)
-4. **Worker Layer**: Background processing for intensive operations
+1. **UI Layer** (`src/lib/components/`): Svelte 5 components with runes-based reactivity
+2. **Domain Layer** (`src/lib/domain/`): Business logic, validation, and worker orchestration
+3. **Store Layer** (`src/lib/stores/`): Modular state management with auto-persistence
+4. **Worker Layer** (`src/lib/workers/`): Advanced worker pool with dynamic scaling
+5. **Persistence Layer** (`src/lib/persistence/`): Multi-backend storage abstraction
+6. **Utils Layer** (`src/lib/utils/`): Performance monitoring and error handling
 
-### State Management with Svelte 5 Runes
+### Modern State Management with Svelte 5 Runes
 
-The state management system leverages Svelte 5's modern runes system:
+The state management system leverages Svelte 5's advanced runes with intelligent auto-persistence:
 
-- **`stores/project.store.svelte.ts`**: Core project state using `$state` and `$derived`
-- **`stores/resource-manager.ts`**: Memory management and ObjectURL cleanup
-- **`stores/file-operations.ts`**: ZIP import/export functionality
-- **`stores/loading-state.ts`**: Loading states and progress tracking
-- **`stores/loading-state.svelte.ts`**: Svelte 5 reactive loading states
+- **`stores/project.store.svelte.ts`**: Core project state with 500ms debounced persistence
+- **`stores/gallery.store.svelte.ts`**: IndexedDB-based collection management with filtering
+- **`stores/resource-manager.ts`**: Three-tier caching with automatic ObjectURL cleanup
+- **`stores/file-operations.ts`**: ZIP import/export with progress tracking
+- **`stores/loading-state.ts`**: Centralized loading states and performance metrics
 
-### Key Features of the Architecture
+### Advanced Worker Pool Architecture
 
-#### Modern Reactivity
+**Dynamic scaling with device capability detection and health monitoring**:
 
-- **Svelte 5 Runes**: Uses `$state`, `$derived`, and `$effect` for fine-grained reactivity
-- **Batch Processing**: Debounced trait updates to improve performance
-- **Resource Management**: Automatic cleanup of ObjectURLs and memory
+- **Task Complexity Classification**: LOW to VERY_HIGH based on collection size and layer complexity
+- **Device-Aware Scaling**: 75% CPU core utilization, 128MB memory per worker, mobile optimization
+- **Work-Stealing Algorithm**: Performance-weighted task distribution across workers
+- **Health Monitoring**: Ping-based checks with automatic restart and configurable limits
+- **Streaming vs Chunked**: Adaptive generation strategy based on collection size and device capabilities
 
-#### Component Modularity
+### Performance-First Features
 
-- **Layer Management**: Bulk operations, drag & drop file handling, trait filtering
-- **Preview System**: Canvas rendering, image caching, trait selection
-- **UI Components**: Comprehensive library of reusable components (buttons, custom modals, cards, etc.)
+#### Three-Tier Caching System
 
-#### Worker Architecture
+- **ImageBitmap Cache**: 100MB, 500 entries, 30min TTL for fast rendering
+- **ImageData Cache**: 50MB, 200 entries, 15min TTL for manipulation operations
+- **ArrayBuffer Cache**: 200MB, 1,000 entries, 1hr TTL for worker transfers
 
-- **Generation Worker**: Multi-threaded NFT generation with canvas processing
-- **Image Loader Worker**: Background image processing and optimization
-- **Worker Pool**: Efficient task distribution across multiple workers
+#### Intelligent Memory Management
 
-#### Type Safety
+- **Adaptive Chunking**: Dynamic sizing based on runtime memory monitoring
+- **LRU Eviction**: Least recently used items purged first
+- **Transferable Objects**: Zero-copy ArrayBuffer transfers for maximum performance
+- **Resource Cleanup**: Automatic ObjectURL tracking and cleanup
+
+#### Domain-Driven Design
+
+- **Zod Validation System**: Runtime type safety with branded types and error context
+- **Factory Pattern**: Consistent entity creation with validation and error handling
+- **Multi-Schema Validation**: Separate schemas for import/export vs runtime operations
+- **String Sanitization**: Injection prevention with comprehensive input validation
+
+### Component Architecture
+
+#### Reactivity and Performance
+
+- **Svelte 5 Runes**: `$state`, `$derived`, `$effect` for fine-grained reactivity
+- **Batch Processing**: 100ms debounced trait updates for improved performance
+- **Virtual Scrolling**: Efficient rendering of large NFT collections
+- **Progressive Loading**: Real-time preview updates during generation
+
+#### Modular Component System
+
+- **Layer Management**: Drag & drop, bulk operations, trait filtering with performance optimization
+- **Preview System**: Canvas rendering with debounced updates and adjacent trait preloading
+- **Gallery Interface**: Virtual scrolling, interactive filtering, responsive layouts
+- **UI Components**: Comprehensive library with accessibility and mobile support
+
+### Type Safety and Validation
+
+#### Comprehensive TypeScript Coverage
 
 - **Branded Types**: Compile-time safety for IDs (ProjectId, LayerId, TraitId)
-- **Zod Validation**: Runtime validation for all data models
-- **Comprehensive TypeScript**: Full type coverage across the codebase
+- **Strict Configuration**: Full type coverage across the codebase
+- **Zod Schemas**: Runtime validation with detailed error context
+- **Error Hierarchy**: Typed errors with recoverable vs non-recoverable flags
 
 ### Design Principles
 
-- **Single Responsibility**: Each module has one clear purpose
-- **Separation of Concerns**: UI, business logic, and data are cleanly separated
+- **Performance First**: Web Workers, intelligent caching, and memory optimization
+- **Single Responsibility**: Each module has one clear purpose with clean interfaces
+- **Separation of Concerns**: UI, business logic, and persistence are cleanly separated
 - **Modern Patterns**: Leverages Svelte 5 features and latest web APIs
-- **Performance First**: Web Workers, efficient memory management, and smart caching
-- **Developer Experience**: Comprehensive tooling and testing setup
+- **Developer Experience**: Comprehensive tooling, testing, and documentation
+- **Error Resilience**: Graceful degradation with automatic recovery mechanisms
 
 ## Application Structure
 

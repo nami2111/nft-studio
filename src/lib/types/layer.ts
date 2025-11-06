@@ -103,3 +103,54 @@ export interface LayerImportOptions {
 	validateImages: boolean;
 	skipDuplicates: boolean;
 }
+
+/**
+ * Strict Pair configuration interface
+ */
+export interface StrictPairConfig {
+	/** Whether Strict Pair mode is enabled */
+	enabled: boolean;
+	/** List of layer combinations that should have unique trait combinations */
+	layerCombinations: LayerCombination[];
+}
+
+/**
+ * Layer combination definition for Strict Pair tracking
+ */
+export interface LayerCombination {
+	/** Unique identifier for this layer combination */
+	id: string;
+	/** Array of layer IDs in this combination */
+	layerIds: LayerId[];
+	/** Description of the layer combination (e.g., "BASE + HEAD + ACCESSORY") */
+	description: string;
+	/** Whether this layer combination is currently active */
+	active: boolean;
+}
+
+/**
+ * Individual trait combination that was generated
+ */
+export interface GeneratedTraitCombination {
+	/** Array of trait IDs (one for each layer in the combination) */
+	traitIds: TraitId[];
+	/** Whether this combination has been used */
+	used: boolean;
+}
+
+/**
+ * Strict Pair violation result interface
+ */
+export interface StrictPairViolation {
+	/** The generated trait combination that violates Strict Pair rules */
+	combination: Array<{
+		layerId: LayerId;
+		traitId: TraitId;
+		traitName: string;
+		layerName: string;
+	}>;
+	/** The conflicting combination ID */
+	violatedCombinationId: string;
+	/** Description of the violation */
+	description: string;
+}

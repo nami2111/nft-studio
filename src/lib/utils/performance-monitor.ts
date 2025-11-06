@@ -34,6 +34,23 @@ export interface PerformanceReport {
 }
 
 /**
+ * Cache metrics interface for performance monitoring integration
+ */
+export interface CacheMetrics {
+	hits: number;
+	misses: number;
+	sets: number;
+	evictions: number;
+	currentSize: number;
+	currentEntries: number;
+	maxSize: number;
+	maxEntries: number;
+	memoryUsage: number;
+	hitRate: number;
+	averageAccessCount: number;
+}
+
+/**
  * Performance Monitor class for tracking operation performance
  */
 export class PerformanceMonitor {
@@ -241,6 +258,57 @@ export class PerformanceMonitor {
 				averageOperationTime: totalOperations > 0 ? totalDuration / totalOperations : 0
 			}
 		};
+	}
+
+	/**
+	 * Add cache metrics to performance monitoring
+	 * @param cacheType - Type of cache ('imageBitmap', 'imageData', 'arrayBuffer')
+	 * @param metrics - Cache performance metrics
+	 */
+	addCacheMetrics(
+		cacheType: 'imageBitmap' | 'imageData' | 'arrayBuffer',
+		metrics: CacheMetrics
+	): void {
+		if (!this.enabled) return;
+
+		// Record cache hit rate as a performance metric
+		this.recordMetric(`cache.${cacheType}.hitRate`, metrics.hitRate, {
+			cacheType,
+			hits: metrics.hits,
+			misses: metrics.misses,
+			hitRate: metrics.hitRate,
+			evictions: metrics.evictions,
+			entries: metrics.currentEntries,
+			memoryUsage: metrics.memoryUsage,
+			averageAccessCount: metrics.averageAccessCount
+		});
+
+		// Record cache memory usage as a performance metric
+		this.recordMetric(`cache.${cacheType}.memoryUsage`, metrics.memoryUsage, {
+			cacheType,
+			memoryUsage: metrics.memoryUsage,
+			entries: metrics.currentEntries,
+			maxMemory: metrics.maxSize
+		});
+
+		// Record cache hit rate percentage (for easier interpretation)
+		this.recordMetric(`cache.${cacheType}.hitRatePercent`, metrics.hitRate * 100, {
+			cacheType,
+			hitRatePercent: metrics.hitRate * 100,
+			hits: metrics.hits,
+			misses: metrics.misses
+		});
+
+		// Log cache performance periodically
+		const totalOps = metrics.hits + metrics.misses;
+		if (totalOps > 0 && totalOps % 50 === 0) {
+			// Every 50 operations
+			const hitRatePercent = (metrics.hitRate * 100).toFixed(1);
+			const memoryUsageMB = (metrics.memoryUsage / (1024 * 1024)).toFixed(2);
+			console.log(
+				`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`
+			);
+		}
 	}
 
 	/**

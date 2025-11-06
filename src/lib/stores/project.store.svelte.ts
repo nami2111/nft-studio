@@ -5,6 +5,7 @@
 
 import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
 import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
+import type { StrictPairConfig } from '$lib/types/layer';
 import { fileToArrayBuffer } from '$lib/utils';
 import {
 	validateDimensions,
@@ -48,6 +49,7 @@ interface PersistedProject {
 	description: string;
 	outputSize: { width: number; height: number };
 	layers: PersistedLayer[];
+	strictPairConfig?: StrictPairConfig;
 	_needsProperLoad: boolean;
 }
 
@@ -78,6 +80,7 @@ function persistProject(projectToPersist: Project): void {
 				isOptional: layer.isOptional,
 				traits: [] // No traits for projects without images
 			})),
+			strictPairConfig: projectToPersist.strictPairConfig,
 			_needsProperLoad: true
 		};
 
@@ -131,6 +134,7 @@ function loadPersistedProject(): Project | null {
 					rulerRules: trait.rulerRules
 				}))
 			})),
+			strictPairConfig: parsedProject.strictPairConfig,
 			_needsProperLoad: true
 		};
 
@@ -168,6 +172,17 @@ function defaultProject(): Project {
 const persistedProject = loadPersistedProject();
 export const project = $state<Project>(persistedProject || defaultProject());
 
+// Export a simple store wrapper for components
+export const projectStore = {
+	get currentProject() {
+		return project;
+	},
+	updateStrictPairConfig,
+	getStrictPairConfig,
+	isStrictPairEnabled,
+	getActiveLayerCombinations
+};
+
 // Auto-persist project when it changes using a proxy approach
 let persistTimeout: number | null = null;
 
@@ -203,6 +218,134 @@ export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial
 			Object.assign(layer.traits[traitIndex], updates);
 			schedulePersist();
 		}
+	}
+}
+
+// Batch update system for multiple operations
+interface BatchUpdate {
+	layerId?: LayerId;
+	traitId?: TraitId;
+	updates: Partial<Project | Layer | Trait>;
+	type: 'project' | 'layer' | 'trait';
+}
+
+let batchQueue: BatchUpdate[] = [];
+let batchTimeout: number | null = null;
+
+function processBatchQueue(): void {
+	if (batchQueue.length === 0) return;
+
+	const updates = [...batchQueue];
+	batchQueue = [];
+
+	// Apply all updates
+	for (const update of updates) {
+		switch (update.type) {
+			case 'project':
+				Object.assign(project, update.updates);
+				break;
+			case 'layer':
+				if (update.layerId) {
+					const layerIndex = project.layers.findIndex((l) => l.id === update.layerId);
+					if (layerIndex !== -1) {
+						Object.assign(project.layers[layerIndex], update.updates);
+					}
+				}
+				break;
+			case 'trait':
+				if (update.layerId && update.traitId) {
+					const layer = project.layers.find((l) => l.id === update.layerId);
+					if (layer) {
+						const traitIndex = layer.traits.findIndex((t) => t.id === update.traitId);
+						if (traitIndex !== -1) {
+							Object.assign(layer.traits[traitIndex], update.updates);
+						}
+					}
+				}
+				break;
+		}
+	}
+
+	// Persist once for all updates
+	persistProject(project);
+}
+
+function scheduleBatchPersist(): void {
+	// Clear existing timeout
+	if (batchTimeout) {
+		clearTimeout(batchTimeout);
+	}
+
+	// Set new timeout for batch completion
+	batchTimeout = setTimeout(() => {
+		processBatchQueue();
+		batchTimeout = null;
+	}, 1000); // Wait 1 second for batch completion
+}
+
+export function updateTraitsBatch(
+	updates: Array<{
+		layerId: LayerId;
+		traitId: TraitId;
+		updates: Partial<Trait>;
+	}>
+): void {
+	// Add all updates to batch queue
+	for (const update of updates) {
+		batchQueue.push({
+			layerId: update.layerId,
+			traitId: update.traitId,
+			updates: update.updates,
+			type: 'trait'
+		});
+	}
+
+	scheduleBatchPersist();
+}
+
+export function updateLayersBatch(
+	updates: Array<{
+		layerId: LayerId;
+		updates: Partial<Layer>;
+	}>
+): void {
+	// Add all updates to batch queue
+	for (const update of updates) {
+		batchQueue.push({
+			layerId: update.layerId,
+			updates: update.updates,
+			type: 'layer'
+		});
+	}
+
+	scheduleBatchPersist();
+}
+
+export function addTraitsBatch(layerId: LayerId, traits: Trait[]): void {
+	const layerIndex = project.layers.findIndex((l) => l.id === layerId);
+	if (layerIndex !== -1) {
+		// Add traits immediately to the project (for UI responsiveness)
+		project.layers[layerIndex].traits.push(...traits);
+
+		// Track object URLs for cleanup
+		traits.forEach((trait) => {
+			if (trait.imageUrl) {
+				globalResourceManager.addObjectUrl(trait.imageUrl);
+			}
+		});
+	}
+
+	// Schedule persistence for metadata updates
+	schedulePersist();
+}
+
+export function flushBatch(): void {
+	if (batchQueue.length > 0) {
+		processBatchQueue();
+	}
+	if (batchTimeout) {
+		clearTimeout(batchTimeout);
+		batchTimeout = null;
 	}
 }
 
@@ -560,6 +703,32 @@ export function hasPersistedData(): boolean {
 	} catch {
 		return false;
 	}
+}
+
+// Strict Pair management functions
+export function updateStrictPairConfig(projectId: ProjectId, config: StrictPairConfig): void {
+	if (project.id !== projectId) {
+		throw new Error('Project ID mismatch');
+	}
+
+	project.strictPairConfig = { ...config };
+	schedulePersist();
+}
+
+export function getStrictPairConfig(): StrictPairConfig | undefined {
+	return project.strictPairConfig ? { ...project.strictPairConfig } : undefined;
+}
+
+export function isStrictPairEnabled(): boolean {
+	return project.strictPairConfig?.enabled ?? false;
+}
+
+export function getActiveLayerCombinations(): string[] {
+	return (
+		project.strictPairConfig?.layerCombinations
+			.filter((layerCombination: any) => layerCombination.active)
+			.map((layerCombination: any) => layerCombination.id) ?? []
+	);
 }
 
 export function resetProject(): void {

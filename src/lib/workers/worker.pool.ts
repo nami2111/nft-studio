@@ -24,7 +24,8 @@ enum WorkerHealth {
 	HEALTHY = 'healthy',
 	UNRESPONSIVE = 'unresponsive',
 	ERROR = 'error',
-	DEGRADED = 'degraded'
+	DEGRADED = 'degraded',
+	REMOVED = 'removed'
 }
 
 // Worker pool configuration
@@ -306,16 +307,19 @@ function checkWorkerHealth(workerIndex: number): void {
 				clearTimeout(pingTimeout);
 				worker.removeEventListener('message', handlePingResponse);
 
-				// Update health status
-				if (workerPool!.workerHealth[workerIndex] === WorkerHealth.UNRESPONSIVE) {
-					workerPool!.workerHealth[workerIndex] = WorkerHealth.HEALTHY;
-					console.log(`Worker ${workerIndex} recovered from unresponsive state`);
-				} else {
-					workerPool!.workerHealth[workerIndex] = WorkerHealth.HEALTHY;
-				}
+				// Ensure workerIndex is still valid
+				if (workerIndex >= 0 && workerIndex < workerPool!.workerStats.length) {
+					// Update health status
+					if (workerPool!.workerHealth[workerIndex] === WorkerHealth.UNRESPONSIVE) {
+						workerPool!.workerHealth[workerIndex] = WorkerHealth.HEALTHY;
+						console.log(`Worker ${workerIndex} recovered from unresponsive state`);
+					} else {
+						workerPool!.workerHealth[workerIndex] = WorkerHealth.HEALTHY;
+					}
 
-				// Update last activity time
-				workerPool!.workerStats[workerIndex].lastActivity = Date.now();
+					// Update last activity time
+					workerPool!.workerStats[workerIndex].lastActivity = Date.now();
+				}
 			}
 		};
 
@@ -332,6 +336,12 @@ function checkWorkerHealth(workerIndex: number): void {
  */
 function handleWorkerFailure(workerIndex: number, reason: string): void {
 	if (!workerPool) return;
+
+	// Ensure workerIndex is valid before accessing workerStats
+	if (workerIndex < 0 || workerIndex >= workerPool.workerStats.length) {
+		console.error(`Invalid workerIndex ${workerIndex} for failure handling`);
+		return;
+	}
 
 	const workerStats = workerPool.workerStats[workerIndex];
 	const maxRestarts = workerPool.config.maxRestarts || 3;
@@ -528,8 +538,10 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 				} else if (type === 'error') {
 					if (task._reject)
 						task._reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
-					// Update worker error count
-					workerPool.workerStats[workerIndex].errorCount++;
+					// Update worker error count with bounds checking
+					if (workerIndex >= 0 && workerIndex < workerPool.workerStats.length) {
+						workerPool.workerStats[workerIndex].errorCount++;
+					}
 				} else if (type === 'cancelled') {
 					if (task._reject) task._reject(new Error('Generation cancelled'));
 				}
@@ -548,7 +560,10 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 					} else if (type === 'error') {
 						if (task._reject)
 							task._reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
-						workerPool.workerStats[workerIndex].errorCount++;
+						// Update error count with bounds checking
+						if (workerIndex >= 0 && workerIndex < workerPool.workerStats.length) {
+							workerPool.workerStats[workerIndex].errorCount++;
+						}
 					} else if (type === 'cancelled') {
 						if (task._reject) task._reject(new Error('Generation cancelled'));
 					}
@@ -591,6 +606,11 @@ function updateWorkerPerformance(
 	taskDuration: number
 ): void {
 	if (!workerPool) return;
+
+	// Ensure workerIndex is valid before accessing workerStats
+	if (workerIndex < 0 || workerIndex >= workerPool.workerStats.length) {
+		return;
+	}
 
 	const stats = workerPool.workerStats[workerIndex];
 	stats.taskCount++;
@@ -643,6 +663,11 @@ function findBestWorkerForTask(): number | null {
 		const workerTaskCount = Array.from(workerPool.activeTasks.values()).filter(
 			(task) => task.assignedWorker === workerIndex
 		).length;
+
+		// Ensure workerIndex is valid before accessing workerStats
+		if (workerIndex < 0 || workerIndex >= workerPool.workerStats.length) {
+			continue;
+		}
 
 		// Consider worker's historical performance
 		const workerStats = workerPool.workerStats[workerIndex];
@@ -756,6 +781,48 @@ async function addSingleWorker(): Promise<void> {
 }
 
 /**
+ * Properly remove a worker with full cleanup
+ */
+function removeWorker(workerIndex: number): void {
+	if (!workerPool) return;
+
+	console.log(`Removing worker ${workerIndex} with proper cleanup`);
+
+	// Terminate the worker
+	if (workerPool.workers[workerIndex]) {
+		workerPool.workers[workerIndex].terminate();
+		workerPool.workers[workerIndex] = null as unknown as Worker;
+	}
+
+	// Update status arrays
+	workerPool.workerStatus[workerIndex] = false;
+	workerPool.workerHealth[workerIndex] = WorkerHealth.REMOVED;
+
+	// Clear any queued tasks assigned to this worker
+	const removedTasks: WorkerTask[] = [];
+	workerPool.taskQueue = workerPool.taskQueue.filter((task) => {
+		if (task.assignedWorker === workerIndex) {
+			removedTasks.push(task);
+			return false; // Remove from queue
+		}
+		return true;
+	});
+
+	// Reject any removed tasks
+	for (const task of removedTasks) {
+		if (task._reject) {
+			task._reject(new Error('Task cancelled due to worker removal'));
+		}
+		workerPool.activeTasks.delete(task.id);
+	}
+
+	console.log(
+		`Worker ${workerIndex} removed successfully. ` +
+			`Cleaned up ${removedTasks.length} queued tasks and freed resources.`
+	);
+}
+
+/**
  * Remove idle workers from the pool
  */
 function removeIdleWorkers(count: number): void {
@@ -765,6 +832,11 @@ function removeIdleWorkers(count: number): void {
 
 	let removedCount = 0;
 	for (let i = workerPool.workers.length - 1; i >= 0 && removedCount < count; i--) {
+		// Ensure bounds checking for workerStats access
+		if (i < 0 || i >= workerPool.workerStats.length) {
+			continue;
+		}
+
 		const worker = workerPool.workers[i];
 		const isHealthy = workerPool.workerHealth[i] === WorkerHealth.HEALTHY;
 		// const isActive = !workerPool.workerStatus[i]; // false means busy
@@ -781,12 +853,8 @@ function removeIdleWorkers(count: number): void {
 
 			if (!hasActiveTasks) {
 				// Safe to remove
-				worker.terminate();
-				workerPool.workers[i] = null as unknown as Worker;
-				workerPool.workerStatus[i] = false;
-				workerPool.workerHealth[i] = WorkerHealth.ERROR; // Mark as removed
+				removeWorker(i);
 				removedCount++;
-				console.log(`Removed idle worker ${i}`);
 			}
 		}
 	}

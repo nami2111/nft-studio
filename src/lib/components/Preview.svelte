@@ -23,6 +23,11 @@
 	const MAX_CACHE_SIZE = 20; // Maximum number of images to cache
 	const RANDOMIZE_DEBOUNCE_MS = 150; // Debounce time for randomize button
 
+	// Helper function to get responsive font size based on screen width
+	function getPlaceholderFontSize(): string {
+		return window.innerWidth < 640 ? '12px' : '16px';
+	}
+
 	// Helper to purge stale cache entries when traits change
 	function purgeStaleCache() {
 		const urlsInUse = new SvelteSet<string>();
@@ -315,7 +320,7 @@
 		if (outputSize.width <= 0 || outputSize.height <= 0) {
 			// Draw placeholder text when no valid output size is set
 			ctx.fillStyle = '#9ca3af'; // gray-400
-			ctx.font = '16px sans-serif';
+			ctx.font = `${getPlaceholderFontSize()} sans-serif`;
 			ctx.textAlign = 'center';
 			ctx.fillText(
 				'Upload an image to set project dimensions',
@@ -337,7 +342,7 @@
 		if (hasTraitsWithoutImageData) {
 			// Draw placeholder text for persisted projects that need image re-upload
 			ctx.fillStyle = '#9ca3af'; // gray-400
-			ctx.font = '16px sans-serif';
+			ctx.font = `${getPlaceholderFontSize()} sans-serif`;
 			ctx.textAlign = 'center';
 			ctx.fillText('Project restored from cache', displayWidth / 2, displayHeight / 2 - 20);
 			ctx.fillText(
@@ -351,7 +356,7 @@
 		if (!hasTraitsWithImageData) {
 			// Draw placeholder text when no traits are uploaded yet
 			ctx.fillStyle = '#9ca3af'; // gray-400
-			ctx.font = '16px sans-serif';
+			ctx.font = `${getPlaceholderFontSize()} sans-serif`;
 			ctx.textAlign = 'center';
 			ctx.fillText('Upload images to see preview', displayWidth / 2, displayHeight / 2);
 			return;

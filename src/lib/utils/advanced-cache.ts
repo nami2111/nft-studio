@@ -276,6 +276,9 @@ export class AdvancedCache<T = any> {
 		// First remove expired entries
 		this.cleanup();
 
+		// Check for memory pressure and adapt limits accordingly
+		this.adaptToMemoryPressure();
+
 		// Enforce entry limit
 		while (this.cache.size > this.options.maxEntries) {
 			this.evictEntry();
@@ -284,6 +287,46 @@ export class AdvancedCache<T = any> {
 		// Enforce size limit
 		while (this.metrics.currentSize > this.options.maxSize) {
 			this.evictEntry();
+		}
+	}
+
+	/**
+	 * Adapt cache limits based on memory pressure
+	 */
+	private adaptToMemoryPressure(): void {
+		if (typeof window === 'undefined' || !('performance' in window)) return;
+
+		try {
+			// Check memory usage if available
+			const memoryInfo = (performance as any).memory;
+			if (memoryInfo) {
+				const usedMB = memoryInfo.usedJSHeapSize / 1024 / 1024;
+
+				// High memory usage - reduce cache limits
+				if (usedMB > 500) {
+					this.options.maxEntries = Math.floor(this.options.maxEntries * 0.7);
+					this.options.maxSize = Math.floor(this.options.maxSize * 0.7);
+				}
+				// Medium memory usage - moderate reduction
+				else if (usedMB > 300) {
+					this.options.maxEntries = Math.floor(this.options.maxEntries * 0.85);
+					this.options.maxSize = Math.floor(this.options.maxSize * 0.85);
+				}
+				// Low memory usage - restore to original limits if significantly below thresholds
+				else if (usedMB < 100) {
+					this.options.maxEntries = Math.min(
+						this.options.maxEntries * 1.1,
+						this.options.maxEntries * 2 // Cap at 2x original
+					);
+					this.options.maxSize = Math.min(
+						this.options.maxSize * 1.1,
+						this.options.maxSize * 2 // Cap at 2x original
+					);
+				}
+			}
+		} catch (error) {
+			// Memory API not available or not allowed
+			console.debug('Memory pressure adaptation not available:', error);
 		}
 	}
 

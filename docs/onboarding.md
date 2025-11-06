@@ -37,49 +37,109 @@ The application will be available at `http://localhost:5173`
 
 ## Application Modes
 
-NFT Studio provides two main modes for working with NFT collections:
+NFT Studio provides two sophisticated modes for working with NFT collections:
 
 ### Generate Mode (`/app`)
 
-- **Purpose**: Create new NFT collections from layers and traits
-- **Features**: Layer management, trait configuration, rarity settings, batch generation
-- **Workflow**: Design → Configure → Generate → Export
+**Professional NFT Creation Environment**
+
+- **Purpose**: Create new NFT collections from layers and traits with advanced controls
+- **Core Features**:
+  - Advanced layer management with drag-and-drop reordering
+  - Sophisticated trait system with Ruler Trait compatibility rules
+  - Real-time Canvas preview with debounced updates (200ms)
+  - High-performance batch generation (up to 10,000 NFTs)
+  - Intelligent worker pool with device optimization
+- **Advanced Capabilities**:
+  - Ruler Traits for complex trait compatibility rules
+  - Bulk trait operations with progress tracking
+  - Smart caching with three-tier memory management
+  - Project auto-save with intelligent persistence
+- **Workflow**: Design Layers → Upload Traits → Configure Rules → Generate Collection → Export ZIP
 
 ### Gallery Mode (`/app/gallery`)
 
-- **Purpose**: View, filter, and analyze existing NFT collections
-- **Features**: Import collections, interactive trait filtering, rarity analysis, responsive viewing
-- **Workflow**: Import → Analyze → Filter → Explore
+**Interactive Collection Analysis & Management**
+
+- **Purpose**: View, filter, and analyze existing NFT collections with professional tools
+- **Core Features**:
+  - Virtual scrolling gallery optimized for large collections
+  - Interactive trait filtering with multi-dimensional selection
+  - Automatic rarity calculation and ranking system
+  - Import existing collections from ZIP files
+  - Responsive layouts (3-6 columns based on device)
+- **Advanced Capabilities**:
+  - Click any trait to instantly filter the entire collection
+  - Natural numeric sorting for NFT names ("Foxinity #1", "#001", etc.)
+  - Multi-collection support with independent statistics
+  - Real-time search with performance optimization
+  - Collection statistics and rarity analysis
+- **Workflow**: Import Collection → Analyze Rarity → Interactive Filtering → Export Results
 
 ### Mode Switching
 
-- Use the **"Gallery Mode"** button in the top-right corner to switch between modes
-- Each mode maintains its own state and workspace
-- Data flows from Generate Mode → Export → Gallery Mode for complete workflow
+- **Seamless Navigation**: Use the **"Gallery Mode"** button in the top-right corner to switch between modes
+- **Independent State**: Each mode maintains its own workspace and data
+- **Data Flow**: Generate Mode → Export ZIP → Import to Gallery Mode for analysis
+- **Performance Optimization**: Each mode has specialized caching and performance tuning
 
-For detailed information about Gallery Mode, see [User Guide: Gallery Mode](./user-guide-gallery-mode.md).
+For detailed information about Gallery Mode features and interactive filtering, see [User Guide: Gallery Mode](./user-guide-gallery-mode.md).
 
 ## Project Structure
 
 ```
 nft-studio/
-├── docs/              # Documentation files
-├── scripts/           # Utility scripts
-├── src/               # Source code
-│   ├── lib/           # Reusable components and utilities
-│   │   ├── components/ # UI components (layer, preview, ui, gallery)
-│   │   ├── domain/    # Business logic and models
-│   │   ├── stores/    # Svelte stores with runes
-│   │   ├── utils/     # Utility functions
-│   │   ├── workers/   # Web workers
-│   │   └── types/     # TypeScript definitions
-│   ├── routes/        # SvelteKit page routes
-│   ├── hooks/         # SvelteKit hooks
-│   └── app.css        # Global styles
-├── static/            # Static assets
-├── satellite/         # Juno satellite configuration
-├── package.json       # Project configuration
-└── README.md          # Project overview
+├── docs/                    # Comprehensive documentation
+│   ├── onboarding.md        # Developer onboarding guide
+│   ├── architecture-diagrams.md  # Detailed architecture documentation
+│   ├── coding-standards.md  # Code style and conventions
+│   └── user-guides/         # User documentation for features
+├── scripts/                 # Build and utility scripts
+├── src/                     # Source code
+│   ├── lib/                 # Core application code
+│   │   ├── components/       # Reusable UI components
+│   │   │   ├── layer/       # Layer management components
+│   │   │   ├── gallery/     # Gallery and collection components
+│   │   │   ├── preview/     # Preview system components
+│   │   │   └── ui/          # Base UI component library
+│   │   ├── stores/           # State management with Svelte 5 runes
+│   │   │   ├── project.store.svelte.ts  # Main project state
+│   │   │   ├── gallery.store.svelte.ts  # Gallery collection state
+│   │   │   ├── resource-manager.ts     # Memory and cache management
+│   │   │   └── file-operations.ts      # Import/export functionality
+│   │   ├── domain/           # Business logic and validation
+│   │   │   ├── validation.ts          # Zod-based validation
+│   │   │   ├── project.domain.ts      # Project business logic
+│   │   │   ├── worker.service.ts      # Worker orchestration
+│   │   │   └── rarity-calculator.ts   # Rarity calculation algorithms
+│   │   ├── workers/          # Advanced worker pool system
+│   │   │   ├── worker.pool.ts         # Dynamic worker pool management
+│   │   │   ├── generation.worker.ts   # Canvas-based generation
+│   │   │   └── generation.worker.client.ts  # Worker client interface
+│   │   ├── utils/            # Performance and utility functions
+│   │   │   ├── performance-monitor.ts  # Performance tracking
+│   │   │   ├── error-handler.ts       # Error management
+│   │   │   └── advanced-cache.ts       # Three-tier caching system
+│   │   ├── types/            # TypeScript definitions with branded types
+│   │   └── persistence/      # Data storage abstraction
+│   ├── routes/               # SvelteKit page routes
+│   │   ├── +page.svelte      # Landing page (Hero component)
+│   │   ├── +layout.svelte    # Root layout
+│   │   ├── app/              # Main application
+│   │   │   ├── +page.svelte  # Generate mode interface
+│   │   │   └── gallery/      # Gallery mode
+│   │   │       └── +page.svelte  # Gallery interface
+│   │   └── about/            # Documentation and about page
+│   │       └── +page.svelte  # Interactive documentation
+│   ├── hooks/                # SvelteKit hooks
+│   ├── satellite/            # Juno satellite configuration
+│   └── app.css               # Global styles with Tailwind CSS
+├── static/                   # Static assets
+├── package.json              # Project configuration and dependencies
+├── tsconfig.json             # TypeScript configuration
+├── vite.config.ts            # Vite build configuration
+├── tailwind.config.js        # Tailwind CSS configuration
+└── README.md                 # Project overview and features
 ```
 
 ## Development Workflow

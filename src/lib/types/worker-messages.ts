@@ -1,7 +1,7 @@
 // src/lib/types/worker-messages.ts
 
 import type { LayerId, TraitId, TaskId } from './ids';
-import type { TraitType, RulerRule } from './layer';
+import type { TraitType, RulerRule, StrictPairConfig } from './layer';
 
 // Worker message interfaces for generation worker
 export interface TransferrableTrait {
@@ -46,6 +46,7 @@ export interface StartMessage extends BaseWorkerMessage {
 		};
 		projectName: string;
 		projectDescription: string;
+		strictPairConfig?: StrictPairConfig;
 	};
 }
 
@@ -132,6 +133,7 @@ export type GenerationWorkerMessage =
 				outputSize: { width: number; height: number };
 				projectName: string;
 				projectDescription: string;
+				strictPairConfig?: StrictPairConfig;
 			};
 	  }
 	| {

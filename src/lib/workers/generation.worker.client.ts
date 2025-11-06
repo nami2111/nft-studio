@@ -8,6 +8,7 @@ import type {
 	ProgressMessage,
 	PreviewMessage
 } from '$lib/types/worker-messages';
+import type { StrictPairConfig } from '$lib/types/layer';
 import type { GenerationWorkerMessage } from './generation.worker.loader';
 import {
 	postMessageToPool,
@@ -39,6 +40,7 @@ export async function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
+	strictPairConfig?: StrictPairConfig,
 	onMessage?: (
 		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
 	) => void
@@ -58,7 +60,8 @@ export async function startGeneration(
 			collectionSize,
 			outputSize,
 			projectName,
-			projectDescription
+			projectDescription,
+			strictPairConfig
 		}
 		// Don't include callback in the message - it will be handled separately
 		// onMessage callback is handled by the global message handler

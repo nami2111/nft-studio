@@ -53,15 +53,13 @@
 			return;
 		}
 
-	
 		// Use fixed height for consistent performance
 		const rect = scrollElement.getBoundingClientRect();
 		// Only update if rect height is very different from our fixed height
 		if (Math.abs(rect.height - containerHeight) > 100) {
 			containerHeight = Math.max(600, rect.height);
-			}
+		}
 
-	
 		// Calculate which rows are visible
 		const startRow = Math.floor(scrollTop / rowHeight);
 		const rowsVisible = Math.ceil(containerHeight / rowHeight);
@@ -123,7 +121,7 @@
 		// Add to queue for async loading
 		if (!imageLoadQueue.has(nft.id)) {
 			imageLoadQueue.add(nft.id);
-	
+
 			// Load image in background without blocking UI
 			const loadTimeout = setTimeout(() => {
 				const startUrl = performance.now();
@@ -227,7 +225,12 @@
 		</div>
 	{/if}
 
-	<div bind:this={scrollElement} class="relative overflow-y-auto" style="height: calc(100vh - 320px); min-height: 800px;" onscroll={handleScroll}>
+	<div
+		bind:this={scrollElement}
+		class="relative overflow-y-auto"
+		style="height: calc(100vh - 320px); min-height: 800px;"
+		onscroll={handleScroll}
+	>
 		<!-- Spacer for total height -->
 		<div style="height: {totalHeight}px; position: relative;">
 			<!-- Visible items -->
