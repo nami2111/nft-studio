@@ -179,7 +179,7 @@
 	<CardContent class="pt-0 pb-4">
 		<div class="space-y-4">
 			<!-- Description -->
-			<div class="text-muted-foreground text-sm">
+			<div class="text-muted-foreground text-[9px] sm:text-sm">
 				<p>
 					Prevent duplicate trait combinations between selected layer combinations. Each unique
 					combination will only appear once.
@@ -217,44 +217,47 @@
 
 							{#each strictPairConfig.layerCombinations as layerCombination}
 								<div
-									class="group bg-card hover:bg-muted/50 flex items-start justify-between rounded-lg border p-3 transition-all"
+									class="group bg-card hover:bg-muted/50 rounded-lg border p-3 transition-all"
 								>
-									<div class="min-w-0 flex-1">
-										<div class="flex items-center gap-2">
-											<span class="text-sm leading-tight font-medium break-words"
-												>{layerCombination.description}</span
-											>
+									<div class="space-y-2">
+										<!-- Top row: Description -->
+										<div class="text-sm leading-tight font-medium break-words">
+											{layerCombination.description}
+										</div>
+
+										<!-- Middle row: Badges -->
+										<div class="flex flex-wrap gap-2">
 											<Badge
 												variant={layerCombination.active ? 'default' : 'secondary'}
-												class="shrink-0 text-xs"
+												class="text-xs"
 											>
 												{layerCombination.active ? 'Active' : 'Inactive'}
 											</Badge>
-											<Badge variant="outline" class="shrink-0 text-xs">
+											<Badge variant="outline" class="text-xs">
 												{calculateTotalCombinations(layerCombination)} combinations
 											</Badge>
 										</div>
-									</div>
 
-									<div class="ml-3 flex shrink-0 items-center gap-1">
-										<Button
-											variant="ghost"
-											size="sm"
-											class="h-8 w-8 p-0 opacity-60 transition-opacity hover:opacity-100"
-											onclick={() => toggleLayerCombinationActive(layerCombination.id)}
-											title={layerCombination.active ? 'Deactivate' : 'Activate'}
-										>
-											<Info class="size-4" />
-										</Button>
-										<Button
-											variant="ghost"
-											size="sm"
-											class="hover:bg-destructive/10 hover:text-destructive h-8 w-8 p-0 opacity-60 transition-all hover:opacity-100"
-											onclick={() => removeLayerCombination(layerCombination.id)}
-											title="Remove layer combination"
-										>
-											<X class="size-4" />
-										</Button>
+										<!-- Bottom row: Action buttons -->
+										<div class="flex gap-2 pt-1">
+											<Button
+												variant={layerCombination.active ? 'default' : 'outline'}
+												size="sm"
+												class="flex-1 h-9 text-xs"
+												onclick={() => toggleLayerCombinationActive(layerCombination.id)}
+											>
+												{layerCombination.active ? 'Deactivate' : 'Activate'}
+											</Button>
+											<Button
+												variant="outline"
+												size="sm"
+												class="hover:bg-destructive/10 hover:text-destructive h-9 px-3 text-xs"
+												onclick={() => removeLayerCombination(layerCombination.id)}
+											>
+												<X class="mr-1 size-3" />
+												Remove
+											</Button>
+										</div>
 									</div>
 								</div>
 							{/each}
