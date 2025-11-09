@@ -216,9 +216,7 @@
 							<h4 class="text-sm font-medium">Layer Combinations</h4>
 
 							{#each strictPairConfig.layerCombinations as layerCombination}
-								<div
-									class="group bg-card hover:bg-muted/50 rounded-lg border p-3 transition-all"
-								>
+								<div class="group bg-card hover:bg-muted/50 rounded-lg border p-3 transition-all">
 									<div class="space-y-2">
 										<!-- Top row: Description -->
 										<div class="text-sm leading-tight font-medium break-words">
@@ -243,7 +241,7 @@
 											<Button
 												variant={layerCombination.active ? 'default' : 'outline'}
 												size="sm"
-												class="flex-1 h-9 text-xs"
+												class="h-9 flex-1 text-xs"
 												onclick={() => toggleLayerCombinationActive(layerCombination.id)}
 											>
 												{layerCombination.active ? 'Deactivate' : 'Activate'}

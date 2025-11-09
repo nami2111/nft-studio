@@ -29,6 +29,13 @@ export class ObjectUrlCache {
 		this.maxSize = maxSize;
 		this.maxMemory = maxMemory;
 		this.isLargeCollection = false;
+
+		// Set up periodic cleanup of revoked entries (every 30 seconds)
+		if (typeof window !== 'undefined') {
+			setInterval(() => {
+				this.cleanupRevokedEntries();
+			}, 30 * 1000);
+		}
 	}
 
 	/**
@@ -46,18 +53,26 @@ export class ObjectUrlCache {
 	/**
 	 * Get URL for the given image data
 	 * Uses data URLs for large collections to prevent blob URL issues
+	 * Implements lazy URL revocation to prevent ERR_FILE_NOT_FOUND errors
 	 */
 	get(id: string, imageData: ArrayBuffer): string {
 		const now = Date.now();
 		const entry = this.cache.get(id);
 
-		// Return cached URL if it exists and is fresh (within 5 seconds for data URLs, 10 seconds for blobs)
+		// If entry exists and is not marked as revoked, check TTL
 		if (entry) {
-			const maxAge = this.isLargeCollection ? 5000 : 10000;
+			// For data URLs, always use full TTL. For blob URLs, allow longer retention
+			const maxAge = this.isLargeCollection ? 5000 : 30000; // Increased blob TTL to 30s
 			if (now - entry.lastAccessed < maxAge) {
 				entry.lastAccessed = now;
+				// If it was marked revoked, recreate the URL
+				if (entry.revoked && entry.type === 'blob') {
+					this.recreateBlobUrl(id, imageData);
+				}
 				return entry.url;
 			}
+			// Entry is expired, remove it
+			this.remove(id);
 		}
 
 		// Aggressive eviction for large collections
@@ -91,7 +106,8 @@ export class ObjectUrlCache {
 			url,
 			type: this.isLargeCollection ? 'dataurl' : 'blob',
 			size,
-			lastAccessed: now
+			lastAccessed: now,
+			revoked: false
 		});
 
 		// Update memory usage
@@ -183,6 +199,12 @@ export class ObjectUrlCache {
 			return existingEntry.url;
 		}
 
+		// If cached but revoked, recreate the blob URL
+		if (existingEntry && existingEntry.revoked) {
+			this.recreateBlobUrl(id, imageData);
+			return this.cache.get(id)!.url;
+		}
+
 		// For very large collections, use more aggressive eviction
 		const evictionThreshold = this.maxSize > 3000 ? 0.6 : 0.9;
 
@@ -252,18 +274,21 @@ export class ObjectUrlCache {
 	}
 
 	/**
-	 * Remove an entry from cache
+	 * Remove an entry from cache (lazy revocation for blob URLs)
 	 */
 	remove(id: string): void {
 		const entry = this.cache.get(id);
 		if (entry) {
-			// Only revoke blob URLs, not data URLs
-			if (entry.type === 'blob') {
-				URL.revokeObjectURL(entry.url);
+			// Mark as revoked instead of immediately revoking (lazy cleanup)
+			// This allows existing DOM references to continue working
+			if (entry.type === 'blob' && !entry.revoked) {
+				entry.revoked = true;
+			} else {
+				// For data URLs or already revoked entries, remove immediately
+				this.currentMemory -= entry.size;
+				this.cache.delete(id);
+				this.retryAttempts.delete(id);
 			}
-			this.currentMemory -= entry.size;
-			this.cache.delete(id);
-			this.retryAttempts.delete(id);
 		}
 	}
 
@@ -282,9 +307,9 @@ export class ObjectUrlCache {
 	 * Clear all cached URLs
 	 */
 	clear(): void {
+		// Revoke all blob URLs immediately on full clear
 		this.cache.forEach((entry) => {
-			// Only revoke blob URLs, not data URLs
-			if (entry.type === 'blob') {
+			if (entry.type === 'blob' && !entry.revoked) {
 				URL.revokeObjectURL(entry.url);
 			}
 		});
@@ -307,6 +332,7 @@ export class ObjectUrlCache {
 
 	/**
 	 * Evict least recently used entries (more aggressive for large collections)
+	 * Uses lazy revocation to prevent ERR_FILE_NOT_FOUND errors
 	 */
 	private evict(): void {
 		// Sort entries by last accessed time
@@ -320,6 +346,49 @@ export class ObjectUrlCache {
 		for (let i = 0; i < toRemove && i < entries.length; i++) {
 			const [key] = entries[i];
 			this.remove(key);
+		}
+
+		// After marking entries as revoked, clean up the cache periodically
+		// This happens after eviction to avoid cluttering the cache
+		setTimeout(() => this.cleanupRevokedEntries(), 100);
+	}
+
+	/**
+	 * Clean up entries that are marked as revoked
+	 * Only removes them from the cache, doesn't revoke URLs (lazy approach)
+	 */
+	private cleanupRevokedEntries(): void {
+		const toRemove: string[] = [];
+		this.cache.forEach((entry, key) => {
+			if (entry.revoked) {
+				toRemove.push(key);
+			}
+		});
+
+		toRemove.forEach((key) => {
+			const entry = this.cache.get(key);
+			if (entry) {
+				this.currentMemory -= entry.size;
+				this.cache.delete(key);
+				this.retryAttempts.delete(key);
+			}
+		});
+	}
+
+	/**
+	 * Recreate a blob URL for an entry that was marked as revoked
+	 */
+	private recreateBlobUrl(id: string, imageData: ArrayBuffer): void {
+		const entry = this.cache.get(id);
+		if (entry && entry.type === 'blob' && entry.revoked) {
+			// Create a new blob URL
+			const blob = new Blob([imageData]);
+			const newUrl = URL.createObjectURL(blob);
+
+			// Update the entry
+			entry.url = newUrl;
+			entry.revoked = false;
+			entry.lastAccessed = Date.now();
 		}
 	}
 
