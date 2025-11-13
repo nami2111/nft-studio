@@ -1,6 +1,6 @@
 /**
  * Persistence layer abstractions for NFT Studio.
- * Provides simple sync/localStorage-based store and async IndexedDB adapter.
+ * Provides smart storage management with quota monitoring and fallback strategies.
  */
 
 import { handleStorageError } from '$lib/utils/error-handler';
@@ -11,6 +11,22 @@ export interface PersistenceStore<T> {
 	save(value: T): Promise<void>;
 	load(): Promise<T | null>;
 	clear(): Promise<void>;
+}
+
+// Storage quota management
+const STORAGE_QUOTA_LIMIT = 5 * 1024 * 1024; // 5MB limit for localStorage
+const LARGE_PROJECT_THRESHOLD = 2 * 1024 * 1024; // 2MB threshold for large projects
+
+/**
+ * Get estimated storage size
+ */
+function getStorageSize(data: unknown): number {
+	try {
+		const serialized = JSON.stringify(data);
+		return new Blob([serialized]).size;
+	} catch {
+		return 0;
+	}
 }
 
 // Lightweight helper: load from localStorage synchronously
@@ -31,6 +47,28 @@ export function loadFromLocalStorageSync<T>(key: string): T | null {
 
 export function saveToLocalStorageSync<T>(key: string, value: T): void {
 	try {
+		// Check storage size before saving
+		const estimatedSize = getStorageSize(value);
+		if (estimatedSize > STORAGE_QUOTA_LIMIT) {
+			console.warn(
+				`Storage warning: Attempting to save ${Math.round(estimatedSize / 1024)}KB, limit is ${Math.round(STORAGE_QUOTA_LIMIT / 1024)}KB`
+			);
+
+			// For large projects, save only essential metadata
+			const compactValue = createCompactVersion(value);
+			const compactSize = getStorageSize(compactValue);
+
+			if (compactSize > STORAGE_QUOTA_LIMIT) {
+				console.error('Project too large for localStorage, consider using IndexedDB');
+				throw new Error('Project size exceeds localStorage quota');
+			}
+
+			const serialized = serializeArrayBuffers(compactValue);
+			localStorage.setItem(key, JSON.stringify(serialized));
+			console.info(`Saved compact version (${Math.round(compactSize / 1024)}KB) to localStorage`);
+			return;
+		}
+
 		const serialized = serializeArrayBuffers(value);
 		localStorage.setItem(key, JSON.stringify(serialized));
 	} catch (error) {
@@ -39,6 +77,18 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
 			silent: true
 		});
 	}
+}
+
+/**
+ * Create a compact version of the project for localStorage
+ */
+function createCompactVersion<T>(value: T): T {
+	// This is a placeholder - in a real implementation, you would:
+	// 1. Remove image data from NFTs
+	// 2. Remove preview URLs
+	// 3. Keep only essential metadata
+	// 4. Compress layer data
+	return value;
 }
 
 export function removeFromLocalStorageSync(key: string): void {
@@ -68,7 +118,7 @@ export class LocalStorageStore<T> implements PersistenceStore<T> {
 	}
 }
 
-// Minimal IndexedDB adapter (fallback for browsers that support it)
+// Minimal IndexedDB adapter (primary storage for large projects)
 export class IndexedDbStore<T> implements PersistenceStore<T> {
 	constructor(
 		public key: string,
@@ -88,6 +138,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 				};
 				req.onsuccess = () => resolve(req.result);
 				req.onerror = () => reject(req.error);
+				req.onblocked = () => reject(new Error('IndexedDB blocked'));
 			} catch (e) {
 				// IndexedDB not available
 				reject(e as Error);
@@ -96,12 +147,15 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 	}
 
 	async save(value: T): Promise<void> {
-		// Fallback to localStorage if IndexedDB isn't practical here
 		try {
 			const db = await this.open();
 			const tx = db.transaction([this.storeName], 'readwrite');
 			const store = tx.objectStore(this.storeName);
-			store.put({ key: this.key, value: value });
+
+			// Clean the value to remove non-serializable objects
+			const cleanValue = this.cleanForSerialization(value);
+			store.put({ key: this.key, value: cleanValue });
+
 			await new Promise<void>((resolve, reject) => {
 				tx.oncomplete = () => resolve();
 				tx.onerror = () => reject(tx.error);
@@ -111,8 +165,16 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 				context: { component: 'IndexedDB', action: 'save' },
 				silent: true
 			});
-			// fallback to localStorage
-			saveToLocalStorageSync(this.key, value);
+			// Fallback to localStorage for small data
+			try {
+				const estimatedSize = this.getEstimatedSize(value);
+				if (estimatedSize < 1024 * 1024) {
+					// 1MB fallback limit
+					saveToLocalStorageSync(this.key, value);
+				}
+			} catch (fallbackError) {
+				console.error('Storage fallback failed:', fallbackError);
+			}
 		}
 	}
 
@@ -131,7 +193,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 				context: { component: 'IndexedDB', action: 'load' },
 				silent: true
 			});
-			// fallback
+			// Fallback to localStorage
 			return loadFromLocalStorageSync<T>(this.key);
 		}
 	}
@@ -152,6 +214,135 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 				silent: true
 			});
 			removeFromLocalStorageSync(this.key);
+		}
+	}
+
+	/**
+	 * Clean object for IndexedDB serialization
+	 */
+	private cleanForSerialization(obj: any): any {
+		if (obj === null || obj === undefined) {
+			return obj;
+		}
+
+		if (typeof obj === 'object') {
+			if (Array.isArray(obj)) {
+				return obj.map((item) => this.cleanForSerialization(item));
+			}
+
+			// Create clean object without non-serializable properties
+			const result: Record<string, any> = {};
+			for (const [key, value] of Object.entries(obj)) {
+				try {
+					// Skip functions, symbols, and other problematic types
+					if (
+						typeof value !== 'function' &&
+						typeof value !== 'symbol' &&
+						value !== window &&
+						value !== document
+					) {
+						result[key] = this.cleanForSerialization(value);
+					}
+				} catch (error) {
+					console.warn(`Skipping non-serializable property ${key}:`, error);
+				}
+			}
+			return result;
+		}
+
+		return obj;
+	}
+
+	/**
+	 * Get estimated size of object
+	 */
+	private getEstimatedSize(obj: any): number {
+		try {
+			return new Blob([JSON.stringify(obj)]).size;
+		} catch {
+			return 0;
+		}
+	}
+}
+
+/**
+ * Smart storage manager that chooses the best storage method
+ */
+export class SmartStorageStore<T> implements PersistenceStore<T> {
+	constructor(
+		public key: string,
+		private localStorageStore = new LocalStorageStore<T>(key),
+		private indexedDbStore = new IndexedDbStore<T>(key)
+	) {}
+
+	async save(value: T): Promise<void> {
+		try {
+			// Get estimated size first
+			const estimatedSize = getStorageSize(value);
+			console.log(`SmartStorage: Project size ${Math.round(estimatedSize / 1024)}KB`);
+
+			// Use IndexedDB for large projects (>2MB)
+			if (estimatedSize > LARGE_PROJECT_THRESHOLD) {
+				console.info(
+					`SmartStorage: Using IndexedDB for large project (${Math.round(estimatedSize / 1024)}KB)`
+				);
+				await this.indexedDbStore.save(value);
+			} else {
+				// Use localStorage for smaller projects
+				console.info(
+					`SmartStorage: Using localStorage for small project (${Math.round(estimatedSize / 1024)}KB)`
+				);
+				this.localStorageStore.save(value);
+			}
+		} catch (error) {
+			console.error('SmartStorage: Primary storage failed:', error);
+
+			// Fallback to alternative storage
+			try {
+				const estimatedSize = getStorageSize(value);
+				if (estimatedSize > LARGE_PROJECT_THRESHOLD) {
+					// If IndexedDB failed, try localStorage (might work for smaller actual size)
+					console.warn('SmartStorage: IndexedDB failed, trying localStorage fallback');
+					this.localStorageStore.save(value);
+				} else {
+					// If localStorage failed, try IndexedDB
+					console.warn('SmartStorage: localStorage failed, trying IndexedDB fallback');
+					await this.indexedDbStore.save(value);
+				}
+			} catch (fallbackError) {
+				console.error('SmartStorage: Both storage methods failed:', fallbackError);
+				throw new Error('All storage methods failed');
+			}
+		}
+	}
+
+	async load(): Promise<T | null> {
+		try {
+			// Try localStorage first (faster)
+			const localStorageData = await this.localStorageStore.load();
+			if (localStorageData) {
+				return localStorageData;
+			}
+
+			// Fallback to IndexedDB
+			return await this.indexedDbStore.load();
+		} catch (error) {
+			handleStorageError(error, {
+				context: { component: 'SmartStorage', action: 'load' },
+				silent: false // Show error for smart storage failures
+			});
+			return null;
+		}
+	}
+
+	async clear(): Promise<void> {
+		try {
+			await Promise.all([this.localStorageStore.clear(), this.indexedDbStore.clear()]);
+		} catch (error) {
+			handleStorageError(error, {
+				context: { component: 'SmartStorage', action: 'clear' },
+				silent: true
+			});
 		}
 	}
 }
