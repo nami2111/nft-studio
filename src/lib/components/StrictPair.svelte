@@ -161,6 +161,66 @@
 
 		return total;
 	}
+
+	// Predict if strict pair will block generation for given collection size
+	function predictBlocking(collectionSize: number): {
+		willBlock: boolean;
+		blockingCombinations: Array<{
+			combination: LayerCombination;
+			maxPossible: number;
+			percentage: number;
+		}>;
+	} {
+		const blockingCombinations: Array<{
+			combination: LayerCombination;
+			maxPossible: number;
+			percentage: number;
+		}> = [];
+
+		for (const combination of strictPairConfig.layerCombinations) {
+			if (!combination.active) continue;
+
+			const maxPossible = calculateTotalCombinations(combination);
+			const percentage = (maxPossible / collectionSize) * 100;
+
+			if (maxPossible < collectionSize) {
+				blockingCombinations.push({
+					combination,
+					maxPossible,
+					percentage
+				});
+			}
+		}
+
+		return {
+			willBlock: blockingCombinations.length > 0,
+			blockingCombinations
+		};
+	}
+
+	// Get combination analytics
+	function getCombinationAnalytics(): {
+		totalPossibleCombinations: number;
+		activeCombinations: number;
+		averageCombinationsPerRule: number;
+	} {
+		let totalPossible = 0;
+		let activeCount = 0;
+
+		for (const combination of strictPairConfig.layerCombinations) {
+			if (!combination.active) continue;
+
+			const possible = calculateTotalCombinations(combination);
+			totalPossible += possible;
+			activeCount++;
+		}
+
+		return {
+			totalPossibleCombinations: totalPossible,
+			activeCombinations: activeCount,
+			averageCombinationsPerRule: activeCount > 0 ? totalPossible / activeCount : 0
+		};
+	}
 </script>
 
 <Card class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
@@ -216,9 +276,7 @@
 							<h4 class="text-sm font-medium">Layer Combinations</h4>
 
 							{#each strictPairConfig.layerCombinations as layerCombination}
-								<div
-									class="group bg-card hover:bg-muted/50 rounded-lg border p-3 transition-all"
-								>
+								<div class="group bg-card hover:bg-muted/50 rounded-lg border p-3 transition-all">
 									<div class="space-y-2">
 										<!-- Top row: Description -->
 										<div class="text-sm leading-tight font-medium break-words">
@@ -243,7 +301,7 @@
 											<Button
 												variant={layerCombination.active ? 'default' : 'outline'}
 												size="sm"
-												class="flex-1 h-9 text-xs"
+												class="h-9 flex-1 text-xs"
 												onclick={() => toggleLayerCombinationActive(layerCombination.id)}
 											>
 												{layerCombination.active ? 'Deactivate' : 'Activate'}
@@ -278,6 +336,78 @@
 								</div>
 							</div>
 						</div>
+					{/if}
+
+					<!-- Predictive Blocking Warning -->
+					{#if strictPairConfig.enabled && strictPairConfig.layerCombinations.length > 0}
+						{#snippet predictiveWarning()}
+							{@const prediction1000 = predictBlocking(1000)}
+							{@const prediction5000 = predictBlocking(5000)}
+							{@const prediction10000 = predictBlocking(10000)}
+
+							{#if prediction1000.willBlock || prediction5000.willBlock || prediction10000.willBlock}
+								<div class="border-destructive/20 bg-destructive/5 mt-3 rounded-lg border p-3">
+									<div class="flex items-start gap-2">
+										<div
+											class="bg-destructive/20 mt-0.5 flex h-4 w-4 items-center justify-center rounded-full"
+										>
+											<svg class="text-destructive h-2 w-2" fill="currentColor" viewBox="0 0 20 20">
+												<path
+													fill-rule="evenodd"
+													d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92z"
+													clip-rule="evenodd"
+												/>
+											</svg>
+										</div>
+										<div class="flex-1 space-y-1">
+											<h5 class="text-destructive text-xs font-medium">Generation Warning</h5>
+											<p class="text-destructive/80 text-xs">
+												Strict pair rules will block generation at certain collection sizes:
+											</p>
+
+											<div class="mt-2 space-y-1">
+												{#if prediction1000.willBlock}
+													<div class="text-destructive/80 text-xs">
+														• 1,000 NFTs: {prediction1000.blockingCombinations[0]?.maxPossible} combinations
+														available
+													</div>
+												{/if}
+
+												{#if prediction5000.willBlock}
+													<div class="text-destructive/80 text-xs">
+														• 5,000 NFTs: {prediction5000.blockingCombinations[0]?.maxPossible} combinations
+														available
+													</div>
+												{/if}
+
+												{#if prediction10000.willBlock}
+													<div class="text-destructive/80 text-xs">
+														• 10,000 NFTs: {prediction10000.blockingCombinations[0]?.maxPossible} combinations
+														available
+													</div>
+												{/if}
+											</div>
+
+											<div class="mt-2">
+												<span class="text-destructive/70 text-xs">
+													Recommendation: Max
+													{(() => {
+														const availableSizes = [];
+														if (!prediction1000.willBlock) availableSizes.push(1000);
+														if (!prediction5000.willBlock) availableSizes.push(5000);
+														if (!prediction10000.willBlock) availableSizes.push(10000);
+														return availableSizes.length > 0
+															? `${Math.max(...availableSizes)} NFTs`
+															: 'no generation possible';
+													})()}
+												</span>
+											</div>
+										</div>
+									</div>
+								</div>
+							{/if}
+						{/snippet}
+						{@render predictiveWarning()}
 					{/if}
 				</div>
 			{/if}

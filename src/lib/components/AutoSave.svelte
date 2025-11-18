@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { project } from '$lib/stores';
-	import { LocalStorageStore } from '$lib/persistence/storage';
+	import { SmartStorageStore } from '$lib/persistence/storage';
 	import type { Project } from '$lib/types/project';
 
-	// Local storage key
+	// Use smart storage that automatically chooses between localStorage and IndexedDB
 	const PROJECT_STORAGE_KEY = 'nft-studio-project';
-	const LOCAL_STORE = new LocalStorageStore<Project>(PROJECT_STORAGE_KEY);
+	const STORAGE = new SmartStorageStore<Project>(PROJECT_STORAGE_KEY);
 
 	let saveTimeout: number | null = null;
 	let lastSavedProject: string | null = null;
+	let lastSaveTime = $state<number | null>(null);
 
 	// Use $effect to watch for project changes and auto-save
 	$effect(() => {
@@ -28,10 +29,29 @@
 		}
 
 		saveTimeout = setTimeout(() => {
-			LOCAL_STORE.save(project);
-			lastSavedProject = projectString;
-			saveTimeout = null;
-		}, 500); // Increased debounce time to prevent rapid consecutive saves
+			try {
+				const startTime = Date.now();
+				STORAGE.save(project);
+				const saveDuration = Date.now() - startTime;
+
+				lastSavedProject = projectString;
+				lastSaveTime = Date.now();
+				saveTimeout = null;
+
+				// Log performance for large projects
+				if (saveDuration > 1000) {
+					// More than 1 second
+					console.info(
+						`AutoSave completed in ${saveDuration}ms (${Math.round(new Blob([projectString]).size / 1024)}KB)`
+					);
+				}
+			} catch (error) {
+				console.error('AutoSave failed:', error);
+				// In a real implementation, you might show a toast notification to the user
+				// import { toast } from 'svelte-sonner';
+				// toast.error('Failed to save project. Please try again.');
+			}
+		}, 1000); // Debounce saves to prevent rapid consecutive storage operations
 	});
 
 	// Cleanup on destroy

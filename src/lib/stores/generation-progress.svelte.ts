@@ -57,6 +57,13 @@ export interface GenerationState {
 	// Session management
 	sessionId: string | null;
 	saveTimestamp: number | null;
+
+	// Batch processing
+	isBatchProcessing: boolean;
+	currentBatch: number;
+	totalBatches: number;
+	batchSize: number;
+	completedBatches: number[];
 }
 
 // Default state
@@ -82,7 +89,12 @@ const defaultState: GenerationState = {
 	error: null,
 	warnings: [],
 	sessionId: null,
-	saveTimestamp: null
+	saveTimestamp: null,
+	isBatchProcessing: false,
+	currentBatch: 0,
+	totalBatches: 0,
+	batchSize: 0,
+	completedBatches: []
 };
 
 // Persistent generation state using Svelte 5 runes
@@ -306,6 +318,19 @@ class GenerationStateManager {
 	}
 
 	/**
+	 * Add info message
+	 */
+	addInfo(info: string): void {
+		generationState.warnings.push(`[INFO] ${info}`);
+		generationState.lastUpdate = Date.now();
+
+		// Keep only last 10 messages
+		if (generationState.warnings.length > 10) {
+			generationState.warnings = generationState.warnings.slice(-10);
+		}
+	}
+
+	/**
 	 * Reset generation state to defaults
 	 */
 	resetState(): void {
@@ -352,11 +377,133 @@ class GenerationStateManager {
 		const currentUsage = this.getMemoryUsage();
 		const maxUsage = 500 * 1024 * 1024; // 500MB limit
 
+		// Automatic batch processing when memory is high
+		if (currentUsage > maxUsage * 0.7 && !generationState.isBatchProcessing) {
+			this.enableAutoBatchProcessing();
+			this.addInfo('Large collection detected - enabling automatic batch processing');
+		}
+
+		// Progressive warnings
+		if (currentUsage > maxUsage * 0.8) {
+			this.addWarning('Memory usage high - batch processing is active');
+		}
+
 		if (currentUsage > maxUsage) {
 			this.addWarning(
 				`Memory usage high: ${Math.round(currentUsage / 1024 / 1024)}MB. Consider smaller collection sizes.`
 			);
 		}
+	}
+
+	/**
+	 * Enable automatic batch processing based on collection size
+	 */
+	private enableAutoBatchProcessing(): void {
+		const totalItems = generationState.totalItems;
+		if (totalItems <= 1000) return; // No need for batching on small collections
+
+		// Determine batch size based on collection size
+		let batchSize = 1000;
+		if (totalItems > 50000) {
+			batchSize = 500;
+		} else if (totalItems > 10000) {
+			batchSize = 1000;
+		} else if (totalItems > 5000) {
+			batchSize = 1500;
+		}
+
+		const totalBatches = Math.ceil(totalItems / batchSize);
+
+		generationState.isBatchProcessing = true;
+		generationState.currentBatch = 1;
+		generationState.totalBatches = totalBatches;
+		generationState.batchSize = batchSize;
+		generationState.completedBatches = [];
+
+		this.addInfo(
+			`Auto batch processing enabled: ${totalBatches} batches of ${batchSize} items each`
+		);
+	}
+
+	/**
+	 * Process next batch in automatic batch processing
+	 */
+	private processNextBatch(): void {
+		if (!generationState.isBatchProcessing) return;
+
+		const nextBatchIndex = generationState.completedBatches.length + 1;
+		if (nextBatchIndex > generationState.totalBatches) {
+			// All batches completed
+			generationState.isBatchProcessing = false;
+			this.addInfo('Batch processing completed');
+			return;
+		}
+
+		generationState.currentBatch = nextBatchIndex;
+		const startIndex = (nextBatchIndex - 1) * generationState.batchSize;
+		const endIndex = Math.min(startIndex + generationState.batchSize, generationState.totalItems);
+
+		this.addInfo(
+			`Processing batch ${nextBatchIndex}/${generationState.totalBatches} (${startIndex}-${endIndex})`
+		);
+	}
+
+	/**
+	 * Complete current batch and trigger next batch
+	 */
+	private completeBatch(): void {
+		if (!generationState.isBatchProcessing) return;
+
+		generationState.completedBatches.push(generationState.currentBatch);
+
+		// Clean up memory from completed batch
+		this.cleanupBatchMemory();
+
+		// Process next batch or finish
+		this.processNextBatch();
+	}
+
+	/**
+	 * Clean up memory from batch processing
+	 */
+	private cleanupBatchMemory(): void {
+		// Clear preview URLs to free memory
+		generationState.previews = [];
+
+		// If we have too many images in memory, keep only the latest batch
+		const maxImagesInMemory = generationState.batchSize * 2;
+		if (generationState.allImages.length > maxImagesInMemory) {
+			const keepFromIndex = generationState.allImages.length - maxImagesInMemory;
+			generationState.allImages = generationState.allImages.slice(keepFromIndex);
+			generationState.allMetadata = generationState.allMetadata.slice(keepFromIndex);
+		}
+
+		this.addInfo(`Memory cleanup completed - ${generationState.allImages.length} images in memory`);
+	}
+
+	/**
+	 * Get estimated completion time for batch processing
+	 */
+	private getBatchETA(): string {
+		if (!generationState.isBatchProcessing || generationState.startTime === null) {
+			return '';
+		}
+
+		const completedBatches = generationState.completedBatches.length;
+		const totalBatches = generationState.totalBatches;
+		const currentTime = Date.now();
+		const elapsedTime = currentTime - generationState.startTime;
+
+		if (completedBatches === 0) return 'Estimating...';
+
+		const avgTimePerBatch = elapsedTime / completedBatches;
+		const remainingBatches = totalBatches - completedBatches;
+		const estimatedRemainingTime = avgTimePerBatch * remainingBatches;
+
+		const minutes = Math.floor(estimatedRemainingTime / 60000);
+		const seconds = Math.floor((estimatedRemainingTime % 60000) / 1000);
+
+		return `~${minutes}m ${seconds}s remaining`;
 	}
 
 	/**
@@ -546,6 +693,7 @@ export const isCombinationUsed =
 	generationStateManager.isCombinationUsed.bind(generationStateManager);
 export const handleError = generationStateManager.handleError.bind(generationStateManager);
 export const addWarning = generationStateManager.addWarning.bind(generationStateManager);
+export const addInfo = generationStateManager.addInfo.bind(generationStateManager);
 export const resetState = generationStateManager.resetState.bind(generationStateManager);
 export const getMemorySummary =
 	generationStateManager.getMemorySummary.bind(generationStateManager);

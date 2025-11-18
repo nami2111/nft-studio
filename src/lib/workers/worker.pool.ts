@@ -1230,3 +1230,23 @@ export function cleanupOldTasks(thresholdMs: number = 3000): void {
 
 // Export helper functions for testing
 export { TaskComplexity, WorkerHealth, getDeviceCapabilities, calculateTaskComplexity };
+
+/**
+ * Get optimal worker count based on collection size
+ * Dynamic worker scaling for different collection sizes
+ */
+export function getOptimalWorkerCount(collectionSize: number): number {
+	if (collectionSize > 50000) {
+		// XL collections: Use fewer workers to prevent memory issues
+		return Math.min(4, navigator.hardwareConcurrency - 1);
+	} else if (collectionSize > 10000) {
+		// Large collections: Moderate worker count
+		return Math.min(6, navigator.hardwareConcurrency);
+	} else if (collectionSize > 5000) {
+		// Medium collections: Standard worker count
+		return Math.min(8, navigator.hardwareConcurrency);
+	} else {
+		// Small collections: More workers for speed
+		return Math.min(10, navigator.hardwareConcurrency + 1);
+	}
+}

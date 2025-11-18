@@ -21,7 +21,7 @@
 	// Calculate visible range
 	let visibleStart = $state(0);
 	let visibleEnd = $state(0);
-	const overscan = 10; // Render extra items outside viewport
+	let adaptiveOverscan = $state(10); // Dynamic overscan based on collection size
 
 	// Update visible range when scrolling
 	function handleScroll() {
@@ -31,8 +31,12 @@
 		const start = Math.floor(scrollTop / itemHeight);
 		const end = Math.min(nfts.length, Math.ceil((scrollTop + containerHeight) / itemHeight));
 
-		visibleStart = Math.max(0, start - overscan);
-		visibleEnd = Math.min(nfts.length, end + overscan);
+		// Adaptive overscan based on collection size
+		const baseOverscan = nfts.length > 10000 ? 5 : nfts.length > 5000 ? 8 : 15;
+		adaptiveOverscan = baseOverscan;
+
+		visibleStart = Math.max(0, start - adaptiveOverscan);
+		visibleEnd = Math.min(nfts.length, end + adaptiveOverscan);
 	}
 
 	// Get image URL with caching
