@@ -79,15 +79,6 @@
 				</p>
 			{/if}
 
-			<!-- Warnings -->
-			{#if generationState.warnings.length > 0}
-				<div class="space-y-1 text-xs text-yellow-600">
-					{#each generationState.warnings as warning (warning)}
-						<p>⚠️ {warning}</p>
-					{/each}
-				</div>
-			{/if}
-
 			<!-- Error Display -->
 			{#if generationState.error}
 				<div class="rounded bg-red-50 p-2 text-xs text-red-600">

@@ -24,8 +24,7 @@
 		addImages,
 		addMetadata,
 		addPreviews,
-		handleError,
-		addWarning
+		handleError
 	} from '$lib/stores/generation-progress.svelte';
 	import { onDestroy } from 'svelte';
 	import { MetadataStandard } from '$lib/domain/metadata/strategies';
@@ -69,7 +68,7 @@
 				if (generationState.isGenerating && isComponentDestroyed) {
 					console.log('⏰ Background generation timeout - cancelling');
 					cancelGeneration();
-					addWarning('Generation stopped due to timeout.');
+					console.log('Generation stopped due to timeout.');
 				}
 			}, 600000); // 10 minutes timeout
 		}

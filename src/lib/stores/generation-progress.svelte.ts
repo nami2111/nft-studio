@@ -55,6 +55,7 @@ export interface GenerationState {
 	// Error handling
 	error: string | null;
 	warnings: string[];
+	lastWarningTimes: Map<string, number>; // Track when each warning was last added
 
 	// Session management
 	sessionId: string | null;
@@ -90,6 +91,7 @@ const defaultState: GenerationState = {
 	lastMemoryCheck: null,
 	error: null,
 	warnings: [],
+	lastWarningTimes: new Map(),
 	sessionId: null,
 	saveTimestamp: null,
 	isBatchProcessing: false,
@@ -136,6 +138,27 @@ class GenerationStateManager {
 	}): string {
 		const sessionId = this.generateSessionId();
 
+		// Check if this is a large collection and enable batch processing upfront
+		const isLargeCollection = config.collectionSize > 1000;
+		let isBatchProcessing = false;
+		let batchSize = 1000;
+		let totalBatches = 1;
+
+		if (isLargeCollection) {
+			isBatchProcessing = true;
+
+			// Determine batch size based on collection size
+			if (config.collectionSize > 50000) {
+				batchSize = 500;
+			} else if (config.collectionSize > 10000) {
+				batchSize = 1000;
+			} else if (config.collectionSize > 5000) {
+				batchSize = 1500;
+			}
+
+			totalBatches = Math.ceil(config.collectionSize / batchSize);
+		}
+
 		// Reset state with new configuration
 		Object.assign(generationState, defaultState, {
 			isGenerating: true,
@@ -153,13 +176,22 @@ class GenerationStateManager {
 			sessionId,
 			startTime: Date.now(),
 			lastUpdate: Date.now(),
-			statusText: 'Starting generation...'
+			statusText: isLargeCollection
+				? `Large collection detected (${config.collectionSize} items) - auto batch processing enabled`
+				: 'Starting generation...',
+			isBatchProcessing,
+			currentBatch: isLargeCollection ? 1 : 0,
+			totalBatches,
+			batchSize,
+			completedBatches: isLargeCollection ? [] : []
 		});
 
 		// Save initial state
 		this.saveState();
 
-		console.log(`🎯 Generation started: ${sessionId} (${config.collectionSize} items)`);
+		console.log(
+			`🎯 Generation started: ${sessionId} (${config.collectionSize} items)${isLargeCollection ? ' with batch processing' : ''}`
+		);
 		return sessionId;
 	}
 
@@ -312,12 +344,25 @@ class GenerationStateManager {
 	 * Add warning message
 	 */
 	addWarning(warning: string): void {
-		generationState.warnings.push(warning);
-		generationState.lastUpdate = Date.now();
+		const now = Date.now();
+		const lastTime = generationState.lastWarningTimes.get(warning);
 
-		// Keep only last 10 warnings
-		if (generationState.warnings.length > 10) {
-			generationState.warnings = generationState.warnings.slice(-10);
+		// Only add the warning if it hasn't been added in the last 5 seconds
+		if (!lastTime || now - lastTime > 5000) {
+			// Remove existing warning if it exists to prevent duplicates
+			const existingIndex = generationState.warnings.indexOf(warning);
+			if (existingIndex !== -1) {
+				generationState.warnings.splice(existingIndex, 1);
+			}
+
+			generationState.warnings.push(warning);
+			generationState.lastWarningTimes.set(warning, now);
+			generationState.lastUpdate = now;
+
+			// Keep only last 10 warnings
+			if (generationState.warnings.length > 10) {
+				generationState.warnings = generationState.warnings.slice(-10);
+			}
 		}
 	}
 
@@ -325,12 +370,26 @@ class GenerationStateManager {
 	 * Add info message
 	 */
 	addInfo(info: string): void {
-		generationState.warnings.push(`[INFO] ${info}`);
-		generationState.lastUpdate = Date.now();
+		const fullMessage = `[INFO] ${info}`;
+		const now = Date.now();
+		const lastTime = generationState.lastWarningTimes.get(fullMessage);
 
-		// Keep only last 10 messages
-		if (generationState.warnings.length > 10) {
-			generationState.warnings = generationState.warnings.slice(-10);
+		// Only add the info message if it hasn't been added in the last 5 seconds
+		if (!lastTime || now - lastTime > 5000) {
+			// Remove existing message if it exists to prevent duplicates
+			const existingIndex = generationState.warnings.indexOf(fullMessage);
+			if (existingIndex !== -1) {
+				generationState.warnings.splice(existingIndex, 1);
+			}
+
+			generationState.warnings.push(fullMessage);
+			generationState.lastWarningTimes.set(fullMessage, now);
+			generationState.lastUpdate = now;
+
+			// Keep only last 10 messages
+			if (generationState.warnings.length > 10) {
+				generationState.warnings = generationState.warnings.slice(-10);
+			}
 		}
 	}
 
@@ -381,52 +440,17 @@ class GenerationStateManager {
 		const currentUsage = this.getMemoryUsage();
 		const maxUsage = 500 * 1024 * 1024; // 500MB limit
 
-		// Automatic batch processing when memory is high
-		if (currentUsage > maxUsage * 0.7 && !generationState.isBatchProcessing) {
-			this.enableAutoBatchProcessing();
-			this.addInfo('Large collection detected - enabling automatic batch processing');
+		// Only show memory warnings if batch processing was not enabled upfront
+		if (currentUsage > maxUsage && !generationState.isBatchProcessing) {
+			// This should rarely happen now since we enable batch processing for large collections upfront
+			if (currentUsage > maxUsage * 0.8) {
+				generationState.statusText = 'Memory usage high - consider reducing collection size.';
+			}
+
+			if (currentUsage > maxUsage) {
+				generationState.statusText = `Memory usage very high: ${Math.round(currentUsage / 1024 / 1024)}MB. Consider much smaller collection sizes.`;
+			}
 		}
-
-		// Progressive warnings
-		if (currentUsage > maxUsage * 0.8) {
-			this.addWarning('Memory usage high - batch processing is active');
-		}
-
-		if (currentUsage > maxUsage) {
-			this.addWarning(
-				`Memory usage high: ${Math.round(currentUsage / 1024 / 1024)}MB. Consider smaller collection sizes.`
-			);
-		}
-	}
-
-	/**
-	 * Enable automatic batch processing based on collection size
-	 */
-	private enableAutoBatchProcessing(): void {
-		const totalItems = generationState.totalItems;
-		if (totalItems <= 1000) return; // No need for batching on small collections
-
-		// Determine batch size based on collection size
-		let batchSize = 1000;
-		if (totalItems > 50000) {
-			batchSize = 500;
-		} else if (totalItems > 10000) {
-			batchSize = 1000;
-		} else if (totalItems > 5000) {
-			batchSize = 1500;
-		}
-
-		const totalBatches = Math.ceil(totalItems / batchSize);
-
-		generationState.isBatchProcessing = true;
-		generationState.currentBatch = 1;
-		generationState.totalBatches = totalBatches;
-		generationState.batchSize = batchSize;
-		generationState.completedBatches = [];
-
-		this.addInfo(
-			`Auto batch processing enabled: ${totalBatches} batches of ${batchSize} items each`
-		);
 	}
 
 	/**
@@ -439,7 +463,7 @@ class GenerationStateManager {
 		if (nextBatchIndex > generationState.totalBatches) {
 			// All batches completed
 			generationState.isBatchProcessing = false;
-			this.addInfo('Batch processing completed');
+			generationState.statusText = 'Batch processing completed';
 			return;
 		}
 
@@ -447,9 +471,7 @@ class GenerationStateManager {
 		const startIndex = (nextBatchIndex - 1) * generationState.batchSize;
 		const endIndex = Math.min(startIndex + generationState.batchSize, generationState.totalItems);
 
-		this.addInfo(
-			`Processing batch ${nextBatchIndex}/${generationState.totalBatches} (${startIndex}-${endIndex})`
-		);
+		generationState.statusText = `Processing batch ${nextBatchIndex}/${generationState.totalBatches} (${startIndex}-${endIndex})`;
 	}
 
 	/**
@@ -482,7 +504,7 @@ class GenerationStateManager {
 			generationState.allMetadata = generationState.allMetadata.slice(keepFromIndex);
 		}
 
-		this.addInfo(`Memory cleanup completed - ${generationState.allImages.length} images in memory`);
+		generationState.statusText = `Memory cleanup completed - ${generationState.allImages.length} images in memory`;
 	}
 
 	/**
@@ -572,8 +594,9 @@ class GenerationStateManager {
 	private serializeState(): any {
 		return {
 			...generationState,
-			usedCombinations: Array.from(generationState.usedCombinations.entries())
-			// Convert Map to array for serialization
+			usedCombinations: Array.from(generationState.usedCombinations.entries()),
+			lastWarningTimes: Array.from(generationState.lastWarningTimes.entries())
+			// Convert Maps to arrays for serialization
 		};
 	}
 
@@ -589,6 +612,10 @@ class GenerationStateManager {
 					new Set(value)
 				])
 			);
+		}
+
+		if (serializedState.lastWarningTimes) {
+			serializedState.lastWarningTimes = new Map(serializedState.lastWarningTimes);
 		}
 
 		// Restore state
@@ -696,8 +723,6 @@ export const addUsedCombination =
 export const isCombinationUsed =
 	generationStateManager.isCombinationUsed.bind(generationStateManager);
 export const handleError = generationStateManager.handleError.bind(generationStateManager);
-export const addWarning = generationStateManager.addWarning.bind(generationStateManager);
-export const addInfo = generationStateManager.addInfo.bind(generationStateManager);
 export const resetState = generationStateManager.resetState.bind(generationStateManager);
 export const getMemorySummary =
 	generationStateManager.getMemorySummary.bind(generationStateManager);
