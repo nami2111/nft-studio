@@ -340,7 +340,7 @@ class GalleryStore {
 				// Only log storage when usage changes significantly (>1MB)
 				const usage = parseFloat(usageMB);
 				if (!this._lastLoggedUsage || Math.abs(usage - this._lastLoggedUsage) > 1) {
-					console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`);
+					// console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`); // Disabled to reduce console spam
 					this._lastLoggedUsage = usage;
 				}
 			}
@@ -379,7 +379,7 @@ class GalleryStore {
 				// Only log storage when usage changes significantly (>1MB)
 				const usage = parseFloat(usageMB);
 				if (!this._lastLoggedUsage || Math.abs(usage - this._lastLoggedUsage) > 1) {
-					console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`);
+					// console.log(`Gallery storage: ${usageMB}MB / ${quotaMB}MB used`); // Disabled to reduce console spam
 					this._lastLoggedUsage = usage;
 				}
 			}

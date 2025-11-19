@@ -343,26 +343,20 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 		try {
 			// Get estimated size first
 			const estimatedSize = getStorageSize(value);
-			console.log(`SmartStorage: Project size ${Math.round(estimatedSize / 1024)}KB`);
+			// console.log(`SmartStorage: Project size ${Math.round(estimatedSize / 1024)}KB`); // Disabled to reduce console spam
 
 			// Use IndexedDB for large projects (>2MB) or projects with significant image data
 			if (estimatedSize > LARGE_PROJECT_THRESHOLD) {
-				console.info(
-					`SmartStorage: Using IndexedDB for large project (${Math.round(estimatedSize / 1024)}KB)`
-				);
+				// console.log(`SmartStorage: Using IndexedDB for large project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
 				await this.indexedDbStore.save(value);
 			} else if (estimatedSize > COMPACT_PROJECT_THRESHOLD) {
 				// For medium-sized projects, try localStorage with compact mode first
-				console.info(
-					`SmartStorage: Using localStorage with compact mode for medium project (${Math.round(estimatedSize / 1024)}KB)`
-				);
+				// console.log(`SmartStorage: Using localStorage with compact mode for medium project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
 				const compactValue = createCompactVersion(value);
 				this.localStorageStore.save(compactValue);
 			} else {
 				// Use localStorage for smaller projects
-				console.info(
-					`SmartStorage: Using localStorage for small project (${Math.round(estimatedSize / 1024)}KB)`
-				);
+				// console.log(`SmartStorage: Using localStorage for small project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
 				this.localStorageStore.save(value);
 			}
 		} catch (error) {
