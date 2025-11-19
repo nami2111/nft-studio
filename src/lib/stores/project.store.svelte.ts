@@ -56,19 +56,17 @@ interface PersistedProject {
 }
 
 function persistProject(projectToPersist: Project): void {
-	try {
-		// Check if project has any traits - only persist projects without traits
-		const totalTraits = projectToPersist.layers.reduce(
-			(sum, layer) => sum + layer.traits.length,
-			0
-		);
-		if (totalTraits > 0) {
-			// Don't persist projects with traits to avoid broken image references on refresh
-			// Also clear any existing persisted data
-			localStorage.removeItem(PROJECT_STORAGE_KEY);
-			return;
-		}
+	// Skip persistence if AutoSave component is active (indicated by the presence of image data)
+	// AutoSave handles projects with traits, so we only persist empty projects
+	const totalTraits = projectToPersist.layers.reduce((sum, layer) => sum + layer.traits.length, 0);
 
+	// Only persist completely empty projects (no traits at all)
+	// Projects with traits are handled by AutoSave component
+	if (totalTraits > 0) {
+		return; // Don't persist projects with traits - AutoSave handles them
+	}
+
+	try {
 		// Create a clean version for storage (remove non-serializable data)
 		const cleanProject: PersistedProject = {
 			id: projectToPersist.id,
@@ -190,6 +188,12 @@ export const projectStore = {
 let persistTimeout: number | null = null;
 
 function schedulePersist() {
+	// AutoSave component now handles persistence
+	// Keeping this function for backward compatibility but making it a no-op
+	return;
+
+	// Original implementation - commented out to prevent conflicts with AutoSave
+	/*
 	if (persistTimeout) {
 		clearTimeout(persistTimeout);
 	}
@@ -197,19 +201,22 @@ function schedulePersist() {
 		persistProject(project);
 		persistTimeout = null;
 	}, 500); // Debounce persistence to avoid excessive writes
+	*/
 }
 
 // Enhanced state setters with automatic persistence
 export function updateProject(updates: Partial<Project>): void {
 	Object.assign(project, updates);
-	schedulePersist();
+	// AutoSave component handles persistence automatically
+	// schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed // Disabled to prevent conflicts with AutoSave
 }
 
 export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void {
 	const layerIndex = project.layers.findIndex((l) => l.id === layerId);
 	if (layerIndex !== -1) {
 		Object.assign(project.layers[layerIndex], updates);
-		schedulePersist();
+		// AutoSave component handles persistence automatically
+		// schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed // Disabled to prevent conflicts with AutoSave
 	}
 }
 
@@ -219,7 +226,8 @@ export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial
 		const traitIndex = layer.traits.findIndex((t) => t.id === traitId);
 		if (traitIndex !== -1) {
 			Object.assign(layer.traits[traitIndex], updates);
-			schedulePersist();
+			// AutoSave component handles persistence automatically
+			// schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed // Disabled to prevent conflicts with AutoSave
 		}
 	}
 }
@@ -270,7 +278,8 @@ function processBatchQueue(): void {
 	}
 
 	// Persist once for all updates
-	persistProject(project);
+	// AutoSave component handles persistence automatically
+	// persistProject(project); // Disabled to prevent conflicts with AutoSave
 }
 
 function scheduleBatchPersist(): void {
@@ -339,7 +348,7 @@ export function addTraitsBatch(layerId: LayerId, traits: Trait[]): void {
 	}
 
 	// Schedule persistence for metadata updates
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function flushBatch(): void {
@@ -382,17 +391,18 @@ export function updateProjectName(name: string): void {
 		throw new Error(result.error);
 	}
 	project.name = name;
-	schedulePersist();
+	// AutoSave component handles persistence automatically
+	// schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed // Disabled to prevent conflicts with AutoSave
 }
 
 export function updateProjectDescription(description: string): void {
 	project.description = description;
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function updateProjectMetadataStandard(standard: MetadataStandard): void {
 	project.metadataStandard = standard;
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function updateProjectDimensions(dimensions: ProjectDimensions): void {
@@ -401,7 +411,7 @@ export function updateProjectDimensions(dimensions: ProjectDimensions): void {
 		throw new Error(result.error);
 	}
 	project.outputSize = dimensions;
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 // Layer management functions
@@ -419,7 +429,7 @@ export function addLayer(name: string): void {
 	};
 
 	project.layers.push(newLayer);
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function removeLayer(layerId: LayerId): void {
@@ -442,7 +452,7 @@ export function removeLayer(layerId: LayerId): void {
 		layer.order = index;
 	});
 
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function updateLayerName(layerId: LayerId, name: string): void {
@@ -455,7 +465,7 @@ export function updateLayerName(layerId: LayerId, name: string): void {
 	if (!layer) return;
 
 	layer.name = name;
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function reorderLayers(layerIds: LayerId[]): void {
@@ -470,7 +480,7 @@ export function reorderLayers(layerIds: LayerId[]): void {
 	});
 
 	project.layers = newLayers;
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 // Batch loading state to prevent multiple rapid updates
@@ -557,7 +567,7 @@ export function addTrait(layerId: LayerId, file: File): void {
 	// Add to pending updates for batch processing
 	pendingTraitUpdates.set(newTrait.id, { trait: newTrait, layer, file });
 	scheduleBatchUpdate();
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function removeTrait(layerId: LayerId, traitId: TraitId): void {
@@ -574,7 +584,7 @@ export function removeTrait(layerId: LayerId, traitId: TraitId): void {
 	}
 
 	layer.traits.splice(traitIndex, 1);
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string): void {
@@ -590,7 +600,7 @@ export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string
 	}
 
 	trait.name = name;
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeight: number): void {
@@ -606,7 +616,7 @@ export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeig
 	}
 
 	trait.rarityWeight = rarityWeight;
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 // Loading state management - delegated to loading state manager
@@ -680,7 +690,7 @@ export async function loadProjectFromZip(file: File): Promise<void> {
 		project._needsProperLoad = false;
 
 		// Schedule persistence
-		schedulePersist();
+		schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 
 		stopDetailedLoading('project-load');
 		stopLoading('project-load');
@@ -720,7 +730,7 @@ export function updateStrictPairConfig(projectId: ProjectId, config: StrictPairC
 	}
 
 	project.strictPairConfig = { ...config };
-	schedulePersist();
+	schedulePersist(); // AutoSave component handles persistence - keeping for now but should be reviewed
 }
 
 export function getStrictPairConfig(): StrictPairConfig | undefined {

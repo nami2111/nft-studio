@@ -15,13 +15,19 @@
 	$effect(() => {
 		// Only save if the project has actually changed
 		const projectString = JSON.stringify(project, (key, value) => {
-			// Skip imageData from comparison to avoid unnecessary saves
-			if (key === 'imageData' || key === 'imageUrl') return undefined;
+			// Skip imageData, imageUrl, and internal state from comparison to avoid unnecessary saves
+			if (key === 'imageData' || key === 'imageUrl' || key === '_needsProperLoad') return undefined;
 			return value;
 		});
 
 		if (projectString === lastSavedProject) {
 			return; // No actual changes, skip save
+		}
+
+		// Skip auto-save if project has no layers (empty project)
+		if (!project.layers || project.layers.length === 0) {
+			lastSavedProject = projectString;
+			return;
 		}
 
 		if (saveTimeout) {
@@ -36,7 +42,8 @@
 				const compactProject = JSON.parse(
 					JSON.stringify(project, (key, value) => {
 						// Remove image data and URLs to prevent storage quota issues
-						if (key === 'imageData' || key === 'imageUrl') return undefined;
+						if (key === 'imageData' || key === 'imageUrl' || key === '_needsProperLoad')
+							return undefined;
 						return value;
 					})
 				);
@@ -62,7 +69,7 @@
 				// import { toast } from 'svelte-sonner';
 				// toast.error('Failed to save project. Please try again.');
 			}
-		}, 1000); // Debounce saves to prevent rapid consecutive storage operations
+		}, 2000); // Increased debounce time to 2 seconds to prevent rapid saves
 	});
 
 	// Cleanup on destroy
