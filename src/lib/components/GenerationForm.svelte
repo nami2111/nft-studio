@@ -90,22 +90,33 @@
 
 		const projectData = project;
 
-		// Update status in persistent store
-		generationState.statusText = 'Packaging files into a .zip...';
-
 		try {
 			await ExportService.packageZip({
 				project: projectData,
 				images,
 				metadata,
-				startTime: generationState.startTime ?? undefined
+				startTime: generationState.startTime ?? undefined,
+				onProgress: (progress) => {
+					// Update status with progress information
+					generationState.statusText = `${progress.message} (${progress.processed}/${progress.total})`;
+
+					// Show user-friendly progress for large collections
+					if (images.length > 1000) {
+						const percentage = Math.round((progress.processed / progress.total) * 100);
+						if (percentage % 10 === 0 || progress.processed === progress.total) {
+							console.log(
+								`Export progress: ${percentage}% (${progress.processed}/${progress.total})`
+							);
+						}
+					}
+				}
 			});
 
 			// Update persistent state
 			generationState.statusText = 'Download started.';
 
 			showSuccess('Generation complete', {
-				description: 'Your download has started and NFTs have been added to the gallery.'
+				description: `Your download has started and ${images.length} NFTs have been added to the gallery. ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
 			});
 
 			// Complete the generation in persistent store
