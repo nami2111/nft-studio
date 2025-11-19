@@ -5,6 +5,89 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7] - 2025-11-19
+
+### Added
+
+- **UI for Metadata Standard Selection**: Added comprehensive UI in Project Settings for users to select between ERC-721 and Solana metadata standards with clear descriptions and real-time feedback
+- **Core Architecture Improvements**: Complete refactoring of generation system with modular components, CSP solver implementation, and flexible metadata standards support
+- **CSP Solver for Trait Generation**: Implemented deterministic Constraint Satisfaction Problem solver to replace inefficient random retry logic for "Strict Pair" rules
+- **Metadata Standards Strategy Pattern**: Flexible architecture supporting multiple blockchain metadata formats with clean extensibility for future standards
+- **GenerationForm Component Refactoring**: Broke down monolithic component into focused sub-components with proper separation of concerns
+
+### Enhanced
+
+- **Generation Architecture**: Evolved from single monolithic component to modular architecture:
+  - **Before**: `GenerationForm.svelte` (600+ lines) handled all generation logic
+  - **After**: `GenerationControls.svelte`, `GenerationProgress.svelte`, `GenerationPreview.svelte` with specialized responsibilities
+- **Strict Pair Constraint Handling**: Replaced probabilistic retry approach with deterministic CSP solver:
+  - **Before**: Random trait selection with retry loops causing infinite loops on strict constraints
+  - **After**: Backtracking algorithm guaranteeing valid combinations when they exist
+- **Metadata Generation**: Implemented strategy pattern for flexible metadata standards:
+  - **Before**: Hard-coded ERC-721 format only
+  - **After**: Support for ERC-721, Solana, and extensible framework for additional standards
+- **Error Prevention**: CSP solver eliminates generation failures due to strict pair constraints
+- **Performance**: Deterministic generation eliminates wasted computation from failed retry attempts
+- **Extensibility**: Clean architecture for adding new metadata standards without modifying core generation logic
+
+### Technical Implementation
+
+- **CSP Solver** (`src/lib/workers/csp-solver.ts`):
+  - Backtracking algorithm for constraint satisfaction
+  - Handles complex "Strict Pair" and "Ruler" rule interactions
+  - Guarantees finding valid combinations when they exist
+  - Eliminates infinite loops and failed generations
+  - Efficient pruning of invalid search paths
+
+- **Metadata Strategy Pattern** (`src/lib/domain/metadata/`):
+  - `MetadataStrategy` interface for standardized formatting
+  - `ERC721Strategy` for Ethereum/OpenSea compatibility
+  - `SolanaStrategy` for Metaplex standard with creator information
+  - Factory pattern for dynamic strategy selection
+
+- **Component Refactoring** (`src/lib/components/generation/`):
+  - `GenerationControls.svelte`: Collection size input and action buttons
+  - `GenerationProgress.svelte`: Progress bars, status text, memory usage
+  - `GenerationPreview.svelte`: NFT preview display (ready for future enhancements)
+  - `ExportService`: Encapsulated ZIP packaging and gallery integration
+
+- **Store Integration** (`src/lib/stores/project.store.svelte.ts`):
+  - New `updateProjectMetadataStandard()` function
+  - Seamless synchronization with project settings UI
+  - Proper TypeScript typing and error handling
+
+- **Generation Pipeline** (`src/lib/stores/generation-progress.svelte.ts`):
+  - Updated to accept metadata standard parameter
+  - Enhanced state management with metadata configuration
+  - Proper integration with worker communication
+
+### Performance Improvements
+
+- **Generation Reliability**: CSP solver eliminates failed generations due to strict constraints
+- **Memory Efficiency**: Deterministic approach reduces memory usage from failed retry attempts
+- **Extensibility**: Strategy pattern enables easy addition of new metadata standards
+- **Maintainability**: Modular components improve code organization and reduce coupling
+
+### User Experience
+
+- **Metadata Selection**: Clear radio button interface with descriptive help text
+- **Real-time Feedback**: Immediate confirmation when switching metadata standards
+- **Backward Compatibility**: Defaults to ERC-721 for existing projects
+- **Professional UI**: Consistent styling with existing project settings
+- **Standards Support**: Comprehensive support for major blockchain platforms
+
+### Impact
+
+- **Before**: Generation could fail with strict pair rules, limited to ERC-721 metadata
+- **After**: Deterministic generation success, flexible metadata standards, modular architecture
+- **Reliability**: Eliminates infinite loops and failed generations from constraint conflicts
+- **Flexibility**: Easy extension to support additional blockchain metadata standards
+- **Maintainability**: Clean separation of concerns enables easier future enhancements
+
+### Rationale
+
+These improvements address critical limitations in the generation system by implementing a robust CSP solver for constraint handling and establishing a flexible architecture for metadata generation. The modular component design improves maintainability while the strategy pattern enables easy extension to support additional blockchain standards as the NFT ecosystem evolves.
+
 ## [0.4.6] - 2025-11-14
 
 ### Added

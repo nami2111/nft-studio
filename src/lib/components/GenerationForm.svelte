@@ -1,13 +1,9 @@
 <script lang="ts">
-	// JSZip will be imported dynamically when needed
 	import { project } from '$lib/stores';
 	import {
 		startGeneration as startWorkerGeneration,
 		cancelGeneration as cancelWorkerGeneration
 	} from '$lib/domain/worker.service';
-	import { Play, AlertCircle } from 'lucide-svelte';
-	import { Progress } from '$lib/components/ui/progress';
-	import { Button } from '$lib/components/ui/button';
 	import type {
 		ProgressMessage,
 		CompleteMessage,
@@ -17,45 +13,36 @@
 	} from '$lib/types/worker-messages';
 	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
-	import { trackGenerationCompleted } from '$lib/utils/analytics';
-	import { galleryStore } from '$lib/stores/gallery.store.svelte';
-	import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
 	import {
 		generationState,
-		generationStateManager,
 		startGeneration,
 		pauseGeneration,
 		completeGeneration,
 		cancelGeneration,
+		resetState,
 		updateProgress,
 		addImages,
 		addMetadata,
 		addPreviews,
-		addUsedCombination,
-		isCombinationUsed,
 		handleError,
-		addWarning,
-		resetState,
-		getMemorySummary,
-		getSummary
+		addWarning
 	} from '$lib/stores/generation-progress.svelte';
 	import { onDestroy } from 'svelte';
+	import { MetadataStandard } from '$lib/domain/metadata/strategies';
+	import { ExportService } from '$lib/services/export.service';
+	import GenerationProgress from './generation/GenerationProgress.svelte';
+	import GenerationControls from './generation/GenerationControls.svelte';
 
 	// Local UI state
-	let collectionSize = $state(100);
+	let collectionSize = $state<number | null>(100);
 	let isComponentDestroyed = $state(false);
 	let isPackaging = $state(false);
-	let analyticsTracked = $state(false);
 
 	// Derived state from persistent store
 	let isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
 	let isBackground = $derived(generationState.isBackground);
 	let isPaused = $derived(generationState.isPaused);
-	let progress = $derived(generationState.progress);
-	let statusText = $derived(generationState.statusText);
-	let memoryUsage = $derived(generationState.memoryUsage);
 	let previews = $derived(generationState.previews);
-	let currentSessionId = $derived(generationState.sessionId);
 
 	// Component lifecycle management
 	onDestroy(() => {
@@ -88,21 +75,8 @@
 		}
 	});
 
-	// Update progress function now delegates to persistent store
-	function updateProgressLocal(
-		generated: number,
-		total: number,
-		text: string,
-		memory?: { used: number; available: number; units: string }
-	) {
-		// This is now handled by the persistent store
-		// Keep for backward compatibility with existing code
-	}
-
 	function resetLocalState() {
 		isPackaging = false;
-		analyticsTracked = false;
-
 		// Reset persistent state
 		resetState();
 	}
@@ -115,90 +89,21 @@
 		if (isPackaging) return;
 		isPackaging = true;
 
-		const projectData = project as {
-			name: string;
-			outputSize: { width: number; height: number };
-			description?: string;
-			layers: Layer[];
-			strictPairConfig?: import('$lib/types/layer').StrictPairConfig;
-		};
+		const projectData = project;
 
 		// Update status in persistent store
 		generationState.statusText = 'Packaging files into a .zip...';
 
 		try {
-			// Save to gallery first
-			try {
-				console.log('Saving generated NFTs to gallery...');
-
-				// Convert images and metadata to gallery format
-				const galleryNFTs = images.map((image, index) => {
-					const matchingMetadata = metadata.find((meta) => meta.name === image.name);
-					return {
-						name: image.name.replace('.png', ''),
-						imageData: image.imageData,
-						metadata: matchingMetadata?.data || { traits: [] },
-						index
-					};
-				});
-
-				// Import into gallery store
-				const collection = galleryStore.importGeneratedNFTs(
-					galleryNFTs,
-					projectData.name || 'Untitled Collection',
-					projectData.description || 'Generated NFT collection'
-				);
-
-				// Calculate rarity for the collection
-				const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
-				galleryStore.updateCollection(collection.id, updatedCollection);
-
-				console.log(`Saved ${galleryNFTs.length} NFTs to gallery collection: ${collection.name}`);
-			} catch (galleryError) {
-				console.error('Failed to save to gallery:', galleryError);
-				// Don't let gallery errors prevent the download
-			}
-
-			// Dynamically import JSZip to reduce initial bundle size
-			const { default: JSZip } = await import('jszip');
-			const zip = new JSZip();
-			const imagesFolder = zip.folder('images');
-			const metadataFolder = zip.folder('metadata');
-
-			for (const file of images) {
-				imagesFolder?.file(file.name, file.imageData);
-			}
-			for (const meta of metadata) {
-				metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
-			}
-
-			const content = await zip.generateAsync({ type: 'blob' });
-			const url = URL.createObjectURL(content);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `${projectData.name || 'collection'}.zip`;
-			// Try programmatic download
-			document.body.appendChild(a);
-			try {
-				a.click();
-				console.log('Download initiated for:', a.download);
-			} catch (error) {
-				console.error('Download failed:', error);
-				throw error;
-			} finally {
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-			}
+			await ExportService.packageZip({
+				project: projectData,
+				images,
+				metadata,
+				startTime: generationState.startTime ?? undefined
+			});
 
 			// Update persistent state
 			generationState.statusText = 'Download started.';
-
-			// Track generation completion analytics (only once)
-			if (!analyticsTracked && generationState.startTime) {
-				const durationSeconds = Math.round((Date.now() - generationState.startTime) / 1000);
-				trackGenerationCompleted(images.length, durationSeconds);
-				analyticsTracked = true;
-			}
 
 			showSuccess('Generation complete', {
 				description: 'Your download has started and NFTs have been added to the gallery.'
@@ -228,13 +133,7 @@
 		resetLocalState();
 
 		try {
-			const projectData = project as {
-				name: string;
-				outputSize: { width: number; height: number };
-				description?: string;
-				layers: Layer[];
-				strictPairConfig?: import('$lib/types/layer').StrictPairConfig;
-			};
+			const projectData = project;
 
 			// Validate project has layers
 			if (projectData.layers.length === 0) {
@@ -281,16 +180,15 @@
 				return;
 			}
 
-			// Generation state is now managed by persistent store
-
 			// Start generation using persistent store
 			const sessionId = startGeneration({
 				projectName: projectData.name || 'Untitled Collection',
 				projectDescription: projectData.description || '',
 				outputSize: projectData.outputSize,
 				layers: projectData.layers,
-				collectionSize,
-				strictPairConfig: projectData.strictPairConfig
+				collectionSize: collectionSize || 100,
+				strictPairConfig: projectData.strictPairConfig,
+				metadataStandard: projectData.metadataStandard || MetadataStandard.ERC721
 			});
 
 			console.log(`🚀 Starting generation session: ${sessionId}`);
@@ -315,7 +213,7 @@
 									message.payload.metadata as { name: string; data: Record<string, unknown> }[]
 								);
 							// Check if generation is complete
-							if (generationState.allImages.length >= collectionSize) {
+							if (collectionSize && generationState.allImages.length >= collectionSize) {
 								// Package in background if possible, or wait for user to return
 								console.log('🎉 Generation completed in background');
 							}
@@ -360,7 +258,7 @@
 
 						// Check if generation is complete
 						if (
-							generationState.allImages.length >= collectionSize ||
+							(collectionSize && generationState.allImages.length >= collectionSize) ||
 							message.payload.images.length === 0
 						) {
 							console.log(
@@ -394,10 +292,11 @@
 			// Start generation using the domain service with worker message handler
 			await startWorkerGeneration(
 				projectData.layers,
-				collectionSize,
+				collectionSize || 100,
 				projectData.outputSize,
 				projectData.name,
 				projectData.description || '',
+				projectData.metadataStandard,
 				projectData.strictPairConfig,
 				workerMessageHandler
 			);
@@ -415,148 +314,16 @@
 		cancelGeneration();
 		showInfo('Generation has been cancelled.');
 	}
-
-	// Get generation status summary for UI
-	function getGenerationStatus() {
-		const summary = getSummary();
-		return {
-			...summary,
-			memoryUsage: getMemorySummary(),
-			hasPreviews: generationState.previews.length > 0,
-			warnings: generationState.warnings,
-			error: generationState.error
-		};
-	}
-
-	function handleClearState() {
-		resetLocalState();
-		showInfo('Generation state cleared');
-	}
 </script>
 
 <div class="space-y-4 sm:space-y-6">
-	<div class="space-y-4 py-4">
-		<!-- Collection Size Input - Responsive Layout -->
-		<div class="grid gap-2 pb-2 sm:grid-cols-[1fr_3fr] sm:items-center sm:gap-4">
-			<label class="text-sm font-medium sm:text-right" for="collectionSize">Collection Size</label>
-			<input
-				id="collectionSize"
-				type="number"
-				min="1"
-				max="10000"
-				class="border-input bg-background focus:border-ring focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-				bind:value={collectionSize}
-				disabled={isGenerating}
-			/>
-		</div>
+	<GenerationProgress {isBackground} {isPaused} {isGenerating} />
 
-		<!-- Background Generation Status -->
-		{#if isBackground}
-			<div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-				<div class="flex items-center gap-2">
-					<AlertCircle class="h-4 w-4 text-yellow-600" />
-					<div class="flex-1">
-						<p class="text-sm font-medium text-yellow-800">Generation Running in Background</p>
-						<p class="text-xs text-yellow-600">
-							Session {currentSessionId?.slice(0, 8)}... • {generationState.currentIndex} of {generationState.totalItems}
-							items
-						</p>
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Progress Section - Responsive Layout -->
-		<div class="grid gap-2 pb-2 sm:grid-cols-[1fr_3fr] sm:items-start sm:gap-4">
-			<label class="text-sm font-medium sm:text-right" for="gen-progress">
-				{isBackground ? 'Background Progress' : 'Progress'}
-			</label>
-			<div class="space-y-2">
-				<Progress value={progress} max={100} class="w-full" />
-				<p class="text-muted-foreground text-sm break-words">{statusText}</p>
-
-				<!-- Generation Status Details -->
-				{#if currentSessionId}
-					<div class="text-muted-foreground space-y-1 text-xs">
-						<p class="text-xs">Session: {currentSessionId.slice(0, 12)}...</p>
-						{#if generationState.startTime}
-							<p class="text-xs">
-								Started: {new Date(generationState.startTime).toLocaleTimeString()}
-							</p>
-						{/if}
-						{#if isPaused}
-							<p class="text-yellow-600">⏸️ Paused</p>
-						{:else if isBackground}
-							<p class="text-blue-600">🔄 Running in background</p>
-						{:else if !isGenerating && generationState.completionTime}
-							<div class="flex items-center justify-end">
-								<button
-									onclick={handleClearState}
-									class="text-muted-foreground hover:text-foreground text-xs underline"
-								>
-									Clear
-								</button>
-							</div>
-						{/if}
-					</div>
-				{/if}
-
-				{#if memoryUsage}
-					<p class="text-muted-foreground text-sm">
-						Memory: {Math.round(memoryUsage.used / 1024 / 1024)}MB / {Math.round(
-							memoryUsage.available / 1024 / 1024
-						)}MB
-					</p>
-				{/if}
-
-				<!-- Warnings -->
-				{#if generationState.warnings.length > 0}
-					<div class="space-y-1 text-xs text-yellow-600">
-						{#each generationState.warnings as warning (warning)}
-							<p>⚠️ {warning}</p>
-						{/each}
-					</div>
-				{/if}
-
-				<!-- Error Display -->
-				{#if generationState.error}
-					<div class="rounded bg-red-50 p-2 text-xs text-red-600">
-						❌ {generationState.error}
-					</div>
-				{/if}
-			</div>
-		</div>
-	</div>
-
-	<!-- Action Buttons - Responsive Layout -->
-	<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-		<!-- Background Generation Controls -->
-		{#if isBackground}
-			<div class="flex w-full gap-2 sm:w-auto">
-				<Button variant="outline" onclick={handleCancel} size="sm">
-					Stop Background Generation
-				</Button>
-			</div>
-		{:else if isGenerating}
-			<Button variant="outline" onclick={handleCancel} size="sm" class="w-full sm:w-auto">
-				Canceling...
-			</Button>
-		{/if}
-
-		<!-- Main Generate Button -->
-		<Button
-			variant="outline"
-			onclick={handleGenerate}
-			disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
-			size="sm"
-			class="w-full transition-all sm:w-auto"
-		>
-			{#if isGenerating}
-				Generating...
-			{:else}
-				<Play class="mr-2 h-4 w-4" />
-				<span class="text-sm">Generate</span>
-			{/if}
-		</Button>
-	</div>
+	<GenerationControls
+		bind:collectionSize
+		{isGenerating}
+		{isBackground}
+		onGenerate={handleGenerate}
+		onCancel={handleCancel}
+	/>
 </div>

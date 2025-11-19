@@ -6,6 +6,7 @@
 import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
 import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
 import type { StrictPairConfig } from '$lib/types/layer';
+import { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
 import { fileToArrayBuffer } from '$lib/utils';
 import {
 	validateDimensions,
@@ -48,6 +49,7 @@ interface PersistedProject {
 	name: string;
 	description: string;
 	outputSize: { width: number; height: number };
+	metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
 	layers: PersistedLayer[];
 	strictPairConfig?: StrictPairConfig;
 	_needsProperLoad: boolean;
@@ -73,6 +75,7 @@ function persistProject(projectToPersist: Project): void {
 			name: projectToPersist.name,
 			description: projectToPersist.description,
 			outputSize: projectToPersist.outputSize,
+			metadataStandard: projectToPersist.metadataStandard,
 			layers: projectToPersist.layers.map((layer) => ({
 				id: layer.id,
 				name: layer.name,
@@ -384,6 +387,11 @@ export function updateProjectName(name: string): void {
 
 export function updateProjectDescription(description: string): void {
 	project.description = description;
+	schedulePersist();
+}
+
+export function updateProjectMetadataStandard(standard: MetadataStandard): void {
+	project.metadataStandard = standard;
 	schedulePersist();
 }
 

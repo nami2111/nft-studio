@@ -47,6 +47,7 @@ export interface Project {
 	name: string;
 	description: string;
 	outputSize: ProjectDimensions;
+	metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
 	layers: Layer[];
 	/** Strict Pair configuration for trait combination uniqueness */
 	strictPairConfig?: import('./layer').StrictPairConfig;

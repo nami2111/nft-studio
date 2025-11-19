@@ -26,6 +26,7 @@ export function createProject(): Project {
 			width: 0,
 			height: 0
 		},
+		metadataStandard: 'erc721' as import('$lib/domain/metadata/metadata.strategy').MetadataStandard,
 		layers: []
 	};
 

@@ -40,6 +40,7 @@ export async function startGeneration(
 	outputSize: { width: number; height: number },
 	projectName: string,
 	projectDescription: string,
+	metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard,
 	strictPairConfig?: StrictPairConfig,
 	onMessage?: (
 		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
@@ -61,6 +62,7 @@ export async function startGeneration(
 			outputSize,
 			projectName,
 			projectDescription,
+			metadataStandard,
 			strictPairConfig
 		}
 		// Don't include callback in the message - it will be handled separately

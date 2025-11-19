@@ -12,6 +12,7 @@ import type {
 	CancelledMessage,
 	PreviewMessage
 } from '$lib/types/worker-messages';
+import { MetadataStandard } from '$lib/domain/metadata/strategies';
 
 // Generation state interface
 export interface GenerationState {
@@ -44,6 +45,7 @@ export interface GenerationState {
 		description: string;
 		outputSize: { width: number; height: number };
 		layers: Layer[];
+		metadataStandard?: MetadataStandard;
 	} | null;
 
 	// Memory and performance
@@ -130,6 +132,7 @@ class GenerationStateManager {
 		layers: Layer[];
 		collectionSize: number;
 		strictPairConfig?: StrictPairConfig;
+		metadataStandard?: MetadataStandard;
 	}): string {
 		const sessionId = this.generateSessionId();
 
@@ -143,7 +146,8 @@ class GenerationStateManager {
 				name: config.projectName,
 				description: config.projectDescription,
 				outputSize: config.outputSize,
-				layers: config.layers
+				layers: config.layers,
+				metadataStandard: config.metadataStandard
 			},
 			strictPairConfig: config.strictPairConfig || null,
 			sessionId,

@@ -12,6 +12,9 @@ import type {
 	IncomingMessage
 } from '$lib/types/worker-messages';
 import { createTaskId, type TaskId } from '$lib/types/ids';
+import { CSPSolver } from './csp-solver';
+import { getMetadataStrategy } from '$lib/domain/metadata/strategies';
+import { MetadataStandard } from '$lib/domain/metadata/strategies';
 
 // Strict Pair types (local definition to avoid circular dependencies)
 interface StrictPairConfig {
@@ -101,108 +104,8 @@ function reportCacheStats() {
 	}
 }
 
-// Check if a trait is compatible with currently selected traits
-function isTraitCompatible(
-	trait: TransferrableTrait,
-	layerId: string,
-	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[]
-): boolean {
-	// Check if any selected ruler traits forbid this trait
-	for (const selected of selectedTraits) {
-		if (selected.trait.type === 'ruler' && selected.trait.rulerRules) {
-			const rule = selected.trait.rulerRules.find((r) => r.layerId === layerId);
-			if (rule) {
-				// Check if trait is in forbidden list
-				if (rule.forbiddenTraitIds.includes(trait.id)) {
-					return false;
-				}
-				// Check if trait is in allowed list (if allowed list is not empty)
-				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(trait.id)) {
-					return false;
-				}
-			}
-		}
-	}
-	return true;
-}
-
-// Get compatible traits for a layer based on current selection
-function getCompatibleTraits(
-	layer: TransferrableLayer,
-	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[]
-): TransferrableTrait[] {
-	return layer.traits.filter((trait) => isTraitCompatible(trait, layer.id, selectedTraits, layers));
-}
-
-// Strict Pair validation logic
-interface GeneratedCombination {
-	combinationId: string;
-	traitIds: string[];
-	used: boolean;
-}
-
 // Track used combinations globally within the worker
 const usedCombinations = new Map<string, Set<string>>();
-
-// Generate a unique key for a specific trait combination
-function generateTraitCombinationKey(traitIds: string[]): string {
-	// Sort trait IDs to ensure consistent key regardless of order
-	const sortedIds = [...traitIds].sort();
-	return sortedIds.join('|');
-}
-
-// Check if a trait combination violates Strict Pair rules
-function checkStrictPairViolation(
-	proposedTraits: { traitId: string; layerId: string }[],
-	strictPairConfig: StrictPairConfig | undefined
-): { hasViolation: boolean; violatedCombinationId?: string; description?: string } {
-	if (!strictPairConfig?.enabled) {
-		return { hasViolation: false };
-	}
-
-	// Check each active layer combination
-	for (const layerCombination of strictPairConfig.layerCombinations) {
-		if (!layerCombination.active) continue;
-
-		// Find the traits from all layers in the proposed selection
-		const foundTraits: string[] = [];
-		let allLayersPresent = true;
-
-		for (const layerId of layerCombination.layerIds) {
-			const trait = proposedTraits.find((t) => t.layerId === layerId);
-			if (trait) {
-				foundTraits.push(trait.traitId);
-			} else {
-				allLayersPresent = false;
-				break;
-			}
-		}
-
-		// All layers must be present in the proposed selection for this rule to apply
-		if (!allLayersPresent) continue;
-
-		// Generate the combination key
-		const combinationKey = generateTraitCombinationKey(foundTraits);
-
-		// Check if this combination was already used
-		if (!usedCombinations.has(layerCombination.id)) {
-			usedCombinations.set(layerCombination.id, new Set());
-		}
-
-		const usedSet = usedCombinations.get(layerCombination.id)!;
-		if (usedSet.has(combinationKey)) {
-			return {
-				hasViolation: true,
-				violatedCombinationId: layerCombination.id,
-				description: `Layer combination "${layerCombination.description}" already used`
-			};
-		}
-	}
-
-	return { hasViolation: false };
-}
 
 // Mark a trait combination as used
 function markCombinationAsUsed(
@@ -232,7 +135,7 @@ function markCombinationAsUsed(
 		if (!allLayersPresent) continue;
 
 		// Generate and mark the combination
-		const combinationKey = generateTraitCombinationKey(foundTraits);
+		const combinationKey = foundTraits.sort().join('|');
 
 		if (!usedCombinations.has(layerCombination.id)) {
 			usedCombinations.set(layerCombination.id, new Set());
@@ -246,111 +149,6 @@ function markCombinationAsUsed(
 // Clear used combinations for a new generation
 function clearUsedCombinations(): void {
 	usedCombinations.clear();
-}
-
-// Rarity algorithm with compatibility checking
-function selectTrait(
-	layer: TransferrableLayer,
-	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[],
-	strictPairConfig?: StrictPairConfig
-): TransferrableTrait | null {
-	// Handle optional layers first
-	if (layer.isOptional) {
-		const skipChance = 0.3; // 30% chance to skip optional layer
-		if (Math.random() < skipChance) {
-			return null;
-		}
-	}
-
-	// Get compatible traits based on current selection
-	const compatibleTraits = getCompatibleTraits(layer, selectedTraits, layers);
-	if (compatibleTraits.length === 0) {
-		return null; // No compatible traits available
-	}
-
-	// Filter traits that would violate Strict Pair rules
-	let validTraits = compatibleTraits;
-	if (strictPairConfig?.enabled) {
-		validTraits = compatibleTraits.filter((trait) => {
-			// Create a temporary selection including this trait
-			const proposedSelection = [
-				...selectedTraits.map((t) => ({ traitId: t.traitId, layerId: t.layerId })),
-				{ traitId: trait.id, layerId: layer.id }
-			];
-
-			const violation = checkStrictPairViolation(proposedSelection, strictPairConfig);
-			return !violation.hasViolation;
-		});
-
-		// If no valid traits due to Strict Pair, return null immediately
-		// This ensures strict pair violations never occur
-		if (validTraits.length === 0) {
-			console.warn(
-				`No valid traits available for layer "${layer.name}" due to Strict Pair constraints`
-			);
-			return null; // Don't allow invalid combinations
-		}
-	}
-
-	if (validTraits.length === 0) {
-		return null;
-	}
-
-	const totalWeight = validTraits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
-	if (totalWeight === 0) {
-		return null;
-	}
-
-	let randomNum = Math.random() * totalWeight;
-
-	for (const trait of validTraits) {
-		if (randomNum < trait.rarityWeight) {
-			return trait;
-		}
-		randomNum -= trait.rarityWeight;
-	}
-	return null;
-}
-
-// Enhanced trait selection with Strict Pair retry logic
-function selectTraitWithRetry(
-	layer: TransferrableLayer,
-	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[],
-	strictPairConfig?: StrictPairConfig,
-	maxRetries: number = 50
-): TransferrableTrait | null {
-	for (let attempt = 0; attempt < maxRetries; attempt++) {
-		const selectedTrait = selectTrait(layer, selectedTraits, layers, strictPairConfig);
-		if (!selectedTrait) return null;
-
-		// Create the proposed selection with this trait
-		const proposedSelection = [
-			...selectedTraits.map((t) => ({ traitId: t.traitId, layerId: t.layerId })),
-			{ traitId: selectedTrait.id, layerId: layer.id }
-		];
-
-		// Check if this would violate Strict Pair rules
-		const violation = checkStrictPairViolation(proposedSelection, strictPairConfig);
-		if (!violation.hasViolation) {
-			return selectedTrait;
-		}
-
-		// If we have a violation and we're close to max retries, log a warning
-		if (attempt >= maxRetries - 10) {
-			console.warn(
-				`Strict Pair constraint causing difficulty on layer ${layer.name}, attempt ${attempt + 1}`
-			);
-		}
-	}
-
-	// If we couldn't find a valid trait after max retries, return null
-	// This ensures strict pair constraints are never violated
-	console.warn(
-		`Could not satisfy Strict Pair constraints for layer ${layer.name} after ${maxRetries} attempts - skipping this combination`
-	);
-	return null;
 }
 
 // Create an ImageBitmap from ArrayBuffer - optimized for performance
@@ -574,8 +372,9 @@ async function generateCollection(
 	projectName: string,
 	projectDescription: string,
 	strictPairConfig?: StrictPairConfig,
-	taskId?: TaskId
-) {
+	taskId?: TaskId,
+	metadataStandard?: MetadataStandard
+): Promise<void> {
 	// Clear any existing combination data for this generation
 	clearUsedCombinations();
 	// Use a smaller initial array size to reduce memory footprint
@@ -648,6 +447,7 @@ async function generateCollection(
 			i < collectionSize && !isCancelled && successfulGenerations < collectionSize;
 			i++
 		) {
+			// Generate item
 			const success = await generateAndStreamItem(
 				i,
 				layers,
@@ -660,8 +460,9 @@ async function generateCollection(
 				collectionSize,
 				metadata,
 				strictPairConfig,
-				undefined, // no chunkImages for streaming
-				taskId
+				undefined, // No chunking for streaming mode
+				taskId,
+				metadataStandard
 			);
 
 			if (success) {
@@ -705,6 +506,7 @@ async function generateCollection(
 				i < chunkEnd && !isCancelled && successfulGenerations < collectionSize;
 				i++
 			) {
+				// Generate item
 				const success = await generateAndStreamItem(
 					i,
 					layers,
@@ -718,7 +520,8 @@ async function generateCollection(
 					metadata,
 					strictPairConfig,
 					chunkImages,
-					taskId
+					taskId,
+					metadataStandard
 				);
 
 				if (success) {
@@ -840,7 +643,8 @@ async function generateAndStreamItem(
 	metadata: { name: string; data: object }[],
 	strictPairConfig?: StrictPairConfig,
 	chunkImages?: { name: string; blob: Blob }[],
-	taskId?: TaskId
+	taskId?: TaskId,
+	metadataStandard?: MetadataStandard
 ): Promise<boolean> {
 	try {
 		// Always use optimized Canvas compositing
@@ -851,15 +655,17 @@ async function generateAndStreamItem(
 		const selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[] = [];
 		let hasRequiredLayerFailure = false;
 
-		// Iterate through the layers in their specified order
-		for (const layer of layers) {
-			// Validate layer has traits
-			if (!layer.traits || layer.traits.length === 0) {
-				continue;
-			}
+		// Use CSP Solver to find a valid combination
+		const solver = new CSPSolver(layers, usedCombinations, strictPairConfig);
+		const solution = solver.solve();
 
-			// Select a trait based on the rarity algorithm with compatibility checking and Strict Pair validation
-			const selectedTrait = selectTraitWithRetry(layer, selectedTraits, layers, strictPairConfig);
+		if (!solution) {
+			return false; // No valid combination found
+		}
+
+		// Process the solution
+		for (const layer of layers) {
+			const selectedTrait = solution.get(layer.id);
 
 			// If a trait is selected, draw it
 			if (selectedTrait) {
@@ -881,16 +687,21 @@ async function generateAndStreamItem(
 
 				// Clean up the ImageBitmap immediately to free memory
 				imageBitmap.close();
-			} else if (!layer.isOptional) {
-				// Failed to select a trait for a required layer - this indicates strict pair constraints
-				hasRequiredLayerFailure = true;
-				break; // Exit early, cannot generate this combination
 			}
 		}
 
 		// If required layer failed due to strict pair constraints, return false
 		if (hasRequiredLayerFailure) {
 			return false;
+		}
+
+		// After selecting all traits, mark the combination as used for Strict Pair tracking
+		if (strictPairConfig?.enabled) {
+			const simpleSelectedTraits = selectedTraits.map((t) => ({
+				traitId: t.traitId,
+				layerId: t.layerId
+			}));
+			markCombinationAsUsed(simpleSelectedTraits, strictPairConfig);
 		}
 
 		// After selecting all traits, mark the combination as used for Strict Pair tracking
@@ -914,12 +725,18 @@ async function generateAndStreamItem(
 			value: selected.trait.name
 		}));
 
-		const metadataObj = {
-			name: `${projectName} #${index + 1}`,
-			description: projectDescription,
-			image: `${index + 1}.png`,
-			attributes: attributes
-		};
+		// Use the selected metadata strategy
+		const strategy = getMetadataStrategy(metadataStandard as MetadataStandard);
+		const metadataObj = strategy.format(
+			`${projectName} #${index + 1}`,
+			projectDescription,
+			`${index + 1}.png`,
+			attributes,
+			{
+				// Pass extra data if needed for specific strategies (e.g. Solana symbol)
+				// For now we just pass basic info
+			}
+		);
 
 		// Store the metadata
 		metadata.push({
@@ -1367,7 +1184,8 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 					startPayload.projectName,
 					startPayload.projectDescription,
 					startPayload.strictPairConfig,
-					taskId
+					taskId,
+					startPayload.metadataStandard
 				);
 			} catch (error) {
 				const errorMessage: ErrorMessage = {
