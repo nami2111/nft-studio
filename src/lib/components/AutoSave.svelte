@@ -16,7 +16,7 @@
 		// Only save if the project has actually changed
 		const projectString = JSON.stringify(project, (key, value) => {
 			// Skip imageData from comparison to avoid unnecessary saves
-			if (key === 'imageData') return undefined;
+			if (key === 'imageData' || key === 'imageUrl') return undefined;
 			return value;
 		});
 
@@ -31,7 +31,17 @@
 		saveTimeout = setTimeout(() => {
 			try {
 				const startTime = Date.now();
-				STORAGE.save(project);
+
+				// Create a compact version of the project for storage (remove image data)
+				const compactProject = JSON.parse(
+					JSON.stringify(project, (key, value) => {
+						// Remove image data and URLs to prevent storage quota issues
+						if (key === 'imageData' || key === 'imageUrl') return undefined;
+						return value;
+					})
+				);
+
+				STORAGE.save(compactProject);
 				const saveDuration = Date.now() - startTime;
 
 				lastSavedProject = projectString;
@@ -47,6 +57,7 @@
 				}
 			} catch (error) {
 				console.error('AutoSave failed:', error);
+				// Prevent unhandled promise rejection by catching and handling the error properly
 				// In a real implementation, you might show a toast notification to the user
 				// import { toast } from 'svelte-sonner';
 				// toast.error('Failed to save project. Please try again.');
