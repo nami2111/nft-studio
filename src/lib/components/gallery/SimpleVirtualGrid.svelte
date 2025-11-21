@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { GalleryNFT } from '$lib/types/gallery';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
-	import { debugLog, debugTime } from '$lib/utils/simple-debug';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -39,13 +38,15 @@
 
 	// Update visible range with performance tracking
 	function calculateVisibleRange() {
-		// Only log slow grid calculations (>1ms)
+		// Debug logging disabled to prevent console spam in gallery mode
 		const start = performance.now();
 		const endTiming = () => {
 			const end = performance.now();
-			if (end - start > 1) {
-				debugLog(`⏱️ Grid Range: ${(end - start).toFixed(2)}ms`);
-			}
+			// Grid calculations are now fast enough that debug logging causes spam
+			// Only uncomment for debugging specific performance issues
+			// if (end - start > 500) {
+			// 	debugLog(`⏱️ Grid Range: ${(end - start).toFixed(2)}ms`);
+			// }
 		};
 
 		if (!scrollElement || !nfts || nfts.length === 0) {
@@ -130,13 +131,14 @@
 					imageUrls[nft.id] = url; // This triggers reactivity!
 					imageLoadQueue.delete(nft.id);
 
+					// Logging disabled to prevent console spam - can be re-enabled for debugging
 					const endUrl = performance.now();
-					// Only log slow images (>5ms) or errors for cleaner console
-					if (endUrl - startUrl > 5) {
-						debugLog(`🖼️ Slow: ${nft.id} (${(endUrl - startUrl).toFixed(2)}ms)`);
-					}
+					// if (endUrl - startUrl > 500) {
+					// 	debugLog(`🖼️ Slow: ${nft.id} (${(endUrl - startUrl).toFixed(2)}ms)`);
+					// }
 				} catch (error) {
-					debugLog(`🖼️ ❌ Failed: ${nft.id}`);
+					// Error logging disabled to prevent console spam - can be re-enabled for debugging
+					// debugLog(`🖼️ ❌ Failed: ${nft.id}`);
 					imageLoadQueue.delete(nft.id);
 					imageUrls[nft.id] = 'error';
 				}
@@ -145,7 +147,6 @@
 			// Add timeout protection (5 seconds max)
 			setTimeout(() => {
 				if (imageLoadQueue.has(nft.id)) {
-					debugLog(`🖼️ ⏰ Timeout: ${nft.id}`);
 					imageLoadQueue.delete(nft.id);
 					// Mark as failed to prevent infinite loading
 					imageUrls[nft.id] = 'error';

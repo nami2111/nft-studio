@@ -90,7 +90,6 @@
 		const endTiming = () => {
 			const end = performance.now();
 			if (end - start > 10) {
-				debugLog(`⏱️ Filter: ${(end - start).toFixed(2)}ms`);
 			}
 		};
 

@@ -62,7 +62,7 @@
 
 	function cleanupExpired() {
 		const cleaned = globalResourceManager.cleanupExpired();
-		console.log(`Cleaned up ${cleaned} expired cache entries`);
+
 		updateMetrics();
 	}
 
