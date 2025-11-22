@@ -54,6 +54,11 @@
 							Started: {new Date(generationState.startTime).toLocaleTimeString()}
 						</p>
 					{/if}
+					{#if generationState.completionTime}
+						<p class="text-xs">
+							Finished: {new Date(generationState.completionTime).toLocaleTimeString()}
+						</p>
+					{/if}
 					{#if isPaused}
 						<p class="text-yellow-600">⏸️ Paused</p>
 					{:else if isBackground}
