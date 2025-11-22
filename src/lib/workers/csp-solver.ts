@@ -49,24 +49,27 @@ export class CSPSolver {
 			usedCombinations,
 			strictPairConfig
 		};
-		
+
 		// Pre-compute constraint relationships for performance
 		this.precomputeConstraintDomains();
 	}
 
 	solve(): Map<string, TransferrableTrait> | null {
 		const startTime = Date.now();
-		
+
 		// Use optimized backtracking with MRV heuristic
 		const result = this.optimizedBacktrack();
-		
+
 		// Log performance stats for debugging (can be removed in production)
-		if (Date.now() - startTime > 100) { // Only log slow solves
-			console.log(`🔍 CSP Solver: ${Date.now() - startTime}ms, ` +
-				`cache hits: ${this.performanceStats.cacheHits}, ` +
-				`backtracks: ${this.performanceStats.backtracks}`);
+		if (Date.now() - startTime > 100) {
+			// Only log slow solves
+			console.log(
+				`🔍 CSP Solver: ${Date.now() - startTime}ms, ` +
+					`cache hits: ${this.performanceStats.cacheHits}, ` +
+					`backtracks: ${this.performanceStats.backtracks}`
+			);
 		}
-		
+
 		return result;
 	}
 
@@ -96,11 +99,13 @@ export class CSPSolver {
 					}
 				}
 
-				this.domainCache.set(trait.id, [{
-					trait,
-					constraints,
-					constrainedBy
-				}]);
+				this.domainCache.set(trait.id, [
+					{
+						trait,
+						constraints,
+						constrainedBy
+					}
+				]);
 			}
 		}
 	}
@@ -109,16 +114,18 @@ export class CSPSolver {
 	 * Check if trait A constrains trait B based on Ruler rules
 	 */
 	private traitConstrains(
-		traitA: TransferrableTrait, 
-		traitB: TransferrableTrait, 
-		layerIdA: string, 
+		traitA: TransferrableTrait,
+		traitB: TransferrableTrait,
+		layerIdA: string,
 		layerIdB: string
 	): boolean {
 		if (traitA.type === 'ruler' && traitA.rulerRules) {
-			const rule = traitA.rulerRules.find(r => r.layerId === layerIdB);
+			const rule = traitA.rulerRules.find((r) => r.layerId === layerIdB);
 			if (rule) {
-				return rule.forbiddenTraitIds.includes(traitB.id) || 
-				       (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitB.id));
+				return (
+					rule.forbiddenTraitIds.includes(traitB.id) ||
+					(rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitB.id))
+				);
 			}
 		}
 		return false;
@@ -187,7 +194,7 @@ export class CSPSolver {
 		// Cache this impossible combination to avoid retrying
 		this.cacheImpossibleCombination(cacheKey, 'no_valid_combination');
 		this.performanceStats.backtracks++;
-		
+
 		return null;
 	}
 
@@ -195,8 +202,9 @@ export class CSPSolver {
 	 * Get current partial assignment as cache key
 	 */
 	private getAssignmentKey(): string {
-		const assignment = Array.from(this.context.selectedTraits.entries())
-			.sort(([a], [b]) => a.localeCompare(b));
+		const assignment = Array.from(this.context.selectedTraits.entries()).sort(([a], [b]) =>
+			a.localeCompare(b)
+		);
 		return JSON.stringify(assignment);
 	}
 
@@ -240,8 +248,8 @@ export class CSPSolver {
 	 */
 	private isComplete(): boolean {
 		return this.context.layers
-			.filter(layer => !layer.isOptional)
-			.every(layer => this.context.selectedTraits.has(layer.id));
+			.filter((layer) => !layer.isOptional)
+			.every((layer) => this.context.selectedTraits.has(layer.id));
 	}
 
 	/**
@@ -250,7 +258,7 @@ export class CSPSolver {
 	 */
 	private getCandidates(layer: TransferrableLayer): TransferrableTrait[] {
 		const traits = [...layer.traits];
-		
+
 		// Sort by constraint weight (rarity-based priority)
 		traits.sort((a, b) => {
 			// Higher rarityWeight (rarer) traits first
@@ -270,7 +278,7 @@ export class CSPSolver {
 	 */
 	private addRandomness(traits: TransferrableTrait[]): TransferrableTrait[] {
 		const groupedByWeight = new Map<number, TransferrableTrait[]>();
-		
+
 		// Group traits by rarityWeight
 		for (const trait of traits) {
 			const group = groupedByWeight.get(trait.rarityWeight) || [];
@@ -279,10 +287,11 @@ export class CSPSolver {
 		}
 
 		const result: TransferrableTrait[] = [];
-		
+
 		// Process groups from highest to lowest rarityWeight
 		for (const [weight, group] of groupedByWeight.entries()) {
-			if (group.length > 1 && weight <= 3) { // Only shuffle common/rare traits
+			if (group.length > 1 && weight <= 3) {
+				// Only shuffle common/rare traits
 				// Fisher-Yates shuffle for this weight group
 				for (let i = group.length - 1; i > 0; i--) {
 					const j = Math.floor(Math.random() * (i + 1));
@@ -311,7 +320,7 @@ export class CSPSolver {
 
 		// Additional forward checking can be implemented here
 		// For now, basic constraint checking is sufficient
-		
+
 		return true;
 	}
 

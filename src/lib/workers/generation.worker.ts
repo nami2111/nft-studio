@@ -27,29 +27,29 @@ interface StrictPairConfig {
 	}>;
 }
 
-// Track used combinations for each layer combination
-interface UsedCombination {
-	traitIds: string[];
-}
+// Track used combinations globally within the worker
 
 // No WASM imports needed - using direct Canvas API for optimal performance
 
 // Enhanced worker-level LRU cache with intelligent sizing and smart eviction
 // Optimized for ArrayBuffer storage with memory pressure management
 class WorkerArrayBufferCache {
-	private cache = new Map<string, { 
-		buffer: ArrayBuffer; 
-		accessTime: number; 
-		size: number; 
-		accessCount: number;
-		creationTime: number;
-	}>;
-	
+	private cache = new Map<
+		string,
+		{
+			buffer: ArrayBuffer;
+			accessTime: number;
+			size: number;
+			accessCount: number;
+			creationTime: number;
+		}
+	>();
+
 	private maxEntries: number;
 	private maxMemoryBytes: number;
 	private currentMemoryUsage = 0;
 	private deviceMemoryGB: number;
-	
+
 	// Performance tracking
 	private stats = {
 		hits: 0,
@@ -63,18 +63,20 @@ class WorkerArrayBufferCache {
 		this.deviceMemoryGB = (navigator as any).deviceMemory || 4;
 		this.maxEntries = this.calculateOptimalEntries();
 		this.maxMemoryBytes = this.calculateOptimalMemory();
-		
-		console.log(`🧠 Cache initialized: ${this.maxEntries} entries, ${(this.maxMemoryBytes / 1024 / 1024).toFixed(1)}MB max`);
+
+		console.log(
+			`🧠 Cache initialized: ${this.maxEntries} entries, ${(this.maxMemoryBytes / 1024 / 1024).toFixed(1)}MB max`
+		);
 	}
 
 	private calculateOptimalEntries(): number {
 		// Base calculation on device memory and CPU cores
 		const cores = navigator.hardwareConcurrency || 4;
 		let entries = Math.min(this.deviceMemoryGB * 25, 200); // 25 entries per GB, max 200
-		
+
 		// Adjust for CPU cores (more cores = more parallel processing = bigger cache)
 		entries = Math.min(entries * Math.max(1, cores / 4), 300);
-		
+
 		return Math.max(50, Math.floor(entries)); // Minimum 50 entries
 	}
 
@@ -82,7 +84,7 @@ class WorkerArrayBufferCache {
 		// Allocate 15% of available device memory for cache
 		const availableMemoryBytes = this.deviceMemoryGB * 1024 * 1024 * 1024;
 		const cacheAllocationBytes = availableMemoryBytes * 0.15;
-		
+
 		// Cap at 100MB to prevent memory issues
 		return Math.min(cacheAllocationBytes, 100 * 1024 * 1024);
 	}
@@ -101,10 +103,12 @@ class WorkerArrayBufferCache {
 
 	set(key: string, buffer: ArrayBuffer): void {
 		const bufferSize = buffer.byteLength;
-		
+
 		// Check memory pressure and evict if necessary
-		if (this.currentMemoryUsage + bufferSize > this.maxMemoryBytes || 
-			this.cache.size >= this.maxEntries) {
+		if (
+			this.currentMemoryUsage + bufferSize > this.maxMemoryBytes ||
+			this.cache.size >= this.maxEntries
+		) {
 			this.evictEntries(bufferSize);
 		}
 
@@ -131,13 +135,13 @@ class WorkerArrayBufferCache {
 	 */
 	private evictEntries(requiredSpace: number): void {
 		const entries = Array.from(this.cache.entries());
-		
+
 		// Sort by eviction score: (accessCount / daysSinceCreation) * size
 		const scoredEntries = entries.map(([key, entry]) => {
 			const daysSinceCreation = (Date.now() - entry.creationTime) / (1000 * 60 * 60 * 24);
 			const accessFrequency = entry.accessCount / Math.max(1, daysSinceCreation);
 			const evictionScore = (accessFrequency / Math.max(1, entry.size / 1024)) * 1000; // Higher score = more likely to evict
-			
+
 			return { key, entry, evictionScore };
 		});
 
@@ -161,7 +165,7 @@ class WorkerArrayBufferCache {
 			const oldestEntries = entries
 				.sort((a, b) => a[1].creationTime - b[1].creationTime)
 				.slice(0, 5);
-				
+
 			for (const [key, entry] of oldestEntries) {
 				if (this.cache.has(key)) {
 					this.cache.delete(key);
@@ -191,7 +195,7 @@ class WorkerArrayBufferCache {
 	getStats() {
 		const totalOps = this.stats.hits + this.stats.misses;
 		const hitRate = totalOps > 0 ? (this.stats.hits / totalOps) * 100 : 0;
-		
+
 		return {
 			...this.stats,
 			hitRate: hitRate.toFixed(1),
@@ -237,11 +241,11 @@ class ArrayBufferPool {
 	 */
 	get(size: number): ArrayBuffer {
 		const pool = this.pools.get(size) || [];
-		
+
 		if (pool.length > 0) {
 			return pool.pop()!;
 		}
-		
+
 		// Create new buffer if pool is empty
 		return new ArrayBuffer(size);
 	}
@@ -252,7 +256,7 @@ class ArrayBufferPool {
 	return(buffer: ArrayBuffer): void {
 		const size = buffer.byteLength;
 		const pool = this.pools.get(size) || [];
-		
+
 		if (pool.length < this.maxPoolSize) {
 			pool.push(buffer);
 			this.pools.set(size, pool);
@@ -273,12 +277,12 @@ class ArrayBufferPool {
 	getStats() {
 		let totalBuffers = 0;
 		let totalSize = 0;
-		
+
 		for (const [size, pool] of this.pools) {
 			totalBuffers += pool.length;
 			totalSize += size * pool.length;
 		}
-		
+
 		return {
 			totalBuffers,
 			totalSize,
@@ -295,17 +299,17 @@ const arrayBufferPool = new ArrayBufferPool();
 function detectOptimalBatchSize(): number {
 	const cores = navigator.hardwareConcurrency || 4;
 	const memory = (navigator as any).deviceMemory || 4;
-	
+
 	// Conservative batch sizing based on device capabilities
 	let batchSize = Math.min(cores * 2, 8); // Default: 2x cores, max 8
-	
+
 	// Adjust for memory (GB)
 	if (memory >= 8) batchSize = Math.min(batchSize * 2, 12);
 	else if (memory <= 2) batchSize = Math.min(batchSize, 4);
-	
+
 	// Adjust for mobile (heuristic: fewer cores = likely mobile)
 	if (cores <= 2) batchSize = Math.min(batchSize, 4);
-	
+
 	return Math.max(2, batchSize); // Minimum batch size of 2
 }
 
@@ -451,11 +455,10 @@ async function processBatchImageRequests(
 		// Single image - use existing optimized method
 		const req = requests[0];
 		try {
-			const bitmap = await createImageBitmapFromBuffer(
-				req.trait.imageData,
-				req.trait.name,
-				{ resizeWidth: req.resizeWidth, resizeHeight: req.resizeHeight }
-			);
+			const bitmap = await createImageBitmapFromBuffer(req.trait.imageData, req.trait.name, {
+				resizeWidth: req.resizeWidth,
+				resizeHeight: req.resizeHeight
+			});
 			return [{ index: req.index, bitmap }];
 		} catch (error) {
 			return [{ index: req.index, bitmap: null, error: error as Error }];
@@ -466,15 +469,15 @@ async function processBatchImageRequests(
 	const optimalBatchSize = detectOptimalBatchSize();
 	imageProcessingStats.batchCount++;
 	imageProcessingStats.parallelCount += requests.length;
-	
+
 	if (requests.length > optimalBatchSize) {
-		imageProcessingStats.averageBatchSize = 
+		imageProcessingStats.averageBatchSize =
 			(imageProcessingStats.averageBatchSize + requests.length) / 2;
 	}
 
 	// Process in chunks if batch is too large
 	const results: Array<{ index: number; bitmap: ImageBitmap | null; error?: Error }> = [];
-	
+
 	if (requests.length <= optimalBatchSize) {
 		// Small batch - process all at once
 		const promises = requests.map(async (request) => {
@@ -524,10 +527,10 @@ async function processBatchImageRequests(
 function reportImageProcessingStats(): void {
 	const totalProcessed = imageProcessingStats.parallelCount + imageProcessingStats.sequentialCount;
 	if (totalProcessed > 0) {
-		const parallelRatio = (imageProcessingStats.parallelCount / totalProcessed * 100).toFixed(1);
+		const parallelRatio = ((imageProcessingStats.parallelCount / totalProcessed) * 100).toFixed(1);
 		console.log(
 			`🖼️ Parallel Processing: ${parallelRatio}% parallel, ` +
-			`avg batch size: ${imageProcessingStats.averageBatchSize.toFixed(1)}`
+				`avg batch size: ${imageProcessingStats.averageBatchSize.toFixed(1)}`
 		);
 	}
 }
@@ -924,14 +927,16 @@ async function generateCollection(
 	const cacheStats = workerArrayBufferCache.getStats();
 	const poolStats = arrayBufferPool.getStats();
 	const totalProcessed = imageProcessingStats.parallelCount + imageProcessingStats.sequentialCount;
-	const parallelRatio = totalProcessed > 0 ? 
-		((imageProcessingStats.parallelCount / totalProcessed) * 100).toFixed(1) : '0.0';
+	const parallelRatio =
+		totalProcessed > 0
+			? ((imageProcessingStats.parallelCount / totalProcessed) * 100).toFixed(1)
+			: '0.0';
 
 	console.log(
 		`✅ Generation Complete - Smart Cache: ${cacheStats.entries} entries, ` +
-		`${cacheStats.memoryUtilization}% memory, ${cacheStats.hitRate}% hit rate | ` +
-		`Memory Pool: ${poolStats.totalBuffers} buffers, ${poolStats.totalSizeMB}MB | ` +
-		`Parallel: ${parallelRatio}% (${imageProcessingStats.parallelCount}/${totalProcessed})`
+			`${cacheStats.memoryUtilization}% memory, ${cacheStats.hitRate}% hit rate | ` +
+			`Memory Pool: ${poolStats.totalBuffers} buffers, ${poolStats.totalSizeMB}MB | ` +
+			`Parallel: ${parallelRatio}% (${imageProcessingStats.parallelCount}/${totalProcessed})`
 	);
 
 	// Report detailed parallel processing performance
@@ -1018,11 +1023,13 @@ async function generateAndStreamItem(
 		// Draw all images to canvas in order
 		for (let i = 0; i < selectedTraits.length; i++) {
 			const trait = selectedTraits[i];
-			const result = batchResults.find(r => r.index === i);
+			const result = batchResults.find((r) => r.index === i);
 
 			if (!result || !result.bitmap) {
 				if (result?.error) {
-					console.warn(`Failed to process image for trait "${trait.trait.name}": ${result.error.message}`);
+					console.warn(
+						`Failed to process image for trait "${trait.trait.name}": ${result.error.message}`
+					);
 				}
 				return false;
 			}
