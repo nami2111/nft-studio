@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9] - 2025-11-22
+
+### Fixed
+
+- **Gallery Auto-Import Removed**: NFT generation no longer automatically sends collection data to Gallery mode
+- **Separation of Concerns**: Gallery mode now works completely separately from Generate mode
+- **Manual Import Workflow**: Users can now manually import collections into Gallery when desired
+
+### Changed
+
+- **ExportService**: Removed automatic gallery store integration from `packageZip()` method
+- **Generation Workflow**: Generation now only creates and downloads ZIP files without gallery persistence
+- **User Control**: Users have full control over when and which collections to import into Gallery
+
+### Technical Changes
+
+- Removed `galleryStore.importGeneratedNFTs()` call from export service
+- Removed `updateCollectionWithRarity()` automatic calculation during generation
+- Removed unused imports: `galleryStore` and `updateCollectionWithRarity` from export service
+- Simplified export workflow to focus solely on ZIP creation and download
+
+### Impact
+
+- **Before**: Generated NFTs automatically appeared in Gallery mode
+- **After**: Generated NFTs only create ZIP downloads; Gallery import is manual and optional
+- **User Experience**: Cleaner separation between generation and gallery workflows
+- **Flexibility**: Users can choose which collections to import and when
+
 ## [0.4.8] - 2025-11-22
 
 ### Major Performance Breakthrough
