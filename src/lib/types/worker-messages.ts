@@ -46,6 +46,7 @@ export interface StartMessage extends BaseWorkerMessage {
 		};
 		projectName: string;
 		projectDescription: string;
+		metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
 		strictPairConfig?: StrictPairConfig;
 	};
 }
@@ -133,6 +134,7 @@ export type GenerationWorkerMessage =
 				outputSize: { width: number; height: number };
 				projectName: string;
 				projectDescription: string;
+				metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
 				strictPairConfig?: StrictPairConfig;
 			};
 	  }

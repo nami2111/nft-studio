@@ -12,6 +12,9 @@ import type {
 	IncomingMessage
 } from '$lib/types/worker-messages';
 import { createTaskId, type TaskId } from '$lib/types/ids';
+import { CSPSolver } from './csp-solver';
+import { getMetadataStrategy } from '$lib/domain/metadata/strategies';
+import { MetadataStandard } from '$lib/domain/metadata/strategies';
 
 // Strict Pair types (local definition to avoid circular dependencies)
 interface StrictPairConfig {
@@ -24,185 +27,311 @@ interface StrictPairConfig {
 	}>;
 }
 
-// Track used combinations for each layer combination
-interface UsedCombination {
-	traitIds: string[];
-}
+// Track used combinations globally within the worker
 
 // No WASM imports needed - using direct Canvas API for optimal performance
 
-// Simple worker-level LRU cache for ArrayBuffers instead of ImageBitmaps
-// ImageBitmaps can't be safely cached across different contexts due to detachment
+// Enhanced worker-level LRU cache with intelligent sizing and smart eviction
+// Optimized for ArrayBuffer storage with memory pressure management
 class WorkerArrayBufferCache {
-	private cache = new Map<string, { buffer: ArrayBuffer; accessTime: number }>();
-	private readonly maxSize = 50; // Keep 50 recently used buffers
+	private cache = new Map<
+		string,
+		{
+			buffer: ArrayBuffer;
+			accessTime: number;
+			size: number;
+			accessCount: number;
+			creationTime: number;
+		}
+	>();
+
+	private maxEntries: number;
+	private maxMemoryBytes: number;
+	private currentMemoryUsage = 0;
+	private deviceMemoryGB: number;
+
+	// Performance tracking
+	private stats = {
+		hits: 0,
+		misses: 0,
+		evictions: 0,
+		memoryPressure: 0
+	};
+
+	constructor() {
+		// Intelligent cache sizing based on device capabilities
+		this.deviceMemoryGB = (navigator as any).deviceMemory || 4;
+		this.maxEntries = this.calculateOptimalEntries();
+		this.maxMemoryBytes = this.calculateOptimalMemory();
+
+		console.log(
+			`🧠 Cache initialized: ${this.maxEntries} entries, ${(this.maxMemoryBytes / 1024 / 1024).toFixed(1)}MB max`
+		);
+	}
+
+	private calculateOptimalEntries(): number {
+		// Base calculation on device memory and CPU cores
+		const cores = navigator.hardwareConcurrency || 4;
+		let entries = Math.min(this.deviceMemoryGB * 25, 200); // 25 entries per GB, max 200
+
+		// Adjust for CPU cores (more cores = more parallel processing = bigger cache)
+		entries = Math.min(entries * Math.max(1, cores / 4), 300);
+
+		return Math.max(50, Math.floor(entries)); // Minimum 50 entries
+	}
+
+	private calculateOptimalMemory(): number {
+		// Allocate 15% of available device memory for cache
+		const availableMemoryBytes = this.deviceMemoryGB * 1024 * 1024 * 1024;
+		const cacheAllocationBytes = availableMemoryBytes * 0.15;
+
+		// Cap at 100MB to prevent memory issues
+		return Math.min(cacheAllocationBytes, 100 * 1024 * 1024);
+	}
 
 	get(key: string): ArrayBuffer | undefined {
 		const entry = this.cache.get(key);
 		if (entry) {
 			entry.accessTime = Date.now();
+			entry.accessCount++;
+			this.stats.hits++;
 			return entry.buffer;
 		}
+		this.stats.misses++;
 		return undefined;
 	}
 
 	set(key: string, buffer: ArrayBuffer): void {
-		// Remove oldest if at capacity
-		if (this.cache.size >= this.maxSize) {
-			let oldestKey = '';
-			let oldestTime = Date.now();
+		const bufferSize = buffer.byteLength;
 
-			for (const [k, entry] of this.cache) {
-				if (entry.accessTime < oldestTime) {
-					oldestTime = entry.accessTime;
-					oldestKey = k;
-				}
-			}
+		// Check memory pressure and evict if necessary
+		if (
+			this.currentMemoryUsage + bufferSize > this.maxMemoryBytes ||
+			this.cache.size >= this.maxEntries
+		) {
+			this.evictEntries(bufferSize);
+		}
 
-			if (oldestKey) {
-				this.cache.delete(oldestKey);
-			}
+		// Remove existing entry if it exists (for updates)
+		const existing = this.cache.get(key);
+		if (existing) {
+			this.currentMemoryUsage -= existing.size;
 		}
 
 		this.cache.set(key, {
 			buffer,
-			accessTime: Date.now()
+			accessTime: Date.now(),
+			size: bufferSize,
+			accessCount: 1,
+			creationTime: Date.now()
 		});
+
+		this.currentMemoryUsage += bufferSize;
+	}
+
+	/**
+	 * Smart eviction using LRU + frequency + memory pressure
+	 * Prioritizes frequently accessed + large + old entries for eviction
+	 */
+	private evictEntries(requiredSpace: number): void {
+		const entries = Array.from(this.cache.entries());
+
+		// Sort by eviction score: (accessCount / daysSinceCreation) * size
+		const scoredEntries = entries.map(([key, entry]) => {
+			const daysSinceCreation = (Date.now() - entry.creationTime) / (1000 * 60 * 60 * 24);
+			const accessFrequency = entry.accessCount / Math.max(1, daysSinceCreation);
+			const evictionScore = (accessFrequency / Math.max(1, entry.size / 1024)) * 1000; // Higher score = more likely to evict
+
+			return { key, entry, evictionScore };
+		});
+
+		// Sort by eviction score (higher score = better candidate for eviction)
+		scoredEntries.sort((a, b) => b.evictionScore - a.evictionScore);
+
+		let freedSpace = 0;
+		const maxEvictions = Math.min(scoredEntries.length, 10); // Don't evict too many at once
+
+		for (let i = 0; i < maxEvictions && freedSpace < requiredSpace; i++) {
+			const { key, entry } = scoredEntries[i];
+			this.cache.delete(key);
+			this.currentMemoryUsage -= entry.size;
+			freedSpace += entry.size;
+			this.stats.evictions++;
+		}
+
+		if (freedSpace < requiredSpace) {
+			this.stats.memoryPressure++;
+			// If still not enough space, force evict oldest entries
+			const oldestEntries = entries
+				.sort((a, b) => a[1].creationTime - b[1].creationTime)
+				.slice(0, 5);
+
+			for (const [key, entry] of oldestEntries) {
+				if (this.cache.has(key)) {
+					this.cache.delete(key);
+					this.currentMemoryUsage -= entry.size;
+					this.stats.evictions++;
+				}
+			}
+		}
 	}
 
 	clear(): void {
 		this.cache.clear();
+		this.currentMemoryUsage = 0;
 	}
 
 	get size(): number {
 		return this.cache.size;
+	}
+
+	get memoryUsage(): number {
+		return this.currentMemoryUsage;
+	}
+
+	/**
+	 * Get cache performance statistics
+	 */
+	getStats() {
+		const totalOps = this.stats.hits + this.stats.misses;
+		const hitRate = totalOps > 0 ? (this.stats.hits / totalOps) * 100 : 0;
+
+		return {
+			...this.stats,
+			hitRate: hitRate.toFixed(1),
+			entries: this.cache.size,
+			memoryUsageMB: (this.currentMemoryUsage / 1024 / 1024).toFixed(1),
+			maxMemoryMB: (this.maxMemoryBytes / 1024 / 1024).toFixed(1),
+			memoryUtilization: ((this.currentMemoryUsage / this.maxMemoryBytes) * 100).toFixed(1)
+		};
 	}
 }
 
 // Global worker cache instance
 const workerArrayBufferCache = new WorkerArrayBufferCache();
 
-// Cache statistics tracking
-let cacheStats = { hits: 0, misses: 0, lastReport: 0 };
+// Legacy cache stats for compatibility - will be removed after migration
 
-// Report cache statistics periodically (every 10 seconds or 50 operations)
+// Parallel processing optimization
+interface BatchImageRequest {
+	trait: TransferrableTrait;
+	resizeWidth: number;
+	resizeHeight: number;
+	index: number; // For ordering results
+}
+
+// Performance monitoring for parallel processing
+const imageProcessingStats = {
+	batchCount: 0,
+	parallelCount: 0,
+	sequentialCount: 0,
+	averageBatchSize: 0
+};
+
+/**
+ * Memory Pool for pre-allocated ArrayBuffers to reduce GC pressure
+ * Especially useful for predictable chunk sizes during batch generation
+ */
+class ArrayBufferPool {
+	private pools = new Map<number, ArrayBuffer[]>();
+	private maxPoolSize = 10; // Keep up to 10 buffers per size
+
+	/**
+	 * Get an ArrayBuffer of the specified size, either from pool or create new
+	 */
+	get(size: number): ArrayBuffer {
+		const pool = this.pools.get(size) || [];
+
+		if (pool.length > 0) {
+			return pool.pop()!;
+		}
+
+		// Create new buffer if pool is empty
+		return new ArrayBuffer(size);
+	}
+
+	/**
+	 * Return an ArrayBuffer to the pool for reuse
+	 */
+	return(buffer: ArrayBuffer): void {
+		const size = buffer.byteLength;
+		const pool = this.pools.get(size) || [];
+
+		if (pool.length < this.maxPoolSize) {
+			pool.push(buffer);
+			this.pools.set(size, pool);
+		}
+		// If pool is full, let the buffer be garbage collected
+	}
+
+	/**
+	 * Clear all pools to free memory
+	 */
+	clear(): void {
+		this.pools.clear();
+	}
+
+	/**
+	 * Get pool statistics
+	 */
+	getStats() {
+		let totalBuffers = 0;
+		let totalSize = 0;
+
+		for (const [size, pool] of this.pools) {
+			totalBuffers += pool.length;
+			totalSize += size * pool.length;
+		}
+
+		return {
+			totalBuffers,
+			totalSize,
+			totalSizeMB: (totalSize / 1024 / 1024).toFixed(1),
+			poolCount: this.pools.size
+		};
+	}
+}
+
+// Global memory pool instance
+const arrayBufferPool = new ArrayBufferPool();
+
+// Device capability detection for optimal batch sizing
+function detectOptimalBatchSize(): number {
+	const cores = navigator.hardwareConcurrency || 4;
+	const memory = (navigator as any).deviceMemory || 4;
+
+	// Conservative batch sizing based on device capabilities
+	let batchSize = Math.min(cores * 2, 8); // Default: 2x cores, max 8
+
+	// Adjust for memory (GB)
+	if (memory >= 8) batchSize = Math.min(batchSize * 2, 12);
+	else if (memory <= 2) batchSize = Math.min(batchSize, 4);
+
+	// Adjust for mobile (heuristic: fewer cores = likely mobile)
+	if (cores <= 2) batchSize = Math.min(batchSize, 4);
+
+	return Math.max(2, batchSize); // Minimum batch size of 2
+}
+
+// Enhanced cache statistics reporting with memory utilization tracking
+let lastCacheReport = 0;
+
 function reportCacheStats() {
 	const now = Date.now();
-	const totalOps = cacheStats.hits + cacheStats.misses;
+	const cacheStats = workerArrayBufferCache.getStats();
 
 	// Report every 30 seconds or every 200 operations, whichever comes first
-	if (now - cacheStats.lastReport > 30000 || totalOps % 200 === 0) {
-		const hitRate = totalOps > 0 ? ((cacheStats.hits / totalOps) * 100).toFixed(1) : '0.0';
+	if (now - lastCacheReport > 30000 || (cacheStats.hits + cacheStats.misses) % 200 === 0) {
 		console.log(
-			`🎯 Worker Cache: ${workerArrayBufferCache.size} entries, ` +
-				`${hitRate}% hit rate (${cacheStats.hits}/${totalOps})`
+			`🎯 Smart Cache: ${cacheStats.entries} entries, ${cacheStats.memoryUtilization}% memory used, ` +
+				`${cacheStats.hitRate}% hit rate (${cacheStats.evictions} evictions)`
 		);
-		cacheStats.lastReport = now;
+		lastCacheReport = now;
 	}
-}
-
-// Check if a trait is compatible with currently selected traits
-function isTraitCompatible(
-	trait: TransferrableTrait,
-	layerId: string,
-	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[]
-): boolean {
-	// Check if any selected ruler traits forbid this trait
-	for (const selected of selectedTraits) {
-		if (selected.trait.type === 'ruler' && selected.trait.rulerRules) {
-			const rule = selected.trait.rulerRules.find((r) => r.layerId === layerId);
-			if (rule) {
-				// Check if trait is in forbidden list
-				if (rule.forbiddenTraitIds.includes(trait.id)) {
-					return false;
-				}
-				// Check if trait is in allowed list (if allowed list is not empty)
-				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(trait.id)) {
-					return false;
-				}
-			}
-		}
-	}
-	return true;
-}
-
-// Get compatible traits for a layer based on current selection
-function getCompatibleTraits(
-	layer: TransferrableLayer,
-	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[]
-): TransferrableTrait[] {
-	return layer.traits.filter((trait) => isTraitCompatible(trait, layer.id, selectedTraits, layers));
-}
-
-// Strict Pair validation logic
-interface GeneratedCombination {
-	combinationId: string;
-	traitIds: string[];
-	used: boolean;
 }
 
 // Track used combinations globally within the worker
 const usedCombinations = new Map<string, Set<string>>();
-
-// Generate a unique key for a specific trait combination
-function generateTraitCombinationKey(traitIds: string[]): string {
-	// Sort trait IDs to ensure consistent key regardless of order
-	const sortedIds = [...traitIds].sort();
-	return sortedIds.join('|');
-}
-
-// Check if a trait combination violates Strict Pair rules
-function checkStrictPairViolation(
-	proposedTraits: { traitId: string; layerId: string }[],
-	strictPairConfig: StrictPairConfig | undefined
-): { hasViolation: boolean; violatedCombinationId?: string; description?: string } {
-	if (!strictPairConfig?.enabled) {
-		return { hasViolation: false };
-	}
-
-	// Check each active layer combination
-	for (const layerCombination of strictPairConfig.layerCombinations) {
-		if (!layerCombination.active) continue;
-
-		// Find the traits from all layers in the proposed selection
-		const foundTraits: string[] = [];
-		let allLayersPresent = true;
-
-		for (const layerId of layerCombination.layerIds) {
-			const trait = proposedTraits.find((t) => t.layerId === layerId);
-			if (trait) {
-				foundTraits.push(trait.traitId);
-			} else {
-				allLayersPresent = false;
-				break;
-			}
-		}
-
-		// All layers must be present in the proposed selection for this rule to apply
-		if (!allLayersPresent) continue;
-
-		// Generate the combination key
-		const combinationKey = generateTraitCombinationKey(foundTraits);
-
-		// Check if this combination was already used
-		if (!usedCombinations.has(layerCombination.id)) {
-			usedCombinations.set(layerCombination.id, new Set());
-		}
-
-		const usedSet = usedCombinations.get(layerCombination.id)!;
-		if (usedSet.has(combinationKey)) {
-			return {
-				hasViolation: true,
-				violatedCombinationId: layerCombination.id,
-				description: `Layer combination "${layerCombination.description}" already used`
-			};
-		}
-	}
-
-	return { hasViolation: false };
-}
 
 // Mark a trait combination as used
 function markCombinationAsUsed(
@@ -232,7 +361,7 @@ function markCombinationAsUsed(
 		if (!allLayersPresent) continue;
 
 		// Generate and mark the combination
-		const combinationKey = generateTraitCombinationKey(foundTraits);
+		const combinationKey = foundTraits.sort().join('|');
 
 		if (!usedCombinations.has(layerCombination.id)) {
 			usedCombinations.set(layerCombination.id, new Set());
@@ -246,111 +375,6 @@ function markCombinationAsUsed(
 // Clear used combinations for a new generation
 function clearUsedCombinations(): void {
 	usedCombinations.clear();
-}
-
-// Rarity algorithm with compatibility checking
-function selectTrait(
-	layer: TransferrableLayer,
-	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[],
-	strictPairConfig?: StrictPairConfig
-): TransferrableTrait | null {
-	// Handle optional layers first
-	if (layer.isOptional) {
-		const skipChance = 0.3; // 30% chance to skip optional layer
-		if (Math.random() < skipChance) {
-			return null;
-		}
-	}
-
-	// Get compatible traits based on current selection
-	const compatibleTraits = getCompatibleTraits(layer, selectedTraits, layers);
-	if (compatibleTraits.length === 0) {
-		return null; // No compatible traits available
-	}
-
-	// Filter traits that would violate Strict Pair rules
-	let validTraits = compatibleTraits;
-	if (strictPairConfig?.enabled) {
-		validTraits = compatibleTraits.filter((trait) => {
-			// Create a temporary selection including this trait
-			const proposedSelection = [
-				...selectedTraits.map((t) => ({ traitId: t.traitId, layerId: t.layerId })),
-				{ traitId: trait.id, layerId: layer.id }
-			];
-
-			const violation = checkStrictPairViolation(proposedSelection, strictPairConfig);
-			return !violation.hasViolation;
-		});
-
-		// If no valid traits due to Strict Pair, return null immediately
-		// This ensures strict pair violations never occur
-		if (validTraits.length === 0) {
-			console.warn(
-				`No valid traits available for layer "${layer.name}" due to Strict Pair constraints`
-			);
-			return null; // Don't allow invalid combinations
-		}
-	}
-
-	if (validTraits.length === 0) {
-		return null;
-	}
-
-	const totalWeight = validTraits.reduce((sum, trait) => sum + trait.rarityWeight, 0);
-	if (totalWeight === 0) {
-		return null;
-	}
-
-	let randomNum = Math.random() * totalWeight;
-
-	for (const trait of validTraits) {
-		if (randomNum < trait.rarityWeight) {
-			return trait;
-		}
-		randomNum -= trait.rarityWeight;
-	}
-	return null;
-}
-
-// Enhanced trait selection with Strict Pair retry logic
-function selectTraitWithRetry(
-	layer: TransferrableLayer,
-	selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-	layers: TransferrableLayer[],
-	strictPairConfig?: StrictPairConfig,
-	maxRetries: number = 50
-): TransferrableTrait | null {
-	for (let attempt = 0; attempt < maxRetries; attempt++) {
-		const selectedTrait = selectTrait(layer, selectedTraits, layers, strictPairConfig);
-		if (!selectedTrait) return null;
-
-		// Create the proposed selection with this trait
-		const proposedSelection = [
-			...selectedTraits.map((t) => ({ traitId: t.traitId, layerId: t.layerId })),
-			{ traitId: selectedTrait.id, layerId: layer.id }
-		];
-
-		// Check if this would violate Strict Pair rules
-		const violation = checkStrictPairViolation(proposedSelection, strictPairConfig);
-		if (!violation.hasViolation) {
-			return selectedTrait;
-		}
-
-		// If we have a violation and we're close to max retries, log a warning
-		if (attempt >= maxRetries - 10) {
-			console.warn(
-				`Strict Pair constraint causing difficulty on layer ${layer.name}, attempt ${attempt + 1}`
-			);
-		}
-	}
-
-	// If we couldn't find a valid trait after max retries, return null
-	// This ensures strict pair constraints are never violated
-	console.warn(
-		`Could not satisfy Strict Pair constraints for layer ${layer.name} after ${maxRetries} attempts - skipping this combination`
-	);
-	return null;
 }
 
 // Create an ImageBitmap from ArrayBuffer - optimized for performance
@@ -369,9 +393,6 @@ async function createImageBitmapFromBuffer(
 	// Check cache first for the raw buffer
 	const cachedBuffer = workerArrayBufferCache.get(cacheKey);
 	if (cachedBuffer) {
-		cacheStats.hits++;
-		reportCacheStats();
-
 		// Cache hit - create ImageBitmap from cached buffer
 		const blob = new Blob([cachedBuffer], { type: 'image/png' });
 		const imageBitmapOptions: ImageBitmapOptions = {
@@ -390,8 +411,6 @@ async function createImageBitmapFromBuffer(
 	try {
 		// Cache miss - store the original buffer
 		workerArrayBufferCache.set(cacheKey, buffer);
-		cacheStats.misses++;
-		reportCacheStats();
 
 		// Use direct Canvas API - images are already correct size, no resizing needed
 		const blob = new Blob([buffer], { type: 'image/png' });
@@ -422,6 +441,100 @@ async function createImageBitmapFromBuffer(
 	}
 }
 
+/**
+ * Parallel batch image processing for maximum GPU utilization
+ * Processes multiple trait images concurrently using Promise.all
+ * @param requests - Array of image processing requests
+ * @returns Promise resolving to array of ImageBitmaps in original order
+ */
+async function processBatchImageRequests(
+	requests: BatchImageRequest[]
+): Promise<Array<{ index: number; bitmap: ImageBitmap | null; error?: Error }>> {
+	if (requests.length === 0) return [];
+	if (requests.length === 1) {
+		// Single image - use existing optimized method
+		const req = requests[0];
+		try {
+			const bitmap = await createImageBitmapFromBuffer(req.trait.imageData, req.trait.name, {
+				resizeWidth: req.resizeWidth,
+				resizeHeight: req.resizeHeight
+			});
+			return [{ index: req.index, bitmap }];
+		} catch (error) {
+			return [{ index: req.index, bitmap: null, error: error as Error }];
+		}
+	}
+
+	// Multiple images - process in parallel for maximum performance
+	const optimalBatchSize = detectOptimalBatchSize();
+	imageProcessingStats.batchCount++;
+	imageProcessingStats.parallelCount += requests.length;
+
+	if (requests.length > optimalBatchSize) {
+		imageProcessingStats.averageBatchSize =
+			(imageProcessingStats.averageBatchSize + requests.length) / 2;
+	}
+
+	// Process in chunks if batch is too large
+	const results: Array<{ index: number; bitmap: ImageBitmap | null; error?: Error }> = [];
+
+	if (requests.length <= optimalBatchSize) {
+		// Small batch - process all at once
+		const promises = requests.map(async (request) => {
+			try {
+				const bitmap = await createImageBitmapFromBuffer(
+					request.trait.imageData,
+					request.trait.name,
+					{ resizeWidth: request.resizeWidth, resizeHeight: request.resizeHeight }
+				);
+				return { index: request.index, bitmap };
+			} catch (error) {
+				return { index: request.index, bitmap: null, error: error as Error };
+			}
+		});
+
+		const batchResults = await Promise.all(promises);
+		results.push(...batchResults);
+	} else {
+		// Large batch - process in optimal chunks to avoid memory pressure
+		for (let i = 0; i < requests.length; i += optimalBatchSize) {
+			const chunk = requests.slice(i, i + optimalBatchSize);
+			const chunkPromises = chunk.map(async (request) => {
+				try {
+					const bitmap = await createImageBitmapFromBuffer(
+						request.trait.imageData,
+						request.trait.name,
+						{ resizeWidth: request.resizeWidth, resizeHeight: request.resizeHeight }
+					);
+					return { index: request.index, bitmap };
+				} catch (error) {
+					return { index: request.index, bitmap: null, error: error as Error };
+				}
+			});
+
+			const chunkResults = await Promise.all(chunkPromises);
+			results.push(...chunkResults);
+		}
+	}
+
+	// Sort results back to original order
+	return results.sort((a, b) => a.index - b.index);
+}
+
+/**
+ * Report parallel processing performance statistics
+ */
+function reportImageProcessingStats(): void {
+	const totalProcessed = imageProcessingStats.parallelCount + imageProcessingStats.sequentialCount;
+	if (totalProcessed > 0) {
+		const parallelRatio = ((imageProcessingStats.parallelCount / totalProcessed) * 100).toFixed(1);
+		console.log(
+			`🖼️ Parallel Processing: ${parallelRatio}% parallel, ` +
+				`avg batch size: ${imageProcessingStats.averageBatchSize.toFixed(1)}`
+		);
+	}
+}
+
 // No-op to keep call sites intact; retained for backward compatibility
 function cleanupObjectUrls() {
 	// Intentionally empty: we no longer create object URLs in the worker
@@ -432,8 +545,11 @@ function cleanupResources() {
 	// Clear worker cache
 	workerArrayBufferCache.clear();
 
-	// Reset cache statistics
-	cacheStats = { hits: 0, misses: 0, lastReport: 0 };
+	// Clear memory pool
+	arrayBufferPool.clear();
+
+	// Reset reporting timestamps
+	lastCacheReport = 0;
 
 	// Force garbage collection if available
 	if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
@@ -574,8 +690,9 @@ async function generateCollection(
 	projectName: string,
 	projectDescription: string,
 	strictPairConfig?: StrictPairConfig,
-	taskId?: TaskId
-) {
+	taskId?: TaskId,
+	metadataStandard?: MetadataStandard
+): Promise<void> {
 	// Clear any existing combination data for this generation
 	clearUsedCombinations();
 	// Use a smaller initial array size to reduce memory footprint
@@ -648,6 +765,7 @@ async function generateCollection(
 			i < collectionSize && !isCancelled && successfulGenerations < collectionSize;
 			i++
 		) {
+			// Generate item
 			const success = await generateAndStreamItem(
 				i,
 				layers,
@@ -660,8 +778,9 @@ async function generateCollection(
 				collectionSize,
 				metadata,
 				strictPairConfig,
-				undefined, // no chunkImages for streaming
-				taskId
+				undefined, // No chunking for streaming mode
+				taskId,
+				metadataStandard
 			);
 
 			if (success) {
@@ -705,6 +824,7 @@ async function generateCollection(
 				i < chunkEnd && !isCancelled && successfulGenerations < collectionSize;
 				i++
 			) {
+				// Generate item
 				const success = await generateAndStreamItem(
 					i,
 					layers,
@@ -718,7 +838,8 @@ async function generateCollection(
 					metadata,
 					strictPairConfig,
 					chunkImages,
-					taskId
+					taskId,
+					metadataStandard
 				);
 
 				if (success) {
@@ -802,13 +923,24 @@ async function generateCollection(
 		return;
 	}
 
-	// Report final cache statistics (before cleanup)
-	const totalOps = cacheStats.hits + cacheStats.misses;
-	const finalHitRate = totalOps > 0 ? ((cacheStats.hits / totalOps) * 100).toFixed(1) : '0.0';
+	// Report final cache and processing statistics (before cleanup)
+	const cacheStats = workerArrayBufferCache.getStats();
+	const poolStats = arrayBufferPool.getStats();
+	const totalProcessed = imageProcessingStats.parallelCount + imageProcessingStats.sequentialCount;
+	const parallelRatio =
+		totalProcessed > 0
+			? ((imageProcessingStats.parallelCount / totalProcessed) * 100).toFixed(1)
+			: '0.0';
+
 	console.log(
-		`✅ Generation Complete - Worker Cache: ${workerArrayBufferCache.size} entries, ` +
-			`${finalHitRate}% hit rate (${cacheStats.hits} hits, ${cacheStats.misses} misses)`
+		`✅ Generation Complete - Smart Cache: ${cacheStats.entries} entries, ` +
+			`${cacheStats.memoryUtilization}% memory, ${cacheStats.hitRate}% hit rate | ` +
+			`Memory Pool: ${poolStats.totalBuffers} buffers, ${poolStats.totalSizeMB}MB | ` +
+			`Parallel: ${parallelRatio}% (${imageProcessingStats.parallelCount}/${totalProcessed})`
 	);
+
+	// Report detailed parallel processing performance
+	reportImageProcessingStats();
 
 	// Send final completion message
 	const finalCompleteMessage: CompleteMessage = {
@@ -840,7 +972,8 @@ async function generateAndStreamItem(
 	metadata: { name: string; data: object }[],
 	strictPairConfig?: StrictPairConfig,
 	chunkImages?: { name: string; blob: Blob }[],
-	taskId?: TaskId
+	taskId?: TaskId,
+	metadataStandard?: MetadataStandard
 ): Promise<boolean> {
 	try {
 		// Always use optimized Canvas compositing
@@ -849,43 +982,63 @@ async function generateAndStreamItem(
 
 		// Selected traits for this NFT
 		const selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[] = [];
-		let hasRequiredLayerFailure = false;
+		const hasRequiredLayerFailure = false;
 
-		// Iterate through the layers in their specified order
+		// Use CSP Solver to find a valid combination
+		const solver = new CSPSolver(layers, usedCombinations, strictPairConfig);
+		const solution = solver.solve();
+
+		if (!solution) {
+			return false; // No valid combination found
+		}
+
+		// Collect all selected traits for batch processing
 		for (const layer of layers) {
-			// Validate layer has traits
-			if (!layer.traits || layer.traits.length === 0) {
-				continue;
-			}
+			const selectedTrait = solution.get(layer.id);
 
-			// Select a trait based on the rarity algorithm with compatibility checking and Strict Pair validation
-			const selectedTrait = selectTraitWithRetry(layer, selectedTraits, layers, strictPairConfig);
-
-			// If a trait is selected, draw it
 			if (selectedTrait) {
 				selectedTraits.push({
 					traitId: selectedTrait.id,
 					layerId: layer.id,
 					trait: selectedTrait
 				});
-
-				// Create ImageBitmap from the trait's image data with resizing for memory efficiency
-				const imageBitmap = await createImageBitmapFromBuffer(
-					selectedTrait.imageData,
-					selectedTrait.name,
-					{ resizeWidth: targetWidth, resizeHeight: targetHeight }
-				);
-
-				// Draw the image onto the OffscreenCanvas
-				ctx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
-
-				// Clean up the ImageBitmap immediately to free memory
-				imageBitmap.close();
-			} else if (!layer.isOptional) {
-				// Failed to select a trait for a required layer - this indicates strict pair constraints
-				hasRequiredLayerFailure = true;
-				break; // Exit early, cannot generate this combination
 			}
+		}
+
+		// If no traits selected, return false
+		if (selectedTraits.length === 0) {
+			return false;
+		}
+
+		// Parallel batch processing of all trait images
+		const batchRequests: BatchImageRequest[] = selectedTraits.map((trait, index) => ({
+			trait: trait.trait,
+			resizeWidth: targetWidth,
+			resizeHeight: targetHeight,
+			index
+		}));
+
+		const batchResults = await processBatchImageRequests(batchRequests);
+
+		// Draw all images to canvas in order
+		for (let i = 0; i < selectedTraits.length; i++) {
+			const trait = selectedTraits[i];
+			const result = batchResults.find((r) => r.index === i);
+
+			if (!result || !result.bitmap) {
+				if (result?.error) {
+					console.warn(
+						`Failed to process image for trait "${trait.trait.name}": ${result.error.message}`
+					);
+				}
+				return false;
+			}
+
+			// Draw the image onto the OffscreenCanvas
+			ctx.drawImage(result.bitmap, 0, 0, targetWidth, targetHeight);
+
+			// Clean up the ImageBitmap immediately to free memory
+			result.bitmap.close();
 		}
 
 		// If required layer failed due to strict pair constraints, return false
@@ -914,12 +1067,18 @@ async function generateAndStreamItem(
 			value: selected.trait.name
 		}));
 
-		const metadataObj = {
-			name: `${projectName} #${index + 1}`,
-			description: projectDescription,
-			image: `${index + 1}.png`,
-			attributes: attributes
-		};
+		// Use the selected metadata strategy
+		const strategy = getMetadataStrategy(metadataStandard as MetadataStandard);
+		const metadataObj = strategy.format(
+			`${projectName} #${index + 1}`,
+			projectDescription,
+			`${index + 1}.png`,
+			attributes,
+			{
+				// Pass extra data if needed for specific strategies (e.g. Solana symbol)
+				// For now we just pass basic info
+			}
+		);
 
 		// Store the metadata
 		metadata.push({
@@ -1367,7 +1526,8 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 					startPayload.projectName,
 					startPayload.projectDescription,
 					startPayload.strictPairConfig,
-					taskId
+					taskId,
+					startPayload.metadataStandard
 				);
 			} catch (error) {
 				const errorMessage: ErrorMessage = {

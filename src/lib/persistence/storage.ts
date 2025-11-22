@@ -16,14 +16,50 @@ export interface PersistenceStore<T> {
 // Storage quota management
 const STORAGE_QUOTA_LIMIT = 5 * 1024 * 1024; // 5MB limit for localStorage
 const LARGE_PROJECT_THRESHOLD = 2 * 1024 * 1024; // 2MB threshold for large projects
+const COMPACT_PROJECT_THRESHOLD = 100 * 1024; // 100KB threshold for compact mode
 
 /**
  * Get estimated storage size
  */
 function getStorageSize(data: unknown): number {
 	try {
-		const serialized = JSON.stringify(data);
-		return new Blob([serialized]).size;
+		// For Project objects, create a compact version for more accurate estimation
+		if (typeof data === 'object' && data !== null && 'layers' in (data as any)) {
+			const project = data as any;
+			const compactProject = {
+				...project,
+				layers: project.layers.map((layer: any) => ({
+					...layer,
+					traits: layer.traits.map((trait: any) => ({
+						...trait,
+						// Remove image data and URLs for size estimation
+						imageData: undefined,
+						imageUrl: undefined
+					}))
+				}))
+			};
+			const serialized = JSON.stringify(compactProject);
+			const size = new Blob([serialized]).size;
+
+			// Add estimated size for image data if present
+			let totalSize = size;
+			if (project.layers) {
+				for (const layer of project.layers) {
+					if (layer.traits) {
+						for (const trait of layer.traits) {
+							if (trait.imageData && trait.imageData instanceof ArrayBuffer) {
+								totalSize += trait.imageData.byteLength;
+							}
+						}
+					}
+				}
+			}
+
+			return totalSize;
+		} else {
+			const serialized = JSON.stringify(data);
+			return new Blob([serialized]).size;
+		}
 	} catch {
 		return 0;
 	}
@@ -35,7 +71,11 @@ export function loadFromLocalStorageSync<T>(key: string): T | null {
 		const s = localStorage.getItem(key);
 		if (!s) return null;
 		const parsed = JSON.parse(s);
-		return restoreArrayBuffers(parsed) as T;
+		const restored = restoreArrayBuffers(parsed) as T;
+
+		// If this is a project with missing image data, it's a compact version
+		// The application should handle this gracefully
+		return restored;
 	} catch (error) {
 		handleStorageError(error, {
 			context: { component: 'LocalStorage', action: 'loadFromLocalStorageSync' },
@@ -69,6 +109,17 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
 			return;
 		}
 
+		// For projects that are getting large, use compact mode proactively
+		if (estimatedSize > COMPACT_PROJECT_THRESHOLD) {
+			console.info(
+				`Project size ${Math.round(estimatedSize / 1024)}KB exceeds compact threshold, using compact mode`
+			);
+			const compactValue = createCompactVersion(value);
+			const serialized = serializeArrayBuffers(compactValue);
+			localStorage.setItem(key, JSON.stringify(serialized));
+			return;
+		}
+
 		const serialized = serializeArrayBuffers(value);
 		localStorage.setItem(key, JSON.stringify(serialized));
 	} catch (error) {
@@ -83,11 +134,24 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
  * Create a compact version of the project for localStorage
  */
 function createCompactVersion<T>(value: T): T {
-	// This is a placeholder - in a real implementation, you would:
-	// 1. Remove image data from NFTs
-	// 2. Remove preview URLs
-	// 3. Keep only essential metadata
-	// 4. Compress layer data
+	// Handle Project type specifically
+	if (typeof value === 'object' && value !== null && 'layers' in (value as any)) {
+		const project = value as any;
+		return {
+			...project,
+			layers: project.layers.map((layer: any) => ({
+				...layer,
+				traits: layer.traits.map((trait: any) => ({
+					...trait,
+					// Remove image data and URLs to reduce size
+					imageData: undefined,
+					imageUrl: undefined
+				}))
+			}))
+		} as T;
+	}
+
+	// For other types, return as-is
 	return value;
 }
 
@@ -279,19 +343,20 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 		try {
 			// Get estimated size first
 			const estimatedSize = getStorageSize(value);
-			console.log(`SmartStorage: Project size ${Math.round(estimatedSize / 1024)}KB`);
+			// console.log(`SmartStorage: Project size ${Math.round(estimatedSize / 1024)}KB`); // Disabled to reduce console spam
 
-			// Use IndexedDB for large projects (>2MB)
+			// Use IndexedDB for large projects (>2MB) or projects with significant image data
 			if (estimatedSize > LARGE_PROJECT_THRESHOLD) {
-				console.info(
-					`SmartStorage: Using IndexedDB for large project (${Math.round(estimatedSize / 1024)}KB)`
-				);
+				// console.log(`SmartStorage: Using IndexedDB for large project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
 				await this.indexedDbStore.save(value);
+			} else if (estimatedSize > COMPACT_PROJECT_THRESHOLD) {
+				// For medium-sized projects, try localStorage with compact mode first
+				// console.log(`SmartStorage: Using localStorage with compact mode for medium project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
+				const compactValue = createCompactVersion(value);
+				this.localStorageStore.save(compactValue);
 			} else {
 				// Use localStorage for smaller projects
-				console.info(
-					`SmartStorage: Using localStorage for small project (${Math.round(estimatedSize / 1024)}KB)`
-				);
+				// console.log(`SmartStorage: Using localStorage for small project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
 				this.localStorageStore.save(value);
 			}
 		} catch (error) {
