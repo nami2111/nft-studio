@@ -1,5 +1,3 @@
-import { galleryStore } from '$lib/stores/gallery.store.svelte';
-import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
 import { trackGenerationCompleted } from '$lib/utils/analytics';
 import type { Project } from '$lib/types/project';
 
@@ -19,50 +17,6 @@ export class ExportService {
 		const { project, images, metadata, startTime, onProgress } = options;
 
 		try {
-			// Save to gallery first (with progress feedback)
-			try {
-				onProgress?.({
-					processed: 0,
-					total: images.length + metadata.length + 1,
-					message: 'Saving to gallery...'
-				});
-
-				console.log('Saving generated NFTs to gallery...');
-
-				// Convert images and metadata to gallery format
-				const galleryNFTs = images.map((image, index) => {
-					const matchingMetadata = metadata.find((meta) => meta.name === image.name);
-					return {
-						name: image.name.replace('.png', ''),
-						imageData: image.imageData,
-						metadata: matchingMetadata?.data || { traits: [] },
-						index
-					};
-				});
-
-				// Import into gallery store
-				const collection = galleryStore.importGeneratedNFTs(
-					galleryNFTs,
-					project.name || 'Untitled Collection',
-					project.description || 'Generated NFT collection'
-				);
-
-				// Calculate rarity for the collection
-				const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
-				galleryStore.updateCollection(collection.id, updatedCollection);
-
-				console.log(`Saved ${galleryNFTs.length} NFTs to gallery collection: ${collection.name}`);
-
-				onProgress?.({
-					processed: 1,
-					total: images.length + metadata.length + 1,
-					message: 'Gallery save complete, creating ZIP...'
-				});
-			} catch (galleryError) {
-				console.error('Failed to save to gallery:', galleryError);
-				// Don't let gallery errors prevent the download
-			}
-
 			// Use optimized approach for large collections
 			if (images.length > 1000) {
 				await this.packageZipOptimized({ project, images, metadata, onProgress });
