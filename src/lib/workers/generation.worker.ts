@@ -1469,6 +1469,11 @@ function isRulerCompatible(
 	return true;
 }
 
+// Import performance improvements
+import { shouldUseFastGeneration, getOptimizationHints, detectCollectionComplexity } from './fast-generation-detector';
+import { generateCollectionFast, getCollectionAnalysis } from './fast-generation';
+import { performanceAnalyzer } from '$lib/utils/performance-analyzer';
+
 // Main worker message handler
 self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 	const {
@@ -1501,6 +1506,31 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 			try {
 				const startPayload = payload as StartMessage['payload'];
 
+				// Analyze collection complexity and decide on algorithm
+				const analysis = getCollectionAnalysis(
+					startPayload.layers,
+					startPayload.collectionSize
+				);
+
+				// Start performance analysis
+				performanceAnalyzer.startAnalysis(
+					analysis.complexity.recommendedAlgorithm,
+					analysis.complexity.type,
+					1 // Single worker for now
+				);
+
+				// Send analysis info to client
+				self.postMessage({
+					type: 'analysis',
+					taskId,
+					payload: {
+						complexity: analysis.complexity,
+						canUseFastGeneration: analysis.canUseFastGeneration,
+						estimatedSpeedup: analysis.estimatedSpeedup,
+						recommendations: analysis.recommendations
+					}
+				});
+
 				// Validate that the requested collection size is achievable with strict pair constraints
 				const validationError = validateCollectionSize(
 					startPayload.layers,
@@ -1516,20 +1546,56 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 						}
 					};
 					self.postMessage(errorMessage);
+					performanceAnalyzer.stopAnalysis();
 					return;
 				}
 
-				await generateCollection(
-					startPayload.layers,
-					startPayload.collectionSize,
-					startPayload.outputSize,
-					startPayload.projectName,
-					startPayload.projectDescription,
-					startPayload.strictPairConfig,
+				// Choose generation algorithm based on complexity
+				if (analysis.canUseFastGeneration) {
+					console.log(`🚀 Using fast generation for ${analysis.complexity.type} collection`);
+					
+					// Use fast generation algorithm
+					await generateCollectionFast(
+						startPayload.layers,
+						startPayload.collectionSize,
+						startPayload.outputSize,
+						startPayload.projectName,
+						startPayload.projectDescription,
+						taskId,
+						startPayload.metadataStandard
+					);
+				} else {
+					console.log(`🔧 Using existing generation for ${analysis.complexity.type} collection`);
+					
+					// Use existing sophisticated generation
+					await generateCollection(
+						startPayload.layers,
+						startPayload.collectionSize,
+						startPayload.outputSize,
+						startPayload.projectName,
+						startPayload.projectDescription,
+						startPayload.strictPairConfig,
+						taskId,
+						startPayload.metadataStandard
+					);
+				}
+
+				// Generate and send final performance report
+				const report = performanceAnalyzer.stopAnalysis();
+				self.postMessage({
+					type: 'performance-report',
 					taskId,
-					startPayload.metadataStandard
-				);
+					payload: report
+				});
+
 			} catch (error) {
+				// Stop performance analysis on error
+				try {
+					performanceAnalyzer.stopAnalysis();
+				} catch {
+					// Ignore if no active analysis
+				}
+
 				const errorMessage: ErrorMessage = {
 					type: 'error',
 					taskId,

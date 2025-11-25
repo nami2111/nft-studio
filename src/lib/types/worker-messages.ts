@@ -119,7 +119,17 @@ export type OutgoingWorkerMessage =
 	| ErrorMessage
 	| CancelledMessage
 	| PreviewMessage
-	| { type: 'pingResponse'; pingResponse: string };
+	| { type: 'pingResponse'; pingResponse: string }
+	| {
+			type: 'analysis';
+			payload: {
+				complexity: any;
+				canUseFastGeneration: boolean;
+				estimatedSpeedup: number;
+				recommendations: string[];
+			};
+	  }
+	| { type: 'performance-report'; payload: any };
 
 // Messages that can be sent to workers
 export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage;
@@ -220,6 +230,44 @@ export function isPreviewMessage(message: unknown): message is PreviewMessage {
 }
 
 /**
+ * Type guard for analysis message
+ */
+export function isAnalysisMessage(
+	message: unknown
+): message is {
+	type: 'analysis';
+	payload: {
+		complexity: any;
+		canUseFastGeneration: boolean;
+		estimatedSpeedup: number;
+		recommendations: string[];
+	};
+} {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		'type' in message &&
+		message.type === 'analysis' &&
+		'payload' in message
+	);
+}
+
+/**
+ * Type guard for performance report message
+ */
+export function isPerformanceReportMessage(
+	message: unknown
+): message is { type: 'performance-report'; payload: any } {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		'type' in message &&
+		message.type === 'performance-report' &&
+		'payload' in message
+	);
+}
+
+/**
  * Type guard for OutgoingWorkerMessage
  */
 export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWorkerMessage {
@@ -229,7 +277,9 @@ export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWo
 		isCompleteMessage(message) ||
 		isErrorMessage(message) ||
 		isCancelledMessage(message) ||
-		isPreviewMessage(message)
+		isPreviewMessage(message) ||
+		isAnalysisMessage(message) ||
+		isPerformanceReportMessage(message)
 	);
 }
 
