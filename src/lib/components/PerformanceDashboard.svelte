@@ -127,7 +127,7 @@
         <!-- Real-time metrics -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="metric-card">
-            <label class="text-sm font-medium text-muted-foreground">Current Speed</label>
+            <div class="text-sm font-medium text-muted-foreground">Current Speed</div>
             <div class="text-2xl font-bold">
               {currentSpeed.toFixed(1)} 
               <span class="text-sm font-normal text-muted-foreground">items/sec</span>
@@ -135,17 +135,17 @@
           </div>
 
           <div class="metric-card">
-            <label class="text-sm font-medium text-muted-foreground">Est. Completion</label>
+            <div class="text-sm font-medium text-muted-foreground">Est. Completion</div>
             <div class="text-2xl font-bold">{estimatedCompletion}</div>
           </div>
 
           <div class="metric-card">
-            <label class="text-sm font-medium text-muted-foreground">Algorithm</label>
+            <div class="text-sm font-medium text-muted-foreground">Algorithm</div>
             <div class="text-lg font-semibold truncate">{algorithm}</div>
           </div>
 
           <div class="metric-card">
-            <label class="text-sm font-medium text-muted-foreground">Memory Efficiency</label>
+            <div class="text-sm font-medium text-muted-foreground">Memory Efficiency</div>
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full {getEfficiencyColor(memoryEfficiency)}"></div>
               <span class="text-lg font-semibold capitalize">{memoryEfficiency}</span>

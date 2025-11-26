@@ -9,7 +9,7 @@ import type {
 	PreviewMessage
 } from '$lib/types/worker-messages';
 import type { StrictPairConfig } from '$lib/types/layer';
-import type { GenerationWorkerMessage } from './generation.worker.loader';
+import type { GenerationWorkerMessage } from '$lib/types/worker-messages';
 import {
 	postMessageToPool,
 	initializeWorkerPool,
