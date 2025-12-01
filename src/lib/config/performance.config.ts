@@ -227,3 +227,11 @@ export function getOptimalWorkerCount(maxWorkers = PERF_CONFIG.generation.worker
 
 	return Math.min(byCores, byMemory, maxWorkers);
 }
+
+/**
+ * Get the performance configuration
+ * Allows dynamic configuration access for monitoring and testing
+ */
+export function getPerformanceConfig(): PerformanceConfig {
+	return PERF_CONFIG;
+}
