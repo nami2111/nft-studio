@@ -70,7 +70,7 @@ export class ProductionMonitor {
 	private performanceBudgets = {
 		maxBundleSize: 500 * 1024, // 500KB
 		maxInitialLoad: 2000, // 2s
-		maxMemoryUsage: 200 * 1024 * 1024, // 200MB
+		maxMemoryUsagePercent: 80, // 80% of available heap
 		maxCpuUsage: 75 // 75%
 	};
 
@@ -268,14 +268,16 @@ export class ProductionMonitor {
 		// Check thresholds
 		const usedMB = metrics.usedJSHeapSize / (1024 * 1024);
 		const limitMB = metrics.jsHeapSizeLimit / (1024 * 1024);
+		const usagePercentage = (metrics.usedJSHeapSize / metrics.jsHeapSizeLimit) * 100;
 
-		if (usedMB > 200) {
+		// Warn at 80% of heap limit, critical at 90%
+		if (usagePercentage > 80) {
 			this.createAlert({
 				metric: 'memory.heapUsage',
 				value: metrics.usedJSHeapSize,
-				threshold: this.performanceBudgets.maxMemoryUsage,
-				severity: usedMB > 300 ? 'critical' : 'high',
-				message: `High memory usage: ${usedMB.toFixed(1)}MB / ${limitMB.toFixed(1)}MB`
+				threshold: metrics.jsHeapSizeLimit * 0.8,
+				severity: usagePercentage > 90 ? 'critical' : 'high',
+				message: `High memory usage: ${usedMB.toFixed(1)}MB / ${limitMB.toFixed(1)}MB (${usagePercentage.toFixed(1)}%)`
 			});
 		}
 	}
@@ -410,13 +412,17 @@ export class ProductionMonitor {
 		// Check bundle size (requires build-time check)
 		// This is checked in CI/CD pipeline
 
-		// Check memory usage
-		const currentMemory = this.getAverageMemoryUsage();
+		// Check memory usage percentage
+		const memory = (performance as any).memory;
+		const currentMemoryMB = this.getAverageMemoryUsage();
+		const memoryLimitMB = memory ? memory.jsHeapSizeLimit / (1024 * 1024) : 4096; // Default 4GB
+		const memoryUsagePercent = (currentMemoryMB / memoryLimitMB) * 100;
+
 		results.push({
 			metric: 'memory',
-			value: currentMemory,
-			budget: this.performanceBudgets.maxMemoryUsage / (1024 * 1024),
-			passed: currentMemory < this.performanceBudgets.maxMemoryUsage / (1024 * 1024)
+			value: memoryUsagePercent,
+			budget: this.performanceBudgets.maxMemoryUsagePercent,
+			passed: memoryUsagePercent < this.performanceBudgets.maxMemoryUsagePercent
 		});
 
 		// Check cache hit rates
