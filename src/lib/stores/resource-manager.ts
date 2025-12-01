@@ -10,6 +10,7 @@ import {
 	type CacheMetrics
 } from '$lib/utils/advanced-cache';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
+import { formatFileSize } from '$lib/utils/formatters';
 
 export interface CacheConfig {
 	imageBitmap?: {
@@ -440,7 +441,7 @@ export class ResourceManager {
 		const metrics = this.getCacheMetrics();
 
 		return {
-			totalUsage: this.formatBytes(metrics.overall.totalMemoryUsage),
+			totalUsage: formatFileSize(metrics.overall.totalMemoryUsage),
 			byCache: {
 				imageBitmap: this.imageBitmapCache.getMemoryUsage(),
 				imageData: this.imageCache.getMemoryUsage(),
@@ -458,15 +459,6 @@ export class ResourceManager {
 		this.metrics.memoryUsage = cacheMetrics.overall.totalMemoryUsage;
 	}
 
-	/**
-	 * Format bytes to human readable string
-	 */
-	private formatBytes(bytes: number): string {
-		if (bytes < 1024) return `${bytes} B`;
-		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-		if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-		return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-	}
 
 	/**
 	 * Get the number of tracked URLs (legacy compatibility)

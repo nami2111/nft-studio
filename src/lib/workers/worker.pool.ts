@@ -1029,6 +1029,41 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 }
 
 /**
+ * Warm up workers by pre-initializing a minimum pool
+ * This reduces latency on first use by having workers ready
+ * Only creates minWorkers, not the full maxWorkers pool
+ */
+export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
+	// If worker pool already exists, skip warm-up
+	if (workerPool) {
+		return;
+	}
+
+	// Start pool with minimum workers (not full pool)
+	const minWorkers = config?.minWorkers || 2;
+	const maxWorkers = config?.maxWorkers || getOptimalWorkerCount(1000); // Default to medium collection size
+
+	console.log(`Warming up worker pool with ${minWorkers} workers...`);
+
+	// Initialize with minWorkers instead of maxWorkers for faster startup
+	const warmUpConfig: WorkerPoolConfig = {
+		...config,
+		maxWorkers: minWorkers, // Only create minimum workers for warm-up
+		minWorkers,
+		taskComplexityBasedScaling: config?.taskComplexityBasedScaling ?? true,
+		healthCheckInterval: config?.healthCheckInterval ?? 30000
+	};
+
+	try {
+		await initializeWorkerPool(warmUpConfig);
+		console.log(`Worker pool warmed up with ${minWorkers} workers ready`);
+	} catch (error) {
+		console.error('Worker warm-up failed:', error);
+		// Non-critical error - workers will be initialized on first use
+	}
+}
+
+/**
  * Start background processes for health checks and dynamic scaling
  */
 function startBackgroundProcesses(healthCheckInterval: number): void {

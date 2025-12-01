@@ -5,6 +5,7 @@
   import { Progress } from '$lib/components/ui/progress';
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Badge } from '$lib/components/ui/badge';
+  import { formatDuration, formatTime } from '$lib/utils/formatters';
 
   let performanceStatus = $derived(performanceAnalyzer.getStatus());
   let performanceReport = $state<any>(null);
@@ -93,20 +94,6 @@
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  function formatDuration(milliseconds: number): string {
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-
-    if (hours > 0) {
-      return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${seconds % 60}s`;
-    } else {
-      return `${seconds}s`;
-    }
   }
 </script>
 
@@ -252,8 +239,8 @@
           <div>
             <span class="font-medium">Started:</span>
             <span class="ml-2">
-              {generationState.startTime 
-                ? new Date(generationState.startTime).toLocaleTimeString()
+              {generationState.startTime
+                ? formatTime(generationState.startTime)
                 : 'Unknown'
               }
             </span>
@@ -261,7 +248,7 @@
           <div>
             <span class="font-medium">Elapsed:</span>
             <span class="ml-2">
-              {generationState.startTime 
+              {generationState.startTime
                 ? formatDuration(Date.now() - generationState.startTime)
                 : '0s'
               }

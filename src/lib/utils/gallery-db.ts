@@ -7,7 +7,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 import type { GalleryCollection } from '$lib/types/gallery';
 
 const DB_NAME = 'nft-studio-gallery';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented to trigger upgrade for new indices
 const COLLECTIONS_STORE = 'collections';
 
 let dbInstance: IDBPDatabase | null = null;
@@ -27,8 +27,11 @@ export async function initGalleryDB(): Promise<IDBPDatabase> {
 				const store = db.createObjectStore(COLLECTIONS_STORE, {
 					keyPath: 'id'
 				});
+				// Add indices for common query patterns
 				store.createIndex('name', 'name', { unique: false });
 				store.createIndex('generatedAt', 'generatedAt', { unique: false });
+				store.createIndex('projectName', 'projectName', { unique: false });
+				store.createIndex('totalSupply', 'totalSupply', { unique: false });
 			}
 		}
 	});
