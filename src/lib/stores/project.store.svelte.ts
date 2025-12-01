@@ -23,6 +23,7 @@ import {
 } from './file-operations';
 import { loadingStateManager } from './loading-state';
 import { performanceMonitor, timed } from '$lib/utils/performance-monitor';
+import { calculateAdaptiveDelay } from '$lib/config/performance.config';
 
 // Local storage key
 const PROJECT_STORAGE_KEY = 'nft-studio-project';
@@ -288,11 +289,16 @@ function scheduleBatchPersist(): void {
 		clearTimeout(batchTimeout);
 	}
 
+	// Calculate adaptive delay based on queue size
+	// Small batches: faster updates (100ms)
+	// Large batches: slower updates (up to 1000ms) to avoid blocking
+	const delay = calculateAdaptiveDelay(batchQueue.length);
+
 	// Set new timeout for batch completion
 	batchTimeout = setTimeout(() => {
 		processBatchQueue();
 		batchTimeout = null;
-	}, 1000); // Wait 1 second for batch completion
+	}, delay); // Adaptive delay based on queue size
 }
 
 export function updateTraitsBatch(

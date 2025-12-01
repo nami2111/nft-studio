@@ -21,7 +21,11 @@
 	import { validateImportedProject } from '$lib/domain';
 	import { generateLayerId, generateTraitId } from '$lib/types/ids';
 	import { globalResourceManager } from '$lib/stores/resource-manager';
-	import { FolderOpen, Save, AlertTriangle, Upload, Download } from 'lucide-svelte';
+	import FolderOpen from 'lucide-svelte/icons/folder-open';
+	import Save from 'lucide-svelte/icons/save';
+	import AlertTriangle from 'lucide-svelte/icons/alert-triangle';
+	import Upload from 'lucide-svelte/icons/upload';
+	import Download from 'lucide-svelte/icons/download';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { Modal } from '$lib/components/ui/modal';
 

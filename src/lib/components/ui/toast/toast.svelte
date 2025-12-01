@@ -11,7 +11,10 @@
 	 */
 	import { cn } from '$lib/utils';
 	import type { BaseComponentProps } from '../component.types';
-	import { XIcon } from 'lucide-svelte';
+	import { X } from 'lucide-svelte';
+
+	// X is the correct component name, not XIcon
+	const XIcon = X;
 
 	interface Props extends BaseComponentProps {
 		/** Toast message content */

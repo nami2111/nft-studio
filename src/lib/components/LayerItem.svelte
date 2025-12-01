@@ -19,7 +19,12 @@
 	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
-	import { Trash2, Edit, Check, X, ChevronDown, ChevronRight } from 'lucide-svelte';
+	import Trash2 from 'lucide-svelte/icons/trash-2';
+	import Edit from 'lucide-svelte/icons/edit';
+	import Check from 'lucide-svelte/icons/check';
+	import X from 'lucide-svelte/icons/x';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import ChevronRight from 'lucide-svelte/icons/chevron-right';
 	import { getImageDimensions } from '$lib/utils';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { onMount, onDestroy } from 'svelte';

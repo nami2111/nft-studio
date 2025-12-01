@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Crown } from 'lucide-svelte';
+	import Crown from 'lucide-svelte/icons/crown';
 	import type { Trait, TraitType } from '$lib/types/layer';
 	import type { LayerId, TraitId } from '$lib/types/ids';
 	import { createLayerId, createTraitId } from '$lib/types/ids';
