@@ -203,7 +203,100 @@ private getOrSetFilteredCache(
 
 ---
 
-## [0.5.0] - 2025-11-30
+## [0.5.2] - 2025-12-01
+
+### Phase 4: Production Monitoring & Performance Budgets
+
+**Comprehensive production monitoring system with continuous performance tracking, alerting, and performance budget enforcement**
+
+#### Added
+
+- **Production Monitoring Service** (`src/lib/monitoring/performance-monitor.ts` - 400+ lines)
+  - **Cache Hit Rate Tracking**: Real-time monitoring of gallery filter cache performance
+  - **IndexedDB Query Performance**: Automatic tracking of all database operations with slow query detection (>100ms)
+  - **Memory Usage Monitoring**: Continuous JavaScript heap size tracking with 5-second intervals
+  - **Performance Alert System**: Automatic alerts for threshold violations (cache hit rate <70%, memory >200MB, slow queries)
+  - **Metrics Snapshots**: Complete performance snapshots with cache, database, memory, and alerts
+  - **Budget Enforcement**: Runtime checking against performance budgets (500KB bundle, 2s load, 200MB memory, 75% CPU)
+
+#### Integrated Monitoring
+
+- **Gallery Store Integration**: Cache hit/miss tracking in `gallery.store.svelte.ts`
+  - Records cache hits and misses for gallery filter operations
+  - Tracks cache evictions and memory usage
+  - Provides real-time cache performance metrics
+
+- **IndexedDB Performance Tracking**: Query timing in `gallery-db.ts`
+  - `saveCollection()`: Records database write performance
+  - `getCollection()`: Records database read performance
+  - `getAllCollections()`: Records bulk fetch performance
+  - `deleteCollection()`: Records deletion performance
+  - `clearAllCollections()`: Records bulk clear performance
+
+#### Performance Budgets
+
+- **Bundle Size**: 500KB maximum (enforced in CI/CD)
+- **Initial Load Time**: 2 seconds maximum
+- **Memory Usage**: 200MB maximum heap size
+- **CPU Usage**: 75% maximum utilization
+- **Cache Hit Rate**: 70% minimum hit rate
+- **Database Queries**: 100ms maximum average query time
+
+#### Monitoring Features
+
+- **Automatic Memory Monitoring**:
+  - Captures heap size every 5 seconds
+  - Stores last 100 memory snapshots
+  - Alerts on high memory usage (>200MB)
+  - Calculates average memory usage over time periods
+
+- **Cache Performance Tracking**:
+  - Per-cache hit/miss tracking (galleryFilter, imageCache, etc.)
+  - Hit rate calculation and threshold monitoring
+  - Memory usage tracking per cache
+  - Eviction tracking and alerting
+
+- **Database Query Monitoring**:
+  - Query operation timing for all IndexedDB operations
+  - Slow query detection (>100ms) with automatic alerting
+  - Average query time calculation
+  - Query count tracking
+
+- **Alert Management**:
+  - Severity levels: low, medium, high, critical
+  - Automatic threshold checking
+  - Alert history with 50-alert limit
+  - Recent alerts query (last 15 minutes by default)
+
+#### Metrics Collection
+
+- **Real-time Updates**: Metrics collected every 5 seconds (memory), 30 seconds (summary logs), 60 seconds (cleanup)
+- **Metrics Snapshots**: Complete system state capture with timestamp
+- **Performance Reports**: JSON export of all metrics for analysis
+- **Console Logging**: Automatic summary logs every 30 seconds
+
+### Performance Impact
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| **Observability** | Limited | Comprehensive | **Full visibility** |
+| **Cache Monitoring** | None | Real-time | **+100%** |
+| **DB Query Tracking** | None | Automatic | **+100%** |
+| **Memory Monitoring** | None | Continuous | **+100%** |
+| **Alert Response Time** | Manual | Automatic | **Instant** |
+
+### Files Changed
+- **New Files**: 1
+  - `src/lib/monitoring/performance-monitor.ts` (400+ lines)
+
+- **Modified Files**: 3
+  - `src/lib/stores/gallery.store.svelte.ts` (cache monitoring integration)
+  - `src/lib/utils/gallery-db.ts` (IndexedDB performance tracking)
+  - `src/lib/config/performance.config.ts` (added getPerformanceConfig function)
+
+---
+
+## [0.5.1] - 2025-12-01
 
 ### Major Performance Optimizations - Four-Phase Architecture
 
