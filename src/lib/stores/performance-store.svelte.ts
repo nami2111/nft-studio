@@ -8,6 +8,7 @@ import {
 	type PerformanceStats,
 	type PerformanceReport
 } from '$lib/utils/performance-monitor';
+import { PERF_CONFIG } from '$lib/config/performance.config';
 import { onDestroy } from 'svelte';
 
 // Reactive state for performance metrics
@@ -19,18 +20,22 @@ let performanceStats = $state<Record<string, PerformanceStats>>({});
 // Reactive state for performance report
 let performanceReport = $state<PerformanceReport | null>(null);
 
-// Update interval in milliseconds
-const UPDATE_INTERVAL = 1000;
-
 // Interval reference for cleanup
 let updateInterval: number | null = null;
 
+// Lazy initialization flag
+let isInitialized = false;
+
 /**
  * Update performance statistics reactively
+ * Uses batch update to avoid triggering dependents twice
  */
 function updateStats(): void {
-	performanceStats = performanceMonitor.getAllStats();
-	performanceReport = performanceMonitor.generateReport();
+	const stats = performanceMonitor.getAllStats();
+	const report = performanceMonitor.generateReport();
+	// Batch updates to minimize reactive triggers
+	performanceStats = stats;
+	performanceReport = report;
 }
 
 /**
@@ -73,7 +78,7 @@ function startUpdateInterval(): void {
 		clearInterval(updateInterval);
 	}
 
-	updateInterval = setInterval(updateStats, UPDATE_INTERVAL) as unknown as number;
+	updateInterval = setInterval(updateStats, PERF_CONFIG.monitoring.updateInterval) as unknown as number;
 }
 
 /**
@@ -219,10 +224,12 @@ export function getRecentMetrics(minutes: number = 5): Record<string, Performanc
 
 /**
  * Performance monitoring hook for Svelte components
+ * Uses lazy initialization - only starts monitoring when first used
  */
 export function usePerformanceMonitoring() {
-	// Initialize monitoring if not already enabled
-	if (!isMonitoringEnabled) {
+	// Lazy initialization - start monitoring only when first requested
+	if (!isInitialized) {
+		isInitialized = true;
 		enableMonitoring();
 	}
 
@@ -269,6 +276,3 @@ export function usePerformanceMonitoring() {
 		getFormattedTotalDuration
 	};
 }
-
-// Auto-start monitoring
-enableMonitoring();

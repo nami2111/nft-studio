@@ -22,12 +22,14 @@ import {
 } from '$lib/utils/gallery-db';
 import { imageUrlCache } from '$lib/utils/object-url-cache';
 import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
+import { PERF_CONFIG } from '$lib/config/performance.config';
 
 // Gallery store with Svelte 5 runes
 class GalleryStore {
-	// Simple cache for filtered results
+	// LRU cache for filtered results - tracks access for efficient eviction
 	private filteredCache = new Map<string, GalleryNFT[]>();
 	private lastFilterKey = '';
+	private readonly MAX_CACHE_ENTRIES = PERF_CONFIG.cache.galleryFilter.maxEntries;
 
 	// Natural numeric sorting function for names
 	private naturalCompare(a: string, b: string): number {
@@ -126,8 +128,12 @@ class GalleryStore {
 		// Check cache first
 		if (this.filteredCache.has(filterKey)) {
 			debugLog('🎯 CACHE HIT! Using cached results');
+			// Mark as recently used by re-inserting (LRU)
+			const cached = this.filteredCache.get(filterKey)!;
+			this.filteredCache.delete(filterKey);
+			this.filteredCache.set(filterKey, cached);
 			endTiming();
-			return this.filteredCache.get(filterKey)!;
+			return cached;
 		}
 
 		debugLog('❌ CACHE MISS - Running full filter process');
@@ -200,8 +206,9 @@ class GalleryStore {
 				break;
 		}
 
-		// Cache result
-		if (this.filteredCache.size > 50) {
+		// Cache result with LRU eviction
+		if (this.filteredCache.size >= this.MAX_CACHE_ENTRIES) {
+			// Remove the least recently used item (first key in Map)
 			const firstKey = this.filteredCache.keys().next().value;
 			if (firstKey) {
 				this.filteredCache.delete(firstKey);

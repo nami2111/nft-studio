@@ -100,6 +100,19 @@
 		}
 	});
 
+	// Cleanup old imageUrl when trait.imageUrl changes
+	$effect(() => {
+		// Track the current imageUrl
+		const currentUrl = trait.imageUrl;
+
+		// Return cleanup function
+		return () => {
+			if (currentUrl) {
+				URL.revokeObjectURL(currentUrl);
+			}
+		};
+	});
+
 	onMount(() => {
 		if (!imageContainer) return;
 
@@ -130,6 +143,12 @@
 		if (observer) {
 			observer.disconnect();
 			observer = null;
+		}
+
+		// Cleanup ObjectURL on component destroy
+		if (trait.imageUrl) {
+			URL.revokeObjectURL(trait.imageUrl);
+			trait.imageUrl = undefined;
 		}
 	});
 </script>
