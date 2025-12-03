@@ -297,7 +297,7 @@ function checkWorkerHealth(workerIndex: number): void {
 			console.warn(`Worker ${workerIndex} unresponsive to health check`);
 			workerPool!.workerHealth[workerIndex] = WorkerHealth.UNRESPONSIVE;
 			handleWorkerFailure(workerIndex, 'Worker unresponsive');
-		}, 3000); // 3 second timeout
+		}, 10000); // 10 second timeout for better stability
 
 		worker.postMessage({ type: 'ping', pingId });
 
@@ -385,7 +385,7 @@ async function restartWorker(workerIndex: number): Promise<void> {
 	}
 
 	try {
-		const newWorker = await createWorker(workerPool.config.workerInitializationTimeout || 5000);
+		const newWorker = await createWorker(workerPool.config.workerInitializationTimeout || 10000);
 
 		// Replace worker in pool
 		workerPool.workers[workerIndex] = newWorker;
@@ -844,8 +844,15 @@ function removeIdleWorkers(count: number): void {
 		const idleTime = Date.now() - lastActivity;
 
 		// Only remove healthy, idle workers that haven't been active recently
-		if (isHealthy && workerPool.workerStatus[i] && idleTime > 30000) {
-			// 30 seconds idle
+		// Keep minimum workers for parallel processing and increase idle timeout
+		const minWorkers = Math.max(2, Math.floor(workerPool.workers.length / 2)); // Keep at least half the workers
+		if (
+			workerPool.workers.length - removedCount > minWorkers &&
+			isHealthy &&
+			workerPool.workerStatus[i] &&
+			idleTime > 60000
+		) {
+			// 60 seconds idle
 			// Check if any tasks are assigned to this worker
 			const hasActiveTasks = Array.from(workerPool.activeTasks.values()).some(
 				(task) => task.assignedWorker === i
@@ -1018,6 +1025,41 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 	} catch (error) {
 		performanceMonitor.stopTimer(timerId, { error: String(error) });
 		throw error;
+	}
+}
+
+/**
+ * Warm up workers by pre-initializing a minimum pool
+ * This reduces latency on first use by having workers ready
+ * Only creates minWorkers, not the full maxWorkers pool
+ */
+export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
+	// If worker pool already exists, skip warm-up
+	if (workerPool) {
+		return;
+	}
+
+	// Start pool with minimum workers (not full pool)
+	const minWorkers = config?.minWorkers || 2;
+	const maxWorkers = config?.maxWorkers || getOptimalWorkerCount(1000); // Default to medium collection size
+
+	console.log(`Warming up worker pool with ${minWorkers} workers...`);
+
+	// Initialize with minWorkers instead of maxWorkers for faster startup
+	const warmUpConfig: WorkerPoolConfig = {
+		...config,
+		maxWorkers: minWorkers, // Only create minimum workers for warm-up
+		minWorkers,
+		taskComplexityBasedScaling: config?.taskComplexityBasedScaling ?? true,
+		healthCheckInterval: config?.healthCheckInterval ?? 30000
+	};
+
+	try {
+		await initializeWorkerPool(warmUpConfig);
+		console.log(`Worker pool warmed up with ${minWorkers} workers ready`);
+	} catch (error) {
+		console.error('Worker warm-up failed:', error);
+		// Non-critical error - workers will be initialized on first use
 	}
 }
 

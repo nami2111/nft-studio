@@ -7,6 +7,7 @@
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
 	import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
+	import { formatDate } from '$lib/utils/formatters';
 
 	let isLoading = $derived(galleryStore.isLoading);
 	let collections = $derived(galleryStore.collections);

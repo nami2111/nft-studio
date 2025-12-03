@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { XIcon } from 'lucide-svelte';
+	import { X } from 'lucide-svelte';
+
+	// X is the correct component name, not XIcon
+	const XIcon = X;
 	import type { Snippet } from 'svelte';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';

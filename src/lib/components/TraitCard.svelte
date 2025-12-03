@@ -6,7 +6,11 @@
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
-	import { Edit, Trash2, Check, X, Crown } from 'lucide-svelte';
+	import Edit from 'lucide-svelte/icons/edit';
+	import Trash2 from 'lucide-svelte/icons/trash-2';
+	import Check from 'lucide-svelte/icons/check';
+	import X from 'lucide-svelte/icons/x';
+	import Crown from 'lucide-svelte/icons/crown';
 	import { onMount, onDestroy } from 'svelte';
 	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
 	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
@@ -100,6 +104,19 @@
 		}
 	});
 
+	// Cleanup old imageUrl when trait.imageUrl changes
+	$effect(() => {
+		// Track the current imageUrl
+		const currentUrl = trait.imageUrl;
+
+		// Return cleanup function
+		return () => {
+			if (currentUrl) {
+				URL.revokeObjectURL(currentUrl);
+			}
+		};
+	});
+
 	onMount(() => {
 		if (!imageContainer) return;
 
@@ -130,6 +147,12 @@
 		if (observer) {
 			observer.disconnect();
 			observer = null;
+		}
+
+		// Cleanup ObjectURL on component destroy
+		if (trait.imageUrl) {
+			URL.revokeObjectURL(trait.imageUrl);
+			trait.imageUrl = undefined;
 		}
 	});
 </script>

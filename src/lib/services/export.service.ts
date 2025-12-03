@@ -1,4 +1,5 @@
 import { trackGenerationCompleted } from '$lib/utils/analytics';
+import { MemoryMonitor } from '$lib/utils/memory-monitor';
 import type { Project } from '$lib/types/project';
 
 export interface ExportOptions {
@@ -17,6 +18,11 @@ export class ExportService {
 		const { project, images, metadata, startTime, onProgress } = options;
 
 		try {
+			// Start memory monitoring for large exports
+			if (images.length > 500) {
+				MemoryMonitor.start();
+			}
+
 			// Use optimized approach for large collections
 			if (images.length > 1000) {
 				await this.packageZipOptimized({ project, images, metadata, onProgress });
@@ -32,6 +38,9 @@ export class ExportService {
 		} catch (error) {
 			console.error('Export failed:', error);
 			throw error;
+		} finally {
+			// Stop memory monitoring
+			MemoryMonitor.stop();
 		}
 	}
 
@@ -77,7 +86,7 @@ export class ExportService {
 		const { project, images, metadata, onProgress } = options;
 
 		// For very large collections, create multiple smaller ZIPs
-		if (images.length > 5000) {
+		if (images.length > 3000) {
 			await this.createMultipleZips(options);
 			return;
 		}
@@ -88,7 +97,7 @@ export class ExportService {
 		const metadataFolder = zip.folder('metadata');
 
 		// Process in smaller chunks to manage memory
-		const chunkSize = 250;
+		const chunkSize = 100; // Reduced from 250 for better memory management
 
 		for (let i = 0; i < images.length; i += chunkSize) {
 			const chunk = images.slice(i, i + chunkSize);
@@ -96,9 +105,10 @@ export class ExportService {
 				imagesFolder?.file(file.name, file.imageData);
 			});
 
-			// Trigger garbage collection hint
-			if (i % (chunkSize * 4) === 0) {
-				await new Promise((resolve) => setTimeout(resolve, 0));
+			// Clear references and trigger garbage collection
+			chunk.length = 0;
+			if (i % (chunkSize * 2) === 0) {
+				await new Promise((resolve) => setTimeout(resolve, 10));
 			}
 
 			onProgress?.({
@@ -114,9 +124,10 @@ export class ExportService {
 				metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
 			});
 
-			// Trigger garbage collection hint
-			if (i % (chunkSize * 4) === 0) {
-				await new Promise((resolve) => setTimeout(resolve, 0));
+			// Clear references and trigger garbage collection
+			chunk.length = 0;
+			if (i % (chunkSize * 2) === 0) {
+				await new Promise((resolve) => setTimeout(resolve, 10));
 			}
 
 			onProgress?.({
@@ -126,7 +137,12 @@ export class ExportService {
 			});
 		}
 
-		const content = await zip.generateAsync({ type: 'blob' });
+		// Generate ZIP with optimized settings
+		const content = await zip.generateAsync({
+			type: 'blob',
+			compression: 'DEFLATE',
+			compressionOptions: { level: 6 }
+		});
 		await this.downloadZip(content, project);
 	}
 

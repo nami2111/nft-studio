@@ -71,14 +71,54 @@ export async function saveProjectToZip(project: Project): Promise<ArrayBuffer> {
  * Load project from ZIP file
  */
 export async function loadProjectFromZip(file: File): Promise<Project> {
+	// Enhanced file validation
+	if (!file) {
+		throw new Error('No file provided. Please select a ZIP file to load.');
+	}
+
+	if (!file.name) {
+		throw new Error('Invalid file: missing filename');
+	}
+
+	if (!file.name.toLowerCase().endsWith('.zip')) {
+		throw new Error(
+			`Invalid file type: "${file.name}". Please select a valid .zip project file.`
+		);
+	}
+
+	if (file.size === 0) {
+		throw new Error(`File "${file.name}" is empty. Please select a valid project file.`);
+	}
+
+	if (file.size > 200 * 1024 * 1024) { // 200MB limit for projects
+		throw new Error(
+			`File "${file.name}" is too large (${Math.round(file.size / 1024 / 1024)}MB). ` +
+			`Maximum allowed size is 200MB.`
+		);
+	}
+
+	// Check if file looks like a valid ZIP
+	if (file.type && file.type !== 'application/zip' && file.type !== 'application/x-zip-compressed') {
+		console.warn(`[loadProjectFromZip] Unexpected MIME type: ${file.type} for ${file.name}`);
+		// Don't throw here as some browsers don't set MIME types correctly
+	}
+
 	try {
-		const arrayBuffer = await fileToArrayBuffer(file);
+		console.log(`[loadProjectFromZip] Starting to load project from: ${file.name} (${Math.round(file.size / 1024)}KB)`);
+		
+		// Use the enhanced fileToArrayBuffer with retry logic
+		const arrayBuffer = await fileToArrayBuffer(file, 3, 150);
+		
+		console.log(`[loadProjectFromZip] File read successfully, parsing ZIP...`);
 		const zip = await JSZip.loadAsync(arrayBuffer);
 
 		// Read project metadata
 		const projectFile = zip.file('project.json');
 		if (!projectFile) {
-			throw new Error('Project metadata not found in ZIP file');
+			throw new Error(
+				`Invalid project file: "project.json" not found in ${file.name}. ` +
+				`This file may be corrupted or is not a valid NFT Studio project file.`
+			);
 		}
 
 		const projectData = JSON.parse(await projectFile.async('text'));
@@ -86,7 +126,9 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		// Validate imported project
 		const validationResult = validateImportedProject(projectData);
 		if (!validationResult.success) {
-			throw new Error(validationResult.error);
+			throw new Error(
+				`Invalid project structure in ${file.name}: ${validationResult.error}`
+			);
 		}
 
 		// Process the stored project data and load trait images

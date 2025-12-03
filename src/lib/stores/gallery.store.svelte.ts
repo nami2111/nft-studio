@@ -22,12 +22,15 @@ import {
 } from '$lib/utils/gallery-db';
 import { imageUrlCache } from '$lib/utils/object-url-cache';
 import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
+import { PERF_CONFIG } from '$lib/config/performance.config';
+import { productionMonitor } from '$lib/monitoring/performance-monitor';
 
 // Gallery store with Svelte 5 runes
 class GalleryStore {
-	// Simple cache for filtered results
+	// LRU cache for filtered results - tracks access for efficient eviction
 	private filteredCache = new Map<string, GalleryNFT[]>();
 	private lastFilterKey = '';
+	private readonly MAX_CACHE_ENTRIES = PERF_CONFIG.cache.galleryFilter.maxEntries;
 
 	// Natural numeric sorting function for names
 	private naturalCompare(a: string, b: string): number {
@@ -64,8 +67,39 @@ class GalleryStore {
 		return a.localeCompare(b);
 	}
 
+	/**
+	 * Build a trait index for efficient O(1) trait lookups during filtering
+	 * The index maps NFT ID to a Set of trait identifiers in format "layer:trait"
+	 * This avoids recomputing traits for each NFT during every filter operation
+	 */
+	private buildTraitIndex(nfts: GalleryNFT[]): Map<string, Set<string>> {
+		const startTiming = debugTime('Build trait index');
+		const index = new Map<string, Set<string>>();
+
+		for (const nft of nfts) {
+			// Create a Set of trait identifiers for this NFT
+			const traitsSet = new Set<string>();
+			for (const trait of nft.metadata.traits) {
+				const layer = trait.layer || (trait as any).trait_type;
+				const value = trait.trait || (trait as any).value;
+				if (layer && value) {
+					traitsSet.add(`${layer}:${value}`);
+				}
+			}
+			index.set(nft.id, traitsSet);
+		}
+
+		debugCount('Trait index entries', index.size);
+		startTiming();
+		return index;
+	}
+
 	// Track last logged storage usage to reduce log frequency
 	private _lastLoggedUsage: number | null = null;
+
+	// Trait index cache for efficient filtering - maps NFT ID to its traits
+	private _traitIndex = new Map<string, Set<string>>();
+	private _traitIndexCollectionId: string | null = null;
 
 	// Main state
 	private _state = $state<GalleryState>({
@@ -126,11 +160,19 @@ class GalleryStore {
 		// Check cache first
 		if (this.filteredCache.has(filterKey)) {
 			debugLog('🎯 CACHE HIT! Using cached results');
+			// Mark as recently used by re-inserting (LRU)
+			const cached = this.filteredCache.get(filterKey)!;
+			this.filteredCache.delete(filterKey);
+			this.filteredCache.set(filterKey, cached);
+			// Record cache hit in production monitor
+			productionMonitor.recordCacheHit('galleryFilter');
 			endTiming();
-			return this.filteredCache.get(filterKey)!;
+			return cached;
 		}
 
 		debugLog('❌ CACHE MISS - Running full filter process');
+		// Record cache miss in production monitor
+		productionMonitor.recordCacheMiss('galleryFilter');
 
 		// Perform filtering
 		let filtered = [...sourceNFTs];
@@ -147,16 +189,26 @@ class GalleryStore {
 			debugCount('After search filter', filtered.length);
 		}
 
-		// Apply trait filters
+		// Apply trait filters using pre-computed index (O(1) lookups instead of O(n*m*k))
 		if (this._state.filterOptions.selectedTraits) {
-			debugLog('🏷️ Applying trait filters');
-			filtered = filtered.filter((nft) => {
-				for (const [layer, traits] of Object.entries(this._state.filterOptions.selectedTraits!)) {
-					const nftLayerTraits = nft.metadata.traits
-						.filter((t) => (t.layer || (t as any).trait_type) === layer)
-						.map((t) => t.trait || (t as any).value);
+			debugLog('🏷️ Applying trait filters with index');
 
-					if (!traits.some((trait) => nftLayerTraits.includes(trait))) {
+			// Build trait index if not cached or if collection changed
+			const currentCollectionId = this._state.selectedCollection?.id || 'all';
+			if (this._traitIndexCollectionId !== currentCollectionId || this._traitIndex.size === 0) {
+				this._traitIndex = this.buildTraitIndex(filtered);
+				this._traitIndexCollectionId = currentCollectionId;
+			}
+
+			// Use the pre-computed index for O(1) lookups
+			filtered = filtered.filter((nft) => {
+				const nftTraits = this._traitIndex.get(nft.id);
+				if (!nftTraits) return false;
+
+				// Check if NFT has all required traits (AND logic)
+				for (const [layer, traits] of Object.entries(this._state.filterOptions.selectedTraits!)) {
+					const hasLayerTrait = traits.some((trait) => nftTraits.has(`${layer}:${trait}`));
+					if (!hasLayerTrait) {
 						return false;
 					}
 				}
@@ -200,15 +252,20 @@ class GalleryStore {
 				break;
 		}
 
-		// Cache result
-		if (this.filteredCache.size > 50) {
+		// Cache result with LRU eviction
+		if (this.filteredCache.size >= this.MAX_CACHE_ENTRIES) {
+			// Remove the least recently used item (first key in Map)
 			const firstKey = this.filteredCache.keys().next().value;
 			if (firstKey) {
 				this.filteredCache.delete(firstKey);
+				// Record cache eviction in production monitor
+				productionMonitor.recordCacheEviction('galleryFilter', 0);
 			}
 		}
 		this.filteredCache.set(filterKey, filtered);
 		this.lastFilterKey = filterKey;
+		// Update cache memory usage in production monitor
+		productionMonitor.updateCacheMemoryUsage('galleryFilter', this.filteredCache.size * 1024);
 
 		debugCount('✅ FINAL RESULT', filtered.length);
 		endTiming();
@@ -241,12 +298,20 @@ class GalleryStore {
 	setSelectedCollection(collection: GalleryCollection | null) {
 		this._state.selectedCollection = collection;
 		this._state.selectedNFT = null; // Clear selected NFT when changing collection
+		// Clear trait index when switching collections
+		this._traitIndex.clear();
+		this._traitIndexCollectionId = null;
 	}
 
 	setFilterOptions(options: Partial<GalleryFilterOptions>) {
 		this._state.filterOptions = { ...this._state.filterOptions, ...options };
 		// Clear cache when filters change
 		this.filteredCache.clear();
+		// Clear trait index when trait filters change (it will be rebuilt on next use)
+		if (options.selectedTraits !== undefined) {
+			this._traitIndex.clear();
+			this._traitIndexCollectionId = null;
+		}
 	}
 
 	setSortOption(option: GallerySortOption) {

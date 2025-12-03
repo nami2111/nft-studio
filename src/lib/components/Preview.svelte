@@ -4,7 +4,8 @@
 	import type { TraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import { RefreshCw, Shuffle } from 'lucide-svelte';
+	import RefreshCw from 'lucide-svelte/icons/refresh-cw';
+	import Shuffle from 'lucide-svelte/icons/shuffle';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { onDestroy } from 'svelte';
 

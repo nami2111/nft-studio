@@ -5,7 +5,7 @@
 
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import { Loader2 } from 'lucide-svelte';
+	import Loader2 from 'lucide-svelte/icons/loader-2';
 	import { showError, showSuccess } from '$lib/utils/error-handling';
 
 	let layers = $derived(project.layers);

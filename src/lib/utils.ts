@@ -79,21 +79,113 @@ export async function getImageDimensions(file: File): Promise<{ width: number; h
 }
 
 /**
- * Convert a File object to an ArrayBuffer.
+ * Convert a File object to an ArrayBuffer with enhanced error handling.
  *
  * @param file - The File object to convert.
+ * @param maxRetries - Maximum number of retry attempts (default: 3).
+ * @param retryDelay - Delay between retries in milliseconds (default: 100).
  * @returns A promise that resolves with the ArrayBuffer representation of the file.
  */
-export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
-	try {
-		const result = await file.arrayBuffer();
-		return result;
-	} catch (error) {
-		console.error(`[fileToArrayBuffer] Failed to read file ${file.name}:`, error);
-		throw new Error(
-			`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`
-		);
+export async function fileToArrayBuffer(
+	file: File,
+	maxRetries: number = 3,
+	retryDelay: number = 100
+): Promise<ArrayBuffer> {
+	// Validate file object
+	if (!file) {
+		throw new Error('No file provided');
 	}
+
+	if (!file.name) {
+		throw new Error('Invalid file: missing filename');
+	}
+
+	if (file.size === 0) {
+		throw new Error(`File "${file.name}" is empty`);
+	}
+
+	if (file.size > 100 * 1024 * 1024) { // 100MB limit
+		throw new Error(`File "${file.name}" is too large (max 100MB)`);
+	}
+
+	// Check if file is accessible
+	if (typeof file.arrayBuffer !== 'function') {
+		throw new Error(`File "${file.name}" is not accessible`);
+	}
+
+	let lastError: Error | null = null;
+
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			// Add a small delay to allow file handle to stabilize (especially for drag & drop)
+			if (attempt > 1) {
+				await new Promise(resolve => setTimeout(resolve, retryDelay));
+			}
+
+			const result = await file.arrayBuffer();
+			
+			if (result.byteLength === 0) {
+				throw new Error(`File "${file.name}" read successfully but contains no data`);
+			}
+
+			return result;
+			
+		} catch (error) {
+			lastError = error instanceof Error ? error : new Error(String(error));
+
+			// If it's a NotFoundError and not the last attempt, retry
+			if (
+				lastError.name === 'NotFoundError' ||
+				lastError.message.includes('NotFoundError') ||
+				lastError.message.includes('could not be found')
+			) {
+				if (attempt < maxRetries) {
+					continue;
+				}
+			}
+
+			// For other errors or last attempt, throw with detailed context
+			const errorContext = {
+				fileName: file.name,
+				fileSize: file.size,
+				fileType: file.type,
+				attempt,
+				maxRetries,
+				originalError: lastError.message
+			};
+
+			if (lastError.name === 'NotFoundError' || lastError.message.includes('could not be found')) {
+				throw new Error(
+					`Failed to access file "${file.name}". The file may have been moved, deleted, or is not accessible. ` +
+					`Please try dragging the file again or select it using the file browser.`
+				);
+			}
+
+			if (lastError.name === 'SecurityError' || lastError.message.includes('security')) {
+				throw new Error(
+					`Security error reading file "${file.name}". This may be due to browser security restrictions. ` +
+					`Please try using the file browser instead of drag and drop.`
+				);
+			}
+
+			if (lastError.name === 'AbortError' || lastError.message.includes('aborted')) {
+				throw new Error(
+					`File reading was aborted for "${file.name}". Please try again.`
+				);
+			}
+
+			throw new Error(
+				`Failed to read file "${file.name}": ${lastError.message} ` +
+				`(attempt ${attempt}/${maxRetries})`
+			);
+		}
+	}
+
+	// This should never be reached, but just in case
+	throw new Error(
+		`Failed to read file "${file.name}" after ${maxRetries} attempts. ` +
+		`Last error: ${lastError?.message || 'Unknown error'}`
+	);
 }
 
 /**

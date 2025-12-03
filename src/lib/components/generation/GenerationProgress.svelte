@@ -2,6 +2,7 @@
 	import { Progress } from '$lib/components/ui/progress';
 	import { AlertCircle } from 'lucide-svelte';
 	import { generationState, resetState } from '$lib/stores/generation-progress.svelte';
+	import { formatTime } from '$lib/utils/formatters';
 
 	let { isBackground, isPaused, isGenerating } = $props<{
 		isBackground: boolean;
@@ -51,12 +52,12 @@
 					<p class="text-xs">Session: {currentSessionId.slice(0, 12)}...</p>
 					{#if generationState.startTime}
 						<p class="text-xs">
-							Started: {new Date(generationState.startTime).toLocaleTimeString()}
+							Started: {formatTime(generationState.startTime)}
 						</p>
 					{/if}
 					{#if generationState.completionTime}
 						<p class="text-xs">
-							Finished: {new Date(generationState.completionTime).toLocaleTimeString()}
+							Finished: {formatTime(generationState.completionTime)}
 						</p>
 					{/if}
 					{#if isPaused}

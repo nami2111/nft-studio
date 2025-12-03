@@ -11,6 +11,15 @@
 		CancelledMessage,
 		PreviewMessage
 	} from '$lib/types/worker-messages';
+	import {
+		isProgressMessage,
+		isCompleteMessage,
+		isErrorMessage,
+		isCancelledMessage,
+		isPreviewMessage,
+		isAnalysisMessage,
+		isPerformanceReportMessage
+	} from '$lib/types/worker-messages';
 	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
 	import {
@@ -122,11 +131,23 @@
 			// Complete the generation in persistent store
 			completeGeneration();
 		} catch (error) {
-			showError(error, {
-				title: 'Package Error',
-				description: 'Failed to create .zip file. Please try again.'
-			});
-			generationState.statusText = 'Error: Failed to create .zip file.';
+			console.error('Export error details:', error);
+
+			// Handle memory allocation errors specifically
+			if (error instanceof Error && error.message.includes('Array buffer allocation failed')) {
+				showError(error, {
+					title: 'Memory Limit Exceeded',
+					description:
+						'The collection is too large to export as a single ZIP file. Multiple smaller ZIP files will be created automatically for collections over 3000 items. Please try generating a smaller batch or wait for memory to free up.'
+				});
+				generationState.statusText = 'Memory limit reached. Try smaller batches.';
+			} else {
+				showError(error, {
+					title: 'Package Error',
+					description: 'Failed to create .zip file. Please try again.'
+				});
+				generationState.statusText = 'Error: Failed to create .zip file.';
+			}
 			generationState.error = error instanceof Error ? error.message : 'Packaging failed';
 		} finally {
 			isPackaging = false;
@@ -205,7 +226,13 @@
 
 			// Set up worker message handler that delegates to persistent store
 			const workerMessageHandler = async (
-				data: ProgressMessage | CompleteMessage | ErrorMessage | CancelledMessage | PreviewMessage
+				data:
+					| ProgressMessage
+					| CompleteMessage
+					| ErrorMessage
+					| CancelledMessage
+					| PreviewMessage
+					| { type: 'analysis' | 'performance-report'; payload: any }
 			) => {
 				const message = data;
 
@@ -233,6 +260,11 @@
 							break;
 						case 'cancelled':
 							completeGeneration(); // Mark as complete but cancelled
+							break;
+						case 'analysis':
+						case 'performance-report':
+							// Log analysis and performance reports in background
+							console.log(`📊 Background ${message.type}:`, message.payload);
 							break;
 					}
 					return;
@@ -293,6 +325,18 @@
 							title: 'Generation Error',
 							description: 'An error occurred during generation. Please try again.'
 						});
+						break;
+					case 'analysis':
+						// Handle collection analysis message
+						if ('payload' in message && message.payload?.complexity) {
+							console.log('📊 Collection analysis:', message.payload);
+						}
+						break;
+					case 'performance-report':
+						// Handle performance report message
+						if ('payload' in message && message.payload) {
+							console.log('📈 Performance report:', message.payload);
+						}
 						break;
 					default:
 						console.warn('Unknown message type from worker:', (message as { type: string }).type);

@@ -3,7 +3,10 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Modal } from '$lib/components/ui/modal';
-	import { Settings, Plus, X, Info } from 'lucide-svelte';
+	import Settings from 'lucide-svelte/icons/settings';
+	import Plus from 'lucide-svelte/icons/plus';
+	import X from 'lucide-svelte/icons/x';
+	import Info from 'lucide-svelte/icons/info';
 	import type { StrictPairConfig, LayerCombination } from '$lib/types/layer';
 	import type { Layer } from '$lib/types/project';
 	import type { LayerId, TraitId } from '$lib/types/ids';

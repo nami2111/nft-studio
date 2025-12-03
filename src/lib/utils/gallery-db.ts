@@ -5,9 +5,10 @@
 
 import { openDB, type IDBPDatabase } from 'idb';
 import type { GalleryCollection } from '$lib/types/gallery';
+import { productionMonitor } from '$lib/monitoring/performance-monitor';
 
 const DB_NAME = 'nft-studio-gallery';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented to trigger upgrade for new indices
 const COLLECTIONS_STORE = 'collections';
 
 let dbInstance: IDBPDatabase | null = null;
@@ -27,8 +28,11 @@ export async function initGalleryDB(): Promise<IDBPDatabase> {
 				const store = db.createObjectStore(COLLECTIONS_STORE, {
 					keyPath: 'id'
 				});
+				// Add indices for common query patterns
 				store.createIndex('name', 'name', { unique: false });
 				store.createIndex('generatedAt', 'generatedAt', { unique: false });
+				store.createIndex('projectName', 'projectName', { unique: false });
+				store.createIndex('totalSupply', 'totalSupply', { unique: false });
 			}
 		}
 	});
@@ -40,6 +44,7 @@ export async function initGalleryDB(): Promise<IDBPDatabase> {
  * Save a collection to IndexedDB
  */
 export async function saveCollection(collection: GalleryCollection): Promise<void> {
+	const startTime = Date.now();
 	const db = await initGalleryDB();
 
 	// Deep serialization to ensure all data is cloneable
@@ -71,14 +76,23 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 	};
 
 	await db.put(COLLECTIONS_STORE, collectionToStore);
+
+	// Record database query performance
+	const duration = Date.now() - startTime;
+	productionMonitor.recordDatabaseQuery('saveCollection', duration);
 }
 
 /**
  * Get a collection from IndexedDB by ID
  */
 export async function getCollection(id: string): Promise<GalleryCollection | undefined> {
+	const startTime = Date.now();
 	const db = await initGalleryDB();
 	const stored = await db.get(COLLECTIONS_STORE, id);
+
+	// Record database query performance
+	const duration = Date.now() - startTime;
+	productionMonitor.recordDatabaseQuery('getCollection', duration);
 
 	if (!stored) {
 		return undefined;
@@ -101,8 +115,13 @@ export async function getCollection(id: string): Promise<GalleryCollection | und
  * Get all collections from IndexedDB
  */
 export async function getAllCollections(): Promise<GalleryCollection[]> {
+	const startTime = Date.now();
 	const db = await initGalleryDB();
 	const storedCollections = await db.getAll(COLLECTIONS_STORE);
+
+	// Record database query performance
+	const duration = Date.now() - startTime;
+	productionMonitor.recordDatabaseQuery('getAllCollections', duration);
 
 	return storedCollections.map((stored) => ({
 		...stored,
@@ -119,17 +138,28 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
  * Delete a collection from IndexedDB
  */
 export async function deleteCollection(id: string): Promise<void> {
+	const startTime = Date.now();
 	const db = await initGalleryDB();
 	await db.delete(COLLECTIONS_STORE, id);
+
+	// Record database query performance
+	const duration = Date.now() - startTime;
+	productionMonitor.recordDatabaseQuery('deleteCollection', duration);
 }
 
 /**
  * Clear all collections from IndexedDB
  */
 export async function clearAllCollections(): Promise<void> {
+	const startTime = Date.now();
 	const db = await initGalleryDB();
 	await db.clear(COLLECTIONS_STORE);
+
+	// Record database query performance
+	const duration = Date.now() - startTime;
+	productionMonitor.recordDatabaseQuery('clearAllCollections', duration);
 }
+
 
 /**
  * Get storage estimate (how much space is being used)
