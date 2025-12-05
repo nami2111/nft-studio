@@ -33,9 +33,9 @@ export function detectCollectionComplexity(
 
 	// Simple collections: Fast linear algorithm
 	if (
-		factors.layerCount <= 12 &&
-		factors.traitCount <= 100 &&
-		collectionSize <= 15000 &&
+		factors.layerCount <= 3 &&
+		factors.traitCount <= 20 &&
+		collectionSize <= 500 &&
 		!factors.hasComplexRules
 	) {
 		return {
@@ -47,7 +47,7 @@ export function detectCollectionComplexity(
 	}
 
 	// Medium collections: Optimized existing algorithm
-	if (factors.layerCount <= 20 && factors.traitCount <= 300 && collectionSize <= 25000) {
+	if (factors.layerCount <= 20 && factors.traitCount <= 300 && collectionSize <= 10000) {
 		return {
 			type: 'medium',
 			recommendedAlgorithm: 'optimized-existing',
