@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Metric | Before | After | Change |
 |--------|--------|-------|---------|
-| **Generation Speed** | 7.8 items/sec | 7.8 items/sec | **Maintained** |
+| **Generation Speed** | 8 items/sec | 8 items/sec | **Maintained** |
 | **Memory Usage** | Higher | 20-30% less | **Improved** |
 | **Code Complexity** | High | Low | **Simplified** |
 | **Debugging** | Difficult | Easy | **Improved** |
@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | **Bundle Size** | ~600KB | ~580KB | **Reduced** |
 
 **Real-World Testing Results:**
-- 1000 NFTs: ~141 seconds (sequential processing)
+- 1000 NFTs: ~125 seconds (sequential processing)
 - 99.6% cache hit rate maintained
 - 40-60% memory reduction from sprite sheets
 - Stable performance with simplified architecture
