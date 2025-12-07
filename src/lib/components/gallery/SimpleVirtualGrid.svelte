@@ -115,7 +115,7 @@
 		}
 
 		// Check if imageData exists
-		if (!nft.imageData || nft.imageData.byteLength === 0) {
+		if (!nft.imageData || (typeof nft.imageData !== 'string' && nft.imageData.byteLength === 0)) {
 			return '';
 		}
 
@@ -254,7 +254,7 @@
 					>
 						<!-- NFT Image -->
 						<div class="bg-muted h-full w-full overflow-hidden">
-							{#if nft.imageData && nft.imageData.byteLength > 0}
+							{#if nft.imageData && (typeof nft.imageData === 'string' || nft.imageData.byteLength > 0)}
 								{@const imageUrl = requestImageUrl(nft)}
 								{#if imageUrl && imageUrl !== 'error'}
 									<img

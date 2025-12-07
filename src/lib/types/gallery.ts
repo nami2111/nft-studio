@@ -12,7 +12,7 @@ export interface GalleryNFT {
 	id: string;
 	name: string;
 	description?: string;
-	imageData: ArrayBuffer;
+	imageData: ArrayBuffer | string; // ArrayBuffer for standard processing, string (blob URL) for streaming
 	imageUrl?: string;
 	metadata: {
 		traits: Array<{
@@ -25,6 +25,7 @@ export interface GalleryNFT {
 	rarityRank: number;
 	collectionId: string;
 	generatedAt: Date;
+	isBlobUrl?: boolean; // Optional flag to indicate if imageData is a blob URL
 }
 
 /**

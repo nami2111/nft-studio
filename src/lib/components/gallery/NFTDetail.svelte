@@ -24,9 +24,15 @@
 
 		if (selectedNFT) {
 			isLoadingImage = true;
-			// Create image URL from ArrayBuffer
-			const blob = new Blob([selectedNFT.imageData], { type: 'image/png' });
-			imageUrl = URL.createObjectURL(blob);
+			// Handle both ArrayBuffer and Blob URL
+			if (typeof selectedNFT.imageData === 'string') {
+				// Already a Blob URL
+				imageUrl = selectedNFT.imageData;
+			} else if (selectedNFT.imageData instanceof ArrayBuffer) {
+				// Create image URL from ArrayBuffer
+				const blob = new Blob([selectedNFT.imageData], { type: 'image/png' });
+				imageUrl = URL.createObjectURL(blob);
+			}
 			isLoadingImage = false;
 		}
 	});

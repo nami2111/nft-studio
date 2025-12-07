@@ -494,7 +494,7 @@ class GalleryStore {
 
 	// Import collection from external data (ZIP file, etc.)
 	importCollection(
-		nfts: Array<{ name: string; imageData: ArrayBuffer; metadata: any; index: number }>,
+		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata: any; index: number; isBlobUrl?: boolean }>,
 		collectionName: string,
 		collectionDescription: string = 'Imported NFT collection'
 	) {
@@ -539,7 +539,7 @@ class GalleryStore {
 	// Merge NFTs into existing collection
 	mergeIntoCollection(
 		collectionId: string,
-		nfts: Array<{ name: string; imageData: ArrayBuffer; metadata: any; index: number }>
+		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata: any; index: number; isBlobUrl?: boolean }>
 	) {
 		const collection = this._state.collections.find((c) => c.id === collectionId);
 		if (!collection) {
@@ -569,7 +569,7 @@ class GalleryStore {
 	}
 
 	// Validate imported data
-	validateImportData(nfts: Array<{ name: string; imageData: ArrayBuffer; metadata?: any }>): {
+	validateImportData(nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata?: any }>): {
 		isValid: boolean;
 		errors: string[];
 	} {
@@ -596,16 +596,25 @@ class GalleryStore {
 				errors.push(`NFT ${index + 1} has no name`);
 			}
 
-			if (!nft.imageData || nft.imageData.byteLength === 0) {
+			if (!nft.imageData) {
 				errors.push(`NFT ${index + 1} has no image data`);
-			}
-
-			// Check for reasonable image size (between 1KB and 10MB)
-			if (nft.imageData.byteLength < 1024) {
-				errors.push(`NFT ${index + 1} image is too small`);
-			}
-			if (nft.imageData.byteLength > 10 * 1024 * 1024) {
-				errors.push(`NFT ${index + 1} image is too large`);
+			} else if (typeof nft.imageData === 'string') {
+				// Blob URL validation
+				if (!nft.imageData.startsWith('blob:')) {
+					errors.push(`NFT ${index + 1} has invalid blob URL`);
+				}
+			} else if (nft.imageData instanceof ArrayBuffer) {
+				// ArrayBuffer validation
+				if (nft.imageData.byteLength === 0) {
+					errors.push(`NFT ${index + 1} has no image data`);
+				}
+				// Check for reasonable image size (between 1KB and 10MB)
+				if (nft.imageData.byteLength < 1024) {
+					errors.push(`NFT ${index + 1} image is too small`);
+				}
+				if (nft.imageData.byteLength > 10 * 1024 * 1024) {
+					errors.push(`NFT ${index + 1} image is too large`);
+				}
 			}
 		});
 

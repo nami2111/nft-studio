@@ -54,8 +54,9 @@ export class ObjectUrlCache {
 	 * Get URL for the given image data
 	 * Uses data URLs for large collections to prevent blob URL issues
 	 * Implements lazy URL revocation to prevent ERR_FILE_NOT_FOUND errors
+	 * Handles both ArrayBuffer and string (blob URL) inputs
 	 */
-	get(id: string, imageData: ArrayBuffer): string {
+	get(id: string, imageData: ArrayBuffer | string): string {
 		const now = Date.now();
 		const entry = this.cache.get(id);
 
@@ -66,7 +67,7 @@ export class ObjectUrlCache {
 			if (now - entry.lastAccessed < maxAge) {
 				entry.lastAccessed = now;
 				// If it was marked revoked, recreate the URL
-				if (entry.revoked && entry.type === 'blob') {
+				if (entry.revoked && entry.type === 'blob' && typeof imageData !== 'string') {
 					this.recreateBlobUrl(id, imageData);
 				}
 				return entry.url;
@@ -86,6 +87,24 @@ export class ObjectUrlCache {
 
 		let url: string;
 		let size: number;
+
+		// Handle string input (blob URL)
+		if (typeof imageData === 'string') {
+			// Already a blob URL, use it directly
+			url = imageData;
+			size = 0; // Blob URLs don't consume cache memory directly
+
+			// Cache the URL as blob type for consistency
+			this.cache.set(id, {
+				url,
+				type: 'blob',
+				size,
+				lastAccessed: now,
+				revoked: false
+			});
+
+			return url;
+		}
 
 		// Use data URLs for large collections to eliminate blob URL issues
 		if (this.isLargeCollection) {
@@ -190,8 +209,9 @@ export class ObjectUrlCache {
 
 	/**
 	 * Preload an image into the cache with appropriate URL strategy
+	 * Handles both ArrayBuffer and string (blob URL) inputs
 	 */
-	preload(id: string, imageData: ArrayBuffer): string {
+	preload(id: string, imageData: ArrayBuffer | string): string {
 		// If already cached and not revoked, just update access time
 		const existingEntry = this.cache.get(id);
 		if (existingEntry && !existingEntry.revoked) {
@@ -200,7 +220,7 @@ export class ObjectUrlCache {
 		}
 
 		// If cached but revoked, recreate the blob URL
-		if (existingEntry && existingEntry.revoked) {
+		if (existingEntry && existingEntry.revoked && typeof imageData !== 'string') {
 			this.recreateBlobUrl(id, imageData);
 			return this.cache.get(id)!.url;
 		}
@@ -214,7 +234,7 @@ export class ObjectUrlCache {
 			this.currentMemory >= this.maxMemory * evictionThreshold
 		) {
 			// Evict multiple items if needed to make room
-			const neededMemory = imageData.byteLength;
+			const neededMemory = typeof imageData !== 'string' ? imageData.byteLength : 1024;
 			const neededEntries = 1;
 			let evicted = 0;
 
@@ -230,6 +250,21 @@ export class ObjectUrlCache {
 
 		let url: string;
 		let size: number;
+
+		// Handle string (blob URL) input directly
+		if (typeof imageData === 'string') {
+			url = imageData;
+			size = 1024; // Estimate size for blob URLs
+			this.cache.set(id, {
+				url,
+				type: 'blob',
+				size,
+				lastAccessed: Date.now(),
+				revoked: false
+			});
+			this.currentMemory += size;
+			return url;
+		}
 
 		// Use data URLs for large collections to eliminate blob URL issues
 		if (this.isLargeCollection) {
@@ -377,6 +412,7 @@ export class ObjectUrlCache {
 
 	/**
 	 * Recreate a blob URL for an entry that was marked as revoked
+	 * Note: This only works with ArrayBuffer inputs, not string blob URLs
 	 */
 	private recreateBlobUrl(id: string, imageData: ArrayBuffer): void {
 		const entry = this.cache.get(id);
