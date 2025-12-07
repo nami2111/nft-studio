@@ -329,7 +329,7 @@ const workerArrayBufferCache = new WorkerArrayBufferCache();
 
 // Legacy cache stats for compatibility - will be removed after migration
 
-// Parallel processing optimization
+// Sequential processing - batch interface kept for compatibility
 interface BatchImageRequest {
 	trait: TransferrableTrait;
 	resizeWidth: number;
@@ -337,172 +337,24 @@ interface BatchImageRequest {
 	index: number; // For ordering results
 }
 
-// Enhanced performance monitoring for parallel processing
+// Simplified performance monitoring for sequential processing
 const imageProcessingStats = {
-	batchCount: 0,
-	parallelCount: 0,
-	sequentialCount: 0,
-	averageBatchSize: 0,
-	totalProcessingTime: 0,
-	successfulBatches: 0,
-	failedBatches: 0,
-	adaptiveAdjustments: 0,
-	currentBatchSize: 8, // Will be updated after staticCachedCapabilities is declared
-	performanceHistory: [] as number[]
+	sequentialCount: 0 // Track only sequential processing
 };
 
-/**
- * Memory Pool for pre-allocated ArrayBuffers to reduce GC pressure
- * Especially useful for predictable chunk sizes during batch generation
- */
-class ArrayBufferPool {
-	private pools = new Map<number, ArrayBuffer[]>();
-	private maxPoolSize = 10; // Keep up to 10 buffers per size
-
-	/**
-	 * Get an ArrayBuffer of the specified size, either from pool or create new
-	 */
-	get(size: number): ArrayBuffer {
-		const pool = this.pools.get(size) || [];
-
-		if (pool.length > 0) {
-			return pool.pop()!;
-		}
-
-		// Create new buffer if pool is empty
-		return new ArrayBuffer(size);
-	}
-
-	/**
-	 * Return an ArrayBuffer to the pool for reuse
-	 */
-	return(buffer: ArrayBuffer): void {
-		const size = buffer.byteLength;
-		const pool = this.pools.get(size) || [];
-
-		if (pool.length < this.maxPoolSize) {
-			pool.push(buffer);
-			this.pools.set(size, pool);
-		}
-		// If pool is full, let the buffer be garbage collected
-	}
-
-	/**
-	 * Clear all pools to free memory
-	 */
-	clear(): void {
-		this.pools.clear();
-	}
-
-	/**
-	 * Get pool statistics
-	 */
-	getStats() {
-		let totalBuffers = 0;
-		let totalSize = 0;
-
-		for (const [size, pool] of this.pools) {
-			totalBuffers += pool.length;
-			totalSize += size * pool.length;
-		}
-
-		return {
-			totalBuffers,
-			totalSize,
-			totalSizeMB: (totalSize / 1024 / 1024).toFixed(1),
-			poolCount: this.pools.size
-		};
-	}
-}
-
-// Global memory pool instance
-const arrayBufferPool = new ArrayBufferPool();
-
-// Initialize batch size after module load - now safe since staticCachedCapabilities is declared at the top
-imageProcessingStats.currentBatchSize = detectOptimalBatchSize();
-
+// Batch size detection disabled - using fixed size for sequential processing
 function detectOptimalBatchSize(): number {
-	const now = Date.now();
-	
-	// Cache capabilities for 30 seconds to avoid repeated detection
-	if (staticCachedCapabilities && (now - staticLastCapabilityCheck) < 30000) {
-		return staticCachedCapabilities.optimalBatchSize;
-	}
-
-	const cores = navigator.hardwareConcurrency || 4;
-	const memory = (navigator as any).deviceMemory || 4;
-	const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-	
-	// Calculate performance score based on multiple factors
-	let performanceScore = 0;
-	performanceScore += cores * 20; // CPU contribution
-	performanceScore += memory * 10; // Memory contribution
-	performanceScore += isMobile ? -20 : 10; // Mobile penalty/desktop bonus
-	
-	// Enhanced batch sizing with performance score
-	let batchSize: number;
-	
-	if (performanceScore >= 100) {
-		// High-performance devices (desktop with 8+ cores, 8+ GB RAM)
-		batchSize = Math.min(cores * 3, 16);
-	} else if (performanceScore >= 60) {
-		// Medium-performance devices (desktop with 4-7 cores, 4-7 GB RAM)
-		batchSize = Math.min(cores * 2.5, 12);
-	} else if (performanceScore >= 30) {
-		// Low-performance devices (2-3 cores, 2-3 GB RAM)
-		batchSize = Math.min(cores * 2, 6);
-	} else {
-		// Very low-performance devices (1-2 cores, <2 GB RAM or mobile)
-		batchSize = Math.min(cores * 1.5, 4);
-	}
-
-	// Additional mobile adjustments
-	if (isMobile) {
-		batchSize = Math.floor(batchSize * 0.6); // Reduce by 40% for mobile
-	}
-
-	// Ensure reasonable bounds
-	batchSize = Math.max(2, Math.min(batchSize, 20));
-
-	// Cache the results
-	staticCachedCapabilities = {
-		cores,
-		memory,
-		isMobile,
-		performanceScore,
-		optimalBatchSize: batchSize
-	};
-	staticLastCapabilityCheck = now;
-
-	console.log(`📱 Device capabilities: ${cores}cores, ${memory}GB RAM, mobile:${isMobile}, batch:${batchSize}`);
-	
-	return batchSize;
+	// Return fixed batch size of 1 for sequential processing
+	return 1;
 }
+
+// Batch size detection disabled - using fixed size for sequential processing
 
 // Adaptive batch sizing based on real-time performance
+// Disabled - no adaptive sizing in sequential mode
 function adaptBatchSize(currentBatchSize: number, processingTime: number, successRate: number): number {
-	const TARGET_PROCESSING_TIME = 100; // Target 100ms per batch
-	const MIN_BATCH_SIZE = 2;
-	const MAX_BATCH_SIZE = 24;
-	
-	let newBatchSize = currentBatchSize;
-	
-	// Adjust based on processing time
-	if (processingTime > TARGET_PROCESSING_TIME * 1.5) {
-		// Too slow, reduce batch size
-		newBatchSize = Math.max(MIN_BATCH_SIZE, Math.floor(currentBatchSize * 0.8));
-	} else if (processingTime < TARGET_PROCESSING_TIME * 0.5) {
-		// Too fast, increase batch size
-		newBatchSize = Math.min(MAX_BATCH_SIZE, Math.floor(currentBatchSize * 1.2));
-	}
-	
-	// Adjust based on success rate
-	if (successRate < 0.9) {
-		// High failure rate, reduce batch size
-		newBatchSize = Math.max(MIN_BATCH_SIZE, Math.floor(newBatchSize * 0.9));
-	}
-	
-	return newBatchSize;
+	// Return current batch size unchanged (sequential processing)
+	return currentBatchSize;
 }
 
 // Enhanced cache statistics reporting with memory utilization tracking
@@ -734,176 +586,41 @@ async function createImageBitmapFromBuffer(
 }
 
 /**
- * Enhanced parallel batch image processing with adaptive batching
- * Processes multiple trait images concurrently using optimized Promise.all
+ * Sequential image processing - Phase 2: Replace parallel batch processing
+ * Processes trait images one at a time for simplified operation
  * @param requests - Array of image processing requests
  * @returns Promise resolving to array of ImageBitmaps in original order
  */
-async function processBatchImageRequests(
+async function processImageRequestsSequential(
 	requests: BatchImageRequest[]
 ): Promise<Array<{ index: number; bitmap: ImageBitmap | null; error?: Error }>> {
 	if (requests.length === 0) return [];
-	if (requests.length === 1) {
-		// Single image - use existing optimized method
-		const req = requests[0];
-		try {
-			const bitmap = await createImageBitmapFromBuffer(req.trait.imageData, req.trait.name, {
-				resizeWidth: req.resizeWidth,
-				resizeHeight: req.resizeHeight
-			});
-			return [{ index: req.index, bitmap }];
-		} catch (error) {
-			return [{ index: req.index, bitmap: null, error: error as Error }];
-		}
-	}
 
-	const startTime = Date.now();
-	
-	// Enhanced adaptive batch sizing
-	let optimalBatchSize = imageProcessingStats.currentBatchSize;
-	
-	// Adjust batch size based on current request count
-	if (requests.length < optimalBatchSize) {
-		optimalBatchSize = requests.length; // Don't create empty batches
-	}
-	
-	imageProcessingStats.batchCount++;
-	imageProcessingStats.parallelCount += requests.length;
-
-	// Update running average batch size
-	imageProcessingStats.averageBatchSize =
-		(imageProcessingStats.averageBatchSize + optimalBatchSize) / 2;
-
-	// Process in adaptive chunks for optimal performance
+	// Sequential processing - process images one at a time
 	const results: Array<{ index: number; bitmap: ImageBitmap | null; error?: Error }> = [];
 
-	if (requests.length <= optimalBatchSize) {
-		// Small batch - process all at once with enhanced error handling
-		const promises = requests.map(async (request) => {
-			try {
-				const bitmap = await createImageBitmapFromBuffer(
-					request.trait.imageData,
-					request.trait.name,
-					{ resizeWidth: request.resizeWidth, resizeHeight: request.resizeHeight }
-				);
-				return { index: request.index, bitmap };
-			} catch (error) {
-				console.warn(`Failed to process image ${request.trait.name}:`, error);
-				return { index: request.index, bitmap: null, error: error as Error };
-			}
-		});
-
+	for (const request of requests) {
 		try {
-			const batchResults = await Promise.allSettled(promises);
-			batchResults.forEach((result, idx) => {
-				if (result.status === 'fulfilled') {
-					results.push(result.value);
-				} else {
-					results.push({ 
-						index: requests[idx].index, 
-						bitmap: null, 
-						error: result.reason 
-					});
-				}
-			});
-			
-			imageProcessingStats.successfulBatches++;
+			const bitmap = await createImageBitmapFromBuffer(
+				request.trait.imageData,
+				request.trait.name,
+				{ resizeWidth: request.resizeWidth, resizeHeight: request.resizeHeight }
+			);
+			results.push({ index: request.index, bitmap });
 		} catch (error) {
-			console.error('Batch processing failed:', error);
-			imageProcessingStats.failedBatches++;
-		}
-	} else {
-		// Large batch - process in adaptive chunks with progress tracking
-		for (let i = 0; i < requests.length; i += optimalBatchSize) {
-			const chunk = requests.slice(i, i + optimalBatchSize);
-			
-			const chunkPromises = chunk.map(async (request) => {
-				try {
-					const bitmap = await createImageBitmapFromBuffer(
-						request.trait.imageData,
-						request.trait.name,
-						{ resizeWidth: request.resizeWidth, resizeHeight: request.resizeHeight }
-					);
-					return { index: request.index, bitmap };
-				} catch (error) {
-					console.warn(`Failed to process image ${request.trait.name}:`, error);
-					return { index: request.index, bitmap: null, error: error as Error };
-				}
-			});
-
-			try {
-				const chunkResults = await Promise.allSettled(chunkPromises);
-				chunkResults.forEach((result, idx) => {
-					if (result.status === 'fulfilled') {
-						results.push(result.value);
-					} else {
-						results.push({ 
-							index: chunk[idx].index, 
-							bitmap: null, 
-							error: result.reason 
-						});
-					}
-				});
-				
-				imageProcessingStats.successfulBatches++;
-			} catch (error) {
-				console.error('Chunk processing failed:', error);
-				imageProcessingStats.failedBatches++;
-			}
+			console.warn(`Failed to process image ${request.trait.name}:`, error);
+			results.push({ index: request.index, bitmap: null, error: error as Error });
 		}
 	}
 
-	const processingTime = Date.now() - startTime;
-	imageProcessingStats.totalProcessingTime += processingTime;
-	
-	// Track performance history for adaptive adjustments
-	imageProcessingStats.performanceHistory.push(processingTime);
-	if (imageProcessingStats.performanceHistory.length > 10) {
-		imageProcessingStats.performanceHistory.shift(); // Keep last 10 measurements
-	}
-	
-	// Calculate success rate
-	const totalItems = requests.length;
-	const successfulItems = results.filter(r => r.bitmap !== null).length;
-	const successRate = successfulItems / totalItems;
-	
-	// Adapt batch size based on performance
-	if (imageProcessingStats.batchCount > 5) { // Wait for some data
-		const avgProcessingTime = imageProcessingStats.performanceHistory.reduce((a, b) => a + b, 0) / imageProcessingStats.performanceHistory.length;
-		const newBatchSize = adaptBatchSize(imageProcessingStats.currentBatchSize, avgProcessingTime, successRate);
-		
-		if (newBatchSize !== imageProcessingStats.currentBatchSize) {
-			imageProcessingStats.currentBatchSize = newBatchSize;
-			imageProcessingStats.adaptiveAdjustments++;
-		}
-	}
+	// Minimal stats tracking for sequential mode
+	imageProcessingStats.sequentialCount += requests.length;
 
 	// Sort results back to original order
 	return results.sort((a, b) => a.index - b.index);
 }
 
-/**
- * Report enhanced parallel processing performance statistics
- */
-function reportImageProcessingStats(): void {
-	const totalProcessed = imageProcessingStats.parallelCount + imageProcessingStats.sequentialCount;
-	if (totalProcessed > 0) {
-		const parallelRatio = ((imageProcessingStats.parallelCount / totalProcessed) * 100).toFixed(1);
-		const successRate = ((imageProcessingStats.successfulBatches / imageProcessingStats.batchCount) * 100).toFixed(1);
-		const avgProcessingTime = imageProcessingStats.performanceHistory.length > 0 
-			? (imageProcessingStats.performanceHistory.reduce((a, b) => a + b, 0) / imageProcessingStats.performanceHistory.length).toFixed(1)
-			: '0';
-			
-		console.log(
-			`🚀 Enhanced Parallel Processing: ${parallelRatio}% parallel, ` +
-				`success rate: ${successRate}%, ` +
-				`avg batch size: ${imageProcessingStats.averageBatchSize.toFixed(1)}, ` +
-				`current batch: ${imageProcessingStats.currentBatchSize}, ` +
-				`avg processing time: ${avgProcessingTime}ms, ` +
-				`adaptive adjustments: ${imageProcessingStats.adaptiveAdjustments}`
-		);
-	}
-}
+// Performance monitoring removed - only count tracked
 
 // No-op to keep call sites intact; retained for backward compatibility
 function cleanupObjectUrls() {
@@ -911,17 +628,13 @@ function cleanupObjectUrls() {
 }
 
 // Cleanup function to free resources
-async function cleanupResources(renderer?: WebGLRenderer | null, sheets?: Map<string, PackedLayer>) {
+async function cleanupResources(renderer?: any | null, sheets?: Map<string, PackedLayer>) {
 	// Clear worker cache
 	workerArrayBufferCache.clear();
 
-	// Clear memory pool
-	arrayBufferPool.clear();
+	// ArrayBuffer pool removed - no memory pooling in sequential mode
 
-	// Cleanup WebGL resources if present
-	if (renderer) {
-		renderer.destroy();
-	}
+	// WebGL cleanup disabled - no WebGL renderer to cleanup
 
 	// Cleanup sprite sheets if present
 	if (sheets && sheets.size > 0) {
@@ -942,124 +655,6 @@ async function cleanupResources(renderer?: WebGLRenderer | null, sheets?: Map<st
 	}
 }
 
-/**
- * Enhanced WebGL-accelerated image composition with adaptive fallback
- * Provides 3-5x faster rendering using GPU hardware acceleration with automatic fallback
- */
-async function compositeTraitsWebGL(
-	selectedTraits: { trait: TransferrableTrait }[],
-	targetWidth: number,
-	targetHeight: number
-): Promise<ImageData | null> {
-	try {
-		// Create OffscreenCanvas for WebGL rendering
-		const canvas = new OffscreenCanvas(targetWidth, targetHeight);
-
-		// Enhanced WebGL capability detection
-		const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
-		if (!gl) {
-			console.log('WebGL not available, falling back to 2D canvas');
-			return null;
-		}
-
-		// Try to create WebGL renderer with enhanced error handling
-		let renderer: WebGLRenderer;
-		try {
-			renderer = new WebGLRenderer(canvas, {
-				width: targetWidth,
-				height: targetHeight,
-				premultipliedAlpha: false,
-				preserveDrawingBuffer: true
-			});
-		} catch (error) {
-			console.warn('WebGL renderer creation failed:', error);
-			return null; // Fallback will be used
-		}
-
-		// Enhanced texture loading with parallel processing
-		const textureLoadPromises = selectedTraits.map(async ({ trait }, index) => {
-			try {
-				if (!trait.imageData || trait.imageData.byteLength === 0) {
-					console.warn(`Empty image data for trait ${trait.name}`);
-					return;
-				}
-
-				// Create ImageBitmap from trait data with optimized options
-				const blob = new Blob([trait.imageData], { type: 'image/png' });
-				const bitmap = await createImageBitmap(blob, {
-					resizeWidth: targetWidth,
-					resizeHeight: targetHeight,
-					resizeQuality: 'high'
-				});
-
-				// Convert ImageBitmap to ImageData for WebGL texture
-				const tempCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-				const tempCtx = tempCanvas.getContext('2d');
-				if (!tempCtx) {
-					console.warn(`Failed to get context for trait ${trait.name}`);
-					bitmap.close();
-					return;
-				}
-
-				tempCtx.drawImage(bitmap, 0, 0);
-				const imageData = tempCtx.getImageData(0, 0, bitmap.width, bitmap.height);
-
-				// Update WebGL texture with error handling
-				try {
-					renderer.updateTexture(`${trait.id}_${index}`, imageData);
-				} catch (textureError) {
-					console.warn(`Failed to update texture for trait ${trait.name}:`, textureError);
-				}
-
-				// Clean up
-				bitmap.close();
-				tempCanvas.width = 0; // Help GC
-				tempCanvas.height = 0;
-			} catch (error) {
-				console.warn(`Failed to load texture for trait ${trait.name}:`, error);
-			}
-		});
-
-		// Wait for all textures to load with timeout
-		const loadTimeout = new Promise((_, reject) => 
-			setTimeout(() => reject(new Error('Texture loading timeout')), 10000)
-		);
-
-		await Promise.race([Promise.all(textureLoadPromises), loadTimeout]);
-
-		// Render all traits in a single batch
-		const traits = selectedTraits.map(({ trait }, index) => ({
-			...trait,
-			textureId: `${trait.id}_${index}`
-		}));
-
-		try {
-			renderer.renderBatch(traits, targetWidth, targetHeight);
-		} catch (renderError) {
-			console.warn('WebGL batch rendering failed:', renderError);
-			renderer.destroy();
-			return null;
-		}
-
-		// Get rendered ImageData
-		const resultImageData = renderer.getImageData();
-
-		// Cleanup with enhanced resource management
-		renderer.destroy();
-		
-		// Force cleanup of canvas
-		canvas.width = 0;
-		canvas.height = 0;
-
-		console.log(`🚀 WebGL composition: ${traits.length} traits rendered successfully`);
-
-		return resultImageData;
-	} catch (error) {
-		console.warn('WebGL composition failed, falling back to 2D canvas:', error);
-		return null;
-	}
-}
-
 // Optimized image composition for multiple layers
 async function compositeTraits(
 	selectedTraits: { trait: TransferrableTrait }[],
@@ -1067,16 +662,8 @@ async function compositeTraits(
 	targetHeight: number
 ): Promise<ImageData> {
 	try {
-		// Try WebGL first for 3-5x faster composition (requires >= 3 traits for overhead to be worth it)
-		if (selectedTraits.length >= 3) {
-			const webGLResult = await compositeTraitsWebGL(selectedTraits, targetWidth, targetHeight);
-			if (webGLResult) {
-				return webGLResult;
-			}
-			console.log('WebGL not available, falling back to 2D canvas');
-		}
-
-		// Fallback to 2D canvas composition
+		// Use 2D canvas only - WebGL completely removed
+		// Use 2D canvas composition only
 		// Collect all trait image data
 		const traitImageData: ImageData[] = [];
 
@@ -1235,7 +822,7 @@ async function generateCollection(
 	const cancelHandler = async (e: MessageEvent) => {
 		if ((e as MessageEvent).data?.type === 'cancel') {
 			isCancelled = true;
-			await cleanupResources(webGLRenderer, spriteSheets);
+			await cleanupResources(null, spriteSheets); // No WebGL renderer
 			const cancelledMessage: CancelledMessage = {
 				type: 'cancelled',
 				taskId,
@@ -1254,7 +841,8 @@ async function generateCollection(
 	// This works for ALL collections, not just fast generation
 	let spriteSheets: Map<string, PackedLayer> | undefined;
 	let usingWebGL = false;
-	let webGLRenderer: WebGLRenderer | null = null;
+	// WebGL disabled - no WebGL renderer
+	// let webGLRenderer: WebGLRenderer | null = null;
 	const totalTraits = layers.reduce((sum, layer) => sum + (layer.traits?.length || 0), 0);
 
 	// Try sprite sheets for 20+ traits
@@ -1277,27 +865,7 @@ async function generateCollection(
 	reusableCtx.imageSmoothingEnabled = false;
 	reusableCtx.globalCompositeOperation = 'source-over';
 
-	// Try WebGL for 3+ layers (Phase 4 optimization) - this is separate from the 2D context
-	if (layers.length >= 3) {
-		try {
-			// Create WebGL renderer - this will throw if WebGL2 is not available
-			webGLRenderer = new WebGLRenderer(reusableCanvas, {
-				width: outputSize.width,
-				height: outputSize.height,
-				premultipliedAlpha: false,
-				preserveDrawingBuffer: true
-			});
-			usingWebGL = true;
-			console.log(`🎮 WebGL renderer created for GPU-accelerated composition (3-5x faster)`);
-		} catch (error) {
-			// WebGL2 is not available in OffscreenCanvas - this is expected in many Chrome configurations
-			// due to security policies. The generation will continue with 2D canvas rendering.
-			// Silent fallback - only log in verbose mode if needed
-			if (import.meta.env.DEV) {
-				console.debug('WebGL2 not available in Web Worker, using 2D canvas fallback');
-			}
-		}
-	}
+	// WebGL disabled - use 2D canvas only for simplified operation
 
 	// Pre-calculate the target dimensions to avoid repeated calculations
 	const targetWidth = reusableCanvas.width;
@@ -1474,24 +1042,14 @@ async function generateCollection(
 		return;
 	}
 
-	// Report final cache and processing statistics (before cleanup)
+	// Report final cache statistics (before cleanup)
 	const cacheStats = workerArrayBufferCache.getStats();
-	const poolStats = arrayBufferPool.getStats();
-	const totalProcessed = imageProcessingStats.parallelCount + imageProcessingStats.sequentialCount;
-	const parallelRatio =
-		totalProcessed > 0
-			? ((imageProcessingStats.parallelCount / totalProcessed) * 100).toFixed(1)
-			: '0.0';
 
 	console.log(
 		`✅ Generation Complete - Smart Cache: ${cacheStats.entries} entries, ` +
 			`${cacheStats.memoryUtilization}% memory, ${cacheStats.hitRate}% hit rate | ` +
-			`Memory Pool: ${poolStats.totalBuffers} buffers, ${poolStats.totalSizeMB}MB | ` +
-			`Parallel: ${parallelRatio}% (${imageProcessingStats.parallelCount}/${totalProcessed})`
+			`Sequential Processing: ${imageProcessingStats.sequentialCount} items processed`
 	);
-
-	// Report detailed parallel processing performance
-	reportImageProcessingStats();
 
 	// Send final completion message
 	const finalCompleteMessage: CompleteMessage = {
@@ -1506,7 +1064,7 @@ async function generateCollection(
 	self.postMessage(finalCompleteMessage);
 
 	// Final cleanup (after reporting)
-	await cleanupResources(webGLRenderer, spriteSheets);
+	await cleanupResources(null, spriteSheets); // No WebGL renderer
 }
 
 // Generate a single item and stream it immediately
@@ -1573,7 +1131,8 @@ async function generateAndStreamItem(
 			index
 		}));
 
-		const batchResults = await processBatchImageRequests(batchRequests);
+		// Use sequential processing instead of batch processing
+		const batchResults = await processImageRequestsSequential(batchRequests);
 
 		// Draw all images to canvas in order
 		for (let i = 0; i < selectedTraits.length; i++) {
@@ -2029,7 +1588,6 @@ import { shouldUseFastGeneration, getOptimizationHints, detectCollectionComplexi
 import { generateCollectionFast, getCollectionAnalysis, preloadSpriteSheets } from './fast-generation';
 import { performanceAnalyzer } from '$lib/utils/performance-analyzer';
 import { CombinationIndexer } from '$lib/utils/combination-indexer';
-import { WebGLRenderer } from '$lib/utils/webgl-renderer';
 
 // Main worker message handler
 self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
