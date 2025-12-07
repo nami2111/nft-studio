@@ -186,7 +186,8 @@ export const projectStore = {
 };
 
 // Auto-persist project when it changes using a proxy approach
-let persistTimeout: number | null = null;
+// eslint-disable-next-line prefer-const
+let persistTimeout: number | null = null; // Variable is kept for potential future use with AutoSave component
 
 function schedulePersist() {
 	// AutoSave component now handles persistence
@@ -446,7 +447,10 @@ export function removeLayer(layerId: LayerId): void {
 	const layer = project.layers[layerIndex];
 	layer.traits.forEach((trait: Trait) => {
 		if (trait.imageUrl) {
-			globalResourceManager.removeObjectUrl(trait.imageUrl);
+			// Clear the imageUrl first to prevent DOM from trying to load it
+			const urlToRevoke = trait.imageUrl;
+			trait.imageUrl = undefined;
+			globalResourceManager.removeObjectUrl(urlToRevoke);
 		}
 	});
 

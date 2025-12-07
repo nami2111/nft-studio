@@ -100,14 +100,17 @@
 			class="absolute top-0 left-0 grid w-full grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"
 			style="transform: translateY({offsetY}px);"
 		>
-			{#each visibleTraits as trait (trait.id)}
-				<TraitCard
-					{trait}
-					{layerId}
-					selected={selectedTraits.has(trait.id)}
-					onToggleSelection={() => onToggleSelection(trait.id)}
-					{showSelection}
-				/>
+			{#each traits as trait, i (trait.id)}
+				{@const isVisible = visibleTraits.some(vt => vt.id === trait.id)}
+				{#if isVisible}
+					<TraitCard
+						bind:trait={traits[i]}
+						{layerId}
+						selected={selectedTraits.has(trait.id)}
+						onToggleSelection={() => onToggleSelection(trait.id)}
+						{showSelection}
+					/>
+				{/if}
 			{/each}
 		</div>
 	</div>

@@ -24,8 +24,8 @@
 		showSelection?: boolean;
 	}
 
-	const {
-		trait,
+	let {
+		trait = $bindable(),
 		layerId,
 		selected = false,
 		onToggleSelection,
