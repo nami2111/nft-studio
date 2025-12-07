@@ -19,7 +19,7 @@
 	const { trait, layer, allLayers, onRulesUpdate }: Props = $props();
 
 	let isDialogOpen = $state(false);
-	let rules = $state<RulerRule[]>(trait.rulerRules || []);
+	let rules = $derived(trait.rulerRules || []);
 	let newRule = $state<RulerRule>({
 		layerId: '' as LayerId,
 		allowedTraitIds: [],

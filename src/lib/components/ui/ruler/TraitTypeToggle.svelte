@@ -16,8 +16,8 @@
 
 	const { trait, layerId, class: className = '' }: Props = $props();
 
-	const layerIdTyped = createLayerId(layerId);
-	const traitIdTyped = createTraitId(trait.id);
+	const layerIdTyped = $derived(createLayerId(layerId));
+	const traitIdTyped = $derived(createTraitId(trait.id));
 
 	// Get current layer
 	let currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));

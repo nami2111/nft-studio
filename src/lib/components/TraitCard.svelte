@@ -24,15 +24,15 @@
 		showSelection?: boolean;
 	}
 
-	const {
-		trait,
+	let {
+		trait = $bindable(),
 		layerId,
 		selected = false,
 		onToggleSelection,
 		showSelection = false
 	}: Props = $props();
-	const layerIdTyped = createLayerId(layerId);
-	const traitIdTyped = createTraitId(trait.id);
+	const layerIdTyped = $derived(createLayerId(layerId));
+	const traitIdTyped = $derived(createTraitId(trait.id));
 
 	let traitName = $derived(trait.name);
 	let isEditing = $state(false);

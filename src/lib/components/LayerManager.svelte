@@ -77,9 +77,9 @@
 			</p>
 		{:else}
 			<div class="space-y-3 sm:space-y-4">
-				{#each layers as layer (layer.id)}
+				{#each layers as layer, i (layer.id)}
 					<div class="group relative">
-						<LayerItem {layer} />
+						<LayerItem bind:layer={layers[i]} />
 						<div class="mt-2 flex justify-end gap-1">
 							<Button
 								variant="outline"

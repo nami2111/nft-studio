@@ -343,9 +343,9 @@ async function generateSingleNFT(
 }
 
 /**
- * Generate NFTs using parallel processing for large collections
+ * Generate NFTs using sequential processing - Phase 3: Remove parallel processing
  */
-async function generateNFTsParallel(
+async function generateNFTsSequential(
 	layers: TransferrableLayer[],
 	collectionSize: number,
 	outputSize: { width: number; height: number },
@@ -367,62 +367,46 @@ async function generateNFTsParallel(
 	const cores = navigator.hardwareConcurrency || 4;
 	const batchSize = Math.max(2, Math.min(Math.ceil(collectionSize / (cores * 2)), 500));
 
-	console.log(`⚡ Using parallel generation with batch size: ${batchSize}`);
+	console.log(`⚡ Using sequential generation for large collections`);
 
-	// Process in batches for better memory management and progress updates
-	for (let startIdx = 0; startIdx < collectionSize; startIdx += batchSize) {
-		const endIdx = Math.min(startIdx + batchSize, collectionSize);
-		const batchPromises: Promise<void>[] = [];
+	// Sequential processing - process items one at a time
+	for (let i = 0; i < collectionSize; i++) {
+		// Generate single NFT sequentially
+		const result = await generateSingleNFT(
+			i,
+			layers,
+			outputSize,
+			projectName,
+			projectDescription,
+			traitCache,
+			metadataStandard,
+			canvas,
+			ctx,
+			spriteSheets
+		);
 
-		// Create batches for parallel processing
-		const batchCount = Math.min(batchSize, cores);
-
-		for (let batchNum = 0; batchNum < batchCount; batchNum++) {
-			const promise = (async () => {
-				// Each batch processes its share of items
-				for (let i = startIdx + batchNum; i < endIdx; i += batchCount) {
-					// Generate single NFT
-					const result = await generateSingleNFT(
-						i,
-						layers,
-						outputSize,
-						projectName,
-						projectDescription,
-						traitCache,
-						metadataStandard,
-						canvas,
-						ctx,
-						spriteSheets
-					);
-
-					if (result) {
-						images.push(result.image);
-						metadata.push(result.metadata);
-					}
-				}
-			})();
-
-			batchPromises.push(promise);
+		if (result) {
+			images.push(result.image);
+			metadata.push(result.metadata);
 		}
 
-		// Wait for batch to complete
-		await Promise.all(batchPromises);
+		// Update progress periodically (every 100 items or at the end)
+		if (i % 100 === 0 || i === collectionSize - 1) {
+			const progress = i + 1;
+			const percentage = ((progress / collectionSize) * 100).toFixed(1);
+			const etaMinutes =
+				collectionSize > 5000
+					? `${Math.round(((collectionSize - progress) / 1000) * 2)}m`
+					: `${Math.round((collectionSize - progress) / 500)}s`;
 
-		// Update progress
-		const progress = endIdx;
-		const percentage = ((progress / collectionSize) * 100).toFixed(1);
-		const etaMinutes =
-			collectionSize > 5000
-				? `${Math.round(((collectionSize - progress) / 1000) * 2)}m`
-				: `${Math.round((collectionSize - progress) / 500)}s`;
-
-		progressManager.scheduleUpdate(
-			createProgressUpdate(
-				progress,
-				collectionSize,
-				`Parallel generation: ${progress}/${collectionSize} (${percentage}%) - ETA: ${etaMinutes}`
-			)
-		);
+			progressManager.scheduleUpdate(
+				createProgressUpdate(
+					progress,
+					collectionSize,
+					`Sequential generation: ${progress}/${collectionSize} (${percentage}%) - ETA: ${etaMinutes}`
+				)
+			);
+		}
 	}
 
 	return { images, metadata };
@@ -463,9 +447,9 @@ async function generateNFTsFast(
 
 	console.log(`🚀 Starting fast generation: ${collectionSize} items with ${layers.length} layers`);
 
-	// Use parallel processing for large collections
+	// Use sequential processing for large collections
 	if (collectionSize > 1000) {
-		return await generateNFTsParallel(
+		return await generateNFTsSequential(
 			layers,
 			collectionSize,
 			outputSize,

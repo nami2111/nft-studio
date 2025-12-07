@@ -10,11 +10,11 @@
 	}
 
 	const { rarityWeight, traitId, layerId }: Props = $props();
-	const layerIdTyped = createLayerId(layerId);
-	const traitIdTyped = createTraitId(traitId);
+	const layerIdTyped = $derived(createLayerId(layerId));
+	const traitIdTyped = $derived(createTraitId(traitId));
 	// Ensure the initial value is valid (between 1 and 5)
-	let clampedRarityWeight = Math.max(1, Math.min(5, Math.round(rarityWeight || 1)));
-	let sliderValue = $state([clampedRarityWeight]);
+	let clampedRarityWeight = $derived(Math.max(1, Math.min(5, Math.round(rarityWeight || 1))));
+	let sliderValue = $derived([clampedRarityWeight]);
 
 	const rarityLabels: { [key: number]: string } = {
 		1: 'Mythic',

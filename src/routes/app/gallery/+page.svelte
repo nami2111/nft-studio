@@ -569,7 +569,7 @@
 							<div class="flex gap-3">
 								<!-- NFT Image - Mobile -->
 								<div class="bg-muted h-24 w-24 flex-shrink-0 overflow-hidden rounded">
-									{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
+									{#if selectedNFT.imageData && (typeof selectedNFT.imageData === 'string' || selectedNFT.imageData.byteLength > 0)}
 										<img
 											src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
 											alt={selectedNFT.name}
@@ -716,7 +716,7 @@
 									<div
 										class="bg-muted mx-auto mb-4 aspect-square max-w-[250px] overflow-hidden rounded-lg"
 									>
-										{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
+										{#if selectedNFT.imageData && (typeof selectedNFT.imageData === 'string' || selectedNFT.imageData.byteLength > 0)}
 											<img
 												src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
 												alt={selectedNFT.name}
@@ -988,7 +988,7 @@
 									<div
 										class="bg-muted mx-auto mb-4 aspect-square max-w-[300px] overflow-hidden rounded-lg"
 									>
-										{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
+										{#if selectedNFT.imageData && (typeof selectedNFT.imageData === 'string' || selectedNFT.imageData.byteLength > 0)}
 											<img
 												src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
 												alt={selectedNFT.name}
@@ -1302,7 +1302,7 @@
 								<div
 									class="bg-muted mx-auto mb-4 aspect-square max-w-[450px] overflow-hidden rounded-lg"
 								>
-									{#if selectedNFT.imageData && selectedNFT.imageData.byteLength > 0}
+									{#if selectedNFT.imageData && (typeof selectedNFT.imageData === 'string' || selectedNFT.imageData.byteLength > 0)}
 										<img
 											src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
 											alt={selectedNFT.name}

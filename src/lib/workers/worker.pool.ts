@@ -216,43 +216,15 @@ function calculateTaskComplexity(
 
 /**
  * Calculate optimal worker count based on device capabilities and current load
+ * Force single worker for parallel removal
  */
 function calculateOptimalWorkerCount(
 	taskComplexity?: TaskComplexity,
 	queueLength = 0,
 	activeWorkers = 0
 ): number {
-	const { coreCount, memoryGB, isMobile } = getDeviceCapabilities();
-	// Base calculation considering memory and cores
-	let workerCount = Math.min(
-		Math.floor(coreCount * 0.75), // Use 75% of cores to avoid overloading
-		Math.floor((memoryGB * 1024) / 128) // ~128MB per worker rough estimate
-	);
-
-	// Adjust for mobile devices
-	if (isMobile) {
-		workerCount = Math.max(1, Math.floor(workerCount * 0.5)); // Reduce by half for mobile
-	}
-
-	// Adjust based on task complexity
-	if (taskComplexity === TaskComplexity.VERY_HIGH) {
-		workerCount = Math.max(1, Math.floor(workerCount * 0.7)); // Use fewer workers for very high complexity
-	} else if (taskComplexity === TaskComplexity.LOW) {
-		workerCount = Math.min(8, Math.ceil(workerCount * 1.2)); // Use more workers for low complexity
-	}
-
-	// Adjust based on queue length (dynamic scaling)
-	const queuePressure = queueLength / (workerCount + activeWorkers);
-	if (queuePressure > 2) {
-		workerCount = Math.min(8, Math.ceil(workerCount * 1.3)); // Scale up if queue is long
-	} else if (queuePressure < 0.5 && activeWorkers > 0) {
-		workerCount = Math.max(1, Math.floor(workerCount * 0.8)); // Scale down if queue is short
-	}
-
-	// Ensure reasonable bounds
-	workerCount = Math.max(1, Math.min(workerCount, 6)); // Between 1 and 6 workers
-
-	return workerCount;
+	// Force single worker operation
+	return 1;
 }
 
 /**
@@ -631,101 +603,26 @@ function updateWorkerPerformance(
 
 /**
  * Find the least loaded worker using work stealing algorithm
+ * Simplified - always return first available worker (no work stealing)
  */
 function findBestWorkerForTask(): number | null {
 	if (!workerPool) return null;
 
-	const availableWorkers: number[] = [];
-	const healthyWorkers: number[] = [];
-
-	// Find all available and healthy workers
-	for (let i = 0; i < workerPool.workerStatus.length; i++) {
-		if (workerPool.workers[i] && workerPool.workerStatus[i]) {
-			availableWorkers.push(i);
-			if (workerPool.workerHealth[i] === WorkerHealth.HEALTHY) {
-				healthyWorkers.push(i);
-			}
-		}
+	// Single worker operation - return worker 0 if available
+	if (workerPool.workers[0] && workerPool.workerStatus[0]) {
+		return 0;
 	}
 
-	if (availableWorkers.length === 0) return null;
-
-	// Prefer healthy workers
-	const candidates = healthyWorkers.length > 0 ? healthyWorkers : availableWorkers;
-
-	if (candidates.length === 1) return candidates[0];
-
-	// Work stealing: find worker with least active tasks
-	let bestWorker = candidates[0];
-	let minTaskCount = Infinity;
-
-	for (const workerIndex of candidates) {
-		const workerTaskCount = Array.from(workerPool.activeTasks.values()).filter(
-			(task) => task.assignedWorker === workerIndex
-		).length;
-
-		// Ensure workerIndex is valid before accessing workerStats
-		if (workerIndex < 0 || workerIndex >= workerPool.workerStats.length) {
-			continue;
-		}
-
-		// Consider worker's historical performance
-		const workerStats = workerPool.workerStats[workerIndex];
-		const performanceScore = workerStats.averageTaskTime * (workerStats.errorCount + 1);
-
-		if (
-			workerTaskCount < minTaskCount ||
-			(workerTaskCount === minTaskCount && performanceScore < minTaskCount * 1000)
-		) {
-			minTaskCount = workerTaskCount;
-			bestWorker = workerIndex;
-		}
-	}
-
-	return bestWorker;
+	return null;
 }
 
 /**
  * Dynamic scaling based on current load and complexity
+ * Disabled - no scaling with single worker
  */
 function performDynamicScaling(): void {
-	if (!workerPool) return;
-
-	const { taskComplexityBasedScaling = true } = workerPool.config;
-	if (!taskComplexityBasedScaling) return;
-
-	const currentWorkers = workerPool.workers.filter((w) => w !== (null as unknown as Worker)).length;
-	const queuedTasks = workerPool.taskQueue.length;
-	const activeTasks = workerPool.activeTasks.size;
-	const totalLoad = queuedTasks + activeTasks;
-
-	// Calculate average load per worker
-	const avgLoadPerWorker = currentWorkers > 0 ? totalLoad / currentWorkers : 0;
-
-	// Determine if we need to scale
-	let targetWorkerCount = currentWorkers;
-
-	if (avgLoadPerWorker > 2 && currentWorkers < (workerPool.config.maxWorkers || 6)) {
-		// Scale up: high queue pressure
-		targetWorkerCount = Math.min(
-			workerPool.config.maxWorkers || 6,
-			Math.ceil(currentWorkers * 1.5)
-		);
-	} else if (avgLoadPerWorker < 0.5 && currentWorkers > (workerPool.config.minWorkers || 1)) {
-		// Scale down: low queue pressure
-		targetWorkerCount = Math.max(
-			workerPool.config.minWorkers || 1,
-			Math.floor(currentWorkers * 0.8)
-		);
-	}
-
-	// Add workers if needed
-	if (targetWorkerCount > currentWorkers) {
-		addWorkers(targetWorkerCount - currentWorkers);
-	} else if (targetWorkerCount < currentWorkers) {
-		// Remove idle workers (graceful shutdown)
-		removeIdleWorkers(currentWorkers - targetWorkerCount);
-	}
+	// Dynamic scaling disabled for single worker operation
+	return;
 }
 
 /**
@@ -940,10 +837,10 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 			return;
 		}
 
-		const optimalWorkerCount = calculateOptimalWorkerCount();
-		const maxWorkers = config?.maxWorkers || optimalWorkerCount;
+		// Force single worker operation
+		const maxWorkers = 1;
+		const minWorkers = 1;
 		const workerInitializationTimeout = config?.workerInitializationTimeout || 5000;
-		const minWorkers = config?.minWorkers || 1;
 		const healthCheckInterval = config?.healthCheckInterval || 30000; // 30 seconds
 
 		workerPool = {
@@ -958,7 +855,7 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 				maxConcurrentTasks: config?.maxConcurrentTasks || maxWorkers,
 				workerInitializationTimeout,
 				minWorkers,
-				taskComplexityBasedScaling: config?.taskComplexityBasedScaling ?? true,
+				taskComplexityBasedScaling: false, // Disable complexity scaling
 				healthCheckInterval,
 				maxRestarts: config?.maxRestarts || 3
 			},
@@ -1040,17 +937,18 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 	}
 
 	// Start pool with minimum workers (not full pool)
-	const minWorkers = config?.minWorkers || 2;
-	const maxWorkers = config?.maxWorkers || getOptimalWorkerCount(1000); // Default to medium collection size
+	// Force single worker for warm-up
+	const minWorkers = 1; // Force single worker
+	const maxWorkers = 1; // Force single worker
 
 	console.log(`Warming up worker pool with ${minWorkers} workers...`);
 
 	// Initialize with minWorkers instead of maxWorkers for faster startup
 	const warmUpConfig: WorkerPoolConfig = {
 		...config,
-		maxWorkers: minWorkers, // Only create minimum workers for warm-up
-		minWorkers,
-		taskComplexityBasedScaling: config?.taskComplexityBasedScaling ?? true,
+		maxWorkers: 1, // Force single worker
+		minWorkers: 1, // Force single worker
+		taskComplexityBasedScaling: false, // Disable scaling
 		healthCheckInterval: config?.healthCheckInterval ?? 30000
 	};
 
@@ -1065,6 +963,7 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 
 /**
  * Start background processes for health checks and dynamic scaling
+ * Disable dynamic scaling
  */
 function startBackgroundProcesses(healthCheckInterval: number): void {
 	if (!workerPool) return;
@@ -1074,12 +973,13 @@ function startBackgroundProcesses(healthCheckInterval: number): void {
 		performHealthChecks();
 	}, healthCheckInterval);
 
-	// Dynamic scaling interval (less frequent)
-	workerPool.scalingInterval = setInterval(() => {
-		performDynamicScaling();
-	}, 60000); // Every minute
+	// Disable dynamic scaling
+	// Dynamic scaling interval disabled - single worker operation
+	// workerPool.scalingInterval = setInterval(() => {
+	// 	performDynamicScaling();
+	// }, 60000); // Every minute
 
-	console.log('Background processes started: health checks and dynamic scaling');
+	console.log('Background processes started: health checks only (dynamic scaling disabled)');
 }
 
 /**

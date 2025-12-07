@@ -10,7 +10,6 @@
 		stopLoading,
 		loadingStates,
 		removeTrait,
-		updateTraitRarity,
 		updateTraitName,
 		addTrait,
 		updateLayerName,
@@ -33,7 +32,7 @@
 		layer: Layer;
 	}
 
-	const { layer }: Props = $props();
+	let { layer = $bindable() }: Props = $props();
 
 	let layerName = $derived(layer.name);
 	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
@@ -313,7 +312,7 @@
 	// Lazy loading for trait cards with improved memory management
 	let observer: IntersectionObserver | null = null;
 
-	function createSafeLazyTraitCard(trait: (typeof layer.traits)[number]): HTMLElement {
+	function createSafeLazyTraitCard(trait: (typeof layer.traits)[number], layerId: string): HTMLElement {
 		const root = document.createElement('div');
 		root.className = 'lazy-trait-loaded';
 
@@ -342,7 +341,17 @@
 						const blob = new Blob([trait.imageData], { type: 'image/png' });
 						const newUrl = URL.createObjectURL(blob);
 						img.src = newUrl;
-						trait.imageUrl = newUrl;
+						// Update the trait in the layer to trigger reactivity
+						const layerIndex = project.layers.findIndex((l) => l.id === layerId);
+						if (layerIndex !== -1) {
+							const traitIndex = project.layers[layerIndex].traits.findIndex((t: any) => t.id === trait.id);
+							if (traitIndex !== -1) {
+								project.layers[layerIndex].traits[traitIndex] = {
+									...project.layers[layerIndex].traits[traitIndex],
+									imageUrl: newUrl
+								};
+							}
+						}
 					} catch (error) {
 						console.error('Failed to recreate image URL:', error);
 						img.style.display = 'none';
@@ -366,7 +375,17 @@
 				const blob = new Blob([trait.imageData], { type: 'image/png' });
 				const url = URL.createObjectURL(blob);
 				img.src = url;
-				trait.imageUrl = url;
+				// Update the trait in the layer to trigger reactivity
+				const layerIndex = project.layers.findIndex((l) => l.id === layerId);
+				if (layerIndex !== -1) {
+					const traitIndex = project.layers[layerIndex].traits.findIndex((t: any) => t.id === trait.id);
+					if (traitIndex !== -1) {
+						project.layers[layerIndex].traits[traitIndex] = {
+							...project.layers[layerIndex].traits[traitIndex],
+							imageUrl: url
+						};
+					}
+				}
 				imgContainer.appendChild(img);
 			} catch (error) {
 				console.error('Failed to create image URL:', error);
@@ -502,7 +521,7 @@
 					if (!placeholder) return;
 
 					// Build safe DOM instead of innerHTML
-					const traitCard = createSafeLazyTraitCard(trait);
+					const traitCard = createSafeLazyTraitCard(trait, layer.id);
 					container.replaceChild(traitCard, placeholder);
 
 					// Unobserve after loading to save memory
@@ -749,14 +768,16 @@
 						<div
 							class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4"
 						>
-							{#each filteredTraits as trait (trait.id)}
-								<TraitCard
-									{trait}
-									layerId={layer.id}
-									selected={selectedTraits.has(createTraitId(trait.id))}
-									onToggleSelection={() => toggleTraitSelection(createTraitId(trait.id))}
-									showSelection={filteredTraits.length > 1}
-								/>
+							{#each layer.traits as trait, i (trait.id)}
+								{#if trait.name.toLowerCase().includes(searchTerm.toLowerCase())}
+									<TraitCard
+										bind:trait={layer.traits[i]}
+										layerId={layer.id}
+										selected={selectedTraits.has(createTraitId(trait.id))}
+										onToggleSelection={() => toggleTraitSelection(createTraitId(trait.id))}
+										showSelection={layer.traits.length > 1}
+									/>
+								{/if}
 							{/each}
 						</div>
 					{/if}

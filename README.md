@@ -9,33 +9,9 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Advanced Layer Management**: Organize collections with multiple layers (background, character, accessories, etc.) with drag-and-drop reordering
 - **Sophisticated Trait System**: Define traits with customizable rarity weights (1-5 scale) and advanced compatibility rules
 - **Real-time Canvas Preview**: Instant visual feedback with debounced updates and intelligent caching
-- **High-Performance Generation**: Generate up to 10,000 unique NFTs using optimized Canvas API with Web Worker processing
+- **High-Performance Generation**: Generate up to 10,000 unique NFTs using optimized Canvas API with sequential processing
 - **Smart Memory Management**: Three-tier caching system (ImageBitmap/ImageData/ArrayBuffer) with automatic cleanup
-- **Four-Phase Optimization Architecture**: Revolutionary performance system delivering 1.5-2x faster generation with 40-60% memory reduction
-
-### Four-Phase Optimization Architecture
-
-NFT Studio implements a revolutionary 4-phase optimization system that delivers **1.5-2x faster generation** with **40-60% memory reduction** while preserving all feature logic:
-
-#### Phase 1: Bit-Packed Combination Indexing
-- **10x faster lookups** using 64-bit BigInt bit-packing for O(1) combination tracking
-- **80% memory reduction** for Strict Pair uniqueness enforcement
-- Supports millions of combinations with zero collisions
-
-#### Phase 2: Sprite Sheet Texture Atlases
-- **40-60% memory reduction** by packing 64 traits per 4096x4096 atlas
-- **95% fewer HTTP requests** (6 sprite sheets vs 120+ individual images)
-- Automatic activation for collections with 20+ traits
-
-#### Phase 3: AC-3 Constraint Propagation
-- **60-80% fewer constraint checks** using AC-3 arc consistency algorithm
-- Pre-computed constraint domains with rarity-aware candidate ordering
-- Eliminates impossible values before expensive backtracking
-
-#### Phase 4: WebGL GPU Acceleration (Best-Effort)
-- **3-5x faster rendering** using hardware-accelerated texture composition
-- GLSL shader-based composition with automatic GPU memory management
-- Silent 2D canvas fallback when Chrome security policy blocks WebGL2 in Workers
+- **Optimized Architecture**: Streamlined performance system with sequential processing, sprite sheet optimization, and memory reduction
 
 **Performance Achieved:** 1000 NFTs in ~128 seconds (7.8 items/sec) with 99.6% cache hit rate
 
@@ -99,11 +75,11 @@ NFT Studio implements a revolutionary 4-phase optimization system that delivers 
 ### Performance & Processing
 
 - **Image Processing**: Canvas API with Web Workers for background processing
-- **Worker Architecture**: Advanced worker pool with dynamic scaling and health monitoring
-- **Four-Phase Optimization**: Bit-packed indexing, sprite sheet atlases, AC-3 CSP, WebGL GPU acceleration
+- **Worker Architecture**: Simplified single-worker architecture with sequential processing
+- **Three-Phase Optimization**: Bit-packed indexing, sprite sheet atlases, AC-3 CSP with sequential rendering
 - **Memory Management**: Three-tier caching (ImageBitmap/ImageData/ArrayBuffer) with LRU eviction
 - **Performance Monitoring**: Decorator-based timing with automatic metric collection
-- **Real-World Performance**: 1.5-2x faster generation, 40-60% memory reduction, 99.6% cache hit rate
+- **Real-World Performance**: Sequential processing with 40-60% memory reduction from sprite sheets, 99.6% cache hit rate
 
 ### Data & Storage
 
@@ -259,15 +235,15 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 - **`stores/file-operations.ts`**: ZIP import/export with progress tracking
 - **`stores/loading-state.ts`**: Centralized loading states and performance metrics
 
-### Advanced Worker Pool Architecture
+### Simplified Worker Architecture
 
-**Dynamic scaling with device capability detection and health monitoring**:
+**Single-threaded processing with optimized performance**:
 
+- **Sequential Processing**: Simplified single-worker architecture for easier debugging and maintenance
 - **Task Complexity Classification**: LOW to VERY_HIGH based on collection size and layer complexity
-- **Device-Aware Scaling**: 75% CPU core utilization, 128MB memory per worker, mobile optimization
-- **Work-Stealing Algorithm**: Performance-weighted task distribution across workers
-- **Health Monitoring**: Ping-based checks with automatic restart and configurable limits
-- **Streaming vs Chunked**: Adaptive generation strategy based on collection size and device capabilities
+- **Memory Optimization**: Sprite sheet packing and three-tier caching for efficient memory usage
+- **Health Monitoring**: Basic health checks for worker reliability
+- **Streaming vs Chunked**: Adaptive generation strategy based on collection size
 
 ### Performance-First Features
 
@@ -356,24 +332,24 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 ### Working with Optimization Systems
 
-**Four-Phase Architecture:**
+**Three-Phase Architecture:**
+
 1. **Bit-Packed Indexing**: Use `CombinationIndexer` for O(1) trait combination lookups
 2. **Sprite Sheets**: Use `SpritePacker` for 40-60% memory reduction with texture atlases
 3. **AC-3 CSP**: Leverage enhanced CSP solver with 60-80% fewer constraint checks
-4. **WebGL Acceleration**: Use `WebGLRenderer` for GPU-accelerated composition (with 2D fallback)
 
-**Worker Optimizations:**
-- All optimizations automatically activate based on collection characteristics
-- Worker pool scales dynamically (75% CPU utilization, device-aware)
-- Memory pool management with ArrayBuffer reuse
-- Transferable objects for zero-copy transfers
+**Sequential Processing:**
+
+- Simplified single-worker architecture for easier maintenance
+- Sequential image processing with optimized performance
+- Sprite sheet optimization maintained for memory efficiency
 
 ### Working with Web Workers
 
 - Message types defined in `src/lib/types/worker-messages.ts`
 - Worker client: `src/lib/workers/generation.worker.client.ts`
 - Worker implementation: `src/lib/workers/generation.worker.ts`
-- Worker pool for parallel processing: `src/lib/workers/worker.pool.ts`
+- Sequential processing with single worker for simplified architecture
 
 ### Testing
 
