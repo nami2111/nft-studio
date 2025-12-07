@@ -863,11 +863,11 @@
 										<p class="text-muted-foreground text-sm">Max Collection Size</p>
 									</div>
 									<div class="text-center">
-										<div class="text-foreground mb-2 text-3xl font-bold">~100/sec</div>
+										<div class="text-foreground mb-2 text-3xl font-bold">~8/sec</div>
 										<p class="text-muted-foreground text-sm">Generation Speed</p>
 									</div>
 									<div class="text-center">
-										<div class="text-foreground mb-2 text-3xl font-bold">2GB</div>
+										<div class="text-foreground mb-2 text-3xl font-bold">1.4GB</div>
 										<p class="text-muted-foreground text-sm">Peak Memory Usage</p>
 									</div>
 								</div>
