@@ -75,6 +75,7 @@
 		"@junobuild/analytics": "^0.2.10",
 		"@junobuild/core": "^2.2.1",
 		"@junobuild/functions": "^0.2.7",
+		"@zip.js/zip.js": "^2.7.53",
 		"bits-ui": "^2.14.4",
 		"idb": "^8.0.3",
 		"jszip": "^3.10.1",
