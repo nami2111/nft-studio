@@ -461,11 +461,9 @@
 						<input
 							type="checkbox"
 							checked={isLayerSelected(layer.id)}
-							class="text-primary focus:ring-primary rounded border-gray-300"
-							onchange={(e) => {
-								e.stopPropagation();
-								toggleLayerSelection(layer.id);
-							}}
+							class="accent-primary focus:ring-primary h-4 w-4 rounded border-input focus:ring-2 focus:ring-offset-2 pointer-events-none"
+							tabindex="-1"
+							aria-hidden="true"
 						/>
 						<div class="flex-1">
 							<div class="text-sm font-medium">{layer.name}</div>
