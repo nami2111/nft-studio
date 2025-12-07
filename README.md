@@ -13,31 +13,6 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Smart Memory Management**: Three-tier caching system (ImageBitmap/ImageData/ArrayBuffer) with automatic cleanup
 - **Optimized Architecture**: Streamlined performance system with sequential processing, sprite sheet optimization, and memory reduction
 
-### Four-Phase Optimization Architecture
-
-NFT Studio implements a revolutionary 4-phase optimization system that delivers **1.5-2x faster generation** with **40-60% memory reduction** while preserving all feature logic:
-
-#### Phase 1: Bit-Packed Combination Indexing
-- **10x faster lookups** using 64-bit BigInt bit-packing for O(1) combination tracking
-- **80% memory reduction** for Strict Pair uniqueness enforcement
-- Supports millions of combinations with zero collisions
-
-#### Phase 2: Sprite Sheet Texture Atlases
-- **40-60% memory reduction** by packing 64 traits per 4096x4096 atlas
-- **95% fewer HTTP requests** (6 sprite sheets vs 120+ individual images)
-- Automatic activation for collections with 20+ traits
-
-#### Phase 3: AC-3 Constraint Propagation
-- **60-80% fewer constraint checks** using AC-3 arc consistency algorithm
-- Pre-computed constraint domains with rarity-aware candidate ordering
-- Eliminates impossible values before expensive backtracking
-
-#### Phase 4: Simplified Sequential Processing
-
-- **Sequential processing** for simplified architecture and easier debugging
-- 2D canvas-only rendering with optimized performance
-- Maintains sprite sheet optimization for memory efficiency
-
 **Performance Achieved:** 1000 NFTs in ~128 seconds (7.8 items/sec) with 99.6% cache hit rate
 
 ### Advanced Trait Features
