@@ -190,11 +190,24 @@
 			});
 
 			// Generate collection name from first file
-			const collectionName = validFiles[0].name
-				.replace(/_\d+\.zip$/, '') // Remove _01, _02 etc
-				.replace('.zip', '')
+			let collectionName = validFiles[0].name
+				.replace('.zip', '');
+
+			// For multiple files, remove _part_X_of_Y pattern first
+			if (validFiles.length > 1) {
+				collectionName = collectionName.replace(/_part_\d+_of_\d+$/, ''); // Remove _part_1_of_5, _part_2_of_5 etc
+			}
+
+			// Then clean up the remaining name
+			collectionName = collectionName
+				.replace(/_\d+$/, '') // Remove _01, _02 etc
 				.replace(/[-_]/g, ' ')
-				.replace(/\b\w/g, (l) => l.toUpperCase()) + ' (Combined)';
+				.replace(/\b\w/g, (l) => l.toUpperCase());
+
+			// Only add (Combined) for multiple files
+			if (validFiles.length > 1) {
+				collectionName += ' (Combined)';
+			}
 
 			// Import into gallery store
 			importProgress = 90;
