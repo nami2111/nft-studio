@@ -85,8 +85,8 @@ export class ExportService {
 	private static async packageZipOptimized(options: ExportOptions): Promise<void> {
 		const { project, images, metadata, onProgress } = options;
 
-		// For very large collections, create multiple smaller ZIPs
-		if (images.length > 3000) {
+		// For very large collections or collections with large files, create multiple ZIPs
+		if (images.length > 3000 || (images.length > 0 && images[0].imageData.byteLength > 500000)) {
 			await this.createMultipleZips(options);
 			return;
 		}
@@ -147,76 +147,131 @@ export class ExportService {
 	}
 
 	/**
-	 * Create multiple smaller ZIP files for very large collections
+	 * Create multiple smaller ZIP files for very large collections based on size (2GB max per ZIP)
 	 */
 	private static async createMultipleZips(options: ExportOptions): Promise<void> {
 		const { project, images, metadata, onProgress } = options;
 
-		const batchSize = 1000;
-		const imageBatches = Math.ceil(images.length / batchSize);
-		const metadataBatches = Math.ceil(metadata.length / batchSize);
-		const totalBatches = imageBatches + metadataBatches;
-
 		const { default: JSZip } = await import('jszip');
+		const MAX_ZIP_SIZE = 1 * 1024 * 1024 * 1024; // 1GB in bytes
 
-		// Create image ZIP batches
-		for (let i = 0; i < imageBatches; i++) {
-			const batchImages = images.slice(i * batchSize, (i + 1) * batchSize);
-			const zip = new JSZip();
-			const imagesFolder = zip.folder('images');
+		// Calculate approximate size for each NFT (image + metadata)
+		const estimatedSizePerNFT = this.estimateSizePerNFT(images, metadata);
+		const estimatedTotalSize = images.length * estimatedSizePerNFT;
 
-			batchImages.forEach((file) => {
-				imagesFolder?.file(file.name, file.imageData);
-			});
+		// Calculate number of ZIP files needed based on size
+		const estimatedZipCount = Math.ceil(estimatedTotalSize / MAX_ZIP_SIZE);
 
-			const content = await zip.generateAsync({ type: 'blob' });
-			const url = URL.createObjectURL(content);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `${project.name || 'collection'}_images_part_${i + 1}_of_${imageBatches}.zip`;
+		console.log(`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`);
+		console.log(`Will create approximately ${estimatedZipCount} ZIP files`);
 
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
+		let currentZip = new JSZip();
+		let currentZipImages = currentZip.folder('images');
+		let currentZipMetadata = currentZip.folder('metadata');
+		let currentZipSize = 0;
+		let currentZipIndex = 0;
+		let processedItems = 0;
+
+		// Process all items
+		for (let i = 0; i < images.length; i++) {
+			const image = images[i];
+			const meta = metadata[i];
+
+			// Calculate size of current items
+			const imageSize = image.imageData.byteLength;
+			const metadataSize = new Blob([JSON.stringify(meta.data, null, 2)]).size;
+			const itemTotalSize = imageSize + metadataSize;
+
+			// Check if adding this item would exceed the 1GB limit
+			if (currentZipSize + itemTotalSize > MAX_ZIP_SIZE && currentZipSize > 0) {
+				// Finish current ZIP and start a new one
+				const content = await currentZip.generateAsync({
+					type: 'blob',
+					compression: 'DEFLATE',
+					compressionOptions: { level: 6 }
+				});
+
+				// Download current ZIP
+				const zipIndex = currentZipIndex + 1;
+				const totalZips = Math.ceil(images.length / Math.max(1, processedItems)) || 1;
+				await this.downloadZipWithIndex(content, project, zipIndex, totalZips);
+
+				// Reset for next ZIP
+				currentZip = new JSZip();
+				currentZipImages = currentZip.folder('images');
+				currentZipMetadata = currentZip.folder('metadata');
+				currentZipSize = 0;
+				currentZipIndex++;
+				processedItems = 0;
+			}
+
+			// Add image and metadata to current ZIP
+			currentZipImages?.file(image.name, image.imageData);
+			currentZipMetadata?.file(meta.name, JSON.stringify(meta.data, null, 2));
+			currentZipSize += itemTotalSize;
+			processedItems++;
 
 			onProgress?.({
 				processed: i + 1,
-				total: totalBatches,
-				message: `Created ZIP part ${i + 1}/${imageBatches} for images`
+				total: images.length,
+				message: `Processing NFT ${i + 1}/${images.length}...`
 			});
 		}
 
-		// Create metadata ZIP batches
-		for (let i = 0; i < metadataBatches; i++) {
-			const batchMetadata = metadata.slice(i * batchSize, (i + 1) * batchSize);
-			const zip = new JSZip();
-			const metadataFolder = zip.folder('metadata');
-
-			batchMetadata.forEach((meta) => {
-				metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
+		// Don't forget the last ZIP file
+		if (currentZipSize > 0) {
+			const content = await currentZip.generateAsync({
+				type: 'blob',
+				compression: 'DEFLATE',
+				compressionOptions: { level: 6 }
 			});
 
-			const content = await zip.generateAsync({ type: 'blob' });
-			const url = URL.createObjectURL(content);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `${project.name || 'collection'}_metadata_part_${i + 1}_of_${metadataBatches}.zip`;
-
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
-
-			onProgress?.({
-				processed: imageBatches + i + 1,
-				total: totalBatches,
-				message: `Created ZIP part ${i + 1}/${metadataBatches} for metadata`
-			});
+			const zipIndex = currentZipIndex + 1;
+			await this.downloadZipWithIndex(content, project, zipIndex, zipIndex);
 		}
 
 		// Show summary message
-		console.log(`Created ${totalBatches} ZIP files for large collection`);
+		console.log(`Created ${currentZipIndex + 1} ZIP files for large collection`);
+	}
+
+	/**
+	 * Estimate the average size per NFT (image + metadata)
+	 */
+	private static estimateSizePerNFT(images: { imageData: ArrayBuffer }[], metadata: { data: Record<string, unknown> }[]): number {
+		// Sample the first 10 items to estimate average size
+		const sampleSize = Math.min(10, images.length);
+		let totalSize = 0;
+
+		for (let i = 0; i < sampleSize; i++) {
+			const imageSize = images[i]?.imageData?.byteLength || 0;
+			const metadataSize = new Blob([JSON.stringify(metadata[i]?.data || {}, null, 2)]).size;
+			totalSize += imageSize + metadataSize;
+		}
+
+		// Return average size per NFT
+		return totalSize / sampleSize || 1; // Default to 1 byte if no data
+	}
+
+	/**
+	 * Download ZIP file with index in filename
+	 */
+	private static async downloadZipWithIndex(content: Blob, project: Project, index: number, total: number): Promise<void> {
+		const url = URL.createObjectURL(content);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${project.name || 'collection'}_part_${index}_of_${total}.zip`;
+
+		document.body.appendChild(a);
+		try {
+			a.click();
+			console.log(`Download initiated for part ${index} of ${total}`);
+		} catch (error) {
+			console.error(`Download failed for part ${index}:`, error);
+			throw error;
+		} finally {
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		}
 	}
 
 	/**
