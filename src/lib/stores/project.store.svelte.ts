@@ -569,7 +569,7 @@ export function addTrait(layerId: LayerId, file: File): void {
 		id: createTraitId(crypto.randomUUID()),
 		name: traitName,
 		imageData: new ArrayBuffer(0), // Will be populated async
-		rarityWeight: 1
+		rarityWeight: 5
 	};
 
 	layer.traits.push(newTrait);
