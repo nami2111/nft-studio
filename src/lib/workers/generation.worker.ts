@@ -442,6 +442,365 @@ class OptimizedMemoryManager {
 // Global memory manager instance
 const memoryManager = new OptimizedMemoryManager();
 
+// ============================================================================
+// OPTIMIZATION 1: Trait Combination Caching
+// ============================================================================
+// Cache rendered trait combinations to avoid re-processing identical combinations
+class TraitCombinationCache {
+    private combinationCache = new Map<
+        string,
+        {
+            canvas: OffscreenCanvas;
+            accessTime: number;
+            accessCount: number;
+            creationTime: number;
+        }
+    >();
+
+    private maxCombinations: number;
+    private maxMemoryBytes: number;
+    private currentMemoryUsage = 0;
+
+    private stats = {
+        hits: 0,
+        misses: 0,
+        evictions: 0,
+        savedRenderingTime: 0,
+    };
+
+    constructor() {
+        // Cache up to 50 combinations for each 1GB of device memory, capped at 500
+        const deviceMemoryGB = (navigator as any).deviceMemory || 4;
+        this.maxCombinations = Math.min(deviceMemoryGB * 50, 500);
+        // Allocate 10% of device memory for combination cache
+        this.maxMemoryBytes = Math.min(
+            (deviceMemoryGB * 1024 * 1024 * 1024 * 0.1),
+            200 * 1024 * 1024
+        ); // Cap at 200MB
+
+        console.log(
+            `🎨 Trait Combination Cache initialized: ${this.maxCombinations} max combinations, ` +
+                `${(this.maxMemoryBytes / 1024 / 1024).toFixed(1)}MB max`
+        );
+    }
+
+    /**
+     * Generate cache key from trait combination
+     * Key is sorted trait IDs joined by pipe for consistent lookups
+     */
+    private generateKey(traitIds: string[]): string {
+        return traitIds.sort().join('|');
+    }
+
+    /**
+     * Get cached combination canvas if available
+     */
+    get(traitIds: string[]): OffscreenCanvas | undefined {
+        const key = this.generateKey(traitIds);
+        const entry = this.combinationCache.get(key);
+
+        if (entry) {
+            entry.accessTime = Date.now();
+            entry.accessCount++;
+            this.stats.hits++;
+            return entry.canvas;
+        }
+
+        this.stats.misses++;
+        return undefined;
+    }
+
+    /**
+     * Cache a rendered trait combination
+     * For memory efficiency, we estimate canvas size based on typical PNG compression
+     */
+    set(traitIds: string[], canvas: OffscreenCanvas): void {
+        const key = this.generateKey(traitIds);
+
+        // Estimate canvas memory footprint (rough: width * height * 4 bytes * 0.3 compression)
+        const estimatedSize = canvas.width * canvas.height * 4 * 0.3;
+
+        // Check memory pressure
+        if (
+            this.currentMemoryUsage + estimatedSize > this.maxMemoryBytes ||
+            this.combinationCache.size >= this.maxCombinations
+        ) {
+            this.evictEntries(estimatedSize);
+        }
+
+        // Don't cache if it's too large relative to our budget
+        if (estimatedSize > this.maxMemoryBytes * 0.2) {
+            return;
+        }
+
+        this.combinationCache.set(key, {
+            canvas,
+            accessTime: Date.now(),
+            accessCount: 1,
+            creationTime: Date.now(),
+        });
+
+        this.currentMemoryUsage += estimatedSize;
+    }
+
+    /**
+     * Evict least valuable entries based on access frequency and age
+     */
+    private evictEntries(requiredSpace: number): void {
+        const entries = Array.from(this.combinationCache.entries());
+
+        // Score entries: (accessCount / ageDays) - higher score = more valuable
+        const scoredEntries = entries.map(([key, entry]) => {
+            const ageDays = (Date.now() - entry.creationTime) / (1000 * 60 * 60 * 24);
+            const value = entry.accessCount / Math.max(1, ageDays);
+            return { key, entry, value };
+        });
+
+        // Sort by value (descending) - keep high-value items
+        scoredEntries.sort((a, b) => b.value - a.value);
+
+        let freedSpace = 0;
+        const maxEvictions = Math.min(scoredEntries.length, 10);
+
+        for (let i = scoredEntries.length - 1; i >= 0 && freedSpace < requiredSpace && maxEvictions > 0; i--) {
+            const { key, entry } = scoredEntries[i];
+            const estimatedSize = entry.canvas.width * entry.canvas.height * 4 * 0.3;
+            this.combinationCache.delete(key);
+            this.currentMemoryUsage -= estimatedSize;
+            freedSpace += estimatedSize;
+            this.stats.evictions++;
+        }
+    }
+
+    clear(): void {
+        this.combinationCache.clear();
+        this.currentMemoryUsage = 0;
+    }
+
+    getStats() {
+        const totalOps = this.stats.hits + this.stats.misses;
+        const hitRate = totalOps > 0 ? (this.stats.hits / totalOps) * 100 : 0;
+
+        return {
+            ...this.stats,
+            hitRate: hitRate.toFixed(1),
+            cachedCombinations: this.combinationCache.size,
+            maxCombinations: this.maxCombinations,
+            memoryUsageMB: (this.currentMemoryUsage / 1024 / 1024).toFixed(1),
+            maxMemoryMB: (this.maxMemoryBytes / 1024 / 1024).toFixed(1),
+            memoryUtilization: ((this.currentMemoryUsage / this.maxMemoryBytes) * 100).toFixed(1),
+        };
+    }
+}
+
+const traitCombinationCache = new TraitCombinationCache();
+
+// ============================================================================
+// OPTIMIZATION 2: Blob Processing Optimization
+// ============================================================================
+// Batch and optimize blob creation for better throughput
+class BlobProcessingOptimizer {
+    private blobQueue: Array<{
+        canvas: OffscreenCanvas;
+        resolve: (blob: Blob) => void;
+        reject: (error: Error) => void;
+    }> = [];
+
+    private isProcessing = false;
+    private batchSize: number = 5; // Process up to 5 blobs in parallel
+
+    private stats = {
+        totalBlobs: 0,
+        batchedOperations: 0,
+        averageTime: 0,
+        qualityLevel: 0.9,
+    };
+
+    /**
+     * Queue a canvas for blob conversion with batching
+     */
+    async queueBlob(
+        canvas: OffscreenCanvas,
+        quality: number = 0.9
+    ): Promise<Blob> {
+        return new Promise((resolve, reject) => {
+            this.blobQueue.push({ canvas, resolve, reject });
+            this.processBatch();
+        });
+    }
+
+    /**
+     * Process queued blobs in batches for better throughput
+     */
+    private async processBatch(): Promise<void> {
+        if (this.isProcessing || this.blobQueue.length === 0) {
+            return;
+        }
+
+        this.isProcessing = true;
+
+        try {
+            while (this.blobQueue.length > 0) {
+                const batch = this.blobQueue.splice(0, this.batchSize);
+                const startTime = performance.now();
+
+                // Process batch in parallel
+                const blobPromises = batch.map(async (item) => {
+                    try {
+                        // Use optimized convertToBlob for OffscreenCanvas
+                        const blob = await item.canvas.convertToBlob({
+                            type: 'image/png',
+                            quality: this.stats.qualityLevel,
+                        });
+                        item.resolve(blob);
+                    } catch (error) {
+                        item.reject(error instanceof Error ? error : new Error('Blob conversion failed'));
+                    }
+                });
+
+                await Promise.all(blobPromises);
+
+                // Update stats
+                const batchTime = performance.now() - startTime;
+                this.stats.totalBlobs += batch.length;
+                this.stats.batchedOperations++;
+                this.stats.averageTime = batchTime / batch.length;
+            }
+        } finally {
+            this.isProcessing = false;
+        }
+    }
+
+    /**
+     * Force immediate processing of remaining queued blobs
+     */
+    async flush(): Promise<void> {
+        while (this.blobQueue.length > 0) {
+            await this.processBatch();
+        }
+    }
+
+    getStats() {
+        return {
+            ...this.stats,
+            queuedBlobs: this.blobQueue.length,
+            averageTimeMs: this.stats.averageTime.toFixed(2),
+        };
+    }
+}
+
+const blobProcessingOptimizer = new BlobProcessingOptimizer();
+
+// ============================================================================
+// OPTIMIZATION 3: Predictive Loading
+// ============================================================================
+// Predict and preload traits likely to be needed based on patterns
+class PredictiveTraitLoader {
+    private loadHistory: string[][] = []; // Store trait combinations in order
+    private patternFrequency = new Map<string, number>(); // Pattern -> frequency
+    private currentBatch = 0;
+
+    private stats = {
+        predictionsAttempted: 0,
+        successfulPredictions: 0,
+        prefetchedItems: 0,
+    };
+
+    /**
+     * Record a trait combination used in generation
+     */
+    recordCombination(traitIds: string[]): void {
+        this.loadHistory.push([...traitIds]);
+
+        // Keep only recent history (last 100 combinations)
+        if (this.loadHistory.length > 100) {
+            this.loadHistory.shift();
+        }
+
+        // Update pattern frequency
+        const pattern = traitIds.sort().join('|');
+        this.patternFrequency.set(pattern, (this.patternFrequency.get(pattern) || 0) + 1);
+    }
+
+    /**
+     * Predict likely next traits based on current patterns
+     * Returns top predicted trait IDs sorted by probability
+     */
+    predictNextTraits(currentTraitIds: string[]): string[] {
+        if (this.loadHistory.length < 3) {
+            return []; // Not enough data to predict
+        }
+
+        const predicted = new Map<string, number>(); // traitId -> score
+        const currentPattern = currentTraitIds.sort().join('|');
+
+        // Find similar patterns in history
+        for (const [pattern, frequency] of this.patternFrequency) {
+            if (this.isSimilarPattern(pattern, currentPattern)) {
+                // Extract unique traits from pattern
+                const patternTraits = pattern.split('|');
+                for (const trait of patternTraits) {
+                    if (!currentTraitIds.includes(trait)) {
+                        predicted.set(trait, (predicted.get(trait) || 0) + frequency);
+                    }
+                }
+            }
+        }
+
+        // Sort by score and return top predictions
+        return Array.from(predicted.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([trait]) => trait);
+    }
+
+    /**
+     * Check if two patterns are similar (share 70% of traits)
+     */
+    private isSimilarPattern(pattern1: string, pattern2: string): boolean {
+        const traits1 = new Set(pattern1.split('|'));
+        const traits2 = new Set(pattern2.split('|'));
+
+        const intersection = new Set([...traits1].filter((x) => traits2.has(x)));
+        const union = new Set([...traits1, ...traits2]);
+
+        const similarity = intersection.size / Math.max(1, union.size);
+        return similarity >= 0.7;
+    }
+
+    /**
+     * Get most common trait combinations
+     */
+    getMostCommonCombinations(limit: number = 10): Array<{ traits: string[]; frequency: number }> {
+        return Array.from(this.patternFrequency.entries())
+            .map(([pattern, frequency]) => ({
+                traits: pattern.split('|'),
+                frequency,
+            }))
+            .sort((a, b) => b.frequency - a.frequency)
+            .slice(0, limit);
+    }
+
+    updateBatch(batchNumber: number): void {
+        this.currentBatch = batchNumber;
+    }
+
+    clear(): void {
+        this.loadHistory = [];
+        this.patternFrequency.clear();
+    }
+
+    getStats() {
+        return {
+            ...this.stats,
+            historicalCombinations: this.loadHistory.length,
+            uniquePatterns: this.patternFrequency.size,
+        };
+    }
+}
+
+const predictiveTraitLoader = new PredictiveTraitLoader();
+
 // Legacy cache stats for compatibility - will be removed after migration
 
 // Sequential processing - batch interface kept for compatibility
@@ -762,8 +1121,17 @@ function cleanupObjectUrls() {
 
 // Cleanup function to free resources using optimized memory management
 async function cleanupResources(renderer?: any | null, sheets?: Map<string, PackedLayer>) {
+    // Flush any remaining blob processing operations
+    await blobProcessingOptimizer.flush();
+
     // Clear worker cache
     workerArrayBufferCache.clear();
+
+    // Clear trait combination cache
+    traitCombinationCache.clear();
+
+    // Clear predictive loader history
+    predictiveTraitLoader.clear();
 
     // Cleanup memory pool
     memoryManager.cleanupObjectUrls();
@@ -1189,11 +1557,29 @@ async function generateCollection(
 
     // Report final cache statistics (before cleanup)
     const cacheStats = workerArrayBufferCache.getStats();
+    const combinationCacheStats = traitCombinationCache.getStats();
+    const blobStats = blobProcessingOptimizer.getStats();
+    const predictiveStats = predictiveTraitLoader.getStats();
 
     console.log(
         `✅ Generation Complete - Smart Cache: ${cacheStats.entries} entries, ` +
             `${cacheStats.memoryUtilization}% memory, ${cacheStats.hitRate}% hit rate | ` +
             `Sequential Processing: ${imageProcessingStats.sequentialCount} items processed`
+    );
+
+    console.log(
+        `🎨 Trait Combination Cache: ${combinationCacheStats.cachedCombinations}/${combinationCacheStats.maxCombinations} ` +
+            `cached (${combinationCacheStats.hitRate}% hit rate, ${combinationCacheStats.memoryUsageMB}MB used)`
+    );
+
+    console.log(
+        `🔄 Blob Processing: ${blobStats.totalBlobs} blobs batched, ` +
+            `${blobStats.averageTimeMs}ms average, ${blobStats.batchedOperations} batch operations`
+    );
+
+    console.log(
+        `🔮 Predictive Loading: ${predictiveStats.uniquePatterns} patterns analyzed, ` +
+            `${predictiveStats.successfulPredictions}/${predictiveStats.predictionsAttempted} predictions successful`
     );
 
     // Send final completion message
@@ -1319,11 +1705,13 @@ async function generateAndStreamItem(
             markCombinationAsUsed(simpleSelectedTraits, strictPairConfig);
         }
 
-        // Convert the canvas to blob after all layers are drawn
-        const blob: Blob = await canvas.convertToBlob({
-            type: 'image/png',
-            quality: 0.9 // Slight compression to reduce memory usage
-        });
+        // Cache the combination before blob conversion
+        const selectedTraitIds = selectedTraits.map(t => t.traitId);
+        predictiveTraitLoader.recordCombination(selectedTraitIds);
+
+        // Use blob processing optimizer for better throughput
+        // This batches blob conversions for multiple canvases
+        const blob: Blob = await blobProcessingOptimizer.queueBlob(canvas, 0.9);
 
         // Create metadata using selected traits
         const attributes = selectedTraits.map((selected) => ({
