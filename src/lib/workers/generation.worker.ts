@@ -596,6 +596,10 @@ class TraitCombinationCache {
         this.stats.savedRenderingTime = 0;
     }
 
+    get size(): number {
+        return this.combinationCache.size;
+    }
+
     getStats() {
         const totalOps = this.stats.hits + this.stats.misses;
         const hitRate = totalOps > 0 ? (this.stats.hits / totalOps) * 100 : 0;
@@ -1836,7 +1840,7 @@ async function generateAndQueueItem(
                 }
             }
 
-            if (patternFrequency >= 2) {
+            if (traitCombinationCache.size < 50 || patternFrequency >= 2) {
                 const cacheCanvas = new OffscreenCanvas(targetWidth, targetHeight);
                 const cacheCtx = cacheCanvas.getContext('2d');
                 cacheCtx?.drawImage(canvas, 0, 0, targetWidth, targetHeight);
