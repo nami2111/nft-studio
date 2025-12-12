@@ -15,7 +15,7 @@ import { createTaskId, type TaskId } from '$lib/types/ids';
 import { CSPSolver } from './csp-solver';
 import { getMetadataStrategy } from '$lib/domain/metadata/strategies';
 import { MetadataStandard } from '$lib/domain/metadata/strategies';
-import type { PackedLayer } from '$lib/utils/sprite-packer';
+import { SpritePacker, type PackedLayer } from '$lib/utils/sprite-packer';
 
 // Strict Pair types (local definition to avoid circular dependencies)
 interface StrictPairConfig {
@@ -287,6 +287,16 @@ class WorkerArrayBufferCache {
     clear(): void {
         this.cache.clear();
         this.currentMemoryUsage = 0;
+        this.currentBatch = 0;
+        this.accessPatterns.clear();
+        this.frequentTraits.clear();
+        this.stats.hits = 0;
+        this.stats.misses = 0;
+        this.stats.evictions = 0;
+        this.stats.memoryPressure = 0;
+        this.stats.predictiveHits = 0;
+        this.stats.prefetchedItems = 0;
+        this.stats.cacheEfficiency = 0;
     }
 
     get size(): number {
@@ -333,42 +343,47 @@ class SequentialPerformanceMonitor {
     private processedCount = 0;
     private lastReportTime = 0;
     private averageProcessingTime = 0;
-    
+    private totalCount = 0;
+
     start(totalCount: number): void {
         this.startTime = Date.now();
         this.processedCount = 0;
         this.lastReportTime = this.startTime;
         this.averageProcessingTime = 0;
+        this.totalCount = totalCount;
         console.log(`🚀 Sequential Generation Started: Target ${totalCount} NFTs`);
     }
-    
+
     recordProcessing(timePerItem: number): void {
         this.processedCount++;
-        
+
         // Update running average
-        this.averageProcessingTime = (this.averageProcessingTime * (this.processedCount - 1) + timePerItem) / this.processedCount;
-        
+        this.averageProcessingTime =
+            (this.averageProcessingTime * (this.processedCount - 1) + timePerItem) / this.processedCount;
+
         const now = Date.now();
-        if (now - this.lastReportTime > 2000) { // Report every 2 seconds
+        if (now - this.lastReportTime > 2000) {
+            // Report every 2 seconds
             const elapsed = now - this.startTime;
             const rate = this.processedCount / (elapsed / 1000);
-            const eta = ((this.averageProcessingTime * (1000 - this.processedCount)) / 1000) / 60;
-            
+            const remaining = Math.max(0, this.totalCount - this.processedCount);
+            const eta = (this.averageProcessingTime * remaining) / 1000 / 60;
+
             console.log(
-                `⚡ Sequential Performance: ${this.processedCount}/1000 NFTs | ` +
-                `${rate.toFixed(1)} NFTs/sec | ETA: ${eta.toFixed(1)}min | ` +
-                `Avg: ${this.averageProcessingTime.toFixed(1)}ms/item`
+                `⚡ Sequential Performance: ${this.processedCount}/${this.totalCount} NFTs | ` +
+                    `${rate.toFixed(1)} NFTs/sec | ETA: ${eta.toFixed(1)}min | ` +
+                    `Avg: ${this.averageProcessingTime.toFixed(1)}ms/item`
             );
             this.lastReportTime = now;
         }
     }
-    
+
     finish(): void {
         const totalTime = Date.now() - this.startTime;
         const finalRate = this.processedCount / (totalTime / 1000);
         console.log(
             `🎯 Sequential Generation Complete: ${this.processedCount} NFTs in ${(totalTime / 1000).toFixed(1)}s | ` +
-            `Average: ${finalRate.toFixed(1)} NFTs/sec`
+                `Average: ${finalRate.toFixed(1)} NFTs/sec`
         );
     }
 }
@@ -489,7 +504,7 @@ class TraitCombinationCache {
      * Key is sorted trait IDs joined by pipe for consistent lookups
      */
     private generateKey(traitIds: string[]): string {
-        return traitIds.sort().join('|');
+        return [...traitIds].sort().join('|');
     }
 
     /**
@@ -575,6 +590,10 @@ class TraitCombinationCache {
     clear(): void {
         this.combinationCache.clear();
         this.currentMemoryUsage = 0;
+        this.stats.hits = 0;
+        this.stats.misses = 0;
+        this.stats.evictions = 0;
+        this.stats.savedRenderingTime = 0;
     }
 
     getStats() {
@@ -608,6 +627,7 @@ class BlobProcessingOptimizer {
 
     private isProcessing = false;
     private batchSize: number = 5; // Process up to 5 blobs in parallel
+    private totalTimeMs = 0;
 
     private stats = {
         totalBlobs: 0,
@@ -619,10 +639,8 @@ class BlobProcessingOptimizer {
     /**
      * Queue a canvas for blob conversion with batching
      */
-    async queueBlob(
-        canvas: OffscreenCanvas,
-        quality: number = 0.9
-    ): Promise<Blob> {
+    async queueBlob(canvas: OffscreenCanvas, quality: number = 0.9): Promise<Blob> {
+        this.stats.qualityLevel = quality;
         return new Promise((resolve, reject) => {
             this.blobQueue.push({ canvas, resolve, reject });
             this.processBatch();
@@ -662,9 +680,10 @@ class BlobProcessingOptimizer {
 
                 // Update stats
                 const batchTime = performance.now() - startTime;
+                this.totalTimeMs += batchTime;
                 this.stats.totalBlobs += batch.length;
                 this.stats.batchedOperations++;
-                this.stats.averageTime = batchTime / batch.length;
+                this.stats.averageTime = this.stats.totalBlobs > 0 ? this.totalTimeMs / this.stats.totalBlobs : 0;
             }
         } finally {
             this.isProcessing = false;
@@ -680,6 +699,15 @@ class BlobProcessingOptimizer {
         }
     }
 
+    reset(): void {
+        this.blobQueue = [];
+        this.isProcessing = false;
+        this.totalTimeMs = 0;
+        this.stats.totalBlobs = 0;
+        this.stats.batchedOperations = 0;
+        this.stats.averageTime = 0;
+    }
+
     getStats() {
         return {
             ...this.stats,
@@ -690,6 +718,7 @@ class BlobProcessingOptimizer {
 }
 
 const blobProcessingOptimizer = new BlobProcessingOptimizer();
+const inFlightEncodeCanvases = new Set<OffscreenCanvas>();
 
 // ============================================================================
 // OPTIMIZATION 3: Predictive Loading
@@ -700,6 +729,8 @@ class PredictiveTraitLoader {
     private patternFrequency = new Map<string, number>(); // Pattern -> frequency
     private currentBatch = 0;
 
+    private pendingPredictions: string[] = [];
+
     private stats = {
         predictionsAttempted: 0,
         successfulPredictions: 0,
@@ -707,9 +738,22 @@ class PredictiveTraitLoader {
     };
 
     /**
-     * Record a trait combination used in generation
+     * Record a trait combination used in generation.
+     * Also evaluates the previous prediction set against this combination,
+     * and generates a new prediction set for the next item.
      */
-    recordCombination(traitIds: string[]): void {
+    recordCombination(traitIds: string[]): { patternFrequency: number; predictions: string[] } {
+        // Evaluate previous predictions against the current combination
+        if (this.pendingPredictions.length > 0) {
+            const matched = this.pendingPredictions.some((predictedTraitId) =>
+                traitIds.includes(predictedTraitId)
+            );
+            if (matched) {
+                this.stats.successfulPredictions++;
+            }
+            this.pendingPredictions = [];
+        }
+
         this.loadHistory.push([...traitIds]);
 
         // Keep only recent history (last 100 combinations)
@@ -718,8 +762,18 @@ class PredictiveTraitLoader {
         }
 
         // Update pattern frequency
-        const pattern = traitIds.sort().join('|');
-        this.patternFrequency.set(pattern, (this.patternFrequency.get(pattern) || 0) + 1);
+        const pattern = [...traitIds].sort().join('|');
+        const nextFrequency = (this.patternFrequency.get(pattern) || 0) + 1;
+        this.patternFrequency.set(pattern, nextFrequency);
+
+        // Predict next traits (attempted even if it returns an empty array)
+        const predictions = this.predictNextTraits(traitIds);
+        if (this.loadHistory.length >= 3) {
+            this.stats.predictionsAttempted++;
+            this.pendingPredictions = predictions;
+        }
+
+        return { patternFrequency: nextFrequency, predictions };
     }
 
     /**
@@ -732,7 +786,7 @@ class PredictiveTraitLoader {
         }
 
         const predicted = new Map<string, number>(); // traitId -> score
-        const currentPattern = currentTraitIds.sort().join('|');
+        const currentPattern = [...currentTraitIds].sort().join('|');
 
         // Find similar patterns in history
         for (const [pattern, frequency] of this.patternFrequency) {
@@ -788,6 +842,11 @@ class PredictiveTraitLoader {
     clear(): void {
         this.loadHistory = [];
         this.patternFrequency.clear();
+        this.currentBatch = 0;
+        this.pendingPredictions = [];
+        this.stats.predictionsAttempted = 0;
+        this.stats.successfulPredictions = 0;
+        this.stats.prefetchedItems = 0;
     }
 
     getStats() {
@@ -1123,6 +1182,12 @@ function cleanupObjectUrls() {
 async function cleanupResources(renderer?: any | null, sheets?: Map<string, PackedLayer>) {
     // Flush any remaining blob processing operations
     await blobProcessingOptimizer.flush();
+    blobProcessingOptimizer.reset();
+
+    for (const canvas of inFlightEncodeCanvases) {
+        memoryManager.returnCanvas(canvas);
+    }
+    inFlightEncodeCanvases.clear();
 
     // Clear worker cache
     workerArrayBufferCache.clear();
@@ -1141,7 +1206,6 @@ async function cleanupResources(renderer?: any | null, sheets?: Map<string, Pack
     // Cleanup sprite sheets if present
     if (sheets && sheets.size > 0) {
         try {
-            const { SpritePacker } = await import('$lib/utils/sprite-packer');
             SpritePacker.cleanup(sheets);
         } catch (error) {
             console.warn('Failed to cleanup sprite sheets:', error);
@@ -1323,8 +1387,13 @@ async function generateCollection(
 
     self.postMessage(initialProgress);
 
+    // Apply Phase 2 optimizations: Pre-load sprite sheets for 40-60% memory reduction
+    // This works for ALL collections, not just fast generation
+    let spriteSheets: Map<string, PackedLayer> | undefined;
+
     // Handle cancellation flag
     let isCancelled = false;
+    let cancelNotified = false;
     const cancelHandler = async (e: MessageEvent) => {
         if ((e as MessageEvent).data?.type === 'cancel') {
             isCancelled = true;
@@ -1338,15 +1407,12 @@ async function generateCollection(
                 }
             };
             self.postMessage(cancelledMessage);
+            cancelNotified = true;
             self.removeEventListener('message', cancelHandler);
         }
     };
     self.addEventListener('message', cancelHandler);
 
-    // Apply Phase 2 optimizations: Pre-load sprite sheets for 40-60% memory reduction
-    // This works for ALL collections, not just fast generation
-    let spriteSheets: Map<string, PackedLayer> | undefined;
-    let usingWebGL = false;
     // WebGL disabled - no WebGL renderer
     // let webGLRenderer: WebGLRenderer | null = null;
     const totalTraits = layers.reduce((sum, layer) => sum + (layer.traits?.length || 0), 0);
@@ -1381,20 +1447,27 @@ async function generateCollection(
     const useStreaming = collectionSize <= 1000;
 
     // Generate each NFT with streaming or chunking based on collection size
+    const maxInFlight = Math.max(
+        1,
+        Math.min(OPTIMAL_MICRO_BATCH_SIZE, memoryManager.poolStats.maxPoolSize)
+    );
+
     if (useStreaming) {
         // Streaming approach for smaller collections
         let successfulGenerations = 0;
         let consecutiveFailures = 0;
-        
+        let generationAborted = false;
+
+        const pendingItems: QueuedGeneratedItem[] = [];
+
         // Start performance monitoring for streaming generation
         performanceMonitor.start(collectionSize);
-        for (
-            let i = 0;
-            i < collectionSize && !isCancelled && successfulGenerations < collectionSize;
-            i++
-        ) {
-            // Generate item
-            const success = await generateAndStreamItem(
+        for (let i = 0; i < collectionSize && !isCancelled && successfulGenerations < collectionSize; i++) {
+            if (pendingItems.length >= maxInFlight) {
+                await flushQueuedItem(pendingItems.shift()!, collectionSize, undefined, taskId);
+            }
+
+            const queuedItem = await generateAndQueueItem(
                 i,
                 layers,
                 reusableCanvas,
@@ -1403,61 +1476,75 @@ async function generateCollection(
                 targetHeight,
                 projectName,
                 projectDescription,
-                collectionSize,
                 metadata,
                 strictPairConfig,
-                undefined, // No chunking for streaming mode
                 taskId,
-                metadataStandard
+                metadataStandard,
+                spriteSheets
             );
 
-            if (success) {
+            if (queuedItem) {
+                pendingItems.push(queuedItem);
                 successfulGenerations++;
                 consecutiveFailures = 0;
             } else {
-                // Generation failed due to strict pair constraints, try again
                 consecutiveFailures++;
                 i--; // Retry the same index
 
-                // Safety check: if we have too many consecutive failures, we might be out of valid combinations
                 if (consecutiveFailures > 1000) {
                     const errorMessage: ErrorMessage = {
                         type: 'error',
                         taskId,
                         payload: {
-                            message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available with the current strict pair configuration.`
-                        }
+                            message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available with the current strict pair configuration.`,
+                        },
                     };
                     self.postMessage(errorMessage);
+                    generationAborted = true;
                     break;
                 }
             }
+        }
+
+        if (!isCancelled) {
+            while (pendingItems.length > 0) {
+                await flushQueuedItem(pendingItems.shift()!, collectionSize, undefined, taskId);
+            }
+        }
+
+        if (generationAborted) {
+            // Streaming generation stopped early; already reported error.
         }
     } else {
         // Chunked approach for larger collections
         let successfulGenerations = 0;
         let consecutiveFailures = 0;
-        
+        let generationAborted = false;
+
         // Start performance monitoring for chunked generation
         performanceMonitor.start(collectionSize);
-        
+
         for (
             let chunkStart = 0;
-            chunkStart < collectionSize && !isCancelled && successfulGenerations < collectionSize;
+            chunkStart < collectionSize && !isCancelled && !generationAborted && successfulGenerations < collectionSize;
             chunkStart += CHUNK_SIZE
         ) {
             const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, collectionSize);
 
             // Create a temporary array to hold only the current chunk's images
             const chunkImages: { name: string; blob: Blob }[] = [];
+            const pendingItems: QueuedGeneratedItem[] = [];
 
             for (
                 let i = chunkStart;
-                i < chunkEnd && !isCancelled && successfulGenerations < collectionSize;
+                i < chunkEnd && !isCancelled && !generationAborted && successfulGenerations < collectionSize;
                 i++
             ) {
-                // Generate item
-                const success = await generateAndStreamItem(
+                if (pendingItems.length >= maxInFlight) {
+                    await flushQueuedItem(pendingItems.shift()!, collectionSize, chunkImages, taskId);
+                }
+
+                const queuedItem = await generateAndQueueItem(
                     i,
                     layers,
                     reusableCanvas,
@@ -1466,15 +1553,15 @@ async function generateCollection(
                     targetHeight,
                     projectName,
                     projectDescription,
-                    collectionSize,
                     metadata,
                     strictPairConfig,
-                    chunkImages,
                     taskId,
-                    metadataStandard
+                    metadataStandard,
+                    spriteSheets
                 );
 
-                if (success) {
+                if (queuedItem) {
+                    pendingItems.push(queuedItem);
                     successfulGenerations++;
                     consecutiveFailures = 0;
                 } else {
@@ -1488,10 +1575,11 @@ async function generateCollection(
                             type: 'error',
                             taskId,
                             payload: {
-                                message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available with the current strict pair configuration.`
-                            }
+                                message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available with the current strict pair configuration.`,
+                            },
                         };
                         self.postMessage(errorMessage);
+                        generationAborted = true;
                         break;
                     }
                 }
@@ -1506,10 +1594,16 @@ async function generateCollection(
                             generatedCount: i + 1,
                             totalCount: collectionSize,
                             statusText: `Generated ${i + 1} of ${collectionSize} NFTs`,
-                            memoryUsage: getMemoryUsage() || undefined
-                        }
+                            memoryUsage: getMemoryUsage() || undefined,
+                        },
                     };
                     self.postMessage(currentProgress);
+                }
+            }
+
+            if (!isCancelled) {
+                while (pendingItems.length > 0) {
+                    await flushQueuedItem(pendingItems.shift()!, collectionSize, chunkImages, taskId);
                 }
             }
 
@@ -1533,6 +1627,10 @@ async function generateCollection(
                 self.postMessage(chunkProgress);
             }
 
+            if (generationAborted) {
+                break;
+            }
+
             // Adaptive chunking based on memory usage
             CHUNK_SIZE = adaptChunkSize(CHUNK_SIZE, getMemoryUsage());
         }
@@ -1543,15 +1641,17 @@ async function generateCollection(
 
     // Check if cancelled before final processing
     if (isCancelled) {
-        const cancelledMessage: CancelledMessage = {
-            type: 'cancelled',
-            taskId,
-            payload: {
-                generatedCount: 0,
-                totalCount: collectionSize
-            }
-        };
-        self.postMessage(cancelledMessage);
+        if (!cancelNotified) {
+            const cancelledMessage: CancelledMessage = {
+                type: 'cancelled',
+                taskId,
+                payload: {
+                    generatedCount: 0,
+                    totalCount: collectionSize
+                }
+            };
+            self.postMessage(cancelledMessage);
+        }
         return;
     }
 
@@ -1601,8 +1701,18 @@ async function generateCollection(
     await cleanupResources(null, spriteSheets); // No WebGL renderer
 }
 
-// Generate a single item and stream it immediately
-async function generateAndStreamItem(
+interface QueuedGeneratedItem {
+    index: number;
+    imageName: string;
+    metadataName: string;
+    metadataObj: object;
+    encodeCanvas: OffscreenCanvas;
+    blobPromise: Promise<Blob>;
+    startTime: number;
+}
+
+// Generate a single item onto the reusable canvas, then copy it to an encode canvas and queue blob conversion.
+async function generateAndQueueItem(
     index: number,
     layers: TransferrableLayer[],
     canvas: OffscreenCanvas,
@@ -1611,209 +1721,256 @@ async function generateAndStreamItem(
     targetHeight: number,
     projectName: string,
     projectDescription: string,
-    collectionSize: number,
     metadata: { name: string; data: object }[],
     strictPairConfig?: StrictPairConfig,
-    chunkImages?: { name: string; blob: Blob }[],
     taskId?: TaskId,
-    metadataStandard?: MetadataStandard
-): Promise<boolean> {
+    metadataStandard?: MetadataStandard,
+    spriteSheets?: Map<string, PackedLayer>
+): Promise<QueuedGeneratedItem | null> {
     const itemStartTime = performance.now();
-    
+
     try {
-        // Always use optimized Canvas compositing
-        // Clear the reusable canvas for this item
         if (!ctx) {
-            console.error('Canvas context is null in generateAndStreamItem');
-            return false;
+            console.error('Canvas context is null in generateAndQueueItem');
+            return null;
         }
+
         ctx.clearRect(0, 0, targetWidth, targetHeight);
 
-        // Selected traits for this NFT
         const selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[] = [];
         const hasRequiredLayerFailure = false;
 
-        // Use CSP Solver to find a valid combination
         const solver = new CSPSolver(layers, usedCombinations, strictPairConfig);
         const solution = solver.solve();
 
         if (!solution) {
-            return false; // No valid combination found
+            return null;
         }
 
-        // Collect all selected traits for batch processing
         for (const layer of layers) {
             const selectedTrait = solution.get(layer.id);
-
             if (selectedTrait) {
                 selectedTraits.push({
                     traitId: selectedTrait.id,
                     layerId: layer.id,
-                    trait: selectedTrait
+                    trait: selectedTrait,
                 });
             }
         }
 
-        // If no traits selected, return false
         if (selectedTraits.length === 0) {
-            return false;
+            return null;
         }
 
-        // Parallel batch processing of all trait images
-        const batchRequests: BatchImageRequest[] = selectedTraits.map((trait, index) => ({
-            trait: trait.trait,
-            resizeWidth: targetWidth,
-            resizeHeight: targetHeight,
-            index
-        }));
+        const selectedTraitIds = selectedTraits.map((t) => t.traitId);
+        const cachedCombination = traitCombinationCache.get(selectedTraitIds);
 
-        // Use sequential processing instead of batch processing
-        const batchResults = await processImageRequestsSequential(batchRequests);
+        const { patternFrequency } = predictiveTraitLoader.recordCombination(selectedTraitIds);
 
-        // Draw all images to canvas in order
-        for (let i = 0; i < selectedTraits.length; i++) {
-            const trait = selectedTraits[i];
-            const result = batchResults.find((r) => r.index === i);
+        if (cachedCombination) {
+            ctx.drawImage(cachedCombination, 0, 0, targetWidth, targetHeight);
+        } else {
+            if (spriteSheets && spriteSheets.size > 0) {
+                // Sprite sheet path (much faster than per-trait decoding)
+                for (const selected of selectedTraits) {
+                    const packedLayer = spriteSheets.get(selected.layerId);
+                    let drawn = false;
 
-            if (!result || !result.bitmap) {
-                if (result?.error) {
-                    console.warn(
-                        `Failed to process image for trait "${trait.trait.name}": ${result.error.message}`
-                    );
+                    if (packedLayer) {
+                        for (const sheet of packedLayer.sheets) {
+                            if (
+                                SpritePacker.drawFromSheet(
+                                    ctx,
+                                    sheet,
+                                    selected.traitId,
+                                    0,
+                                    0,
+                                    targetWidth,
+                                    targetHeight
+                                )
+                            ) {
+                                drawn = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Fallback: decode and draw trait directly if not present in any sheet
+                    if (!drawn) {
+                        const bitmap = await createImageBitmapFromBuffer(selected.trait.imageData, selected.trait.name, {
+                            resizeWidth: targetWidth,
+                            resizeHeight: targetHeight,
+                        });
+                        ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+                        bitmap.close();
+                    }
                 }
-                return false;
+
+                imageProcessingStats.sequentialCount += selectedTraits.length;
+            } else {
+                // Fallback path: decode per trait (cached ArrayBuffers)
+                const batchRequests: BatchImageRequest[] = selectedTraits.map((trait, traitIndex) => ({
+                    trait: trait.trait,
+                    resizeWidth: targetWidth,
+                    resizeHeight: targetHeight,
+                    index: traitIndex,
+                }));
+
+                const batchResults = await processImageRequestsSequential(batchRequests);
+
+                for (let i = 0; i < selectedTraits.length; i++) {
+                    const trait = selectedTraits[i];
+                    const result = batchResults.find((r) => r.index === i);
+
+                    if (!result || !result.bitmap) {
+                        if (result?.error) {
+                            console.warn(
+                                `Failed to process image for trait "${trait.trait.name}": ${result.error.message}`
+                            );
+                        }
+                        return null;
+                    }
+
+                    ctx.drawImage(result.bitmap, 0, 0, targetWidth, targetHeight);
+                    result.bitmap.close();
+                }
             }
 
-            // Draw the image onto the OffscreenCanvas
-            ctx.drawImage(result.bitmap, 0, 0, targetWidth, targetHeight);
-
-            // Clean up the ImageBitmap immediately to free memory
-            result.bitmap.close();
+            if (patternFrequency >= 2) {
+                const cacheCanvas = new OffscreenCanvas(targetWidth, targetHeight);
+                const cacheCtx = cacheCanvas.getContext('2d');
+                cacheCtx?.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+                traitCombinationCache.set(selectedTraitIds, cacheCanvas);
+            }
         }
 
-        // If required layer failed due to strict pair constraints, return false
         if (hasRequiredLayerFailure) {
-            return false;
+            return null;
         }
 
-        // After selecting all traits, mark the combination as used for Strict Pair tracking
         if (strictPairConfig?.enabled) {
             const simpleSelectedTraits = selectedTraits.map((t) => ({
                 traitId: t.traitId,
-                layerId: t.layerId
+                layerId: t.layerId,
             }));
             markCombinationAsUsed(simpleSelectedTraits, strictPairConfig);
         }
 
-        // Cache the combination before blob conversion
-        const selectedTraitIds = selectedTraits.map(t => t.traitId);
-        predictiveTraitLoader.recordCombination(selectedTraitIds);
-
-        // Use blob processing optimizer for better throughput
-        // This batches blob conversions for multiple canvases
-        const blob: Blob = await blobProcessingOptimizer.queueBlob(canvas, 0.9);
-
-        // Create metadata using selected traits
         const attributes = selectedTraits.map((selected) => ({
             trait_type: layers.find((l) => l.id === selected.layerId)?.name || 'Unknown',
-            value: selected.trait.name
+            value: selected.trait.name,
         }));
 
-        // Use the selected metadata strategy
         const strategy = getMetadataStrategy(metadataStandard as MetadataStandard);
         const metadataObj = strategy.format(
             `${projectName} #${index + 1}`,
             projectDescription,
             `${index + 1}.png`,
             attributes,
-            {
-                // Pass extra data if needed for specific strategies (e.g. Solana symbol)
-                // For now we just pass basic info
-            }
+            {}
         );
 
-        // Store the metadata
         metadata.push({
             name: `${index + 1}.json`,
-            data: metadataObj
+            data: metadataObj,
         });
 
-        if (chunkImages) {
-            // Chunked approach - add to chunk array
-            chunkImages.push({
-                name: `${index + 1}.png`,
-                blob
-            });
-        } else {
-            // Streaming approach - send immediately
-            const imageData = await blob.arrayBuffer();
-            const streamMessage: CompleteMessage = {
-                type: 'complete',
-                taskId,
-                payload: {
-                    images: [{ name: `${index + 1}.png`, imageData }],
-                    metadata: [{ name: `${index + 1}.json`, data: metadataObj }]
-                }
-            };
+        // Copy from the reusable render canvas to a pooled encode canvas so we can overlap encode work.
+        const encodeCanvas = memoryManager.getCanvas(targetWidth, targetHeight);
+        inFlightEncodeCanvases.add(encodeCanvas);
+        const encodeCtx = memoryManager.getContext(encodeCanvas);
+        encodeCtx.imageSmoothingEnabled = false;
+        encodeCtx.globalCompositeOperation = 'source-over';
+        encodeCtx.clearRect(0, 0, targetWidth, targetHeight);
+        encodeCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
 
-            // Transfer the underlying ArrayBuffer
-            // @ts-expect-error - TS in worker env may not infer postMessage overload with transfer list
-            self.postMessage(streamMessage, [imageData]);
-        }
+        const blobPromise = blobProcessingOptimizer.queueBlob(encodeCanvas, 0.9);
 
-        // Optimized progress update frequency - reduced overhead for sequential processing
-        if (!chunkImages && (index % PROGRESS_UPDATE_INTERVAL === 0 || index === collectionSize - 1)) {
-            // Cleanup resources periodically to free memory (less frequently)
-            if (index % MEMORY_CLEANUP_INTERVAL === 0) {
-                cleanupObjectUrls();
-            }
-
-            // Get current memory usage
-            const currentMemoryUsage = getMemoryUsage();
-
-            const progressMessage: ProgressMessage = {
-                type: 'progress',
-                taskId,
-                payload: {
-                    generatedCount: index + 1,
-                    totalCount: collectionSize,
-                    statusText: `Generated ${index + 1} of ${collectionSize} NFTs`,
-                    memoryUsage: currentMemoryUsage || undefined
-                }
-            };
-            self.postMessage(progressMessage);
-        }
-
-        // Optimized preview generation - less frequent but consistent
-        if (
-            !chunkImages &&
-            collectionSize <= 1000 &&
-            (index % (PROGRESS_UPDATE_INTERVAL * 2) === 0 || index === collectionSize - 1)
-        ) {
-            await sendPreview(blob, index, taskId);
-        }
-
-        // Force GC after each item for better memory management in large collections
-        if (collectionSize > 1000 && typeof globalThis !== 'undefined' && 'gc' in globalThis) {
-            (globalThis as { gc?: () => void }).gc?.();
-        }
-
-        // Record performance metrics for this item
-        const itemEndTime = performance.now();
-        performanceMonitor.recordProcessing(itemEndTime - itemStartTime);
-
-        return true; // Generation successful
+        return {
+            index,
+            imageName: `${index + 1}.png`,
+            metadataName: `${index + 1}.json`,
+            metadataObj,
+            encodeCanvas,
+            blobPromise,
+            startTime: itemStartTime,
+        };
     } catch (error) {
         const errorMessage: ErrorMessage = {
             type: 'error',
             taskId,
             payload: {
-                message: `Error generating item ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`
-            }
+                message: `Error generating item ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            },
         };
         self.postMessage(errorMessage);
 
-        return false; // Generation failed
+        return null;
+    }
+}
+
+async function flushQueuedItem(
+    item: QueuedGeneratedItem,
+    collectionSize: number,
+    chunkImages: { name: string; blob: Blob }[] | undefined,
+    taskId?: TaskId
+): Promise<void> {
+    try {
+        const blob = await item.blobPromise;
+
+        if (chunkImages) {
+            chunkImages.push({ name: item.imageName, blob });
+        } else {
+            const imageData = await blob.arrayBuffer();
+            const streamMessage: CompleteMessage = {
+                type: 'complete',
+                taskId,
+                payload: {
+                    images: [{ name: item.imageName, imageData }],
+                    metadata: [{ name: item.metadataName, data: item.metadataObj }],
+                },
+            };
+
+            // @ts-expect-error - TS in worker env may not infer postMessage overload with transfer list
+            self.postMessage(streamMessage, [imageData]);
+
+            if (item.index % PROGRESS_UPDATE_INTERVAL === 0 || item.index === collectionSize - 1) {
+                if (item.index % MEMORY_CLEANUP_INTERVAL === 0) {
+                    cleanupObjectUrls();
+                }
+
+                const currentMemoryUsage = getMemoryUsage();
+
+                const progressMessage: ProgressMessage = {
+                    type: 'progress',
+                    taskId,
+                    payload: {
+                        generatedCount: item.index + 1,
+                        totalCount: collectionSize,
+                        statusText: `Generated ${item.index + 1} of ${collectionSize} NFTs`,
+                        memoryUsage: currentMemoryUsage || undefined,
+                    },
+                };
+                self.postMessage(progressMessage);
+            }
+
+            if (
+                collectionSize <= 1000 &&
+                (item.index % (PROGRESS_UPDATE_INTERVAL * 2) === 0 || item.index === collectionSize - 1)
+            ) {
+                await sendPreview(blob, item.index, taskId);
+            }
+        }
+
+        if (collectionSize > 1000 && typeof globalThis !== 'undefined' && 'gc' in globalThis) {
+            (globalThis as { gc?: () => void }).gc?.();
+        }
+
+        const itemEndTime = performance.now();
+        performanceMonitor.recordProcessing(itemEndTime - item.startTime);
+    } finally {
+        inFlightEncodeCanvases.delete(item.encodeCanvas);
+        memoryManager.returnCanvas(item.encodeCanvas);
     }
 }
 
