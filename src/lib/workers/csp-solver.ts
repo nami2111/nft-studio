@@ -116,6 +116,23 @@ export class CSPSolver {
 			strictPairConfig
 		};
 
+		// Debug: Check if ruler rules are present
+		let rulerCount = 0;
+		let ruleCount = 0;
+		for (const layer of layers) {
+			for (const trait of layer.traits) {
+				if (trait.type === 'ruler' && trait.rulerRules) {
+					rulerCount++;
+					ruleCount += trait.rulerRules.length;
+				}
+			}
+		}
+		if (rulerCount > 0) {
+			console.log(
+				`🎯 CSP Solver initialized with ${rulerCount} ruler traits and ${ruleCount} rules`
+			);
+		}
+
 		// Initialize AC-3 domains and constraints
 		this.initializeDomains();
 		this.precomputeConstraints();
@@ -367,8 +384,16 @@ export class CSPSolver {
 		if (traitA.type === 'ruler' && traitA.rulerRules) {
 			const rule = traitA.rulerRules.find((r) => r.layerId === layerIdB);
 			if (rule) {
-				if (rule.forbiddenTraitIds.includes(traitB.id)) return false;
+				// Check forbidden list
+				if (rule.forbiddenTraitIds.includes(traitB.id)) {
+					console.log(`❌ Ruler: "${traitA.name}" forbids "${traitB.name}"`);
+					return false;
+				}
+				// Check allowed list (whitelist)
 				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitB.id)) {
+					console.log(
+						`❌ Ruler: "${traitA.name}" only allows specific traits, "${traitB.name}" not in list`
+					);
 					return false;
 				}
 			}
@@ -378,8 +403,16 @@ export class CSPSolver {
 		if (traitB.type === 'ruler' && traitB.rulerRules) {
 			const rule = traitB.rulerRules.find((r) => r.layerId === layerIdA);
 			if (rule) {
-				if (rule.forbiddenTraitIds.includes(traitA.id)) return false;
+				// Check forbidden list
+				if (rule.forbiddenTraitIds.includes(traitA.id)) {
+					console.log(`❌ Ruler: "${traitB.name}" forbids "${traitA.name}"`);
+					return false;
+				}
+				// Check allowed list (whitelist)
 				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitA.id)) {
+					console.log(
+						`❌ Ruler: "${traitB.name}" only allows specific traits, "${traitA.name}" not in list`
+					);
 					return false;
 				}
 			}
