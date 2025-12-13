@@ -92,10 +92,10 @@ export class CSPSolver {
 	private domains = new Map<string, Domain>(); // Enhanced domains with constraint influence
 	private constraints = new Map<string, Set<string>>(); // LayerId -> Set of constrained layerIds
 	private constraintCache = new ConstraintCache(); // Smart constraint caching
-	private performanceStats = { 
-		cacheHits: 0, 
-		constraintChecks: 0, 
-		backtracks: 0, 
+	private performanceStats = {
+		cacheHits: 0,
+		constraintChecks: 0,
+		backtracks: 0,
 		ac3Iterations: 0,
 		earlyTerminations: 0,
 		predictedDeadEnds: 0,
@@ -217,7 +217,7 @@ export class CSPSolver {
 	 * Calculate constraint weight based on number of rules and restrictiveness
 	 */
 	private calculateConstraintWeight(fromLayerId: string, toLayerId: string): number {
-		const fromLayer = this.context.layers.find(l => l.id === fromLayerId);
+		const fromLayer = this.context.layers.find((l) => l.id === fromLayerId);
 		if (!fromLayer) return 1;
 
 		let weight = 1;
@@ -240,14 +240,16 @@ export class CSPSolver {
 	 */
 	private createArc(fromLayerId: string, toLayerId: string): Arc {
 		const existingArc = this.constraintOrdering.find(
-			arc => arc.fromLayerId === fromLayerId && arc.toLayerId === toLayerId
+			(arc) => arc.fromLayerId === fromLayerId && arc.toLayerId === toLayerId
 		);
-		return existingArc || {
-			fromLayerId,
-			toLayerId,
-			constraintWeight: 1,
-			reviseCount: 0
-		};
+		return (
+			existingArc || {
+				fromLayerId,
+				toLayerId,
+				constraintWeight: 1,
+				reviseCount: 0
+			}
+		);
 	}
 
 	/**
@@ -258,7 +260,7 @@ export class CSPSolver {
 	private ac3(): boolean {
 		// Initialize queue with pre-ordered constraints for faster processing
 		const queue: Arc[] = [...this.constraintOrdering];
-		
+
 		// Add reverse arcs for bidirectional consistency
 		const reverseQueue: Arc[] = [];
 		for (const arc of this.constraintOrdering) {
@@ -318,9 +320,7 @@ export class CSPSolver {
 			if (cachedCompatible !== undefined) {
 				this.performanceStats.constraintCacheHits++;
 				// Use cached compatible traits
-				return toDomain.availableTraits.some((toTrait) => 
-					cachedCompatible.has(toTrait.id)
-				);
+				return toDomain.availableTraits.some((toTrait) => cachedCompatible.has(toTrait.id));
 			}
 
 			// Check if there's at least one trait in toDomain that's consistent with fromTrait
@@ -332,7 +332,9 @@ export class CSPSolver {
 			// Cache the result for future use
 			if (hasCompatible) {
 				const compatibleIds = toDomain.availableTraits
-					.filter((toTrait) => this.isConsistent(fromTrait, arc.fromLayerId, toTrait, arc.toLayerId))
+					.filter((toTrait) =>
+						this.isConsistent(fromTrait, arc.fromLayerId, toTrait, arc.toLayerId)
+					)
 					.map((toTrait) => toTrait.id);
 				this.constraintCache.set(fromTrait.id, arc.toLayerId, new Set(compatibleIds));
 			}
@@ -572,7 +574,7 @@ export class CSPSolver {
 
 		// Generate constraint hash for faster lookup
 		const constraintHash = this.generateConstraintHash(key);
-		
+
 		// Simple dead-end prediction based on constraint density
 		const predictedDeadEnd = this.predictDeadEnd(key);
 
@@ -592,7 +594,7 @@ export class CSPSolver {
 		let hash = 0;
 		for (let i = 0; i < assignmentKey.length; i++) {
 			const char = assignmentKey.charCodeAt(i);
-			hash = ((hash << 5) - hash) + char;
+			hash = (hash << 5) - hash + char;
 			hash = hash & hash; // Convert to 32bit integer
 		}
 		return hash.toString(36);
@@ -654,19 +656,33 @@ export class CSPSolver {
 					return false; // Already used
 				}
 			} catch {
-				// Fallback to string-based check for edge cases
+				// Fallback to hash-based check for edge cases
 				// This happens if trait IDs > 255 or > 8 traits
 				const fallbackKey = traitIds.sort().join('|');
-				const stringSet = new Set(
-					Array.from(usedSet).map((idx) => CombinationIndexer.unpack(idx).sort().join('|'))
-				);
-				if (stringSet.has(fallbackKey)) {
+				const hashKey = this.generateHashKey(fallbackKey);
+				const hashAsBigInt = BigInt('0x' + hashKey);
+
+				// Check if hash-based bigint exists in usedSet
+				if (usedSet.has(hashAsBigInt)) {
 					return false; // Already used
 				}
 			}
 		}
 
 		return true;
+	}
+
+	/**
+	 * Generate hash key for combination (same algorithm as worker)
+	 */
+	private generateHashKey(combinationKey: string): string {
+		let hash = 0;
+		for (let i = 0; i < combinationKey.length; i++) {
+			const char = combinationKey.charCodeAt(i);
+			hash = (hash << 5) - hash + char;
+			hash = hash & hash; // Convert to 32-bit integer
+		}
+		return hash.toString(36);
 	}
 
 	/**
@@ -684,10 +700,10 @@ export class CSPSolver {
 		this.domains.clear();
 		this.constraints.clear();
 		this.constraintCache.clear();
-		this.performanceStats = { 
-			cacheHits: 0, 
-			constraintChecks: 0, 
-			backtracks: 0, 
+		this.performanceStats = {
+			cacheHits: 0,
+			constraintChecks: 0,
+			backtracks: 0,
 			ac3Iterations: 0,
 			earlyTerminations: 0,
 			predictedDeadEnds: 0,

@@ -1001,6 +1001,9 @@ function markCombinationAsUsed(
 		if (!useBitPack) {
 			const stringKey = foundTraits.sort().join('|');
 			const hashKey = generateCombinationHash(stringKey);
+			// Convert hash to bigint and add to usedSet for CSP solver validation
+			const hashAsBigInt = BigInt('0x' + hashKey);
+			usedSet.add(hashAsBigInt);
 			if (!combinationHashes.has(hashKey)) {
 				combinationHashes.set(hashKey, stringKey);
 			}
@@ -1056,8 +1059,10 @@ function isCombinationUsed(
 	// Fallback to hash-based lookup
 	const combinationKey = foundTraits.sort().join('|');
 	const hashKey = generateCombinationHash(combinationKey);
+	const hashAsBigInt = BigInt('0x' + hashKey);
 
-	if (combinationHashes.has(hashKey)) {
+	// Check both usedSet (for CSP solver compatibility) and combinationHashes
+	if (usedSet.has(hashAsBigInt) || combinationHashes.has(hashKey)) {
 		combinationStats.hashHits++;
 		combinationStats.totalChecks++;
 		return true;
