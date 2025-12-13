@@ -702,6 +702,9 @@ class BlobProcessingOptimizer {
 			await this.processingPromise;
 		} finally {
 			this.processingPromise = null;
+			if (this.blobQueue.length > 0) {
+				void this.processBatch();
+			}
 		}
 	}
 
