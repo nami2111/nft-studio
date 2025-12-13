@@ -4,6 +4,7 @@
 
 import type { TransferrableLayer, TransferrableTrait } from '$lib/types/worker-messages';
 import { CombinationIndexer } from '$lib/utils/combination-indexer';
+import { logger } from '$lib/utils/logger';
 
 interface SolverContext {
 	layers: TransferrableLayer[];
@@ -86,6 +87,12 @@ class ConstraintCache {
 	}
 }
 
+// Module-level flag to prevent duplicate ruler logging
+let hasLoggedRulerInfo = false;
+
+// Debug flag for ruler violations (set to false in production to reduce spam)
+const DEBUG_RULER_VIOLATIONS = false;
+
 export class CSPSolver {
 	private context: SolverContext;
 	private impossibleCombinations = new Map<string, ImpossibleCombination>();
@@ -116,21 +123,33 @@ export class CSPSolver {
 			strictPairConfig
 		};
 
-		// Debug: Check if ruler rules are present
-		let rulerCount = 0;
-		let ruleCount = 0;
-		for (const layer of layers) {
-			for (const trait of layer.traits) {
-				if (trait.type === 'ruler' && trait.rulerRules) {
-					rulerCount++;
-					ruleCount += trait.rulerRules.length;
+		// Log ruler configuration once per session
+		if (!hasLoggedRulerInfo) {
+			const rulerConfigs: string[] = [];
+			
+			for (const layer of layers) {
+				for (const trait of layer.traits) {
+					if (trait.type === 'ruler' && trait.rulerRules && trait.rulerRules.length > 0) {
+						const rules = trait.rulerRules.map(rule => {
+							const constraints: string[] = [];
+							if (rule.forbiddenTraitIds.length > 0) {
+								constraints.push(`❌ forbid ${rule.forbiddenTraitIds.length} traits`);
+							}
+							if (rule.allowedTraitIds.length > 0) {
+								constraints.push(`✅ allow ${rule.allowedTraitIds.length} traits`);
+							}
+							return `  → ${rule.layerId}: ${constraints.join(' | ')}`;
+						}).join('\n');
+						
+						rulerConfigs.push(`${trait.name}:\n${rules}`);
+					}
 				}
 			}
-		}
-		if (rulerCount > 0) {
-			console.log(
-				`🎯 CSP Solver initialized with ${rulerCount} ruler traits and ${ruleCount} rules`
-			);
+			
+			if (rulerConfigs.length > 0) {
+				logger.info(`🎯 CSP Ruler Configuration:\n${rulerConfigs.join('\n\n')}`);
+				hasLoggedRulerInfo = true;
+			}
 		}
 
 		// Initialize AC-3 domains and constraints
@@ -151,17 +170,14 @@ export class CSPSolver {
 		// Use optimized backtracking with MRV heuristic on AC-3 pruned domains
 		const result = this.optimizedBacktrack();
 
-		// Log performance stats for debugging
+		// Log performance stats for debugging (simplified)
 		if (Date.now() - startTime > 50) {
-			console.log(
-				`🚀 Enhanced AC-3 CSP Solver: ${Date.now() - startTime}ms, ` +
-					`AC-3 iterations: ${this.performanceStats.ac3Iterations}, ` +
-					`early terminations: ${this.performanceStats.earlyTerminations}, ` +
-					`cache hits: ${this.performanceStats.cacheHits}, ` +
-					`constraint cache hits: ${this.performanceStats.constraintCacheHits} (${this.constraintCache.getStats().hitRate}%), ` +
-					`backtracks: ${this.performanceStats.backtracks}, ` +
-					`constraint checks: ${this.performanceStats.constraintChecks}, ` +
-					`predicted dead ends: ${this.performanceStats.predictedDeadEnds}`
+			const stats = this.performanceStats;
+			logger.info(
+				`🚀 CSP: ${Date.now() - startTime}ms, ` +
+					`checks: ${stats.constraintChecks}, ` +
+					`backtracks: ${stats.backtracks}, ` +
+					`cache: ${stats.constraintCacheHits} (${this.constraintCache.getStats().hitRate}%)`
 			);
 		}
 
@@ -386,14 +402,17 @@ export class CSPSolver {
 			if (rule) {
 				// Check forbidden list
 				if (rule.forbiddenTraitIds.includes(traitB.id)) {
-					console.log(`❌ Ruler: "${traitA.name}" forbids "${traitB.name}"`);
+					if (DEBUG_RULER_VIOLATIONS) {
+						logger.debug(`❌ RULER VIOLATION: ${traitA.name} forbids ${traitB.name} (traitB.id: ${traitB.id})`);
+					}
 					return false;
 				}
-				// Check allowed list (whitelist)
+				// Check allowed list (whitelist) - only if it's explicitly defined
+				// If allowedTraitIds is empty, it means "allow all" (except forbidden ones)
 				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitB.id)) {
-					console.log(
-						`❌ Ruler: "${traitA.name}" only allows specific traits, "${traitB.name}" not in list`
-					);
+					if (DEBUG_RULER_VIOLATIONS) {
+						logger.debug(`❌ RULER VIOLATION: ${traitA.name} only allows specific traits, ${traitB.name} not allowed (traitB.id: ${traitB.id})`);
+					}
 					return false;
 				}
 			}
@@ -405,14 +424,17 @@ export class CSPSolver {
 			if (rule) {
 				// Check forbidden list
 				if (rule.forbiddenTraitIds.includes(traitA.id)) {
-					console.log(`❌ Ruler: "${traitB.name}" forbids "${traitA.name}"`);
+					if (DEBUG_RULER_VIOLATIONS) {
+						logger.debug(`❌ RULER VIOLATION: ${traitB.name} forbids ${traitA.name} (traitA.id: ${traitA.id})`);
+					}
 					return false;
 				}
-				// Check allowed list (whitelist)
+				// Check allowed list (whitelist) - only if it's explicitly defined
+				// If allowedTraitIds is empty, it means "allow all" (except forbidden ones)
 				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitA.id)) {
-					console.log(
-						`❌ Ruler: "${traitB.name}" only allows specific traits, "${traitA.name}" not in list`
-					);
+					if (DEBUG_RULER_VIOLATIONS) {
+						logger.debug(`❌ RULER VIOLATION: ${traitB.name} only allows specific traits, ${traitA.name} not allowed (traitA.id: ${traitA.id})`);
+					}
 					return false;
 				}
 			}

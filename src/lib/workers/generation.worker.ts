@@ -2385,7 +2385,7 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 				const startPayload = payload as StartMessage['payload'];
 
 				// Analyze collection complexity and decide on algorithm
-				const analysis = getCollectionAnalysis(startPayload.layers, startPayload.collectionSize);
+				const analysis = getCollectionAnalysis(startPayload.layers, startPayload.collectionSize, startPayload.strictPairConfig);
 
 				// Start performance analysis
 				performanceAnalyzer.startAnalysis(
@@ -2437,7 +2437,8 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 						startPayload.projectName,
 						startPayload.projectDescription,
 						taskId,
-						startPayload.metadataStandard
+						startPayload.metadataStandard,
+						startPayload.strictPairConfig
 					);
 				} else {
 					console.log(`🔧 Using existing generation for ${analysis.complexity.type} collection`);
