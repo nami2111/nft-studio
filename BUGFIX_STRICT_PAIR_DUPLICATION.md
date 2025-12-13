@@ -112,20 +112,23 @@ if (usedSet.has(hashAsBigInt) || combinationHashes.has(hashKey)) {
 ### Hash Generation Algorithm
 Both worker and CSP solver now use the same hash algorithm:
 ```typescript
-function generateHashKey(combinationKey: string): string {
+function generateNumericHash(combinationKey: string): number {
     let hash = 0;
     for (let i = 0; i < combinationKey.length; i++) {
         const char = combinationKey.charCodeAt(i);
         hash = (hash << 5) - hash + char;
         hash = hash & hash; // Convert to 32-bit integer
     }
-    return hash.toString(36);
+    // Make it unsigned to avoid negative values
+    return hash >>> 0;
 }
 ```
 
-The hash is converted to a bigint using: `BigInt('0x' + hashKey)`
+The numeric hash is converted to a bigint using: `BigInt(numericHash)`
 
-This ensures consistent representation in the `Set<bigint>` structure.
+This ensures consistent representation in the `Set<bigint>` structure without hexadecimal conversion issues.
+
+**Important Note:** The initial fix attempted to use `BigInt('0x' + hashKey)` where `hashKey` was a base36 string, but this failed because base36 can contain characters g-z which are invalid in hexadecimal notation. The corrected approach directly converts the numeric hash to BigInt.
 
 ## Impact
 - ✅ Strict pair configuration now properly prevents duplicate combinations in ALL cases
@@ -135,9 +138,11 @@ This ensures consistent representation in the `Set<bigint>` structure.
 
 ## Files Modified
 1. `/src/lib/workers/generation.worker.ts`
-   - Updated `markCombinationAsUsed()` function
-   - Updated `isCombinationUsed()` function
+   - Added `generateNumericHash()` function
+   - Updated `generateCombinationHash()` to use `generateNumericHash()`
+   - Updated `markCombinationAsUsed()` function to use numeric hash
+   - Updated `isCombinationUsed()` function to use numeric hash
 
 2. `/src/lib/workers/csp-solver.ts`
-   - Added `generateHashKey()` method
-   - Updated `isValidCombination()` fallback logic
+   - Added `generateNumericHash()` method
+   - Updated `isValidCombination()` fallback logic to use numeric hash

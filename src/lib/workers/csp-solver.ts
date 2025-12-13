@@ -659,8 +659,8 @@ export class CSPSolver {
 				// Fallback to hash-based check for edge cases
 				// This happens if trait IDs > 255 or > 8 traits
 				const fallbackKey = traitIds.sort().join('|');
-				const hashKey = this.generateHashKey(fallbackKey);
-				const hashAsBigInt = BigInt('0x' + hashKey);
+				const numericHash = this.generateNumericHash(fallbackKey);
+				const hashAsBigInt = BigInt(numericHash);
 
 				// Check if hash-based bigint exists in usedSet
 				if (usedSet.has(hashAsBigInt)) {
@@ -673,16 +673,17 @@ export class CSPSolver {
 	}
 
 	/**
-	 * Generate hash key for combination (same algorithm as worker)
+	 * Generate numeric hash for combination (same algorithm as worker)
 	 */
-	private generateHashKey(combinationKey: string): string {
+	private generateNumericHash(combinationKey: string): number {
 		let hash = 0;
 		for (let i = 0; i < combinationKey.length; i++) {
 			const char = combinationKey.charCodeAt(i);
 			hash = (hash << 5) - hash + char;
 			hash = hash & hash; // Convert to 32-bit integer
 		}
-		return hash.toString(36);
+		// Make it unsigned to avoid negative values
+		return hash >>> 0;
 	}
 
 	/**
