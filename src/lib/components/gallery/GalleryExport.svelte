@@ -3,6 +3,7 @@
 	import { exportRarityData } from '$lib/domain/rarity-calculator';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Card from '$lib/components/ui/card/card.svelte';
+	import { getMimeType, getFileExtension } from '$lib/utils/image-format-detector';
 
 	interface Props {
 		class?: string;
@@ -51,8 +52,13 @@
 			// Add images folder
 			const imagesFolder = zip.folder('images');
 			for (const nft of collection.nfts) {
-				const blob = new Blob([nft.imageData], { type: 'image/png' });
-				imagesFolder?.file(`${nft.name}.png`, blob);
+				// Use the original image format if available
+				const imageFormat = nft.imageFormat || 'png';
+				const mimeType = getMimeType(imageFormat);
+				const extension = getFileExtension(imageFormat);
+
+				const blob = new Blob([nft.imageData], { type: mimeType });
+				imagesFolder?.file(`${nft.name}${extension}`, blob);
 			}
 
 			// Add metadata folder
