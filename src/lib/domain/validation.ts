@@ -372,7 +372,7 @@ export function createValidatedTrait(overrides: Partial<Trait> = {}): Trait {
 		id: crypto.randomUUID() as TraitId,
 		name: 'New Trait',
 		imageData: new ArrayBuffer(0),
-		rarityWeight: 1
+		rarityWeight: 5
 	};
 
 	const trait = { ...defaultTrait, ...overrides };

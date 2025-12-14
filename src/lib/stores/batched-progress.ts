@@ -158,6 +158,11 @@ export class BatchedProgressManager {
    */
   private saveState(update: ProgressUpdate): void {
     try {
+      // Check if sessionStorage is available (not in Web Worker)
+      if (typeof sessionStorage === 'undefined') {
+        return; // Skip saving in Web Worker context
+      }
+
       // Only save basic progress info, not all images/metadata
       const stateData = {
         timestamp: Date.now(),

@@ -6,6 +6,7 @@
 	import Progress from '$lib/components/ui/progress/progress.svelte';
 	import { showError, showSuccess, showWarning } from '$lib/utils/error-handling';
 	import { ZipReader, BlobReader, BlobWriter, TextWriter, type Entry } from '@zip.js/zip.js';
+	import { detectImageFormat } from '$lib/utils/image-format-detector';
 
 	interface Props {
 		class?: string;
@@ -251,15 +252,16 @@ async function processStandardZipFile(file: File): Promise<{ images: any[], meta
 	const { default: JSZip } = await import('jszip');
 	const zip = await JSZip.loadAsync(file);
 
-	const images: { name: string; imageData: ArrayBuffer }[] = [];
+	const images: { name: string; imageData: ArrayBuffer; imageFormat: string }[] = [];
 	const metadata: { name: string; data: any }[] = [];
 
 	// Process images from the main zip object
 	const allFiles = Object.keys(zip.files);
+
 	const imageFiles = allFiles.filter(
 		(filename) =>
 			filename.startsWith('images/') &&
-			(filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.jpeg'))
+			(filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.webp') || filename.endsWith('.gif'))
 	);
 	const metadataFiles = allFiles.filter(
 		(filename) => filename.startsWith('metadata/') && filename.endsWith('.json')
@@ -276,9 +278,11 @@ async function processStandardZipFile(file: File): Promise<{ images: any[], meta
 			const imageFile = zip.file(filename);
 			if (imageFile) {
 				const imageData = await imageFile.async('arraybuffer');
+				const imageFormat = detectImageFormat(imageData);
 				images.push({
-					name: filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg)$/, ''),
-					imageData
+					name: filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
+					imageData,
+					imageFormat
 				});
 			}
 		}
@@ -312,7 +316,7 @@ async function processLargeZipFile(file: File): Promise<{ images: any[], metadat
 	const zipReader = new ZipReader(new BlobReader(file));
 	const entries = await zipReader.getEntries();
 
-	const images: { name: string; blobUrl: string }[] = [];
+	const images: { name: string; blobUrl: string; imageFormat: string }[] = [];
 	const metadata: { name: string; data: any }[] = [];
 
 	// Process entries in batches
@@ -320,23 +324,27 @@ async function processLargeZipFile(file: File): Promise<{ images: any[], metadat
 
 	for (let i = 0; i < entries.length; i += batchSize) {
 		const batch = entries.slice(i, i + batchSize);
-		const batchImages: { name: string; blobUrl: string }[] = [];
+		const batchImages: { name: string; blobUrl: string; imageFormat: string }[] = [];
 		const batchMetadata: { name: string; data: any }[] = [];
 
 		// Process images in this batch
 		for (const entry of batch) {
 			if (entry.filename.startsWith('images/') &&
-				(entry.filename.endsWith('.png') || entry.filename.endsWith('.jpg') || entry.filename.endsWith('.jpeg'))) {
+				(entry.filename.endsWith('.png') || entry.filename.endsWith('.jpg') || entry.filename.endsWith('.jpeg') || entry.filename.endsWith('.webp') || entry.filename.endsWith('.gif'))) {
 
 				try {
 					// Check if entry has getData method (it's a file, not directory)
 					if ('getData' in entry && typeof entry.getData === 'function') {
 						const blob = await entry.getData(new BlobWriter());
 						if (blob) {
+							// Detect format from blob
+							const arrayBuffer = await blob.arrayBuffer();
+							const imageFormat = detectImageFormat(arrayBuffer);
 							const blobUrl = URL.createObjectURL(blob);
 							batchImages.push({
-								name: entry.filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg)$/, ''),
-								blobUrl
+								name: entry.filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
+								blobUrl,
+								imageFormat
 							});
 						}
 					}
@@ -379,7 +387,7 @@ async function processLargeZipFile(file: File): Promise<{ images: any[], metadat
 	await zipReader.close();
 
 	return {
-		images: images.map(img => ({ ...img, imageData: img.blobUrl, isBlobUrl: true })),
+		images: images.map(img => ({ ...img, imageData: img.blobUrl, isBlobUrl: true, imageFormat: img.imageFormat })),
 		metadata
 	};
 }
@@ -397,7 +405,7 @@ async function processFile(file: File) {
 		const zipReader = new ZipReader(new BlobReader(file));
 		const entries = await zipReader.getEntries();
 
-		const images: { name: string; blobUrl: string }[] = [];
+		const images: { name: string; blobUrl: string; imageFormat: string }[] = [];
 		const metadata: { name: string; data: any }[] = [];
 
 		// Process entries in batches
@@ -407,23 +415,27 @@ async function processFile(file: File) {
 
 		for (let i = 0; i < entries.length; i += batchSize) {
 			const batch = entries.slice(i, i + batchSize);
-			const batchImages: { name: string; blobUrl: string }[] = [];
+			const batchImages: { name: string; blobUrl: string; imageFormat: string }[] = [];
 			const batchMetadata: { name: string; data: any }[] = [];
 
 			// Process images in this batch
 			for (const entry of batch) {
 				if (entry.filename.startsWith('images/') &&
-					(entry.filename.endsWith('.png') || entry.filename.endsWith('.jpg') || entry.filename.endsWith('.jpeg'))) {
+					(entry.filename.endsWith('.png') || entry.filename.endsWith('.jpg') || entry.filename.endsWith('.jpeg') || entry.filename.endsWith('.webp') || entry.filename.endsWith('.gif'))) {
 
 					try {
 						// Check if entry has getData method (it's a file, not directory)
 						if ('getData' in entry && typeof entry.getData === 'function') {
 							const blob = await entry.getData(new BlobWriter());
 							if (blob) {
+								// Detect format from blob
+								const arrayBuffer = await blob.arrayBuffer();
+								const imageFormat = detectImageFormat(arrayBuffer);
 								const blobUrl = URL.createObjectURL(blob);
 								batchImages.push({
-									name: entry.filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg)$/, ''),
-									blobUrl
+									name: entry.filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
+									blobUrl,
+									imageFormat
 								});
 							}
 						}
@@ -484,6 +496,7 @@ async function processFile(file: File) {
 			return {
 				name: matchingMetadata?.data.name || image.name,
 				imageData: image.blobUrl, // Store blob URL instead of ArrayBuffer
+				imageFormat: image.imageFormat, // Preserve the detected image format
 				metadata: {
 					traits: matchingMetadata?.data.attributes || [],
 					description: matchingMetadata?.data.description || `${image.name} - Generated NFT`

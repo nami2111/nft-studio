@@ -132,7 +132,7 @@ export async function addTrait(
 				id: createTraitId(crypto.randomUUID()),
 				name: traitName,
 				imageData: arrayBuffer,
-				rarityWeight: 1
+				rarityWeight: 5
 			};
 
 			return {

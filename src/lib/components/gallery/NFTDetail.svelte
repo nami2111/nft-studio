@@ -4,6 +4,7 @@
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
+	import { getMimeType, getFileExtension } from '$lib/utils/image-format-detector';
 
 	interface Props {
 		selectedNFT?: GalleryNFT | null;
@@ -29,8 +30,11 @@
 				// Already a Blob URL
 				imageUrl = selectedNFT.imageData;
 			} else if (selectedNFT.imageData instanceof ArrayBuffer) {
-				// Create image URL from ArrayBuffer
-				const blob = new Blob([selectedNFT.imageData], { type: 'image/png' });
+				// Use the original image format if available
+				const imageFormat = selectedNFT.imageFormat || 'png';
+				const mimeType = getMimeType(imageFormat);
+				// Create image URL from ArrayBuffer with correct MIME type
+				const blob = new Blob([selectedNFT.imageData], { type: mimeType });
 				imageUrl = URL.createObjectURL(blob);
 			}
 			isLoadingImage = false;
@@ -64,7 +68,9 @@
 
 		const link = document.createElement('a');
 		link.href = imageUrl;
-		link.download = `${selectedNFT.name}.png`;
+		// Use the original image format for the file extension
+		const extension = getFileExtension(selectedNFT.imageFormat || 'png');
+		link.download = `${selectedNFT.name}${extension}`;
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);

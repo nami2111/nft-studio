@@ -14,6 +14,7 @@ export interface GalleryNFT {
 	description?: string;
 	imageData: ArrayBuffer | string; // ArrayBuffer for standard processing, string (blob URL) for streaming
 	imageUrl?: string;
+	imageFormat?: string; // Original image format (png, jpg, jpeg, webp, gif, etc.)
 	metadata: {
 		traits: Array<{
 			layer: string;
