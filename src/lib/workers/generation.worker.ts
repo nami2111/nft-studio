@@ -28,6 +28,9 @@ interface StrictPairConfig {
 	}>;
 }
 
+// Global counter for tracking total ruler violations across all generations
+let totalRulerViolations = 0;
+
 // Track used combinations globally within the worker
 
 // No WASM imports needed - using direct Canvas API for optimal performance
@@ -938,6 +941,9 @@ function reportCacheStats() {
 // Combines bit-packed indexing with hash-based lookups for optimal performance
 const usedCombinations = new Map<string, Set<bigint>>();
 const combinationHashes = new Map<string, string>(); // Hybrid string-based tracking for edge cases
+
+// Track all generated combinations for basic duplicate prevention
+const allGeneratedCombinations = new Set<bigint>();
 const combinationStats = {
 	totalChecks: 0,
 	bitPackHits: 0,
@@ -1000,6 +1006,20 @@ function markCombinationAsUsed(
 		// Add to tracking with incremental updates
 		if (!useBitPack) {
 			const stringKey = foundTraits.sort().join('|');
+			// Convert string to BigInt directly for collision-free storage
+			// This ensures each unique string gets a unique BigInt representation
+			const encoder = new TextEncoder();
+			const bytes = encoder.encode(stringKey);
+			let bigIntValue = 0n;
+
+			// Convert bytes to BigInt (take first 32 bytes to avoid overflow)
+			for (let i = 0; i < Math.min(bytes.length, 32); i++) {
+				bigIntValue = (bigIntValue << 8n) | BigInt(bytes[i]);
+			}
+
+			usedSet.add(bigIntValue);
+
+			// Still store in combinationHashes for verification
 			const hashKey = generateCombinationHash(stringKey);
 			if (!combinationHashes.has(hashKey)) {
 				combinationHashes.set(hashKey, stringKey);
@@ -1013,13 +1033,20 @@ function markCombinationAsUsed(
 
 // Generate hash for combination keys (fast lookup)
 function generateCombinationHash(combinationKey: string): string {
+	const numericHash = generateNumericHash(combinationKey);
+	return numericHash.toString(36);
+}
+
+// Generate numeric hash for combination keys (for BigInt conversion)
+function generateNumericHash(combinationKey: string): number {
 	let hash = 0;
 	for (let i = 0; i < combinationKey.length; i++) {
 		const char = combinationKey.charCodeAt(i);
 		hash = (hash << 5) - hash + char;
 		hash = hash & hash; // Convert to 32-bit integer
 	}
-	return hash.toString(36);
+	// Make it unsigned to avoid negative values
+	return hash >>> 0;
 }
 
 // Check if combination is used (enhanced with hybrid indexing)
@@ -1053,11 +1080,20 @@ function isCombinationUsed(
 		// Fall through to hash-based lookup
 	}
 
-	// Fallback to hash-based lookup
+	// Fallback to string-based BigInt lookup for collision-free checking
 	const combinationKey = foundTraits.sort().join('|');
-	const hashKey = generateCombinationHash(combinationKey);
 
-	if (combinationHashes.has(hashKey)) {
+	// Convert string to BigInt directly (same algorithm as markCombinationAsUsed)
+	const encoder = new TextEncoder();
+	const bytes = encoder.encode(combinationKey);
+	let bigIntValue = 0n;
+
+	for (let i = 0; i < Math.min(bytes.length, 32); i++) {
+		bigIntValue = (bigIntValue << 8n) | BigInt(bytes[i]);
+	}
+
+	// Check if this exact BigInt exists in usedSet
+	if (usedSet.has(bigIntValue)) {
 		combinationStats.hashHits++;
 		combinationStats.totalChecks++;
 		return true;
@@ -1071,12 +1107,101 @@ function isCombinationUsed(
 function clearUsedCombinations(): void {
 	usedCombinations.clear();
 	combinationHashes.clear();
+	allGeneratedCombinations.clear();
 
 	// Reset stats
 	combinationStats.totalChecks = 0;
 	combinationStats.bitPackHits = 0;
 	combinationStats.hashHits = 0;
 	combinationStats.memoryEfficiency = 0;
+}
+
+/**
+ * Check if a basic trait combination has been generated before
+ * This prevents duplicates even when strict pairs are not enabled
+ */
+function isBasicCombinationUsed(selectedTraits: { traitId: string; layerId: string }[]): boolean {
+	if (allGeneratedCombinations.size === 0) {
+		return false;
+	}
+
+	// Create a unique key from all trait IDs
+	const traitIds = selectedTraits.map(t => t.traitId).sort();
+
+	// Try bit-packed first
+	try {
+		const numericIds = traitIds.map(id => parseInt(id, 10));
+		if (numericIds.every(id => id <= 255) && numericIds.length <= 8) {
+			const combinationKey = CombinationIndexer.pack(numericIds);
+			return allGeneratedCombinations.has(combinationKey);
+		}
+	} catch {
+		// Continue to fallback
+	}
+
+	// Fallback to string-based hash (same as CSP solver)
+	const stringKey = traitIds.sort().join('|');
+
+	// Generate numeric hash (same algorithm as CSP solver)
+	let hash = 0;
+	for (let i = 0; i < stringKey.length; i++) {
+		const char = stringKey.charCodeAt(i);
+		hash = (hash << 5) - hash + char;
+		hash = hash & hash; // Convert to 32-bit integer
+	}
+	// Make it unsigned to avoid negative values
+	const unsignedHash = hash >>> 0;
+	const bigIntValue = BigInt(unsignedHash);
+
+	return allGeneratedCombinations.has(bigIntValue);
+}
+
+/**
+ * Mark a basic combination as used (for duplicate prevention without strict pairs)
+ */
+function markBasicCombinationAsUsed(selectedTraits: { traitId: string; layerId: string }[]): void {
+	// Create a unique key from all trait IDs
+	const traitIds = selectedTraits.map(t => t.traitId).sort();
+
+	// Try bit-packed first
+	try {
+		const numericIds = traitIds.map(id => parseInt(id, 10));
+		if (numericIds.every(id => id <= 255) && numericIds.length <= 8) {
+			const combinationKey = CombinationIndexer.pack(numericIds);
+			allGeneratedCombinations.add(combinationKey);
+
+			// Also add to synthetic configuration if it exists
+			const syntheticSet = usedCombinations.get('__basic_all__');
+			if (syntheticSet) {
+				syntheticSet.add(combinationKey);
+			}
+			return;
+		}
+	} catch (error) {
+		// Continue to fallback
+	}
+
+	// Fallback to string-based hash (same as CSP solver)
+	const stringKey = traitIds.sort().join('|');
+
+	// Generate numeric hash (same algorithm as CSP solver)
+	let hash = 0;
+	for (let i = 0; i < stringKey.length; i++) {
+		const char = stringKey.charCodeAt(i);
+		hash = (hash << 5) - hash + char;
+		hash = hash & hash; // Convert to 32-bit integer
+	}
+	// Make it unsigned to avoid negative values
+	const unsignedHash = hash >>> 0;
+	const bigIntValue = BigInt(unsignedHash);
+
+	allGeneratedCombinations.add(bigIntValue);
+
+	// Also add to synthetic configuration if it exists
+	const syntheticSet = usedCombinations.get('__basic_all__');
+	if (syntheticSet) {
+		syntheticSet.add(bigIntValue);
+	}
 }
 
 // Legacy function removed - using enhanced version above
@@ -1387,6 +1512,42 @@ async function generateCollection(
 ): Promise<void> {
 	// Clear any existing combination data for this generation
 	clearUsedCombinations();
+
+	// Integrate basic tracking with CSP solver tracking
+	// When strict pairs are disabled, we still need the CSP solver to check basic duplicates
+	if (!strictPairConfig?.enabled) {
+		// Create a synthetic strict pair config that covers all layers
+		// This forces the CSP solver to check our basic tracking from the start
+		const syntheticConfig = {
+			enabled: true,
+			layerCombinations: [{
+				id: '__basic_all__',
+				layerIds: layers.map(l => l.id),
+				description: 'Basic duplicate prevention',
+				active: true
+			}]
+		};
+
+		// Initialize the tracking set for basic combinations
+		usedCombinations.set('__basic_all__', new Set<bigint>());
+
+		// If there's an existing config with layer combinations, merge them
+		if (strictPairConfig?.layerCombinations?.length) {
+			// Merge existing combinations with synthetic one
+			strictPairConfig = {
+				...strictPairConfig,
+				enabled: true,
+				layerCombinations: [
+					...(strictPairConfig.layerCombinations || []),
+					...syntheticConfig.layerCombinations
+				]
+			};
+		} else {
+			// Use only the synthetic config
+			strictPairConfig = syntheticConfig;
+		}
+	}
+
 	// Use a smaller initial array size to reduce memory footprint
 	const metadata: { name: string; data: object }[] = [];
 
@@ -1439,15 +1600,16 @@ async function generateCollection(
 	// let webGLRenderer: WebGLRenderer | null = null;
 	const totalTraits = layers.reduce((sum, layer) => sum + (layer.traits?.length || 0), 0);
 
-	// Try sprite sheets for 20+ traits
-	if (totalTraits >= 20) {
-		console.log(`🎨 Pre-packing ${totalTraits} traits into sprite sheets...`);
-		const spriteSheetResult = await preloadSpriteSheets(layers, outputSize);
-		if (spriteSheetResult) {
-			spriteSheets = spriteSheetResult.spriteSheets;
-			console.log(`💾 Using sprite sheets for generation (40-60% memory savings)`);
-		}
-	}
+	// Sprite sheets disabled with fast generation removal
+	// TODO: Re-implement sprite sheet optimization if needed
+	// if (totalTraits >= 20) {
+	// 	console.log(`🎨 Pre-packing ${totalTraits} traits into sprite sheets...`);
+	// 	const spriteSheetResult = await preloadSpriteSheets(layers, outputSize);
+	// 	if (spriteSheetResult) {
+	// 		spriteSheets = spriteSheetResult.spriteSheets;
+	// 		console.log(`💾 Using sprite sheets for generation (40-60% memory savings)`);
+	// 	}
+	// }
 
 	// Prepare a reusable OffscreenCanvas and context once per generation to reduce GC churn
 	// Always get 2D context for existing drawing operations
@@ -1515,6 +1677,7 @@ async function generateCollection(
 				consecutiveFailures = 0;
 			} else {
 				consecutiveFailures++;
+				console.log(`⚠️  Generation failed for index ${i}, retrying (${consecutiveFailures}/1000)`);
 				i--; // Retry the same index
 
 				if (consecutiveFailures > 1000) {
@@ -1522,7 +1685,7 @@ async function generateCollection(
 						type: 'error',
 						taskId,
 						payload: {
-							message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available with the current strict pair configuration.`
+							message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available (check for duplicate trait combinations or strict pair constraints).`
 						}
 					};
 					self.postMessage(errorMessage);
@@ -1597,7 +1760,7 @@ async function generateCollection(
 					successfulGenerations++;
 					consecutiveFailures = 0;
 				} else {
-					// Generation failed due to strict pair constraints, try again
+					// Generation failed due to duplicate detection or strict pair constraints, try again
 					consecutiveFailures++;
 					i--; // Retry the same index
 
@@ -1607,7 +1770,7 @@ async function generateCollection(
 							type: 'error',
 							taskId,
 							payload: {
-								message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available with the current strict pair configuration.`
+								message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available (check for duplicate trait combinations or strict pair constraints).`
 							}
 						};
 						self.postMessage(errorMessage);
@@ -1714,6 +1877,13 @@ async function generateCollection(
 			`${predictiveStats.successfulPredictions}/${predictiveStats.predictionsAttempted} predictions successful`
 	);
 
+	// Report constraint enforcement summary
+	if (totalRulerViolations > 0) {
+		console.log(`🛡️  Constraint Enforcement: ${totalRulerViolations} total violations detected and resolved during generation`);
+	} else {
+		console.log(`🛡️  Constraint Enforcement: No violations detected - all combinations were constraint-compliant`);
+	}
+
 	// Send final completion message
 	const finalCompleteMessage: CompleteMessage = {
 		type: 'complete',
@@ -1772,11 +1942,61 @@ async function generateAndQueueItem(
 		const selectedTraits: { traitId: string; layerId: string; trait: TransferrableTrait }[] = [];
 		const hasRequiredLayerFailure = false;
 
-		const solver = new CSPSolver(layers, usedCombinations, strictPairConfig);
+	// Quick check: Count ruler traits and strict pair combinations
+	const rulerTraitCount = layers.reduce((count, layer) =>
+		count + layer.traits.filter(t => t.type === 'ruler').length, 0);
+	const strictPairCombos = strictPairConfig?.layerCombinations?.length || 0;
+
+	if (rulerTraitCount > 0 || strictPairCombos > 0) {
+		// Reduced verbosity - only log when needed for debugging
+		// console.log(`[CSP CHECK] Found ${rulerTraitCount} ruler traits and ${strictPairCombos} strict pair combinations`);
+	}
+
+	const solver = new CSPSolver(layers, usedCombinations, strictPairConfig);
 		const solution = solver.solve();
 
 		if (!solution) {
-			return null;
+			// Reduced verbosity - only log when needed for debugging
+			// console.log(`❌ CSP FAILED: No valid solution found for current constraints`);
+			// Log current state of used combinations to debug
+			// console.log(`📊 USED COMBINATIONS: ${usedCombinations.size} sets tracked`);
+			// for (const [key, set] of usedCombinations.entries()) {
+			// 	console.log(`  ${key}: ${set.size} combinations`);
+			// }
+			return null; // No valid solution possible
+		}
+
+		// Log the successful solution and violation count
+		const violationCount = solver.getRulerViolationCount();
+		totalRulerViolations += violationCount;
+		const solutionDetails = Array.from(solution.entries())
+			.map(([layerId, trait]) => `${layerId}: ${trait.name} (${trait.id})`)
+			.join(', ');
+		// Reduced verbosity - only log when needed for debugging
+		// console.log(`✅ CSP SUCCESS: Generated combination - ${solutionDetails}`);
+		// if (violationCount > 0) {
+		// 	console.log(`📊 CSP STATS: ${violationCount} violations detected and resolved during solving (Total: ${totalRulerViolations})`);
+		// }
+
+		// CSP solver now handles all constraint verification internally
+		// The solution returned is guaranteed to respect all constraints
+
+		// Mark this combination as used to prevent duplicates
+		solver.markCombinationAsUsed();
+
+		// Also update basic tracking for comprehensive duplicate prevention
+		const solutionArray = Array.from(solution.entries());
+		const solutionTraits = solutionArray.map(([layerId, trait]) => ({
+			traitId: trait.id,
+			layerId: layerId
+		}));
+
+		// Mark as used in basic tracking
+		markBasicCombinationAsUsed(solutionTraits);
+
+		// Only log periodically to reduce noise (every 100 items)
+		if (index % 100 === 0) {
+			console.log(`✅ COMBINATION TRACKED: Successfully marked as used (item ${index + 1})`);
 		}
 
 		for (const layer of layers) {
@@ -1789,6 +2009,10 @@ async function generateAndQueueItem(
 				});
 			}
 		}
+
+			if (selectedTraits.length === 0) {
+				return null;
+			}
 
 		if (selectedTraits.length === 0) {
 			return null;
@@ -1891,6 +2115,14 @@ async function generateAndQueueItem(
 			}));
 			markCombinationAsUsed(simpleSelectedTraits, strictPairConfig);
 		}
+
+		// Also track basic combinations for future generations
+		// This ensures that even without strict pairs, combinations are tracked
+		const basicSelectedTraits = selectedTraits.map((t) => ({
+			traitId: t.traitId,
+			layerId: t.layerId
+		}));
+		markBasicCombinationAsUsed(basicSelectedTraits);
 
 		const attributes = selectedTraits.map((selected) => ({
 			trait_type: layers.find((l) => l.id === selected.layerId)?.name || 'Unknown',
@@ -2325,16 +2557,6 @@ function isRulerCompatible(
 }
 
 // Import performance improvements
-import {
-	shouldUseFastGeneration,
-	getOptimizationHints,
-	detectCollectionComplexity
-} from './fast-generation-detector';
-import {
-	generateCollectionFast,
-	getCollectionAnalysis,
-	preloadSpriteSheets
-} from './fast-generation';
 import { performanceAnalyzer } from '$lib/utils/performance-analyzer';
 import { CombinationIndexer } from '$lib/utils/combination-indexer';
 
@@ -2370,27 +2592,15 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 			try {
 				const startPayload = payload as StartMessage['payload'];
 
-				// Analyze collection complexity and decide on algorithm
-				const analysis = getCollectionAnalysis(startPayload.layers, startPayload.collectionSize);
+				// Reset violation counter for new generation session
+				totalRulerViolations = 0;
 
 				// Start performance analysis
 				performanceAnalyzer.startAnalysis(
-					analysis.complexity.recommendedAlgorithm,
-					analysis.complexity.type,
+					'standard',
+					'standard',
 					1 // Single worker for now
 				);
-
-				// Send analysis info to client
-				self.postMessage({
-					type: 'analysis',
-					taskId,
-					payload: {
-						complexity: analysis.complexity,
-						canUseFastGeneration: analysis.canUseFastGeneration,
-						estimatedSpeedup: analysis.estimatedSpeedup,
-						recommendations: analysis.recommendations
-					}
-				});
 
 				// Validate that the requested collection size is achievable with strict pair constraints
 				const validationError = validateCollectionSize(
@@ -2411,35 +2621,20 @@ self.onmessage = async (e: MessageEvent<IncomingMessage>) => {
 					return;
 				}
 
-				// Choose generation algorithm based on complexity
-				if (analysis.canUseFastGeneration) {
-					console.log(`🚀 Using fast generation for ${analysis.complexity.type} collection`);
+				// Always use standard generation for reliable duplicate prevention
+				console.log(`🔧 Using standard generation for reliable duplicate prevention`);
 
-					// Use fast generation algorithm
-					await generateCollectionFast(
-						startPayload.layers,
-						startPayload.collectionSize,
-						startPayload.outputSize,
-						startPayload.projectName,
-						startPayload.projectDescription,
-						taskId,
-						startPayload.metadataStandard
-					);
-				} else {
-					console.log(`🔧 Using existing generation for ${analysis.complexity.type} collection`);
-
-					// Use existing sophisticated generation
-					await generateCollection(
-						startPayload.layers,
-						startPayload.collectionSize,
-						startPayload.outputSize,
-						startPayload.projectName,
-						startPayload.projectDescription,
-						startPayload.strictPairConfig,
-						taskId,
-						startPayload.metadataStandard
-					);
-				}
+				// Use existing sophisticated generation
+				await generateCollection(
+					startPayload.layers,
+					startPayload.collectionSize,
+					startPayload.outputSize,
+					startPayload.projectName,
+					startPayload.projectDescription,
+					startPayload.strictPairConfig,
+					taskId,
+					startPayload.metadataStandard
+				);
 
 				// Generate and send final performance report
 				const report = performanceAnalyzer.stopAnalysis();

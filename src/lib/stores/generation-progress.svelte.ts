@@ -404,7 +404,9 @@ class GenerationStateManager {
 		Object.assign(generationState, structuredClone(defaultState));
 
 		// Clear saved state
-		sessionStorage.removeItem(this.STORAGE_KEY);
+		if (typeof sessionStorage !== 'undefined') {
+			sessionStorage.removeItem(this.STORAGE_KEY);
+		}
 	}
 
 	/**
@@ -558,6 +560,11 @@ class GenerationStateManager {
 	 */
 	private saveState(): void {
 		try {
+			// Check if sessionStorage is available (not in Web Worker)
+			if (typeof sessionStorage === 'undefined') {
+				return; // Skip saving in Web Worker context
+			}
+
 			const stateData = {
 				version: this.STATE_VERSION,
 				timestamp: Date.now(),
@@ -575,6 +582,11 @@ class GenerationStateManager {
 	 */
 	private loadSavedState(): void {
 		try {
+			// Check if sessionStorage is available (not in Web Worker)
+			if (typeof sessionStorage === 'undefined') {
+				return; // Skip loading in Web Worker context
+			}
+
 			const savedData = sessionStorage.getItem(this.STORAGE_KEY);
 			if (savedData) {
 				const data = JSON.parse(savedData);

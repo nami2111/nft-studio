@@ -8,6 +8,7 @@
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
 	import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
 	import { formatDate } from '$lib/utils/formatters';
+	import { detectImageFormat, getMimeType } from '$lib/utils/image-format-detector';
 
 	let isLoading = $derived(galleryStore.isLoading);
 	let collections = $derived(galleryStore.collections);
@@ -265,18 +266,9 @@
 	});
 
 	function createObjectUrl(imageData: ArrayBuffer): string {
-		// Try to detect the image type from the first few bytes
-		const view = new Uint8Array(imageData);
-		let mimeType = 'image/png'; // default
-
-		// Check for JPEG signature (FF D8 FF)
-		if (view[0] === 0xff && view[1] === 0xd8 && view[2] === 0xff) {
-			mimeType = 'image/jpeg';
-		}
-		// Check for PNG signature (89 50 4E 47)
-		else if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4e && view[3] === 0x47) {
-			mimeType = 'image/png';
-		}
+		// Detect the image format from the binary data
+		const imageFormat = detectImageFormat(imageData);
+		const mimeType = getMimeType(imageFormat);
 
 		const url = URL.createObjectURL(new Blob([imageData], { type: mimeType }));
 		objectUrls.add(url);

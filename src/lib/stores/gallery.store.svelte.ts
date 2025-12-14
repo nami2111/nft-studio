@@ -494,7 +494,7 @@ class GalleryStore {
 
 	// Import collection from external data (ZIP file, etc.)
 	importCollection(
-		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata: any; index: number; isBlobUrl?: boolean }>,
+		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata: any; index: number; isBlobUrl?: boolean; imageFormat?: string }>,
 		collectionName: string,
 		collectionDescription: string = 'Imported NFT collection'
 	) {
@@ -517,6 +517,7 @@ class GalleryStore {
 				id: `nft-${collectionId}-${index}`,
 				name: nft.name,
 				imageData: nft.imageData,
+				imageFormat: nft.imageFormat || 'png', // Default to png if not provided
 				metadata: nft.metadata,
 				rarityScore: 0, // Will be calculated
 				rarityRank: 0, // Will be calculated
@@ -539,7 +540,7 @@ class GalleryStore {
 	// Merge NFTs into existing collection
 	mergeIntoCollection(
 		collectionId: string,
-		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata: any; index: number; isBlobUrl?: boolean }>
+		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata: any; index: number; isBlobUrl?: boolean; imageFormat?: string }>
 	) {
 		const collection = this._state.collections.find((c) => c.id === collectionId);
 		if (!collection) {
@@ -550,6 +551,7 @@ class GalleryStore {
 			id: `nft-${collectionId}-${collection.nfts.length + index}`,
 			name: nft.name,
 			imageData: nft.imageData,
+			imageFormat: nft.imageFormat || 'png', // Default to png if not provided
 			metadata: nft.metadata,
 			rarityScore: Math.random() * 100, // Placeholder - will be calculated properly
 			rarityRank: collection.nfts.length + index + 1, // Placeholder - will be calculated properly
