@@ -11,7 +11,7 @@ import type {
     PreviewMessage,
     IncomingMessage
 } from '$lib/types/worker-messages';
-import { createTaskId, type TaskId } from '$lib/types/ids';
+import { createTaskId, type TaskId, type LayerId } from '$lib/types/ids';
 import { CSPSolver } from './csp-solver';
 import { getMetadataStrategy } from '$lib/domain/metadata/strategies';
 import { MetadataStandard } from '$lib/domain/metadata/strategies';
@@ -22,7 +22,7 @@ interface StrictPairConfig {
     enabled: boolean;
     layerCombinations: Array<{
         id: string;
-        layerIds: string[];
+        layerIds: LayerId[];
         description: string;
         active: boolean;
     }>;
@@ -1390,7 +1390,7 @@ async function generateCollection(
                 await flushQueuedItem(pendingItems.shift()!, collectionSize, undefined, undefined, taskId);
             }
 
-            const queuedItem = await generateAndQueueItem(
+            const attempt = await generateAndQueueItem(
                 i,
                 layers,
                 reusableCanvas,
@@ -1405,21 +1405,34 @@ async function generateCollection(
                 spriteSheets
             );
 
-            if (queuedItem) {
-                pendingItems.push(queuedItem);
+            if (attempt === 'no-solution') {
+                const errorMessage: ErrorMessage = {
+                    type: 'error',
+                    taskId,
+                    payload: {
+                        message: `Generation stopped: Exhausted all possible valid unique combinations under your ruler rules + strict pair configuration. Successfully generated ${successfulGenerations} NFTs.`
+                    }
+                };
+                self.postMessage(errorMessage);
+                generationAborted = true;
+                break;
+            }
+
+            if (attempt) {
+                pendingItems.push(attempt);
                 successfulGenerations++;
                 consecutiveFailures = 0;
             } else {
                 consecutiveFailures++;
-                console.log(`⚠️  Generation failed for index ${i}, retrying (${consecutiveFailures}/1000)`);
+                console.log(`⚠️  Generation failed for index ${i}, retrying (${consecutiveFailures}/50)`);
                 i--; // Retry the same index
 
-                if (consecutiveFailures > 1000) {
+                if (consecutiveFailures > 50) {
                     const errorMessage: ErrorMessage = {
                         type: 'error',
                         taskId,
                         payload: {
-                            message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available (check for duplicate trait combinations or strict pair constraints).`
+                            message: `Generation stopped: Too many transient failures while generating item ${i + 1}. Successfully generated ${successfulGenerations} NFTs.`
                         }
                     };
                     self.postMessage(errorMessage);
@@ -1474,7 +1487,7 @@ async function generateCollection(
                     await flushQueuedItem(pendingItems.shift()!, collectionSize, chunkImages, chunkMetadata, taskId);
                 }
 
-                const queuedItem = await generateAndQueueItem(
+                const attempt = await generateAndQueueItem(
                     i,
                     layers,
                     reusableCanvas,
@@ -1489,22 +1502,33 @@ async function generateCollection(
                     spriteSheets
                 );
 
-                if (queuedItem) {
-                    pendingItems.push(queuedItem);
+                if (attempt === 'no-solution') {
+                    const errorMessage: ErrorMessage = {
+                        type: 'error',
+                        taskId,
+                        payload: {
+                            message: `Generation stopped: Exhausted all possible valid unique combinations under your ruler rules + strict pair configuration. Successfully generated ${successfulGenerations} NFTs.`
+                        }
+                    };
+                    self.postMessage(errorMessage);
+                    generationAborted = true;
+                    break;
+                }
+
+                if (attempt) {
+                    pendingItems.push(attempt);
                     successfulGenerations++;
                     consecutiveFailures = 0;
                 } else {
-                    // Generation failed due to duplicate detection or strict pair constraints, try again
                     consecutiveFailures++;
                     i--; // Retry the same index
 
-                    // Safety check: if we have too many consecutive failures, we might be out of valid combinations
-                    if (consecutiveFailures > 1000) {
+                    if (consecutiveFailures > 50) {
                         const errorMessage: ErrorMessage = {
                             type: 'error',
                             taskId,
                             payload: {
-                                message: `Generation stopped: Exhausted all possible unique combinations. Successfully generated ${successfulGenerations} NFTs, but no more valid combinations are available (check for duplicate trait combinations or strict pair constraints).`
+                                message: `Generation stopped: Too many transient failures while generating item ${i + 1}. Successfully generated ${successfulGenerations} NFTs.`
                             }
                         };
                         self.postMessage(errorMessage);
@@ -1667,7 +1691,7 @@ async function generateAndQueueItem(
     taskId?: TaskId,
     metadataStandard?: MetadataStandard,
     spriteSheets?: Map<string, PackedLayer>
-): Promise<QueuedGeneratedItem | null> {
+): Promise<QueuedGeneratedItem | null | 'no-solution'> {
     const itemStartTime = performance.now();
 
     try {
@@ -1695,14 +1719,9 @@ async function generateAndQueueItem(
         const solution = solver.solve();
 
         if (!solution) {
-            // Reduced verbosity - only log when needed for debugging
-            // console.log(`❌ CSP FAILED: No valid solution found for current constraints`);
-            // Log current state of used combinations to debug
-            // console.log(`📊 USED COMBINATIONS: ${usedCombinations.size} sets tracked`);
-            // for (const [key, set] of usedCombinations.entries()) {
-            //     console.log(`  ${key}: ${set.size} combinations`);
-            // }
-            return null; // No valid solution possible
+            // No valid solution exists for the current state of used combinations.
+            // Retrying won't help because the CSP solver performs a complete search.
+            return 'no-solution';
         }
 
         // Log the successful solution and violation count
@@ -2120,7 +2139,7 @@ function validateCollectionSize(
     }
 
     if (requestedSize > maxCombinationsUpperBound) {
-        return `Collection size too large: Requested ${requestedSize} NFTs but with the current Strict Pair configuration you can generate at most ${maxCombinationsUpperBound} unique NFTs. Reduce collection size or modify your Strict Pair setup.`;
+        return `Collection size too large: Requested ${requestedSize} NFTs but your current ruler rules + strict pair configuration allow at most ${maxCombinationsUpperBound} unique NFTs. Reduce collection size or adjust your constraints.`;
     }
 
     return null;
@@ -2135,7 +2154,7 @@ function calculateMaxPossibleCombinations(
 ): number {
     const layerById = new Map<string, TransferrableLayer>(layers.map((l) => [l.id, l]));
 
-    const productForLayerIds = (layerIds: readonly string[]): number => {
+    const productForLayerIds = (layerIds: readonly TransferrableLayer['id'][]): number => {
         let total = 1;
         for (const layerId of layerIds) {
             const layer = layerById.get(layerId);
@@ -2159,6 +2178,88 @@ function calculateMaxPossibleCombinations(
             if (comboBound > 0) {
                 upperBound = Math.min(upperBound, comboBound);
             }
+        }
+    }
+
+    // If the search space is small enough, compute an exact maximum based on ruler rules
+    // (strict pairs are still applied via the min() logic above).
+    const EXACT_RULER_COUNT_LIMIT = 250_000;
+    const baseProduct = productForLayerIds(baseIds);
+
+    if (baseProduct > 0 && baseProduct <= EXACT_RULER_COUNT_LIMIT) {
+        const baseLayers = baseIds
+            .map((id) => layerById.get(id))
+            .filter((l): l is TransferrableLayer => Boolean(l));
+        const layerIdSet = new Set(baseLayers.map((l) => l.id));
+
+        const hasRulers = baseLayers.some((layer) =>
+            layer.traits.some((t) => t.type === 'ruler' && t.rulerRules && t.rulerRules.length > 0)
+        );
+
+        if (hasRulers) {
+            const isAllowedByRuler = (
+                rulerTrait: TransferrableTrait,
+                targetLayerId: TransferrableLayer['id'],
+                targetTraitId: TransferrableTrait['id']
+            ): boolean => {
+                if (rulerTrait.type !== 'ruler' || !rulerTrait.rulerRules || rulerTrait.rulerRules.length === 0) {
+                    return true;
+                }
+
+                const rule = rulerTrait.rulerRules.find((r) => r.layerId === targetLayerId);
+                if (!rule) return true;
+
+                if (rule.forbiddenTraitIds.includes(targetTraitId)) {
+                    return false;
+                }
+
+                if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(targetTraitId)) {
+                    return false;
+                }
+
+                return true;
+            };
+
+            const isPairCompatible = (
+                traitA: TransferrableTrait,
+                layerIdA: TransferrableLayer['id'],
+                traitB: TransferrableTrait,
+                layerIdB: TransferrableLayer['id']
+            ): boolean => {
+                if (!layerIdSet.has(layerIdA) || !layerIdSet.has(layerIdB)) return true;
+                return (
+                    isAllowedByRuler(traitA, layerIdB, traitB.id) &&
+                    isAllowedByRuler(traitB, layerIdA, traitA.id)
+                );
+            };
+
+            const selection: Array<{ layerId: TransferrableLayer['id']; trait: TransferrableTrait }> = [];
+
+            const countValid = (idx: number): number => {
+                if (idx >= baseLayers.length) return 1;
+                const layer = baseLayers[idx];
+                let count = 0;
+
+                for (const trait of layer.traits) {
+                    let compatible = true;
+                    for (const existing of selection) {
+                        if (!isPairCompatible(existing.trait, existing.layerId, trait, layer.id)) {
+                            compatible = false;
+                            break;
+                        }
+                    }
+
+                    if (!compatible) continue;
+
+                    selection.push({ layerId: layer.id, trait });
+                    count += countValid(idx + 1);
+                    selection.pop();
+                }
+
+                return count;
+            };
+
+            upperBound = Math.min(upperBound, countValid(0));
         }
     }
 
