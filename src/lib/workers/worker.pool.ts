@@ -502,6 +502,17 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
         return;
     }
 
+    // Generation uses streaming/chunking and emits many "complete" messages.
+    // Only treat a "complete" message as terminal when it contains no payload data.
+    if (type === 'complete') {
+        const complete = data as CompleteMessage;
+        const imagesCount = complete.payload?.images?.length ?? 0;
+        const metadataCount = complete.payload?.metadata?.length ?? 0;
+        if (imagesCount > 0 || metadataCount > 0) {
+            return;
+        }
+    }
+
     // For terminal messages (complete, error, cancelled), resolve/reject promises and clean up
     if (type === 'complete' || type === 'error' || type === 'cancelled') {
         // Find and resolve/reject the corresponding task using taskId from message
