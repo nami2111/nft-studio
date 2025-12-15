@@ -2122,29 +2122,37 @@ function calculateMaxPossibleCombinations(
     layers: TransferrableLayer[],
     strictPairConfig?: StrictPairConfig
 ): number {
-    // If no strict pair constraints, estimate based on all possible combinations
-    if (!strictPairConfig?.enabled || !strictPairConfig.layerCombinations.length) {
-        return calculateAllPossibleCombinations(layers);
-    }
+    const usableLayers = layers.filter((layer) => layer.traits && layer.traits.length > 0);
+    if (usableLayers.length === 0) return 0;
 
-    let maxCombinations = 0;
+    const hasRulerRules = usableLayers.some((layer) =>
+        layer.traits.some((t) => t.type === 'ruler' && t.rulerRules && t.rulerRules.length > 0)
+    );
 
-    // Calculate for each strict pair combination
-    for (const layerCombination of strictPairConfig.layerCombinations) {
-        if (!layerCombination.active) continue;
+    // Base constraint: the full trait combination must be unique (basic duplicate prevention).
+    // If rulers are present, try to account for compatibility; otherwise use the fast product.
+    let maxCombinations = hasRulerRules
+        ? calculateValidCombinationsForLayers(usableLayers)
+        : calculateAllPossibleCombinations(usableLayers);
 
-        // Get layers in this combination
-        const combinationLayers = layerCombination.layerIds
-            .map((layerId) => layers.find((l) => l.id === layerId))
-            .filter((layer) => layer && layer.traits && layer.traits.length > 0) as TransferrableLayer[];
+    // Strict pair constraints further reduce the achievable max.
+    // IMPORTANT: The overall maximum is bounded by the *most restrictive* active constraint,
+    // not the sum of each constraint's individual capacity.
+    if (strictPairConfig?.enabled && strictPairConfig.layerCombinations.length > 0) {
+        for (const layerCombination of strictPairConfig.layerCombinations) {
+            if (!layerCombination.active) continue;
 
-        if (combinationLayers.length !== layerCombination.layerIds.length) {
-            continue; // Skip if any layer is missing
+            const combinationLayers = layerCombination.layerIds
+                .map((layerId) => usableLayers.find((l) => l.id === layerId))
+                .filter((layer) => layer && layer.traits && layer.traits.length > 0) as TransferrableLayer[];
+
+            if (combinationLayers.length !== layerCombination.layerIds.length) {
+                continue;
+            }
+
+            const validCombinations = calculateValidCombinationsForLayers(combinationLayers);
+            maxCombinations = Math.min(maxCombinations, validCombinations);
         }
-
-        // Calculate valid combinations for this layer set considering ruler compatibility
-        const validCombinations = calculateValidCombinationsForLayers(combinationLayers);
-        maxCombinations += validCombinations;
     }
 
     return maxCombinations;
