@@ -1015,13 +1015,11 @@ function performHealthChecks(): void {
             continue;
         }
 
-        // If the worker is busy but has been sending progress recently, don't spam pings.
-        // Generation can legitimately run for minutes; progress messages are a better liveness signal.
+        // Never run ping-based health checks while a worker is actively running a task.
+        // Generation is CPU-heavy and may not be able to service pings promptly, which led to
+        // false "unresponsive" detections and mid-generation worker restarts.
         const isBusy = !workerPool.workerStatus[i];
-        const lastActivity = workerPool.workerStats[i]?.lastActivity ?? 0;
-        const msSinceActivity = Date.now() - lastActivity;
-
-        if (isBusy && msSinceActivity < 60000) {
+        if (isBusy) {
             continue;
         }
 

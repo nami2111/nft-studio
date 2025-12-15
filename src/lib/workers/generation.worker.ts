@@ -1256,9 +1256,11 @@ async function generateCollection(
 
     // Always enforce basic duplicate prevention by tracking the full-layer combination.
     // If Strict Pair is enabled, we *also* enforce the configured layer-combination uniqueness rules.
+    const requiredLayerIds = layers.filter((l) => !l.isOptional).map((l) => l.id);
+
     const basicCombination = {
         id: '__basic_all__',
-        layerIds: layers.map((l) => l.id),
+        layerIds: requiredLayerIds.length > 0 ? requiredLayerIds : layers.map((l) => l.id),
         description: 'Basic duplicate prevention',
         active: true
     };
@@ -2097,177 +2099,73 @@ function getMemoryUsage() {
     return null;
 }
 
-// Validate that the requested collection size is achievable with all constraints
+// Validate that the requested collection size is achievable.
+//
+// IMPORTANT:
+// Accurately computing the exact maximum number of NFTs is an NP-hard style counting/packing
+// problem once you mix ruler constraints + multiple strict-pair sets.
+//
+// Here we compute a fast *upper bound* (never underestimates) and only reject requests that
+// are definitely impossible. If the user requests more than is actually feasible under ruler
+// rules, generation will stop early and report the exact number that could be generated.
 function validateCollectionSize(
     layers: TransferrableLayer[],
     requestedSize: number,
     strictPairConfig?: StrictPairConfig
 ): string | null {
-    // Calculate maximum possible combinations accounting for all constraints
-    const maxCombinations = calculateMaxPossibleCombinations(layers, strictPairConfig);
+    const maxCombinationsUpperBound = calculateMaxPossibleCombinations(layers, strictPairConfig);
 
-    if (maxCombinations === 0) {
-        return 'Invalid configuration: No valid trait combinations are possible with the current settings. Check your ruler rules and layer configurations.';
+    if (maxCombinationsUpperBound === 0) {
+        return 'Invalid configuration: No valid trait combinations are possible with the current settings.';
     }
 
-    if (requestedSize > maxCombinations) {
-        return `Collection size too large: Requested ${requestedSize} NFTs but the current configuration only allows approximately ${maxCombinations} unique combinations. This limit is due to strict pair constraints and ruler compatibility rules. Reduce collection size or modify your configuration.`;
+    if (requestedSize > maxCombinationsUpperBound) {
+        return `Collection size too large: Requested ${requestedSize} NFTs but with the current Strict Pair configuration you can generate at most ${maxCombinationsUpperBound} unique NFTs. Reduce collection size or modify your Strict Pair setup.`;
     }
 
-    return null; // Validation passes
+    return null;
 }
 
-// Calculate maximum possible combinations accounting for all constraints
+// Fast upper bound for maximum unique NFTs.
+// - Rarity weights do not affect the maximum number of unique combinations.
+// - Ruler rules can only reduce the true maximum, so we do not use them for a hard limit.
 function calculateMaxPossibleCombinations(
     layers: TransferrableLayer[],
     strictPairConfig?: StrictPairConfig
 ): number {
-    const usableLayers = layers.filter((layer) => layer.traits && layer.traits.length > 0);
-    if (usableLayers.length === 0) return 0;
+    const layerById = new Map<string, TransferrableLayer>(layers.map((l) => [l.id, l]));
 
-    const hasRulerRules = usableLayers.some((layer) =>
-        layer.traits.some((t) => t.type === 'ruler' && t.rulerRules && t.rulerRules.length > 0)
-    );
+    const productForLayerIds = (layerIds: readonly string[]): number => {
+        let total = 1;
+        for (const layerId of layerIds) {
+            const layer = layerById.get(layerId);
+            const count = layer?.traits?.length ?? 0;
+            if (count <= 0) return 0;
+            total *= count;
+        }
+        return total;
+    };
 
-    // Base constraint: the full trait combination must be unique (basic duplicate prevention).
-    // If rulers are present, try to account for compatibility; otherwise use the fast product.
-    let maxCombinations = hasRulerRules
-        ? calculateValidCombinationsForLayers(usableLayers)
-        : calculateAllPossibleCombinations(usableLayers);
+    const requiredLayerIds = layers.filter((l) => !l.isOptional).map((l) => l.id);
+    const baseIds = requiredLayerIds.length > 0 ? requiredLayerIds : layers.map((l) => l.id);
 
-    // Strict pair constraints further reduce the achievable max.
-    // IMPORTANT: The overall maximum is bounded by the *most restrictive* active constraint,
-    // not the sum of each constraint's individual capacity.
+    let upperBound = productForLayerIds(baseIds);
+    if (upperBound === 0) return 0;
+
     if (strictPairConfig?.enabled && strictPairConfig.layerCombinations.length > 0) {
-        for (const layerCombination of strictPairConfig.layerCombinations) {
-            if (!layerCombination.active) continue;
-
-            const combinationLayers = layerCombination.layerIds
-                .map((layerId) => usableLayers.find((l) => l.id === layerId))
-                .filter((layer) => layer && layer.traits && layer.traits.length > 0) as TransferrableLayer[];
-
-            if (combinationLayers.length !== layerCombination.layerIds.length) {
-                continue;
+        for (const combo of strictPairConfig.layerCombinations) {
+            if (!combo.active) continue;
+            const comboBound = productForLayerIds(combo.layerIds);
+            if (comboBound > 0) {
+                upperBound = Math.min(upperBound, comboBound);
             }
-
-            const validCombinations = calculateValidCombinationsForLayers(combinationLayers);
-            maxCombinations = Math.min(maxCombinations, validCombinations);
         }
     }
 
-    return maxCombinations;
+    return upperBound;
 }
 
-// Calculate all possible combinations without strict pair constraints
-function calculateAllPossibleCombinations(layers: TransferrableLayer[]): number {
-    return layers
-        .filter((layer) => layer.traits && layer.traits.length > 0)
-        .reduce((total, layer) => total * layer.traits!.length, 1);
-}
 
-// Calculate valid combinations for a specific set of layers considering ruler compatibility
-function calculateValidCombinationsForLayers(layers: TransferrableLayer[]): number {
-    if (layers.length === 0) return 0;
-    if (layers.length === 1) return layers[0].traits?.length || 0;
-
-    // For multiple layers, we need to account for ruler compatibility
-    // This is a simplified calculation - actual generation may find fewer valid combinations
-    let totalValidCombinations = 0;
-
-    // Generate all possible combinations and check ruler compatibility
-    const layerCount = layers.length;
-
-    function* generateCombinations(
-        traitIndex: number,
-        currentSelection: { traitId: string; layerId: string; trait: TransferrableTrait }[]
-    ): Generator<{ traitId: string; layerId: string; trait: TransferrableTrait }[]> {
-        if (traitIndex === layerCount) {
-            yield currentSelection;
-            return;
-        }
-
-        const currentLayer = layers[traitIndex];
-        for (const trait of currentLayer.traits || []) {
-            // Check ruler compatibility
-            if (isRulerCompatible(currentSelection, trait, currentLayer, layers)) {
-                yield* generateCombinations(traitIndex + 1, [
-                    ...currentSelection,
-                    { traitId: trait.id, layerId: currentLayer.id, trait }
-                ]);
-            }
-        }
-    }
-
-    // Count valid combinations with performance limit
-    const MAX_COMBINATIONS_TO_COUNT = 100000; // Prevent excessive computation time
-    for (const _ of generateCombinations(0, [])) {
-        totalValidCombinations++;
-        if (totalValidCombinations >= MAX_COMBINATIONS_TO_COUNT) {
-            // If we reach the performance limit, return the estimated count
-            // This gives a conservative estimate that won't cause validation to fail
-            return Math.max(
-                totalValidCombinations,
-                layers.reduce((product, layer) => product * (layer.traits?.length || 1), 1) * 0.8
-            );
-        }
-    }
-
-    return totalValidCombinations;
-}
-
-// Check if a trait is compatible with current selection considering ruler rules
-function isRulerCompatible(
-    currentSelection: { traitId: string; layerId: string; trait: TransferrableTrait }[],
-    newTrait: TransferrableTrait,
-    newLayer: TransferrableLayer,
-    allLayers: TransferrableLayer[]
-): boolean {
-    // Check ruler rules for the new trait
-    if (newTrait.rulerRules) {
-        for (const rule of newTrait.rulerRules) {
-            const targetLayer = allLayers.find((l) => l.id === rule.layerId);
-            if (!targetLayer) continue;
-
-            const selectedTrait = currentSelection.find((t) => t.layerId === targetLayer.id);
-            if (!selectedTrait) continue;
-
-            // Check allowed traits
-            if (rule.allowedTraitIds.length > 0) {
-                if (!rule.allowedTraitIds.includes(selectedTrait.trait.id)) {
-                    return false;
-                }
-            }
-
-            // Check forbidden traits
-            if (rule.forbiddenTraitIds.includes(selectedTrait.trait.id)) {
-                return false;
-            }
-        }
-    }
-
-    // Check existing traits' ruler rules
-    for (const selectedTrait of currentSelection) {
-        if (selectedTrait.trait.rulerRules) {
-            for (const rule of selectedTrait.trait.rulerRules) {
-                if (rule.layerId === newLayer.id) {
-                    // Check allowed traits
-                    if (rule.allowedTraitIds.length > 0) {
-                        if (!rule.allowedTraitIds.includes(newTrait.id)) {
-                            return false;
-                        }
-                    }
-
-                    // Check forbidden traits
-                    if (rule.forbiddenTraitIds.includes(newTrait.id)) {
-                        return false;
-                    }
-                }
-            }
-        }
-    }
-
-    return true;
-}
 
 // Import performance improvements
 import { performanceAnalyzer } from '$lib/utils/performance-analyzer';
