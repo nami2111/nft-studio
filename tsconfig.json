@@ -14,7 +14,8 @@
 		"module": "esnext",
 		"incremental": true,
 		"composite": true,
-		"tsBuildInfoFile": ".tsbuildinfo"
+		"tsBuildInfoFile": ".tsbuildinfo",
+		"types": ["node"]
 	},
 	"exclude": [
 		"src/lib/components/**/*.test.ts",
