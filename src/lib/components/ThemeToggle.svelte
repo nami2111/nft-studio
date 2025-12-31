@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Moon, Sun } from 'lucide-svelte';
+	import { Moon, Sun } from '@lucide/svelte';
 	import { mode, toggleMode } from 'mode-watcher';
 
 	function toggleTheme() {

@@ -11,6 +11,12 @@ export default defineConfig({
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],
+			thresholds: {
+				statements: 70,
+				branches: 70,
+				functions: 70,
+				lines: 70
+			},
 			exclude: [
 				'node_modules/',
 				'src/lib/components/test-setup.ts',
@@ -20,23 +26,15 @@ export default defineConfig({
 				'dist/',
 				'build/'
 			]
-		},
-		// Mock global APIs that are not available in jsdom
-		define: {
-			global: 'globalThis',
-			window: 'globalThis',
-			document: 'globalThis.document',
-			navigator: 'globalThis.navigator'
 		}
-	},
-	// Handle worker mocking for tests
-	define: {
-		global: 'globalThis'
 	},
 	optimizeDeps: {
 		esbuildOptions: {
 			define: {
-				global: 'globalThis'
+				global: 'globalThis',
+				window: 'globalThis',
+				document: 'globalThis.document',
+				navigator: 'globalThis.navigator'
 			}
 		}
 	}

@@ -71,7 +71,6 @@
 		"cookie": "^0.7.0"
 	},
 	"dependencies": {
-		"@humanspeak/svelte-virtual-list": "^0.3.6",
 		"@junobuild/analytics": "^0.2.10",
 		"@junobuild/core": "^3.3.2",
 		"@junobuild/functions": "^0.5.3",
@@ -79,10 +78,7 @@
 		"bits-ui": "^2.14.4",
 		"idb": "^8.0.3",
 		"jszip": "^3.10.1",
-		"lucide-svelte": "^0.562.0",
 		"svelte-dnd-action": "^0.9.69",
-		"svelte-headlessui": "^0.0.46",
-		"svelte-virtual": "^0.6.3",
 		"zod": "^4.3.2"
 	}
 }

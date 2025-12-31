@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@humanspeak/svelte-virtual-list':
-        specifier: ^0.3.6
-        version: 0.3.6(svelte@5.46.1)
       '@junobuild/analytics':
         specifier: ^0.2.10
         version: 0.2.10
@@ -32,18 +29,9 @@ importers:
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
-      lucide-svelte:
-        specifier: ^0.562.0
-        version: 0.562.0(svelte@5.46.1)
       svelte-dnd-action:
         specifier: ^0.9.69
         version: 0.9.69(svelte@5.46.1)
-      svelte-headlessui:
-        specifier: ^0.0.46
-        version: 0.0.46(svelte@5.46.1)
-      svelte-virtual:
-        specifier: ^0.6.3
-        version: 0.6.3(svelte@5.46.1)
       zod:
         specifier: ^4.3.2
         version: 4.3.2
@@ -987,11 +975,6 @@ packages:
   '@humanfs/node@0.16.7':
     resolution: {integrity: sha512-/zUx+yOsIrG4Y43Eh2peDeKCxlRt/gET6aHfaKpuq267qXdYDFViVHfMaLyygZOnl0kGWxFIgsBy8QFuTLUXEQ==}
     engines: {node: '>=18.18.0'}
-
-  '@humanspeak/svelte-virtual-list@0.3.6':
-    resolution: {integrity: sha512-ls5FicD5b8nXi87GG7mj9nIoTkIl0M/JkmmE21KWnTabtDRnqEjZ7kOsU3ZEAWc0/HW8PlRwF50yqKwpaLeBMw==}
-    peerDependencies:
-      svelte: ^5.0.0
 
   '@humanwhocodes/module-importer@1.0.1':
     resolution: {integrity: sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA==}
@@ -2729,11 +2712,6 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-svelte@0.562.0:
-    resolution: {integrity: sha512-kSJDH/55lf0mun/o4nqWBXOcq0fWYzPeIjbTD97ywoeumAB9kWxtM06gC7oynqjtK3XhAljWSz5RafIzPEYIQA==}
-    peerDependencies:
-      svelte: ^3 || ^4 || ^5.0.0-next.42
-
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -3345,11 +3323,6 @@ packages:
       svelte:
         optional: true
 
-  svelte-headlessui@0.0.46:
-    resolution: {integrity: sha512-yl3Pd7/LmIgl6uZ6dB9FuWNGJ+P7bazgJpwhNLA7Rk+AqYITv0vFXjGgl4D9ogAiPCrwjTkEAFMl8ovsk3FJ5Q==}
-    peerDependencies:
-      svelte: ^4.0.0 || ^5.0.0
-
   svelte-parse-markup@0.1.5:
     resolution: {integrity: sha512-T6mqZrySltPCDwfKXWQ6zehipVLk4GWfH1zCMGgRtLlOIFPuw58ZxVYxVvotMJgJaurKi1i14viB2GIRKXeJTQ==}
     peerDependencies:
@@ -3371,12 +3344,6 @@ packages:
     engines: {node: '>=18', pnpm: '>=8.7.0'}
     peerDependencies:
       svelte: ^5.0.0
-
-  svelte-virtual@0.6.3:
-    resolution: {integrity: sha512-vH82tAAdqjNumSssUwQ7UUQx5mxkiyPtpIs1WUpGq5PzQUDtffr3ffaPuKUuE5DKZe0L7PE1K4vGwIdPs777og==}
-    engines: {pnpm: '>=7'}
-    peerDependencies:
-      svelte: ^3.54.0 || ^4.0.0
 
   svelte@5.46.1:
     resolution: {integrity: sha512-ynjfCHD3nP2el70kN5Pmg37sSi0EjOm9FgHYQdC4giWG/hzO3AatzXXJJgP305uIhGQxSufJLuYWtkY8uK/8RA==}
@@ -4714,11 +4681,6 @@ snapshots:
     dependencies:
       '@humanfs/core': 0.19.1
       '@humanwhocodes/retry': 0.4.3
-
-  '@humanspeak/svelte-virtual-list@0.3.6(svelte@5.46.1)':
-    dependencies:
-      esm-env: 1.2.2
-      svelte: 5.46.1
 
   '@humanwhocodes/module-importer@1.0.1': {}
 
@@ -6506,10 +6468,6 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-svelte@0.562.0(svelte@5.46.1):
-    dependencies:
-      svelte: 5.46.1
-
   lz-string@1.5.0: {}
 
   magic-string@0.25.9:
@@ -7135,10 +7093,6 @@ snapshots:
     optionalDependencies:
       svelte: 5.46.1
 
-  svelte-headlessui@0.0.46(svelte@5.46.1):
-    dependencies:
-      svelte: 5.46.1
-
   svelte-parse-markup@0.1.5(svelte@5.46.1):
     dependencies:
       svelte: 5.46.1
@@ -7162,10 +7116,6 @@ snapshots:
       clsx: 2.1.1
       runed: 0.23.4(svelte@5.46.1)
       style-to-object: 1.0.14
-      svelte: 5.46.1
-
-  svelte-virtual@0.6.3(svelte@5.46.1):
-    dependencies:
       svelte: 5.46.1
 
   svelte@5.46.1:

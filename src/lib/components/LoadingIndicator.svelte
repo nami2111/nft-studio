@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { loadingStates } from '$lib/stores';
-	import Loader2 from 'lucide-svelte/icons/loader-2';
+	import Loader2 from '@lucide/svelte/icons/loader-2';
 
 	interface Props {
 		operation: string;

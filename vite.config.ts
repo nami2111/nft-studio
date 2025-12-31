@@ -6,13 +6,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
 	plugins: [
 		sveltekit(),
-		// Temporarily disable Juno for bundle analysis
-		// juno(),
 		tailwindcss(),
 		VitePWA({
 			registerType: 'autoUpdate',
 			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,json}'],
 				runtimeCaching: [
 					{
 						urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

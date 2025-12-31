@@ -10,7 +10,7 @@
 		Database,
 		Cpu,
 		HardDrive
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { handleError, getDetailedErrorInfo } from '$lib/utils/error-handler';
 	import { AppError } from '$lib/utils/error-handling';
 
