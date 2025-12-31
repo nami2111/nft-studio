@@ -71,7 +71,7 @@ interface WorkerPool {
     }[];
     config: WorkerPoolConfig;
     workerInitializationPromises: Promise<void>[]; // Track worker initialization
-    healthCheckInterval: number | null; // Health check timer
+    healthCheckInterval: NodeJS.Timeout | null; // Health check timer
     scalingInterval: number | null; // Dynamic scaling timer
 }
 
