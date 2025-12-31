@@ -14,7 +14,7 @@
 		X,
 		Image,
 		Settings
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 
 	let activeSection = 'overview';
 	let isMobileMenuOpen = false;

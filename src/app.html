@@ -79,42 +79,6 @@
 		/>
 	</head>
 	<body data-sveltekit-preload-data="hover" class="bg-white dark:bg-black">
-		<!-- Trusted Types Policy for DOM-based XSS Mitigation -->
-		<script>
-			if (window.trustedTypes && window.trustedTypes.createPolicy) {
-				// Create a more restrictive default policy
-				window.trustedTypes.createPolicy('default', {
-					createHTML: (string, sink) => {
-						console.warn('Creating HTML for sink:', sink);
-						return string;
-					},
-					createScript: (string) => {
-						throw new Error('Script creation is forbidden');
-					},
-					createScriptURL: (string) => {
-						throw new Error('Script URL creation is forbidden');
-					}
-				});
-
-				// Create a policy for specific use cases
-				window.trustedTypes.createPolicy('strictPolicy', {
-					createHTML: (string) => {
-						// Add sanitization logic here if needed
-						return string;
-					},
-					createScript: (string) => {
-						throw new Error('Script creation is forbidden');
-					},
-					createScriptURL: (string) => {
-						// Allow specific URLs if needed
-						if (string.startsWith(window.location.origin)) {
-							return string;
-						}
-						throw new Error('External script URLs are forbidden');
-					}
-				});
-			}
-		</script>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

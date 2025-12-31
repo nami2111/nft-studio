@@ -11,7 +11,7 @@
 	 */
 	import { cn } from '$lib/utils';
 	import type { BaseComponentProps } from '../component.types';
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 
 	// X is the correct component name, not XIcon
 	const XIcon = X;

@@ -243,7 +243,7 @@ interface BatchUpdate {
 }
 
 let batchQueue: BatchUpdate[] = [];
-let batchTimeout: number | null = null;
+let batchTimeout: NodeJS.Timeout | null = null;
 
 function processBatchQueue(): void {
 	if (batchQueue.length === 0) return;
@@ -538,7 +538,7 @@ function processPendingTraitUpdates() {
 }
 
 // Debounced batch processing
-let batchTimeoutId: number | null = null;
+let batchTimeoutId: NodeJS.Timeout | null = null;
 const BATCH_DELAY_MS = 100;
 
 function scheduleBatchUpdate() {

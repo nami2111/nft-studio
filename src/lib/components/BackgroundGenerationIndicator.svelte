@@ -4,7 +4,7 @@
 		getSummary,
 		cancelGeneration
 	} from '$lib/stores/generation-progress.svelte';
-	import { AlertCircle, X } from 'lucide-svelte';
+	import { AlertCircle, X } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 
 	// Derived state

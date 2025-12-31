@@ -18,12 +18,12 @@
 	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
-	import Trash2 from 'lucide-svelte/icons/trash-2';
-	import Edit from 'lucide-svelte/icons/edit';
-	import Check from 'lucide-svelte/icons/check';
-	import X from 'lucide-svelte/icons/x';
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Edit from '@lucide/svelte/icons/edit';
+	import Check from '@lucide/svelte/icons/check';
+	import X from '@lucide/svelte/icons/x';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { getImageDimensions } from '$lib/utils';
 	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
 	import { onMount, onDestroy } from 'svelte';
@@ -312,7 +312,10 @@
 	// Lazy loading for trait cards with improved memory management
 	let observer: IntersectionObserver | null = null;
 
-	function createSafeLazyTraitCard(trait: (typeof layer.traits)[number], layerId: string): HTMLElement {
+	function createSafeLazyTraitCard(
+		trait: (typeof layer.traits)[number],
+		layerId: string
+	): HTMLElement {
 		const root = document.createElement('div');
 		root.className = 'lazy-trait-loaded';
 
@@ -344,7 +347,9 @@
 						// Update the trait in the layer to trigger reactivity
 						const layerIndex = project.layers.findIndex((l) => l.id === layerId);
 						if (layerIndex !== -1) {
-							const traitIndex = project.layers[layerIndex].traits.findIndex((t: any) => t.id === trait.id);
+							const traitIndex = project.layers[layerIndex].traits.findIndex(
+								(t: any) => t.id === trait.id
+							);
 							if (traitIndex !== -1) {
 								project.layers[layerIndex].traits[traitIndex] = {
 									...project.layers[layerIndex].traits[traitIndex],
@@ -378,7 +383,9 @@
 				// Update the trait in the layer to trigger reactivity
 				const layerIndex = project.layers.findIndex((l) => l.id === layerId);
 				if (layerIndex !== -1) {
-					const traitIndex = project.layers[layerIndex].traits.findIndex((t: any) => t.id === trait.id);
+					const traitIndex = project.layers[layerIndex].traits.findIndex(
+						(t: any) => t.id === trait.id
+					);
 					if (traitIndex !== -1) {
 						project.layers[layerIndex].traits[traitIndex] = {
 							...project.layers[layerIndex].traits[traitIndex],
@@ -410,14 +417,34 @@
 			const needsReuploadDiv = document.createElement('div');
 			needsReuploadDiv.className =
 				'flex h-full flex-col items-center justify-center p-2 text-center';
-			needsReuploadDiv.innerHTML = `
-				<div class="text-muted-foreground mb-2">
-					<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-					</svg>
-				</div>
-				<span class="text-muted-foreground text-xs">Image needs re-upload</span>
-			`;
+
+			const iconContainer = document.createElement('div');
+			iconContainer.className = 'text-muted-foreground mb-2';
+
+			const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+			svg.setAttribute('class', 'h-8 w-8');
+			svg.setAttribute('fill', 'none');
+			svg.setAttribute('stroke', 'currentColor');
+			svg.setAttribute('viewBox', '0 0 24 24');
+
+			const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+			path.setAttribute('stroke-linecap', 'round');
+			path.setAttribute('stroke-linejoin', 'round');
+			path.setAttribute('stroke-width', '2');
+			path.setAttribute(
+				'd',
+				'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
+			);
+
+			svg.appendChild(path);
+			iconContainer.appendChild(svg);
+
+			const textSpan = document.createElement('span');
+			textSpan.className = 'text-muted-foreground text-xs';
+			textSpan.textContent = 'Image needs re-upload';
+
+			needsReuploadDiv.appendChild(iconContainer);
+			needsReuploadDiv.appendChild(textSpan);
 			container.appendChild(needsReuploadDiv);
 		}
 

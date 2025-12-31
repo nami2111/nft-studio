@@ -1,0 +1,10 @@
+# Modern browsers
+> 0.5%
+last 2 versions
+not dead
+
+# Specific targets
+Chrome >= 91
+Firefox >= 90
+Safari >= 14
+Edge >= 91

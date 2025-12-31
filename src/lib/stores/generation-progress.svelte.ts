@@ -108,7 +108,7 @@ export const generationState = $state<GenerationState>(structuredClone(defaultSt
 class GenerationStateManager {
 	private readonly STORAGE_KEY = 'nft-studio-generation-state';
 	private readonly STATE_VERSION = '1.0.0';
-	private saveTimeout: number | null = null;
+	private saveTimeout: NodeJS.Timeout | null = null;
 	private autoSaveEnabled = true;
 	private maxRetries = 3;
 	private retryDelay = 1000; // 1 second

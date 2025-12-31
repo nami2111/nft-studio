@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Progress } from '$lib/components/ui/progress';
-	import { AlertCircle } from 'lucide-svelte';
+	import { AlertCircle } from '@lucide/svelte';
 	import { generationState, resetState } from '$lib/stores/generation-progress.svelte';
 	import { formatTime } from '$lib/utils/formatters';
 

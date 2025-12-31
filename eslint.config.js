@@ -20,7 +20,6 @@ export default ts.config(
 	},
 	{
 		files: ['**/*.svelte'],
-
 		languageOptions: {
 			parserOptions: {
 				parser: ts.parser
@@ -29,26 +28,25 @@ export default ts.config(
 	},
 	{
 		files: ['**/*.svelte.ts'],
-
 		languageOptions: {
 			parserOptions: {
 				parser: ts.parser
 			}
+		},
+		rules: {
+			'svelte/prefer-svelte-reactivity': 'off'
 		}
 	},
 	{
 		ignores: ['build/', '.svelte-kit/', 'dist/', 'static/']
 	},
 	{
-		files: ['**/*.svelte.ts'],
 		rules: {
-			'svelte/prefer-svelte-reactivity': 'off'
-		}
-	},
-	{
-		rules: {
-			'@typescript-eslint/no-unused-vars': 'warn',
-			'@typescript-eslint/no-explicit-any': 'warn',
+			'@typescript-eslint/no-unused-vars': 'error',
+			'@typescript-eslint/no-explicit-any': 'error',
+			'@typescript-eslint/no-floating-promises': 'error',
+			'@typescript-eslint/no-misused-promises': 'error',
+			'svelte/no-at-html-tags': 'error',
 			'no-control-regex': 'off'
 		}
 	}

@@ -3,9 +3,9 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Modal } from '$lib/components/ui/modal';
 	import { Badge } from '$lib/components/ui/badge';
-	import Plus from 'lucide-svelte/icons/plus';
-	import X from 'lucide-svelte/icons/x';
-	import Settings from 'lucide-svelte/icons/settings';
+	import Plus from '@lucide/svelte/icons/plus';
+	import X from '@lucide/svelte/icons/x';
+	import Settings from '@lucide/svelte/icons/settings';
 	import type { Trait, Layer, RulerRule } from '$lib/types/layer';
 	import type { LayerId, TraitId } from '$lib/types/ids';
 
