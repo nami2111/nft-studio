@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import type { GalleryNFT, GalleryCollection } from '$lib/types/gallery';
 	import { trackGalleryPageVisit } from '$lib/utils/analytics';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
@@ -14,247 +14,56 @@
 	let collections = $derived(galleryStore.collections);
 	let totalNFTs = $derived(collections.reduce((sum, col) => sum + col.totalSupply, 0));
 	let selectedNFT = $derived(galleryStore.selectedNFT);
-	let selectedCollection = $derived(galleryStore.selectedCollection || collections[0]); // Use store's selected or fallback to first
+
+	// The active collection from the store, with a safe fallback in the template
+	let selectedCollection = $derived(galleryStore.selectedCollection);
 	let totalNFTsInCollection = $derived(selectedCollection?.totalSupply || 0);
 
-	// Search and filter state
-	let searchQuery = $state('');
-	let selectedSort = $state<'name-asc' | 'name-desc' | 'rarity-asc' | 'rarity-desc'>('rarity-asc');
+	// Use store state for filters
+	let searchQuery = $state(galleryStore.filterOptions.search || '');
+	let selectedSort = $state<any>(galleryStore.sortOption || 'rarity-asc');
+	let selectedTraits = $state<Record<string, string[]>>(
+		galleryStore.filterOptions.selectedTraits || {}
+	);
+
+	// Sync local filter state to store (using untrack to prevent loops)
+	$effect(() => {
+		const search = searchQuery;
+		const traits = $state.snapshot(selectedTraits);
+		untrack(() => {
+			galleryStore.setFilterOptions({
+				search,
+				selectedTraits: traits
+			});
+		});
+	});
+
+	$effect(() => {
+		const sort = selectedSort;
+		untrack(() => {
+			galleryStore.setSortOption(sort);
+		});
+	});
+
 	let sortDropdownOpen = $state(false);
 	let sortButtonRef = $state<HTMLButtonElement | null>(null);
 	let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
-	let selectedTraits = $state<Record<string, string[]>>({});
 
-	// Performance optimization: Cache for trait filtering
-	let traitFilterCache = new Map<string, Set<number>>();
-	let lastCollectionTraits = '';
+	// Use store's optimized filtering and sorting
+	let filteredNFTs = $derived(galleryStore.filteredAndSortedNFTs);
 
-	// Cache for complete filter results
-	let filterResultCache = new Map<string, GalleryNFT[]>();
-	let lastFilterKey = '';
-
-	// Create cache key for current filter state
-	function createFilterKey(): string {
-		const search = searchQuery || '';
-		const traits = JSON.stringify(Object.entries(selectedTraits).sort());
-		const sort = selectedSort;
-		const collection = selectedCollection?.id || 'none';
-		return `${collection}:${search}:${traits}:${sort}`;
-	}
-
-	// Pre-build trait index for current collection
-	function buildTraitIndex(collection: GalleryCollection | null) {
-		if (!collection) {
-			traitFilterCache.clear();
-			return;
-		}
-
-		const collectionId = collection.id;
-		if (lastCollectionTraits === collectionId && traitFilterCache.size > 0) {
-			return;
-		}
-
-		const start = performance.now();
-
-		traitFilterCache.clear();
-
-		for (let i = 0; i < collection.nfts.length; i++) {
-			const nft = collection.nfts[i];
-			for (const trait of nft.metadata.traits) {
-				const layer = trait.layer || (trait as any).trait_type;
-				const value = trait.trait || (trait as any).value;
-				if (!layer || !value) continue;
-
-				const key = `${layer}:${value}`;
-				if (!traitFilterCache.has(key)) {
-					traitFilterCache.set(key, new Set());
-				}
-				traitFilterCache.get(key)!.add(i);
-			}
-		}
-
-		lastCollectionTraits = collectionId;
-		const end = performance.now();
-	}
-
-	// Build trait index when collection changes
+	// No longer syncing selectedCollection back to store via $effect to avoid loops.
+	// We handle initial selection in an effect that only runs when collections load.
 	$effect(() => {
-		buildTraitIndex(selectedCollection);
-	});
-
-	// Optimized filtering and sorting with caching
-	let filteredNFTs = $derived.by(() => {
-		// Track if this is actually being called by UI
-		const filterStart = performance.now();
-
-		// Only log slow filter operations (>10ms)
-		const start = performance.now();
-		const endTiming = () => {
-			const end = performance.now();
-			if (end - start > 10) {
-			}
-		};
-
-		if (!selectedCollection) {
-			endTiming();
-			return [];
-		}
-
-		// Check cache first
-		const filterKey = createFilterKey();
-		if (filterResultCache.has(filterKey)) {
-			endTiming();
-			return filterResultCache.get(filterKey)!;
-		}
-
-		let nfts = [...selectedCollection.nfts];
-
-		// Apply search filter
-		if (searchQuery) {
-			const searchLower = searchQuery.toLowerCase();
-			nfts = nfts.filter(
-				(nft) =>
-					nft.name.toLowerCase().includes(searchLower) ||
-					nft.description?.toLowerCase().includes(searchLower)
-			);
-		}
-
-		// Apply trait filters - OPTIMIZED VERSION!
-		if (Object.keys(selectedTraits).length > 0) {
-			const traitStart = performance.now();
-
-			// Use pre-built trait index for fast lookups
-			let candidateIndices = new Set<number>();
-			for (let i = 0; i < selectedCollection.nfts.length; i++) {
-				candidateIndices.add(i);
-			}
-
-			for (const [layer, traits] of Object.entries(selectedTraits)) {
-				let traitMatches = new Set<number>();
-
-				// Get all NFTs that match any of the selected traits for this layer
-				for (const trait of traits) {
-					const key = `${layer}:${trait}`;
-					const indices = traitFilterCache.get(key);
-					if (indices) {
-						for (const index of indices) {
-							traitMatches.add(index);
-						}
-					}
-				}
-
-				// Intersect with candidates
-				candidateIndices = new Set([...candidateIndices].filter((i) => traitMatches.has(i)));
-				if (candidateIndices.size === 0) break;
-			}
-
-			// Convert indices back to NFTs
-			nfts = Array.from(candidateIndices).map((i) => selectedCollection!.nfts[i]);
-
-			const traitEnd = performance.now();
-		}
-
-		// Natural numeric sorting function for names
-		function naturalCompare(a: string, b: string): number {
-			// Extract numbers from anywhere in the string (handles "Foxinity #1", "#001", etc.)
-			const extractNumber = (str: string): { num: number | null; index: number } => {
-				// Try to find number after common delimiters like #, -, space
-				const match = str.match(/(?:[#\-\s:_]\s*)(\d+)/);
-				if (match) {
-					return { num: parseInt(match[1], 10), index: match.index || 0 };
-				}
-				// Try to find number at the very start
-				const startMatch = str.match(/^(\d+)/);
-				if (startMatch) {
-					return { num: parseInt(startMatch[1], 10), index: 0 };
-				}
-				return { num: null, index: -1 };
-			};
-
-			const aNum = extractNumber(a);
-			const bNum = extractNumber(b);
-
-			// If both have numbers, compare numerically
-			if (aNum.num !== null && bNum.num !== null) {
-				if (aNum.num !== bNum.num) {
-					return aNum.num - bNum.num;
-				}
-				// If numbers are equal, use standard string comparison
-				return a.localeCompare(b);
-			}
-			// If only one has a number, prioritize the one with numbers
-			if (aNum.num !== null) return -1;
-			if (bNum.num !== null) return 1;
-			// Otherwise, use standard string comparison
-			return a.localeCompare(b);
-		}
-
-		// Apply sorting
-		switch (selectedSort) {
-			case 'name-asc':
-				nfts.sort((a, b) => naturalCompare(a.name, b.name));
-				break;
-			case 'name-desc':
-				nfts.sort((a, b) => naturalCompare(b.name, a.name));
-				break;
-			case 'rarity-asc':
-				// Low to High = Common to rare (lowest score to highest score)
-				nfts.sort((a, b) => a.rarityScore - b.rarityScore);
-				break;
-			case 'rarity-desc':
-				// High to Low = Rare to common (highest score to lowest score)
-				nfts.sort((a, b) => b.rarityScore - a.rarityScore);
-				break;
-		}
-
-		// Cache result (limit cache size)
-		if (filterResultCache.size > 20) {
-			const firstKey = filterResultCache.keys().next().value;
-			if (firstKey) {
-				filterResultCache.delete(firstKey);
-			}
-		}
-		filterResultCache.set(filterKey, nfts);
-
-		endTiming();
-
-		// Track total time including derived.by overhead
-		const totalFilterTime = performance.now() - filterStart;
-
-		return nfts;
-	});
-
-	// Initialize store with selected collection
-	$effect(() => {
-		galleryStore.setSelectedCollection(selectedCollection || null);
-	});
-
-	// Get all unique traits for filters
-	let allTraits = $derived(() => {
-		if (!selectedCollection) return {};
-
-		const traits: { [layer: string]: Set<string> } = {};
-
-		selectedCollection.nfts.forEach((nft) => {
-			nft.metadata.traits?.forEach((trait) => {
-				const layer = trait.layer || (trait as any).trait_type;
-				const value = trait.trait || (trait as any).value;
-
-				if (layer && value) {
-					if (!traits[layer]) traits[layer] = new Set();
-					traits[layer].add(value);
-				}
+		if (collections.length > 0 && !galleryStore.selectedCollection) {
+			untrack(() => {
+				galleryStore.setSelectedCollection(collections[0]);
 			});
-		});
-
-		// Convert Sets to arrays
-		const result: { [layer: string]: string[] } = {};
-		Object.keys(traits).forEach((layer) => {
-			result[layer] = Array.from(traits[layer]).sort();
-		});
-
-		return result;
+		}
 	});
+
+	// Get all unique traits for filters from the store
+	let allTraits = $derived(galleryStore.allTraits);
 
 	// Track Object URLs for cleanup
 	const objectUrls = new Set<string>();
@@ -316,9 +125,9 @@
 		selectedTraits = {};
 	}
 
-	// Clear cache on page load/reload
+	// Page visit tracking
 	onMount(() => {
-		galleryStore.clearGallery();
+		// DANGER: Removed galleryStore.clearGallery() which was deleting all user data!
 		trackGalleryPageVisit();
 	});
 
