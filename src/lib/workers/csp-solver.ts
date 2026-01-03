@@ -111,6 +111,7 @@ export class CSPSolver {
     };
     private maxCacheSize = 1000;
     private constraintOrdering: Arc[] = []; // Pre-ordered constraints for faster processing
+    private layerTraitIdToIndex = new Map<string, Map<string, number>>(); // layerId -> traitId -> numericId (0-255)
 
     constructor(
         layers: TransferrableLayer[],
@@ -195,11 +196,11 @@ export class CSPSolver {
             const stats = this.performanceStats;
             logger.debug(
                 `🚀 CSP: ${Date.now() - startTime}ms, ` +
-                    `checks: ${stats.constraintChecks}, ` +
-                    `backtracks: ${stats.backtracks}, ` +
-                    `cache: ${stats.constraintCacheHits} (${this.constraintCache.getStats().hitRate}%), ` +
-                    `ruler violations: ${this.rulerViolationCount}, ` +
-                    `result: ${result ? 'SUCCESS' : 'FAILED'}`
+                `checks: ${stats.constraintChecks}, ` +
+                `backtracks: ${stats.backtracks}, ` +
+                `cache: ${stats.constraintCacheHits} (${this.constraintCache.getStats().hitRate}%), ` +
+                `ruler violations: ${this.rulerViolationCount}, ` +
+                `result: ${result ? 'SUCCESS' : 'FAILED'}`
             );
         } else {
             logger.debug(`[CSP SOLVE] Completed in ${Date.now() - startTime}ms, result: ${result ? 'SUCCESS' : 'FAILED'}`);
@@ -221,6 +222,13 @@ export class CSPSolver {
      */
     private initializeDomains(): void {
         for (const layer of this.context.layers) {
+            // Create mapping for this layer: TraitId -> index (0-255)
+            const traitToIndex = new Map<string, number>();
+            layer.traits.forEach((trait, index) => {
+                traitToIndex.set(trait.id, index);
+            });
+            this.layerTraitIdToIndex.set(layer.id, traitToIndex);
+
             this.domains.set(layer.id, {
                 layerId: layer.id,
                 availableTraits: [...layer.traits],
@@ -754,17 +762,31 @@ export class CSPSolver {
 
             // Try bit-packed lookup for O(1) performance
             try {
-                // Convert string trait IDs to numbers for bit-packing
-                const numericIds = traitIds.map((id) => parseInt(id, 10));
-                const combinationIndex = CombinationIndexer.pack(numericIds);
+                // Use mapped numeric IDs instead of dry-parsing strings (which fail for UUIDs)
+                const numericIds: number[] = [];
+                for (const layerId of layerCombination.layerIds) {
+                    const trait = this.context.selectedTraits.get(layerId);
+                    const index = trait ? this.layerTraitIdToIndex.get(layerId)?.get(trait.id) : undefined;
+                    if (index !== undefined) {
+                        numericIds.push(index);
+                    } else {
+                        throw new Error('Trait not found in mapping');
+                    }
+                }
 
-                // O(1) check with bigint
-                if (usedSet.has(combinationIndex)) {
-                    return false; // Already used
+                if (numericIds.every((id) => id <= 255) && numericIds.length <= 8) {
+                    const combinationIndex = CombinationIndexer.pack(numericIds);
+
+                    // O(1) check with bigint
+                    if (usedSet.has(combinationIndex)) {
+                        return false; // Already used
+                    }
+                } else {
+                    throw new Error('Incompatible for bit-packing');
                 }
             } catch {
                 // Fallback to hash-based check for edge cases
-                // This happens if trait IDs > 255 or > 8 traits
+                // This happens if trait IDs > 255 or > 8 traits, or if mapping failed
                 const fallbackKey = traitIds.sort().join('|');
                 const numericHash = this.generateNumericHash(fallbackKey);
                 const hashAsBigInt = BigInt(numericHash);
@@ -859,8 +881,18 @@ export class CSPSolver {
 
             // Try bit-packed first
             try {
-                const numericIds = traitIds.map(id => parseInt(id, 10));
-                if (numericIds.every(id => id <= 255) && numericIds.length <= 8) {
+                const numericIds: number[] = [];
+                for (const layerId of layerCombination.layerIds) {
+                    const trait = this.context.selectedTraits.get(layerId);
+                    const index = trait ? this.layerTraitIdToIndex.get(layerId)?.get(trait.id) : undefined;
+                    if (index !== undefined) {
+                        numericIds.push(index);
+                    } else {
+                        throw new Error('Trait not found in mapping');
+                    }
+                }
+
+                if (numericIds.every((id) => id <= 255) && numericIds.length <= 8) {
                     const combinationIndex = CombinationIndexer.pack(numericIds);
                     usedSet.add(combinationIndex);
                     continue; // Successfully added, move to next combination
