@@ -141,13 +141,20 @@ export class ObjectUrlCache {
 
 	/**
 	 * Convert ArrayBuffer to base64 string
+	 * Optimized with chunking to prevent stack overflow and improve performance for large buffers
 	 */
 	private arrayBufferToBase64(buffer: ArrayBuffer): string {
 		const bytes = new Uint8Array(buffer);
+		const len = bytes.byteLength;
+		const CHUNK_SIZE = 8192; // Maintain safe stack size
 		let binary = '';
-		for (let i = 0; i < bytes.byteLength; i++) {
-			binary += String.fromCharCode(bytes[i]);
+
+		for (let i = 0; i < len; i += CHUNK_SIZE) {
+			const chunk = bytes.subarray(i, i + CHUNK_SIZE);
+			// @ts-expect-error - apply works with Uint8Array in modern engines
+			binary += String.fromCharCode.apply(null, chunk);
 		}
+
 		return btoa(binary);
 	}
 

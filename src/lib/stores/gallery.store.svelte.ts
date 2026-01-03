@@ -10,6 +10,7 @@ import type {
 	GalleryFilterOptions,
 	GallerySortOption
 } from '$lib/types/gallery';
+import { untrack } from 'svelte';
 import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
 import {
 	initGalleryDB,
@@ -68,37 +69,64 @@ class GalleryStore {
 	}
 
 	/**
-	 * Build a trait index for efficient O(1) trait lookups during filtering
-	 * The index maps NFT ID to a Set of trait identifiers in format "layer:trait"
-	 * This avoids recomputing traits for each NFT during every filter operation
+	 * Build a trait index for efficient O(1) filtering
+	 * The index maps "layer:trait" identifying strings to a Set of NFT IDs that possess them
+	 * This allows for near-instant set intersection filtering instead of O(N) scanning
 	 */
-	private buildTraitIndex(nfts: GalleryNFT[]): Map<string, Set<string>> {
+	private buildTraitIndex(nfts: GalleryNFT[]): {
+		index: Map<string, Set<string>>;
+		categories: Map<string, string[]>;
+	} {
 		const startTiming = debugTime('Build trait index');
 		const index = new Map<string, Set<string>>();
+		const traitStats = new Map<string, Set<string>>();
 
-		for (const nft of nfts) {
-			// Create a Set of trait identifiers for this NFT
-			const traitsSet = new Set<string>();
-			for (const trait of nft.metadata.traits) {
-				const layer = trait.layer || (trait as any).trait_type;
-				const value = trait.trait || (trait as any).value;
-				if (layer && value) {
-					traitsSet.add(`${layer}:${value}`);
+		// Use untrack and avoid reactive overhead - this is critical for loop performance in Svelte 5
+		untrack(() => {
+			for (let i = 0; i < nfts.length; i++) {
+				const nft = nfts[i];
+				const traits = nft.metadata?.traits || [];
+				for (let j = 0; j < traits.length; j++) {
+					const trait = traits[j];
+					const layer = trait.layer || (trait as any).trait_type;
+					const value = trait.trait || (trait as any).value;
+
+					if (layer && value) {
+						const key = `${layer}:${value}`;
+
+						// Update inverse index
+						if (!index.has(key)) {
+							index.set(key, new Set());
+						}
+						index.get(key)!.add(nft.id);
+
+						// Update categories for UI
+						if (!traitStats.has(layer)) {
+							traitStats.set(layer, new Set());
+						}
+						traitStats.get(layer)!.add(value);
+					}
 				}
 			}
-			index.set(nft.id, traitsSet);
+		});
+
+		// Format categories for UI (sorting values)
+		const categories = new Map<string, string[]>();
+		for (const [layer, values] of traitStats.entries()) {
+			categories.set(layer, Array.from(values).sort());
 		}
 
-		debugCount('Trait index entries', index.size);
+		debugCount('Trait index categories', index.size);
 		startTiming();
-		return index;
+		return { index, categories };
 	}
 
 	// Track last logged storage usage to reduce log frequency
 	private _lastLoggedUsage: number | null = null;
 
-	// Trait index cache for efficient filtering - maps NFT ID to its traits
+	// Trait index cache for efficient filtering - maps "layer:trait" to a Set of NFT IDs
 	private _traitIndex = new Map<string, Set<string>>();
+	private _traitCategories = new Map<string, string[]>();
 	private _traitIndexCollectionId: string | null = null;
 
 	// Main state
@@ -139,6 +167,10 @@ class GalleryStore {
 
 	get error() {
 		return this._state.error;
+	}
+
+	get allTraits() {
+		return Object.fromEntries(this._traitCategories.entries());
 	}
 
 	// Fast filtered and sorted NFTs with simple caching
@@ -193,27 +225,59 @@ class GalleryStore {
 		if (this._state.filterOptions.selectedTraits) {
 			debugLog('🏷️ Applying trait filters with index');
 
-			// Build trait index if not cached or if collection changed
+			// Build trait index once per collection
 			const currentCollectionId = this._state.selectedCollection?.id || 'all';
 			if (this._traitIndexCollectionId !== currentCollectionId || this._traitIndex.size === 0) {
-				this._traitIndex = this.buildTraitIndex(filtered);
+				const { index, categories } = this.buildTraitIndex(sourceNFTs);
+				this._traitIndex = index;
+				this._traitCategories = categories;
 				this._traitIndexCollectionId = currentCollectionId;
 			}
 
-			// Use the pre-computed index for O(1) lookups
-			filtered = filtered.filter((nft) => {
-				const nftTraits = this._traitIndex.get(nft.id);
-				if (!nftTraits) return false;
+			// Use the inverse index for high-performance set intersection
+			const selectedTraitOptions = Object.entries(this._state.filterOptions.selectedTraits!).filter(
+				([_, values]) => values.length > 0
+			);
 
-				// Check if NFT has all required traits (AND logic)
-				for (const [layer, traits] of Object.entries(this._state.filterOptions.selectedTraits!)) {
-					const hasLayerTrait = traits.some((trait) => nftTraits.has(`${layer}:${trait}`));
-					if (!hasLayerTrait) {
-						return false;
+			if (selectedTraitOptions.length > 0) {
+				let candidateIds: Set<string> | null = null;
+
+				for (const [layer, values] of selectedTraitOptions) {
+					// Collect all NFT IDs that match ANY of the selected traits in this layer (OR logic)
+					const layerMatchIds = new Set<string>();
+					for (const value of values) {
+						const matches = this._traitIndex.get(`${layer}:${value}`);
+						if (matches) {
+							for (const id of matches) {
+								layerMatchIds.add(id);
+							}
+						}
 					}
+
+					// Intersect with candidateIds (AND logic across layers)
+					if (candidateIds === null) {
+						candidateIds = layerMatchIds;
+					} else {
+						// Faster intersection: iterate over the smaller set
+						const smaller = candidateIds.size < layerMatchIds.size ? candidateIds : layerMatchIds;
+						const larger = smaller === candidateIds ? layerMatchIds : candidateIds;
+						const intersected = new Set<string>();
+
+						for (const id of smaller) {
+							if (larger.has(id)) {
+								intersected.add(id);
+							}
+						}
+						candidateIds = intersected;
+					}
+
+					// Optimization: If no candidates left, stop early
+					if (candidateIds.size === 0) break;
 				}
-				return true;
-			});
+
+				const finalIds = candidateIds || new Set<string>();
+				filtered = filtered.filter((nft) => finalIds.has(nft.id));
+			}
 			debugCount('After trait filters', filtered.length);
 		}
 
@@ -296,28 +360,30 @@ class GalleryStore {
 	}
 
 	setSelectedCollection(collection: GalleryCollection | null) {
-		this._state.selectedCollection = collection;
-		this._state.selectedNFT = null; // Clear selected NFT when changing collection
-		// Clear trait index when switching collections
-		this._traitIndex.clear();
-		this._traitIndexCollectionId = null;
+		untrack(() => {
+			this._state.selectedCollection = collection;
+			this._state.selectedNFT = null; // Clear selected NFT when changing collection
+			// Clear trait index when switching collections
+			this._traitIndex.clear();
+			this._traitIndexCollectionId = null;
+		});
 	}
 
 	setFilterOptions(options: Partial<GalleryFilterOptions>) {
-		this._state.filterOptions = { ...this._state.filterOptions, ...options };
-		// Clear cache when filters change
-		this.filteredCache.clear();
-		// Clear trait index when trait filters change (it will be rebuilt on next use)
-		if (options.selectedTraits !== undefined) {
-			this._traitIndex.clear();
-			this._traitIndexCollectionId = null;
-		}
+		untrack(() => {
+			this._state.filterOptions = { ...this._state.filterOptions, ...options };
+			// Clear cache when filters change
+			this.filteredCache.clear();
+			// NOTE: We no longer clear trait index here! It's built once per collection.
+		});
 	}
 
 	setSortOption(option: GallerySortOption) {
-		this._state.sortOption = option;
-		// Clear cache when sort changes
-		this.filteredCache.clear();
+		untrack(() => {
+			this._state.sortOption = option;
+			// Clear cache when sort changes
+			this.filteredCache.clear();
+		});
 	}
 
 	setLoading(loading: boolean) {
