@@ -21,7 +21,7 @@ export const NameSchema = z
 	.string()
 	.min(1)
 	.max(100)
-	.regex(/^[a-zA-Z0-9\s\-_()]+$/);
+	.regex(/^[a-zA-Z0-9\s\-_()#.]+$/);
 export const DescriptionSchema = z.string().max(500).optional();
 export const RarityWeightSchema = z.number().int().min(1).max(5);
 
