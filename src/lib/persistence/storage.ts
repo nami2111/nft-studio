@@ -386,7 +386,16 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 			// Try localStorage first (faster)
 			const localStorageData = await this.localStorageStore.load();
 			if (localStorageData) {
-				return localStorageData;
+				// Validate data integrity before returning
+				const isValid = this.validateDataIntegrity(localStorageData);
+				if (isValid) {
+					return localStorageData;
+				}
+				// Data is corrupted or invalid, clear corrupted data and try IndexedDB
+				console.warn(
+					'SmartStorage: localStorage data invalid, clearing and falling back to IndexedDB'
+				);
+				await this.localStorageStore.clear();
 			}
 
 			// Fallback to IndexedDB
@@ -398,6 +407,34 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 			});
 			return null;
 		}
+	}
+
+	/**
+	 * Validate data integrity before using it
+	 */
+	private validateDataIntegrity(data: unknown): boolean {
+		if (data === null || data === undefined) {
+			return false;
+		}
+
+		if (typeof data !== 'object') {
+			return false;
+		}
+
+		// For project-like objects, validate required structure
+		if ('id' in (data as object) && 'layers' in (data as object)) {
+			const project = data as { id?: unknown; layers?: unknown };
+			if (!project.id || typeof project.id !== 'string') {
+				console.warn('SmartStorage: Invalid project ID');
+				return false;
+			}
+			if (!Array.isArray(project.layers)) {
+				console.warn('SmartStorage: Layers is not an array');
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	async clear(): Promise<void> {
