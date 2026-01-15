@@ -25,7 +25,7 @@
 		}
 	});
 
-	let interval: number;
+	let interval: ReturnType<typeof setInterval>;
 
 	onMount(() => {
 		// Update metrics every 2 seconds

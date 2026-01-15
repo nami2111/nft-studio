@@ -16,7 +16,7 @@
 	let displayHeight = 0;
 	let isCanvasInitialized = $state(false);
 	let isRandomizing = $state(false);
-	let randomizeTimeoutId: number | null = null;
+	let randomizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	// Image cache using $state.raw since we don't need deep reactivity
 	const imageCache = $state.raw(new SvelteMap<string, HTMLImageElement>());
@@ -549,7 +549,7 @@
 	}
 
 	// Debounce timer for preview updates
-	let previewUpdateTimeoutId: number | null = null;
+	let previewUpdateTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	const PREVIEW_UPDATE_DEBOUNCE_MS = 200; // Increased debounce time for preview updates
 
 	// Debounced preview update function

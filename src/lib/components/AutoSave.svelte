@@ -7,7 +7,7 @@
 	const PROJECT_STORAGE_KEY = 'nft-studio-project';
 	const STORAGE = new SmartStorageStore<Project>(PROJECT_STORAGE_KEY);
 
-	let saveTimeout: number | null = null;
+	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 	let lastSavedProject: string | null = null;
 	let lastSaveTime = $state<number | null>(null);
 

@@ -101,7 +101,7 @@
 	let lastCacheClear = 0;
 
 	// Debounce scroll calculations
-	let scrollTimeout: number | null = null;
+	let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// LAZY image URL creation - only create when actually needed
 	let imageLoadQueue = new Set<string>();
