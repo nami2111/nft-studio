@@ -44,6 +44,8 @@ export class ResourceManager {
 	};
 	private memoryPressureListener?: (event: Event) => void;
 	private cleanupTimeout: number | null = null;
+	private metricsCollectionInterval: number | null = null;
+	private memoryPressureInterval: number | null = null;
 	private componentCount = 0;
 	private cleanupCallback: (() => void) | null = null;
 
@@ -124,7 +126,7 @@ export class ResourceManager {
 			window.addEventListener('memorypressure', this.memoryPressureListener);
 
 			// Also add a periodic cleanup check every 5 minutes
-			this.cleanupTimeout = window.setInterval(
+			this.memoryPressureInterval = window.setInterval(
 				() => {
 					this.performPeriodicCleanup();
 				},
@@ -183,12 +185,12 @@ export class ResourceManager {
 	 */
 	private setupCacheMetricsCollection(): void {
 		// Collect cache metrics every 30 seconds
-		setInterval(() => {
+		this.metricsCollectionInterval = window.setInterval(() => {
 			this.collectAndReportCacheMetrics();
 		}, 30 * 1000);
 
 		// Also collect metrics immediately
-		setTimeout(() => {
+		window.setTimeout(() => {
 			this.collectAndReportCacheMetrics();
 		}, 5 * 1000); // Initial collection after 5 seconds
 	}
@@ -267,6 +269,16 @@ export class ResourceManager {
 		if (this.cleanupTimeout) {
 			clearInterval(this.cleanupTimeout);
 			this.cleanupTimeout = null;
+		}
+
+		if (this.memoryPressureInterval) {
+			clearInterval(this.memoryPressureInterval);
+			this.memoryPressureInterval = null;
+		}
+
+		if (this.metricsCollectionInterval) {
+			clearInterval(this.metricsCollectionInterval);
+			this.metricsCollectionInterval = null;
 		}
 
 		// Clean up all resources

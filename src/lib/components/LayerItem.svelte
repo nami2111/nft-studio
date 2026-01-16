@@ -17,19 +17,6 @@
 		updateProjectDimensions
 	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
-	import {
-		showSuccess,
-		showError,
-		showWarning,
-		showInfo,
-		showBulkTraitDeleteSuccess,
-		showTraitRenameSuccess,
-		showValidationError,
-		showLayerRemoved,
-		showUploadPartialSuccess,
-		showUploadError,
-		showDeleteError
-	} from '$lib/utils/toast';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Edit from '@lucide/svelte/icons/edit';
 	import Check from '@lucide/svelte/icons/check';
@@ -41,6 +28,67 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import NeedsReupload from '$lib/components/ui/NeedsReupload.svelte';
+
+	// Lazy toast imports to avoid loading svelte-sonner on component mount
+	let toastModule: typeof import('svelte-sonner') | null = null;
+	async function getToast() {
+		if (!toastModule) {
+			toastModule = await import('svelte-sonner');
+		}
+		return toastModule;
+	}
+
+	async function showSuccess(message: string, options?: { description?: string }) {
+		const { toast } = await getToast();
+		toast.success(message, { description: options?.description, duration: 4000 });
+	}
+
+	async function showError(message: string, options?: { description?: string }) {
+		const { toast } = await getToast();
+		toast.error(message, { description: options?.description, duration: 6000 });
+	}
+
+	async function showWarning(message: string, options?: { description?: string }) {
+		const { toast } = await getToast();
+		toast.warning(message, { description: options?.description, duration: 5000 });
+	}
+
+	async function showInfo(message: string, options?: { description?: string }) {
+		const { toast } = await getToast();
+		toast.info(message, { description: options?.description, duration: 4000 });
+	}
+
+	async function showBulkTraitDeleteSuccess(count: number) {
+		await showSuccess(`${count} trait(s) deleted successfully.`);
+	}
+
+	async function showTraitRenameSuccess(count: number) {
+		await showSuccess(`${count} trait(s) renamed.`);
+	}
+
+	async function showValidationError(message: string) {
+		await showError(message);
+	}
+
+	async function showLayerRemoved(layerName: string) {
+		await showInfo(`Layer "${layerName}" has been removed.`);
+	}
+
+	async function showUploadPartialSuccess(successCount: number, errorCount: number) {
+		if (errorCount === 0) {
+			await showSuccess(`${successCount} file(s) uploaded successfully.`);
+		} else {
+			await showWarning(`${successCount} file(s) uploaded, ${errorCount} failed.`);
+		}
+	}
+
+	async function showUploadError(message: string) {
+		await showError(`Upload failed: ${message}`);
+	}
+
+	async function showDeleteError() {
+		await showError('Failed to delete. Please try again.');
+	}
 	interface Props {
 		layer: Layer;
 	}
@@ -87,7 +135,7 @@
 	}
 
 	// Bulk delete traits
-	function bulkDelete() {
+	async function bulkDelete() {
 		if (selectedTraits.size === 0) return;
 
 		// Simple confirmation dialog
@@ -99,21 +147,21 @@
 					removeTrait(layer.id, traitId);
 					deletedCount++;
 				});
-				showBulkTraitDeleteSuccess(deletedCount);
+				await showBulkTraitDeleteSuccess(deletedCount);
 				clearSelection();
 			} catch (error) {
 				console.error('Failed to delete traits:', error);
-				showDeleteError();
+				await showDeleteError();
 			}
 		}
 	}
 
 	// Bulk rename traits
-	function bulkRename() {
+	async function bulkRename() {
 		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
 
 		if (bulkNewName.length > 100) {
-			showValidationError('Base name for bulk rename cannot exceed 100 characters.');
+			await showValidationError('Base name for bulk rename cannot exceed 100 characters.');
 			return;
 		}
 
@@ -132,20 +180,20 @@
 			count++;
 		});
 		if (successCount > 0) {
-			showTraitRenameSuccess(successCount);
+			await showTraitRenameSuccess(successCount);
 		}
 		bulkNewName = '';
 	}
 
-	function handleNameChange() {
+	async function handleNameChange() {
 		if (layerName.trim() === '') {
-			showValidationError('Layer name cannot be empty.');
+			await showValidationError('Layer name cannot be empty.');
 			layerName = layer.name; // Revert to original name
 			return;
 		}
 
 		if (layerName.length > 100) {
-			showValidationError('Layer name cannot exceed 100 characters.');
+			await showValidationError('Layer name cannot exceed 100 characters.');
 			layerName = layer.name; // Revert to original name
 			return;
 		}
@@ -159,8 +207,8 @@
 		isEditing = false;
 	}
 
-	function handleDeleteLayer() {
-		showLayerRemoved(layer.name);
+	async function handleDeleteLayer() {
+		await showLayerRemoved(layer.name);
 		removeLayer(layer.id);
 	}
 
@@ -188,7 +236,7 @@
 			});
 
 			if (imageFiles.length === 0) {
-				showWarning(
+				await showWarning(
 					'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
 				);
 				return;
@@ -197,12 +245,12 @@
 			// Validate file sizes first (quick synchronous check)
 			const oversizedFiles = imageFiles.filter((file) => file.size > 10 * 1024 * 1024);
 			if (oversizedFiles.length > 0) {
-				showError(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
+				await showError(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
 			}
 
 			const validFiles = imageFiles.filter((file) => file.size <= 10 * 1024 * 1024);
 			if (validFiles.length === 0) {
-				showError('No valid files to upload (all files exceed 10MB limit).');
+				await showError('No valid files to upload (all files exceed 10MB limit).');
 				return;
 			}
 
@@ -228,7 +276,7 @@
 						Math.abs(width - projectData.outputSize.width) > 1 ||
 						Math.abs(height - projectData.outputSize.height) > 1
 					) {
-						showError(
+						await showError(
 							`First image dimensions (${width}x${height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
 						);
 						return;
@@ -276,15 +324,15 @@
 			}
 
 			if (errorCount === 0) {
-				showUploadPartialSuccess(successCount, 0);
+				await showUploadPartialSuccess(successCount, 0);
 			} else if (successCount > 0) {
-				showUploadPartialSuccess(successCount, errorCount);
+				await showUploadPartialSuccess(successCount, errorCount);
 			} else {
-				showError('All files failed to upload. Please check the files and try again.');
+				await showError('All files failed to upload. Please check the files and try again.');
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-			showUploadError(message);
+			await showUploadError(message);
 		} finally {
 			// Stop loading state
 			stopLoading(`layer-upload-${layer.id}`);

@@ -47,7 +47,6 @@ export interface CacheMetrics {
 	maxEntries: number;
 	memoryUsage: number;
 	hitRate: number;
-	averageAccessCount: number;
 }
 
 /**
@@ -279,8 +278,7 @@ export class PerformanceMonitor {
 			hitRate: metrics.hitRate,
 			evictions: metrics.evictions,
 			entries: metrics.currentEntries,
-			memoryUsage: metrics.memoryUsage,
-			averageAccessCount: metrics.averageAccessCount
+			memoryUsage: metrics.memoryUsage
 		});
 
 		// Record cache memory usage as a performance metric

@@ -770,5 +770,28 @@ class GalleryStore {
 // Create singleton instance
 export const galleryStore = new GalleryStore();
 
-// Initialize store on module load
-galleryStore.loadFromIndexedDB();
+// Lazy initialization flag
+let _isInitialized = false;
+
+/**
+ * Initialize gallery store lazily on first access
+ * Call this function early in the app lifecycle (e.g., in +layout.svelte)
+ */
+export function initializeGalleryStore(): void {
+	if (!_isInitialized) {
+		_isInitialized = true;
+		galleryStore.loadFromIndexedDB();
+	}
+}
+
+/**
+ * Get gallery store with lazy initialization
+ * Use this function to get the store and ensure it's initialized
+ */
+export function getGalleryStore() {
+	if (!_isInitialized) {
+		_isInitialized = true;
+		galleryStore.loadFromIndexedDB();
+	}
+	return galleryStore;
+}
