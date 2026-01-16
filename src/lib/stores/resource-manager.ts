@@ -11,6 +11,7 @@ import {
 } from '$lib/utils/advanced-cache';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { formatFileSize } from '$lib/utils/formatters';
+import { MEMORY, TIME } from '$lib/config/constants';
 
 export interface CacheConfig {
 	imageBitmap?: {
@@ -49,23 +50,23 @@ export class ResourceManager {
 	constructor(config: CacheConfig = {}) {
 		// Initialize specialized caches with optimized defaults
 		this.imageBitmapCache = new ImageBitmapCache({
-			maxSize: config.imageBitmap?.maxSize || 100 * 1024 * 1024, // 100MB
-			maxEntries: config.imageBitmap?.maxEntries || 500,
-			defaultTtl: config.imageBitmap?.ttl || 30 * 60 * 1000, // 30 minutes
+			maxSize: config.imageBitmap?.maxSize || MEMORY.IMAGE_BITMAP_CACHE_MAX_SIZE,
+			maxEntries: config.imageBitmap?.maxEntries || MEMORY.IMAGE_BITMAP_CACHE_MAX_ENTRIES,
+			defaultTtl: config.imageBitmap?.ttl || MEMORY.IMAGE_BITMAP_CACHE_TTL,
 			evictionPolicy: 'lru'
 		});
 
 		this.imageCache = new ImageDataCache({
-			maxSize: config.imageData?.maxSize || 50 * 1024 * 1024, // 50MB
-			maxEntries: config.imageData?.maxEntries || 200,
-			defaultTtl: config.imageData?.ttl || 15 * 60 * 1000, // 15 minutes
+			maxSize: config.imageData?.maxSize || MEMORY.IMAGE_DATA_CACHE_MAX_SIZE,
+			maxEntries: config.imageData?.maxEntries || MEMORY.IMAGE_DATA_CACHE_MAX_ENTRIES,
+			defaultTtl: config.imageData?.ttl || MEMORY.IMAGE_DATA_CACHE_TTL,
 			evictionPolicy: 'lru'
 		});
 
 		this.arrayBufferCache = new ArrayBufferCache({
-			maxSize: config.arrayBuffer?.maxSize || 200 * 1024 * 1024, // 200MB
-			maxEntries: config.arrayBuffer?.maxEntries || 1000,
-			defaultTtl: config.arrayBuffer?.ttl || 60 * 60 * 1000, // 1 hour
+			maxSize: config.arrayBuffer?.maxSize || MEMORY.ARRAY_BUFFER_CACHE_MAX_SIZE,
+			maxEntries: config.arrayBuffer?.maxEntries || MEMORY.ARRAY_BUFFER_CACHE_MAX_ENTRIES,
+			defaultTtl: config.arrayBuffer?.ttl || TIME.BUFFER_CACHE_TTL,
 			evictionPolicy: 'lru'
 		});
 
