@@ -342,8 +342,9 @@ class GalleryStore {
 
 	/**
 	 * Create cache key for current filters
+	 * Uses immutable collection ID only - never includes mutable count
 	 */
-	private createFilterKey(sourceNFTs: GalleryNFT[]): string {
+	private createFilterKey(_sourceNFTs: GalleryNFT[]): string {
 		const search = this._state.filterOptions.search || '';
 		const traits = this._state.filterOptions.selectedTraits
 			? JSON.stringify(Object.entries(this._state.filterOptions.selectedTraits).sort())
@@ -353,9 +354,8 @@ class GalleryStore {
 			: '';
 		const sort = this._state.sortOption;
 		const collection = this._state.selectedCollection?.id || 'all';
-		const count = sourceNFTs.length;
 
-		return `${collection}:${count}:${search}:${traits}:${rarity}:${sort}`;
+		return `${collection}:${search}:${traits}:${rarity}:${sort}`;
 	}
 
 	// Actions
@@ -418,9 +418,29 @@ class GalleryStore {
 			this._state.selectedCollection = null;
 			this._state.selectedNFT = null;
 		}
+		// Clear cache entries for removed collection
+		this.clearCollectionCache(id);
 		// Delete from IndexedDB
 		await deleteCollection(id);
 		this.debouncedSaveToIndexedDB();
+	}
+
+	/**
+	 * Clear cache entries associated with a specific collection
+	 */
+	private clearCollectionCache(collectionId: string): void {
+		// Clear filtered cache entries that reference this collection
+		for (const key of this.filteredCache.keys()) {
+			if (key.startsWith(`${collectionId}:`) || key.startsWith('all:')) {
+				this.filteredCache.delete(key);
+			}
+		}
+		// Clear trait index if it was built for this collection
+		if (this._traitIndexCollectionId === collectionId) {
+			this._traitIndex.clear();
+			this._traitCategories.clear();
+			this._traitIndexCollectionId = null;
+		}
 	}
 
 	// NFT management
