@@ -43,6 +43,8 @@ export class ResourceManager {
 	};
 	private memoryPressureListener?: (event: Event) => void;
 	private cleanupTimeout: number | null = null;
+	private componentCount = 0;
+	private cleanupCallback: (() => void) | null = null;
 
 	constructor(config: CacheConfig = {}) {
 		// Initialize specialized caches with optimized defaults
@@ -72,6 +74,37 @@ export class ResourceManager {
 
 		// Set up periodic cache metrics collection
 		this.setupCacheMetricsCollection();
+	}
+
+	/**
+	 * Bind this ResourceManager to a component lifecycle
+	 * Call onMount in your component and pass the returned cleanup function to onDestroy
+	 */
+	bindLifecycle(onDestroy: () => void): void {
+		this.componentCount++;
+		this.cleanupCallback = () => {
+			onDestroy();
+			this.componentCount--;
+			// If no components remain, perform cleanup
+			if (this.componentCount <= 0) {
+				this.performFullCleanup();
+			}
+		};
+	}
+
+	/**
+	 * Get cleanup function to pass to onDestroy
+	 */
+	getCleanupFn(): () => void {
+		return this.cleanupCallback || (() => {});
+	}
+
+	/**
+	 * Perform full cleanup when last component unmounts
+	 */
+	private performFullCleanup(): void {
+		console.info('No components remaining, performing full resource cleanup');
+		this.cleanup();
 	}
 
 	/**
@@ -458,7 +491,6 @@ export class ResourceManager {
 		const cacheMetrics = this.getCacheMetrics();
 		this.metrics.memoryUsage = cacheMetrics.overall.totalMemoryUsage;
 	}
-
 
 	/**
 	 * Get the number of tracked URLs (legacy compatibility)
