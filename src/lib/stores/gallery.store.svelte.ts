@@ -33,6 +33,10 @@ class GalleryStore {
 	private lastFilterKey = '';
 	private readonly MAX_CACHE_ENTRIES = PERF_CONFIG.cache.galleryFilter.maxEntries;
 
+	// Debounce timer for saves
+	private saveTimeout: ReturnType<typeof setTimeout> | null = null;
+	private readonly SAVE_DEBOUNCE_MS = 1000; // 1 second debounce for gallery saves
+
 	// Natural numeric sorting function for names
 	private naturalCompare(a: string, b: string): number {
 		// Extract numbers from anywhere in the string (handles "Foxinity #1", "#001", etc.)
@@ -397,14 +401,14 @@ class GalleryStore {
 	// Collection management
 	addCollection(collection: GalleryCollection) {
 		this._state.collections.push(collection);
-		this.saveToIndexedDB();
+		this.debouncedSaveToIndexedDB();
 	}
 
 	updateCollection(id: string, updates: Partial<GalleryCollection>) {
 		const index = this._state.collections.findIndex((c) => c.id === id);
 		if (index !== -1) {
 			this._state.collections[index] = { ...this._state.collections[index], ...updates };
-			this.saveToIndexedDB();
+			this.debouncedSaveToIndexedDB();
 		}
 	}
 
@@ -416,7 +420,7 @@ class GalleryStore {
 		}
 		// Delete from IndexedDB
 		await deleteCollection(id);
-		this.saveToIndexedDB();
+		this.debouncedSaveToIndexedDB();
 	}
 
 	// NFT management
@@ -425,7 +429,7 @@ class GalleryStore {
 		if (collection) {
 			collection.nfts.push(nft);
 			collection.totalSupply = collection.nfts.length;
-			this.saveToIndexedDB();
+			this.debouncedSaveToIndexedDB();
 		}
 	}
 
@@ -437,21 +441,37 @@ class GalleryStore {
 			if (this._state.selectedNFT?.id === nftId) {
 				this._state.selectedNFT = null;
 			}
-			this.saveToIndexedDB();
+			this.debouncedSaveToIndexedDB();
 		}
 	}
 
 	// Database operations
+	private debouncedSaveToIndexedDB() {
+		// Clear any pending save
+		if (this.saveTimeout) {
+			clearTimeout(this.saveTimeout);
+		}
+
+		// Schedule a new save with debounce
+		this.saveTimeout = setTimeout(() => {
+			this.saveToIndexedDB();
+		}, this.SAVE_DEBOUNCE_MS);
+	}
+
 	private async saveToIndexedDB() {
+		// Clear any pending save
+		if (this.saveTimeout) {
+			clearTimeout(this.saveTimeout);
+			this.saveTimeout = null;
+		}
+
 		try {
 			// Initialize IndexedDB if not already done
 			await initGalleryDB();
 
-			// Save each collection individually to IndexedDB
-			// This is more efficient than storing everything in one large object
-			for (const collection of this._state.collections) {
-				await saveCollection(collection);
-			}
+			// Save all collections in parallel for better performance
+			const savePromises = this._state.collections.map((collection) => saveCollection(collection));
+			await Promise.all(savePromises);
 
 			// Save selected collection ID to localStorage (small, safe)
 			if (this._state.selectedCollection) {
@@ -560,7 +580,14 @@ class GalleryStore {
 
 	// Import collection from external data (ZIP file, etc.)
 	importCollection(
-		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata: any; index: number; isBlobUrl?: boolean; imageFormat?: string }>,
+		nfts: Array<{
+			name: string;
+			imageData: ArrayBuffer | string;
+			metadata: any;
+			index: number;
+			isBlobUrl?: boolean;
+			imageFormat?: string;
+		}>,
 		collectionName: string,
 		collectionDescription: string = 'Imported NFT collection'
 	) {
@@ -606,7 +633,14 @@ class GalleryStore {
 	// Merge NFTs into existing collection
 	mergeIntoCollection(
 		collectionId: string,
-		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata: any; index: number; isBlobUrl?: boolean; imageFormat?: string }>
+		nfts: Array<{
+			name: string;
+			imageData: ArrayBuffer | string;
+			metadata: any;
+			index: number;
+			isBlobUrl?: boolean;
+			imageFormat?: string;
+		}>
 	) {
 		const collection = this._state.collections.find((c) => c.id === collectionId);
 		if (!collection) {
@@ -631,13 +665,15 @@ class GalleryStore {
 		// Update cache strategy based on new collection size
 		imageUrlCache.setCollectionSize(collection.nfts.length);
 
-		this.saveToIndexedDB();
+		this.debouncedSaveToIndexedDB();
 
 		return collection;
 	}
 
 	// Validate imported data
-	validateImportData(nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata?: any }>): {
+	validateImportData(
+		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata?: any }>
+	): {
 		isValid: boolean;
 		errors: string[];
 	} {
