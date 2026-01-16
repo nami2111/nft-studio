@@ -17,7 +17,19 @@
 		updateProjectDimensions
 	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
-	import { toast } from 'svelte-sonner';
+	import {
+		showSuccess,
+		showError,
+		showWarning,
+		showInfo,
+		showBulkTraitDeleteSuccess,
+		showTraitRenameSuccess,
+		showValidationError,
+		showLayerRemoved,
+		showUploadPartialSuccess,
+		showUploadError,
+		showDeleteError
+	} from '$lib/utils/toast';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Edit from '@lucide/svelte/icons/edit';
 	import Check from '@lucide/svelte/icons/check';
@@ -86,11 +98,11 @@
 					removeTrait(layer.id, traitId);
 					deletedCount++;
 				});
-				toast.success(`${deletedCount} trait(s) deleted successfully.`);
+				showBulkTraitDeleteSuccess(deletedCount);
 				clearSelection();
 			} catch (error) {
 				console.error('Failed to delete traits:', error);
-				toast.error('Failed to delete some traits. Please try again.');
+				showDeleteError();
 			}
 		}
 	}
@@ -100,7 +112,7 @@
 		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
 
 		if (bulkNewName.length > 100) {
-			toast.error('Base name for bulk rename cannot exceed 100 characters.');
+			showValidationError('Base name for bulk rename cannot exceed 100 characters.');
 			return;
 		}
 
@@ -119,20 +131,20 @@
 			count++;
 		});
 		if (successCount > 0) {
-			toast.success(`Renamed ${successCount} trait(s).`);
+			showTraitRenameSuccess(successCount);
 		}
 		bulkNewName = '';
 	}
 
 	function handleNameChange() {
 		if (layerName.trim() === '') {
-			toast.error('Layer name cannot be empty.');
+			showValidationError('Layer name cannot be empty.');
 			layerName = layer.name; // Revert to original name
 			return;
 		}
 
 		if (layerName.length > 100) {
-			toast.error('Layer name cannot exceed 100 characters.');
+			showValidationError('Layer name cannot exceed 100 characters.');
 			layerName = layer.name; // Revert to original name
 			return;
 		}
@@ -147,14 +159,7 @@
 	}
 
 	function handleDeleteLayer() {
-		toast.info(`Layer "${layer.name}" has been removed.`, {
-			action: {
-				label: 'Undo',
-				onClick: () => {
-					console.log('Undo remove layer'); /* Add undo logic here */
-				}
-			}
-		});
+		showLayerRemoved(layer.name);
 		removeLayer(layer.id);
 	}
 
@@ -182,27 +187,21 @@
 			});
 
 			if (imageFiles.length === 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.warning(
-						'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
-					);
-				});
+				showWarning(
+					'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
+				);
 				return;
 			}
 
 			// Validate file sizes first (quick synchronous check)
 			const oversizedFiles = imageFiles.filter((file) => file.size > 10 * 1024 * 1024);
 			if (oversizedFiles.length > 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.error(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
-				});
+				showError(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
 			}
 
 			const validFiles = imageFiles.filter((file) => file.size <= 10 * 1024 * 1024);
 			if (validFiles.length === 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.error('No valid files to upload (all files exceed 10MB limit).');
-				});
+				showError('No valid files to upload (all files exceed 10MB limit).');
 				return;
 			}
 
@@ -228,11 +227,9 @@
 						Math.abs(width - projectData.outputSize.width) > 1 ||
 						Math.abs(height - projectData.outputSize.height) > 1
 					) {
-						import('svelte-sonner').then(({ toast }) => {
-							toast.error(
-								`First image dimensions (${width}x${height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
-							);
-						});
+						showError(
+							`First image dimensions (${width}x${height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
+						);
 						return;
 					}
 				} else {
@@ -278,23 +275,15 @@
 			}
 
 			if (errorCount === 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.success(`${successCount} trait(s) added successfully.`);
-				});
+				showUploadPartialSuccess(successCount, 0);
 			} else if (successCount > 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.warning(`${successCount} trait(s) added, ${errorCount} failed.`);
-				});
+				showUploadPartialSuccess(successCount, errorCount);
 			} else {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.error('All files failed to upload. Please check the files and try again.');
-				});
+				showError('All files failed to upload. Please check the files and try again.');
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-			import('svelte-sonner').then(({ toast }) => {
-				toast.error(`Error uploading files: ${message}`);
-			});
+			showUploadError(message);
 		} finally {
 			// Stop loading state
 			stopLoading(`layer-upload-${layer.id}`);
