@@ -3,7 +3,6 @@
 	import { SmartStorageStore } from '$lib/persistence/storage';
 	import type { Project } from '$lib/types/project';
 
-	// Use smart storage that automatically chooses between localStorage and IndexedDB
 	const PROJECT_STORAGE_KEY = 'nft-studio-project';
 	const STORAGE = new SmartStorageStore<Project>(PROJECT_STORAGE_KEY);
 
@@ -12,14 +11,11 @@
 	let lastSaveTime = $state<number | null>(null);
 	let pendingChanges = $state(false);
 
-	// Fields to exclude from persistence (large binary data)
 	const EXCLUDED_FIELDS = ['imageData', 'imageUrl', '_needsProperLoad'];
 
-	// Compute a fast hash of the project state for change detection
 	function computeProjectHash(projectState: Project): string {
 		const hashParts: string[] = [];
 
-		// Include key structural elements that indicate meaningful changes
 		if (projectState.layers) {
 			hashParts.push(`layers:${projectState.layers.length}`);
 			for (const layer of projectState.layers) {
@@ -39,7 +35,6 @@
 			hashParts.push(`desc:${projectState.description.substring(0, 100)}`);
 		}
 
-		// Use a simple hash function
 		let hash = 0;
 		const str = hashParts.join('|');
 		for (let i = 0; i < str.length; i++) {
@@ -50,7 +45,6 @@
 		return hash.toString(36);
 	}
 
-	// Create a compact version of the project for storage
 	function createCompactProject(projectState: Project): Project {
 		const compact: Project = {
 			id: projectState.id,
@@ -69,8 +63,6 @@
 						rarityWeight: trait.rarityWeight,
 						type: trait.type,
 						rulerRules: trait.rulerRules,
-						// Include empty imageData to satisfy type requirements
-						// This will be cleaned by SmartStorageStore.cleanForSerialization
 						imageData: new ArrayBuffer(0)
 					}))
 				})) || [],
@@ -81,17 +73,13 @@
 		return compact;
 	}
 
-	// Use $effect to watch for project changes and auto-save
 	$effect(() => {
-		// Skip if project has no layers (empty project)
 		if (!project.layers || project.layers.length === 0) {
 			return;
 		}
 
-		// Compute hash of current project state
 		const currentHash = computeProjectHash(project);
 
-		// Skip if no actual changes
 		if (currentHash === lastSavedHash) {
 			return;
 		}
@@ -105,10 +93,7 @@
 		saveTimeout = setTimeout(() => {
 			try {
 				const startTime = Date.now();
-
-				// Create compact version for storage
 				const compactProject = createCompactProject(project);
-
 				STORAGE.save(compactProject);
 				const saveDuration = Date.now() - startTime;
 
@@ -117,7 +102,6 @@
 				saveTimeout = null;
 				pendingChanges = false;
 
-				// Log performance for large projects
 				if (saveDuration > 500) {
 					console.info(
 						`AutoSave completed in ${saveDuration}ms (compact mode, ${pendingChanges ? 'with pending changes' : 'up to date'})`
@@ -127,10 +111,9 @@
 				console.error('AutoSave failed:', error);
 				pendingChanges = true;
 			}
-		}, 2000); // Debounce time to prevent rapid saves
+		}, 2000);
 	});
 
-	// Cleanup on destroy
 	import { onDestroy } from 'svelte';
 	onDestroy(() => {
 		if (saveTimeout) {
@@ -138,5 +121,3 @@
 		}
 	});
 </script>
-
-<!-- This component handles auto-saving and renders nothing -->
