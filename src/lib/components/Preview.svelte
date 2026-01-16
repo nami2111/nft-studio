@@ -68,6 +68,10 @@
 	// Reset selected traits when project layers change
 	$effect(() => {
 		const { layers } = project;
+
+		// Use Set-based comparison for better performance than JSON.stringify
+		const previousSelectedIds = new Set(selectedTraitIds.filter((id): id is TraitId => id !== ''));
+
 		const newSelectedTraits: (TraitId | '')[] = [];
 
 		for (let i = 0; i < layers.length; i++) {
@@ -87,9 +91,12 @@
 			}
 		}
 
-		// Only update if there's actually a change to prevent infinite loops
+		// Fast Set-based comparison for detecting actual changes
+		const hasChanged =
+			newSelectedTraits.some((id, index) => id !== '' && !previousSelectedIds.has(id)) ||
+			newSelectedTraits.length !== selectedTraitIds.length;
 
-		if (JSON.stringify(newSelectedTraits) !== JSON.stringify(selectedTraitIds)) {
+		if (hasChanged) {
 			// Use a temporary variable to break the reactivity cycle
 			const updatedTraits = [...newSelectedTraits];
 			selectedTraitIds = updatedTraits;
