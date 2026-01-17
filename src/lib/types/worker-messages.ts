@@ -113,6 +113,20 @@ export interface PreviewMessage extends BaseWorkerMessage {
 	};
 }
 
+// Batch generation message for parallel processing
+export interface BatchMessage extends BaseWorkerMessage {
+	type: 'batch';
+	payload: {
+		solutions: { index: number; traits: TransferrableTrait[] }[];
+		layers: TransferrableLayer[];
+		collectionSize: number;
+		outputSize: { width: number; height: number };
+		projectName: string;
+		projectDescription: string;
+		metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
+	};
+}
+
 // Messages that can be sent from workers to the main thread
 export type OutgoingWorkerMessage =
 	| ReadyMessage
@@ -134,7 +148,7 @@ export type OutgoingWorkerMessage =
 	| { type: 'performance-report'; payload: any };
 
 // Messages that can be sent to workers
-export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage | { type: 'preview'; payload: any } | { type: 'initialize' } | { type: 'ping'; pingId: string };
+export type IncomingMessage = StartMessage | BatchMessage | { type: 'cancel' } | ReadyMessage | { type: 'preview'; payload: any } | { type: 'initialize' } | { type: 'ping'; pingId: string };
 
 // Worker pool message types
 export type GenerationWorkerMessage =
@@ -150,6 +164,7 @@ export type GenerationWorkerMessage =
 			strictPairConfig?: StrictPairConfig;
 		};
 	}
+	| BatchMessage
 	| {
 		type: 'cancel';
 	};
@@ -228,6 +243,18 @@ export function isPreviewMessage(message: unknown): message is PreviewMessage {
 		message !== null &&
 		'type' in message &&
 		message.type === 'preview'
+	);
+}
+
+/**
+ * Type guard for BatchMessage
+ */
+export function isBatchMessage(message: unknown): message is BatchMessage {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		'type' in message &&
+		message.type === 'batch'
 	);
 }
 

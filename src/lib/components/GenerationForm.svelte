@@ -301,7 +301,11 @@
 						// The worker sends a final "complete" message with empty arrays to signal the end.
 						// Only package once we receive that final marker so we don't repeatedly package while
 						// in-flight items are still arriving.
-						if (message.payload.images.length === 0 && message.payload.metadata.length === 0) {
+						if (
+							message.payload.images.length === 0 &&
+							message.payload.metadata.length === 0 &&
+							!message.payload.isChunk
+						) {
 							console.log(
 								'Generation complete, packaging:',
 								generationState.allImages.length,

@@ -81,8 +81,8 @@ let workerPool: WorkerPool | null = null;
 // Callback for forwarding messages to clients
 let messageCallback:
 	| ((
-			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	  ) => void)
+		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	) => void)
 	| null = null;
 
 /**
@@ -816,7 +816,7 @@ function removeWorker(workerIndex: number): void {
 
 	console.log(
 		`Worker ${workerIndex} removed successfully. ` +
-			`Cleaned up ${removedTasks.length} queued tasks and freed resources.`
+		`Cleaned up ${removedTasks.length} queued tasks and freed resources.`
 	);
 }
 
@@ -1126,6 +1126,11 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 			const { layers, collectionSize, outputSize } = message.payload;
 			complexity = calculateTaskComplexity(layers, collectionSize, outputSize);
 			estimatedDuration = estimateTaskDuration(complexity, collectionSize);
+		} else if (message.type === 'batch' && message.payload) {
+			const { layers, solutions, outputSize } = message.payload;
+			// For batch, the 'collectionSize' for complexity is just the batch size
+			complexity = calculateTaskComplexity(layers, solutions.length, outputSize);
+			estimatedDuration = estimateTaskDuration(complexity, solutions.length);
 		}
 
 		const task: WorkerTask<T> = {
