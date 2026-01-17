@@ -73,6 +73,8 @@ export interface CompleteMessage extends BaseWorkerMessage {
 		images: { name: string; imageData: ArrayBuffer }[];
 		metadata: { name: string; data: object }[];
 		isChunk?: boolean; // Flag to indicate if this is a chunked response
+		generatedCount?: number;
+		totalCount?: number;
 	};
 }
 
@@ -121,36 +123,36 @@ export type OutgoingWorkerMessage =
 	| PreviewMessage
 	| { type: 'pingResponse'; pingResponse: string }
 	| {
-			type: 'analysis';
-			payload: {
-				complexity: any;
-				canUseFastGeneration: boolean;
-				estimatedSpeedup: number;
-				recommendations: string[];
-			};
-	  }
+		type: 'analysis';
+		payload: {
+			complexity: any;
+			canUseFastGeneration: boolean;
+			estimatedSpeedup: number;
+			recommendations: string[];
+		};
+	}
 	| { type: 'performance-report'; payload: any };
 
 // Messages that can be sent to workers
-export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage;
+export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage | { type: 'preview'; payload: any } | { type: 'initialize' } | { type: 'ping'; pingId: string };
 
 // Worker pool message types
 export type GenerationWorkerMessage =
 	| {
-			type: 'start';
-			payload: {
-				layers: TransferrableLayer[];
-				collectionSize: number;
-				outputSize: { width: number; height: number };
-				projectName: string;
-				projectDescription: string;
-				metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
-				strictPairConfig?: StrictPairConfig;
-			};
-	  }
+		type: 'start';
+		payload: {
+			layers: TransferrableLayer[];
+			collectionSize: number;
+			outputSize: { width: number; height: number };
+			projectName: string;
+			projectDescription: string;
+			metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
+			strictPairConfig?: StrictPairConfig;
+		};
+	}
 	| {
-			type: 'cancel';
-	  };
+		type: 'cancel';
+	};
 
 // Type guards for discriminated unions
 
