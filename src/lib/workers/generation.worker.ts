@@ -299,13 +299,7 @@ self.addEventListener('message', (e: MessageEvent) => {
     const message = e.data as IncomingMessage;
 
     currentTaskQueue = currentTaskQueue.then(async () => {
-        if (message.type === 'start') {
-            self.postMessage({
-                type: 'error',
-                taskId: message.taskId,
-                payload: { message: 'Sequential generation is deprecated. Use batch generation.' }
-            });
-        } else if (message.type === 'batch') {
+        if (message.type === 'batch') {
             const { solutions, layers, collectionSize, outputSize, projectName, projectDescription, metadataStandard } = message.payload;
             try {
                 await handleBatchGeneration(

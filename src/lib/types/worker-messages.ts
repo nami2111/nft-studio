@@ -34,22 +34,7 @@ interface BaseWorkerMessage {
 	taskId?: TaskId;
 }
 
-// Start generation message
-export interface StartMessage extends BaseWorkerMessage {
-	type: 'start';
-	payload: {
-		layers: TransferrableLayer[];
-		collectionSize: number;
-		outputSize: {
-			width: number;
-			height: number;
-		};
-		projectName: string;
-		projectDescription: string;
-		metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
-		strictPairConfig?: StrictPairConfig;
-	};
-}
+
 
 // Progress update message
 export interface ProgressMessage extends BaseWorkerMessage {
@@ -148,22 +133,11 @@ export type OutgoingWorkerMessage =
 	| { type: 'performance-report'; payload: any };
 
 // Messages that can be sent to workers
-export type IncomingMessage = StartMessage | BatchMessage | { type: 'cancel' } | ReadyMessage | { type: 'preview'; payload: any } | { type: 'initialize' } | { type: 'ping'; pingId: string };
+// Messages that can be sent to workers
+export type IncomingMessage = BatchMessage | { type: 'cancel' } | ReadyMessage | { type: 'preview'; payload: any } | { type: 'initialize' } | { type: 'ping'; pingId: string };
 
 // Worker pool message types
 export type GenerationWorkerMessage =
-	| {
-		type: 'start';
-		payload: {
-			layers: TransferrableLayer[];
-			collectionSize: number;
-			outputSize: { width: number; height: number };
-			projectName: string;
-			projectDescription: string;
-			metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
-			strictPairConfig?: StrictPairConfig;
-		};
-	}
 	| BatchMessage
 	| {
 		type: 'cancel';
@@ -171,14 +145,7 @@ export type GenerationWorkerMessage =
 
 // Type guards for discriminated unions
 
-/**
- * Type guard for StartMessage
- */
-export function isStartMessage(message: unknown): message is StartMessage {
-	return (
-		typeof message === 'object' && message !== null && 'type' in message && message.type === 'start'
-	);
-}
+
 
 /**
  * Type guard for ProgressMessage
@@ -317,7 +284,7 @@ export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWo
  */
 export function isIncomingMessage(message: unknown): message is IncomingMessage {
 	return (
-		isStartMessage(message) ||
+		isBatchMessage(message) ||
 		(typeof message === 'object' &&
 			message !== null &&
 			'type' in message &&
