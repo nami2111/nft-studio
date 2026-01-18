@@ -21,6 +21,8 @@ export interface BaseComponentProps {
 	readonly?: boolean;
 	/** Test identifier for testing library */
 	'data-testid'?: string;
+	/** Allow for any other arbitrary data attributes or standard HTML attributes */
+	[key: string]: any;
 }
 
 /**
