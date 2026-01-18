@@ -57,6 +57,8 @@
 		title={trait.type === 'ruler' ? 'Demote from ruler' : 'Promote to ruler'}
 		onclick={toggleTraitType}
 		class="{trait.type === 'ruler' ? 'text-foreground' : ''} {className}"
+		data-testid="trait-type-toggle"
+		data-trait-type={trait.type || 'normal'}
 	>
 		<Crown class="h-4 w-4" />
 	</Button>

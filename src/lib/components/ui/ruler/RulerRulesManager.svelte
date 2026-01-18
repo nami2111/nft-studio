@@ -119,6 +119,7 @@
 		size="icon"
 		title="Manage Ruler Rules"
 		onclick={() => (isDialogOpen = true)}
+		data-testid="ruler-rules-manager"
 	>
 		<Settings class="h-4 w-4" />
 	</Button>

@@ -1122,12 +1122,15 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 		let complexity = TaskComplexity.MEDIUM; // Default
 		let estimatedDuration = 500; // Default 500ms
 
-		if (message.type === 'start' && message.payload) {
-			const { layers, collectionSize, outputSize } = message.payload;
+		// Cast to any to bypass strict union narrowing issues if the type definition is complex
+		const msg = message as any;
+
+		if (msg.type === 'start' && msg.payload) {
+			const { layers, collectionSize, outputSize } = msg.payload;
 			complexity = calculateTaskComplexity(layers, collectionSize, outputSize);
 			estimatedDuration = estimateTaskDuration(complexity, collectionSize);
-		} else if (message.type === 'batch' && message.payload) {
-			const { layers, solutions, outputSize } = message.payload;
+		} else if (msg.type === 'batch' && msg.payload) {
+			const { layers, solutions, outputSize } = msg.payload;
 			// For batch, the 'collectionSize' for complexity is just the batch size
 			complexity = calculateTaskComplexity(layers, solutions.length, outputSize);
 			estimatedDuration = estimateTaskDuration(complexity, solutions.length);

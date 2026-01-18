@@ -2,9 +2,9 @@
 	import { onMount, onDestroy, type Snippet } from 'svelte';
 	// import { initSatellite } from '@junobuild/core';
 	import { Toaster } from '$lib/components/ui/sonner';
-	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
-	import AutoSave from '$lib/components/AutoSave.svelte';
-	import ModeSwitcher from '$lib/components/ModeSwitcher.svelte';
+	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
+	import AutoSave from '$lib/components/project/AutoSave.svelte';
+	import ModeSwitcher from '$lib/components/shared/ModeSwitcher.svelte';
 	import { cleanupAllResources } from '$lib/stores';
 	import '../../app.css';
 

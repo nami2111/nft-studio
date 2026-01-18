@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { type Snippet } from 'svelte';
 	import '../app.css';
-	import SecurityPolicies from '$lib/components/SecurityPolicies.svelte';
+	import SecurityPolicies from '$lib/components/project/SecurityPolicies.svelte';
 	import { setupSessionCleanup } from '$lib/utils/session-cleanup';
 	import { onMount } from 'svelte';
 
