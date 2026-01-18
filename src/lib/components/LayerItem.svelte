@@ -602,7 +602,7 @@
 	});
 </script>
 
-<Card class="w-full">
+<Card class="w-full" data-testid="layer-item">
 	<CardContent class="p-4">
 		<div class="mb-3 flex items-center justify-between">
 			<div class="flex items-center space-x-2">

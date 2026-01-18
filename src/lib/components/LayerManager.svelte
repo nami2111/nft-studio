@@ -87,6 +87,7 @@
 								onclick={() => moveLayer(layer.id, 'up')}
 								disabled={layers.indexOf(layer) === 0}
 								class="px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm"
+								data-testid="move-up-btn"
 							>
 								<span class="hidden sm:inline">↑</span>
 								<span class="sm:hidden">Up</span>
@@ -97,6 +98,7 @@
 								onclick={() => moveLayer(layer.id, 'down')}
 								disabled={layers.indexOf(layer) === layers.length - 1}
 								class="px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm"
+								data-testid="move-down-btn"
 							>
 								<span class="hidden sm:inline">↓</span>
 								<span class="sm:hidden">Down</span>
