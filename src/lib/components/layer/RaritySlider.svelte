@@ -12,7 +12,7 @@
 	const { rarityWeight, traitId, layerId }: Props = $props();
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(traitId));
-	let sliderValue = $state([Math.max(1, Math.min(5, Math.round(rarityWeight || 1)))]);
+	let sliderValue = $state([1]);
 
 	// Sync local state with prop
 	$effect(() => {

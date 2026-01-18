@@ -115,7 +115,7 @@
 	const messageHandlers = new SvelteMap<string, (e: MessageEvent) => void>();
 
 	$effect(() => {
-		imageWorker = new Worker(new URL('../workers/image-loader.worker.ts', import.meta.url));
+		imageWorker = new Worker(new URL('../../workers/image-loader.worker.ts', import.meta.url));
 
 		return () => {
 			// Clean up all message listeners
