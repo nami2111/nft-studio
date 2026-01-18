@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import GenerationForm from './GenerationForm.svelte';
-import { createMockProject } from './test-utils';
+import { createMockProject } from '../test-utils';
 import type { Project } from '$lib/types/project';
 
 // Test-specific store state

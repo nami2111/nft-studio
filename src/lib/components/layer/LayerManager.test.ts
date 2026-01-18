@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { writable } from 'svelte/store';
 import LayerManager from './LayerManager.svelte';
-import { createMockProject, mockLayer } from './test-utils';
+import { createMockProject, mockLayer } from '../test-utils';
 import type { Project, Layer } from '$lib/types';
 
 import { project, addLayer, reorderLayers } from '$lib/stores';
@@ -55,8 +55,8 @@ vi.mock('$lib/stores', async () => {
 });
 
 // Mock dependent components of LayerItem to avoid deep rendering issues
-vi.mock('$lib/components/TraitCard.svelte', () => ({ default: vi.fn() }));
-vi.mock('$lib/components/VirtualTraitList.svelte', () => ({ default: vi.fn() }));
+vi.mock('$lib/components/layer/TraitCard.svelte', () => ({ default: vi.fn() }));
+vi.mock('$lib/components/layer/VirtualTraitList.svelte', () => ({ default: vi.fn() }));
 vi.mock('$lib/components/ui/NeedsReupload.svelte', () => ({ default: vi.fn() }));
 
 vi.mock('$lib/utils/error-handling', () => ({
@@ -77,7 +77,7 @@ vi.mock('$lib/utils/error-handling', () => ({
 // vi.mock('@lucide/svelte/icons/loader-2', ...);
 
 // LayerItem unmocked to verify integration
-// vi.mock('$lib/components/LayerItem.svelte', ...);
+// vi.mock('$lib/components/layer/LayerItem.svelte', ...);
 
 // Mock UI components
 // Mocks removed to use real components for proper containment testing

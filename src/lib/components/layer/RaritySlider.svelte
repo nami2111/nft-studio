@@ -12,9 +12,15 @@
 	const { rarityWeight, traitId, layerId }: Props = $props();
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(traitId));
-	// Ensure the initial value is valid (between 1 and 5)
-	let clampedRarityWeight = $derived(Math.max(1, Math.min(5, Math.round(rarityWeight || 1))));
-	let sliderValue = $derived([clampedRarityWeight]);
+	let sliderValue = $state([Math.max(1, Math.min(5, Math.round(rarityWeight || 1)))]);
+
+	// Sync local state with prop
+	$effect(() => {
+		const newVal = Math.max(1, Math.min(5, Math.round(rarityWeight || 1)));
+		if (sliderValue[0] !== newVal) {
+			sliderValue = [newVal];
+		}
+	});
 
 	const rarityLabels: { [key: number]: string } = {
 		1: 'Mythic',
@@ -38,10 +44,12 @@
 	});
 </script>
 
-<div class="space-y-2">
+<div class="space-y-2" data-testid="rarity-slider" data-rarity={rarityWeight}>
 	<div class="flex items-center justify-between">
 		<label for="rarity-slider-{traitId}" class="text-sm font-medium"
-			>Rarity: <span class="text-primary font-bold">{rarityLabels[sliderValue[0]]}</span></label
+			>Rarity: <span class="text-primary font-bold" data-testid="rarity-value"
+				>{rarityLabels[sliderValue[0]]}</span
+			></label
 		>
 	</div>
 	<Slider min={1} max={5} step={1} bind:value={sliderValue} class="w-full" />

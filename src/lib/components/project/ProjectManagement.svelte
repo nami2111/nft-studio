@@ -26,7 +26,7 @@
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import Upload from '@lucide/svelte/icons/upload';
 	import Download from '@lucide/svelte/icons/download';
-	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
+	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { Modal } from '$lib/components/ui/modal';
 
 	let loadDialogOpen = $state(false);

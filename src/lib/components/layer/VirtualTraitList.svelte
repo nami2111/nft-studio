@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Trait } from '$lib/types/layer';
-	import TraitCard from '$lib/components/TraitCard.svelte';
+	import TraitCard from '$lib/components/layer/TraitCard.svelte';
 	import { onMount, onDestroy } from 'svelte';
 
 	// interface Props {

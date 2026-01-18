@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Trait } from '$lib/types/layer';
-	import RaritySlider from '$lib/components/RaritySlider.svelte';
+	import RaritySlider from '$lib/components/layer/RaritySlider.svelte';
 	import { removeTrait, updateTraitName } from '$lib/stores';
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
@@ -34,9 +34,16 @@
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(trait.id));
 
-	let traitName = $derived(trait.name);
+	let traitName = $state(trait.name);
 	let isEditing = $state(false);
 	let isVisible = $state(false);
+
+	// Sync local name with prop when not editing
+	$effect(() => {
+		if (!isEditing) {
+			traitName = trait.name;
+		}
+	});
 	let observer: IntersectionObserver | null = $state(null);
 
 	// Get current layer and all layers for ruler rules manager
@@ -126,16 +133,11 @@
 				entries.forEach((entry) => {
 					if (entry.isIntersecting) {
 						isVisible = true;
-						// Disconnect observer once image is loaded
-						if (observer) {
-							observer.disconnect();
-							observer = null;
-						}
 					}
 				});
 			},
 			{
-				rootMargin: '50px', // Start loading 50px before entering viewport
+				rootMargin: '50px',
 				threshold: 0.1
 			}
 		);
@@ -157,7 +159,10 @@
 	});
 </script>
 
-<Card class="relative overflow-hidden border-2 {selected ? 'ring-primary ring-2' : ''}">
+<Card
+	class="relative overflow-hidden border-2 {selected ? 'ring-primary ring-2' : ''}"
+	data-testid="trait-card"
+>
 	<div class="bg-muted flex aspect-square items-center justify-center" bind:this={imageContainer}>
 		{#if showSelection}
 			<div class="absolute top-2 left-2 z-10">
@@ -167,6 +172,7 @@
 					onchange={onToggleSelection}
 					class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300 focus:ring-offset-0"
 					aria-label="Select trait"
+					data-testid="trait-select-checkbox"
 				/>
 			</div>
 		{/if}
@@ -188,23 +194,9 @@
 					alt={trait.name}
 					class="h-full w-full object-contain"
 					loading="lazy"
+					data-testid="trait-image"
 					onerror={(e) => {
-						// If imageUrl fails, try to recreate from imageData
-						if (trait.imageData && trait.imageData.byteLength > 0) {
-							try {
-								const blob = new Blob([trait.imageData], { type: 'image/png' });
-								const newUrl = URL.createObjectURL(blob);
-								(e.target as HTMLImageElement).src = newUrl;
-								trait.imageUrl = newUrl;
-							} catch (error) {
-								console.error('Failed to recreate image URL:', error);
-								// Show broken image state
-								(e.target as HTMLImageElement).style.display = 'none';
-							}
-						} else {
-							// Show broken image state
-							(e.target as HTMLImageElement).style.display = 'none';
-						}
+						(e.target as HTMLImageElement).style.display = 'none';
 					}}
 				/>
 			{:else if trait.imageData && trait.imageData.byteLength > 0}
@@ -214,14 +206,17 @@
 					alt={trait.name}
 					class="h-full w-full object-contain"
 					loading="lazy"
+					data-testid="trait-image"
 					onerror={(e) => {
-						console.error('Failed to create image from data:', e);
 						(e.target as HTMLImageElement).style.display = 'none';
 					}}
 				/>
 			{:else if trait.imageUrl && (!trait.imageData || trait.imageData.byteLength === 0)}
 				<!-- Likely from persisted project - show needs re-upload indicator -->
-				<div class="flex h-full flex-col items-center justify-center p-2 text-center">
+				<div
+					class="flex h-full flex-col items-center justify-center p-2 text-center"
+					data-testid="reupload-indicator"
+				>
 					<div class="text-muted-foreground mb-2">
 						<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
@@ -235,42 +230,51 @@
 					<span class="text-muted-foreground text-xs">Image needs re-upload</span>
 				</div>
 			{:else}
-				<div class="flex h-full items-center justify-center">
+				<div class="flex h-full items-center justify-center" data-testid="loading-spinner">
 					<div
 						class="border-muted-foreground border-t-foreground h-6 w-6 animate-spin rounded-full border-2"
 					></div>
 				</div>
 			{/if}
 		{:else}
-			<div class="flex h-full items-center justify-center">
+			<div class="flex h-full items-center justify-center" data-testid="loading-spinner">
 				<div class="text-muted-foreground text-xs">Loading...</div>
 			</div>
 		{/if}
 	</div>
-	<CardContent class="p-3">
+	<CardContent class="p-3" data-testid="card-content">
 		<div class="flex items-center justify-between">
 			{#if isEditing}
 				<input
 					bind:value={traitName}
 					class="border-foreground w-full border-b-2 bg-transparent text-sm font-medium focus:outline-none"
 					onkeydown={(e) => e.key === 'Enter' && handleUpdateName()}
+					data-testid="trait-name-input"
 				/>
 				<div class="flex">
-					<Button variant="ghost" size="icon" onclick={handleUpdateName}
+					<Button variant="ghost" size="icon" onclick={handleUpdateName} data-testid="save-button"
 						><Check class="h-4 w-4" /></Button
 					>
-					<Button variant="ghost" size="icon" onclick={cancelEdit}><X class="h-4 w-4" /></Button>
+					<Button variant="ghost" size="icon" onclick={cancelEdit} data-testid="cancel-button"
+						><X class="h-4 w-4" /></Button
+					>
 				</div>
 			{:else}
 				<p class="text-card-foreground truncate text-sm font-medium" title={trait.name}>
 					{trait.name}
 				</p>
 				<div class="flex gap-1">
-					<Button variant="ghost" size="icon" onclick={() => (isEditing = true)}
-						><Edit class="h-4 w-4" /></Button
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={() => (isEditing = true)}
+						data-testid="edit-button"><Edit class="h-4 w-4" /></Button
 					>
-					<Button variant="ghost" size="icon" onclick={handleRemoveTrait}
-						><Trash2 class="text-destructive h-4 w-4" /></Button
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={handleRemoveTrait}
+						data-testid="delete-button"><Trash2 class="text-destructive h-4 w-4" /></Button
 					>
 				</div>
 			{/if}

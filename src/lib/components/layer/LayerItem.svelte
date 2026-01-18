@@ -2,8 +2,8 @@
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Layer } from '$lib/types/layer';
 	import { createTraitId, type TraitId } from '$lib/types/ids';
-	import TraitCard from '$lib/components/TraitCard.svelte';
-	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
+	import TraitCard from '$lib/components/layer/TraitCard.svelte';
+	import VirtualTraitList from '$lib/components/layer/VirtualTraitList.svelte';
 	import {
 		project,
 		startLoading,
@@ -24,7 +24,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { getImageDimensions } from '$lib/utils';
-	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
+	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import NeedsReupload from '$lib/components/ui/NeedsReupload.svelte';

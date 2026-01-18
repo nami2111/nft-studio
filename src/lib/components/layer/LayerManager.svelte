@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { project, addLayer, reorderLayers } from '$lib/stores';
 	import type { LayerId } from '$lib/types/ids';
-	import LayerItem from '$lib/components/LayerItem.svelte';
+	import LayerItem from '$lib/components/layer/LayerItem.svelte';
 
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';

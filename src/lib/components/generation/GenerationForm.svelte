@@ -38,8 +38,8 @@
 	import { onDestroy } from 'svelte';
 	import { MetadataStandard } from '$lib/domain/metadata/strategies';
 	import { ExportService } from '$lib/services/export.service';
-	import GenerationProgress from './generation/GenerationProgress.svelte';
-	import GenerationControls from './generation/GenerationControls.svelte';
+	import GenerationProgress from './GenerationProgress.svelte';
+	import GenerationControls from './GenerationControls.svelte';
 
 	// Local UI state
 	let collectionSize = $state<number | null>(100);
