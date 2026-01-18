@@ -160,10 +160,22 @@ describe('GenerationForm', () => {
 			render(GenerationForm);
 
 			const input = screen.getByLabelText(/collection size/i);
-			const generateButton = screen.getByRole('button', { name: /generating/i }); // Button text changes
+			const generateButton = screen.getByRole('button', { name: /generating/i });
 
 			expect(input).toBeDisabled();
 			expect(generateButton).toBeDisabled();
+		});
+
+		it('shows completion message when generation is finished', async () => {
+			generationStateMock.isGenerating = false;
+			generationStateMock.completionTime = Date.now();
+			generationStateMock.progress = 100;
+			generationStateMock.totalItems = 10;
+
+			render(GenerationForm);
+
+			expect(screen.getByText(/generation complete/i)).toBeInTheDocument();
+			expect(screen.getByText(/10 nfts ready/i)).toBeInTheDocument();
 		});
 	});
 });

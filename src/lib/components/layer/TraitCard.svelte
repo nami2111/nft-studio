@@ -37,6 +37,7 @@
 	let traitName = $state(trait.name);
 	let isEditing = $state(false);
 	let isVisible = $state(false);
+	let isLoaded = $state(false);
 
 	// Sync local name with prop when not editing
 	$effect(() => {
@@ -176,7 +177,7 @@
 				/>
 			</div>
 		{/if}
-		<div class="absolute top-2 right-2 flex gap-1">
+		<div class="absolute top-2 right-2 z-10 flex gap-1">
 			<TraitTypeToggle {trait} {layerId} />
 			{#if trait.type === 'ruler' && currentLayer && allLayers}
 				<RulerRulesManager
@@ -187,60 +188,89 @@
 				/>
 			{/if}
 		</div>
-		{#if isVisible}
-			{#if trait.imageUrl && trait.imageData && trait.imageData.byteLength > 0}
-				<img
-					src={trait.imageUrl}
-					alt={trait.name}
-					class="h-full w-full object-contain"
-					loading="lazy"
-					data-testid="trait-image"
-					onerror={(e) => {
-						(e.target as HTMLImageElement).style.display = 'none';
-					}}
-				/>
-			{:else if trait.imageData && trait.imageData.byteLength > 0}
-				<!-- Has imageData but no imageUrl, $effect will create it -->
-				<img
-					src={trait.imageUrl}
-					alt={trait.name}
-					class="h-full w-full object-contain"
-					loading="lazy"
-					data-testid="trait-image"
-					onerror={(e) => {
-						(e.target as HTMLImageElement).style.display = 'none';
-					}}
-				/>
-			{:else if trait.imageUrl && (!trait.imageData || trait.imageData.byteLength === 0)}
-				<!-- Likely from persisted project - show needs re-upload indicator -->
-				<div
-					class="flex h-full flex-col items-center justify-center p-2 text-center"
-					data-testid="reupload-indicator"
-				>
-					<div class="text-muted-foreground mb-2">
-						<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-							/>
-						</svg>
-					</div>
-					<span class="text-muted-foreground text-xs">Image needs re-upload</span>
-				</div>
-			{:else}
-				<div class="flex h-full items-center justify-center" data-testid="loading-spinner">
+		<div
+			class="relative flex aspect-square items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-900"
+		>
+			{#if isVisible}
+				{#if trait.imageUrl && trait.imageData && trait.imageData.byteLength > 0}
+					<img
+						src={trait.imageUrl}
+						alt={trait.name}
+						class="h-full w-full object-contain transition-opacity duration-500 {isLoaded
+							? 'opacity-100'
+							: 'opacity-0'}"
+						loading="lazy"
+						data-testid="trait-image"
+						onload={() => (isLoaded = true)}
+						onerror={(e) => {
+							(e.target as HTMLImageElement).style.display = 'none';
+						}}
+					/>
+					{#if !isLoaded}
+						<div
+							class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-800"
+							data-testid="skeleton-loader"
+						>
+							<div
+								class="h-full w-full -translate-x-full animate-[shimmer_2s_infinite] bg-linear-to-r from-transparent via-white/20 to-transparent"
+							></div>
+						</div>
+					{/if}
+				{:else if trait.imageData && trait.imageData.byteLength > 0}
+					<!-- Has imageData but no imageUrl, $effect will create it -->
+					<img
+						src={trait.imageUrl}
+						alt={trait.name}
+						class="h-full w-full object-contain transition-opacity duration-500 {isLoaded
+							? 'opacity-100'
+							: 'opacity-0'}"
+						loading="lazy"
+						data-testid="trait-image"
+						onload={() => (isLoaded = true)}
+						onerror={(e) => {
+							(e.target as HTMLImageElement).style.display = 'none';
+						}}
+					/>
+					{#if !isLoaded}
+						<div
+							class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-800"
+							data-testid="skeleton-loader"
+						></div>
+					{/if}
+				{:else if trait.imageUrl && (!trait.imageData || trait.imageData.byteLength === 0)}
+					<!-- Likely from persisted project - show needs re-upload indicator -->
 					<div
-						class="border-muted-foreground border-t-foreground h-6 w-6 animate-spin rounded-full border-2"
+						class="flex h-full flex-col items-center justify-center p-4 text-center"
+						data-testid="reupload-indicator"
+					>
+						<div class="mb-2 rounded-full bg-amber-50 p-2 text-amber-500 dark:bg-amber-950/30">
+							<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+								/>
+							</svg>
+						</div>
+						<span class="text-[10px] font-medium text-amber-600 dark:text-amber-400"
+							>Source image missing</span
+						>
+						<p class="mt-1 text-[9px] text-gray-400">Please re-upload this file.</p>
+					</div>
+				{:else}
+					<div
+						class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-800"
+						data-testid="skeleton-loader"
 					></div>
-				</div>
+				{/if}
+			{:else}
+				<div
+					class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-800"
+					data-testid="skeleton-loader"
+				></div>
 			{/if}
-		{:else}
-			<div class="flex h-full items-center justify-center" data-testid="loading-spinner">
-				<div class="text-muted-foreground text-xs">Loading...</div>
-			</div>
-		{/if}
+		</div>
 	</div>
 	<CardContent class="p-3" data-testid="card-content">
 		<div class="flex items-center justify-between">
@@ -282,3 +312,14 @@
 		<RaritySlider rarityWeight={trait.rarityWeight} traitId={trait.id} {layerId} />
 	</CardContent>
 </Card>
+
+<style>
+	@keyframes shimmer {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(100%);
+		}
+	}
+</style>

@@ -165,7 +165,7 @@ describe('TraitCard', () => {
 				props: { trait: traitWithoutImage, layerId }
 			});
 
-			expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
+			expect(screen.getByTestId('skeleton-loader')).toBeInTheDocument();
 		});
 	});
 
