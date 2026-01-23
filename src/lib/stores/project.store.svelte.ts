@@ -20,35 +20,36 @@ import { calculateAdaptiveDelay } from '$lib/config/performance.config';
 import { persistenceService } from '../services/persistence.service';
 import { validationService } from '../services/validation.service';
 
-// Initialize project with persisted data or default
-const persistedProject = persistenceService.loadMetadataSync();
-export const project = $state<Project>(persistedProject || validationService.createDefaultProject());
+// Initialize project with a fresh default project
+// Note: Auto-load disabled - users must manually load saved projects via "Load Project" button
+// const persistedProject = persistenceService.loadMetadataSync();
+export const project = $state<Project>(validationService.createDefaultProject());
 
-// Background load of full project assets if we have metadata
-if (persistedProject) {
-	setTimeout(async () => {
-		try {
-			const fullProject = await persistenceService.loadProject();
-			if (fullProject) {
-				// Reconcile assets into the reactive project state
-				fullProject.layers.forEach((fullLayer) => {
-					const targetLayer = project.layers.find((l) => l.id === fullLayer.id);
-					if (targetLayer) {
-						fullLayer.traits.forEach((fullTrait) => {
-							const targetTrait = targetLayer.traits.find((t) => t.id === fullTrait.id);
-							if (targetTrait && (!targetTrait.imageData || targetTrait.imageData.byteLength === 0)) {
-								targetTrait.imageData = fullTrait.imageData;
-							}
-						});
-					}
-				});
-				console.info('Project assets loaded in background');
-			}
-		} catch (error) {
-			console.warn('Failed to load project assets in background:', error);
-		}
-	}, 100);
-}
+// Background load disabled - app starts fresh on every page load
+// if (persistedProject) {
+// 	setTimeout(async () => {
+// 		try {
+// 			const fullProject = await persistenceService.loadProject();
+// 			if (fullProject) {
+// 				// Reconcile assets into the reactive project state
+// 				fullProject.layers.forEach((fullLayer) => {
+// 					const targetLayer = project.layers.find((l) => l.id === fullLayer.id);
+// 					if (targetLayer) {
+// 						fullLayer.traits.forEach((fullTrait) => {
+// 							const targetTrait = targetLayer.traits.find((t) => t.id === fullTrait.id);
+// 							if (targetTrait && (!targetTrait.imageData || targetTrait.imageData.byteLength === 0)) {
+// 								targetTrait.imageData = fullTrait.imageData;
+// 							}
+// 						});
+// 					}
+// 				});
+// 				console.info('Project assets loaded in background');
+// 			}
+// 		} catch (error) {
+// 			console.warn('Failed to load project assets in background:', error);
+// 		}
+// 	}, 100);
+// }
 
 // Export a simple store wrapper for components
 export const projectStore = {
