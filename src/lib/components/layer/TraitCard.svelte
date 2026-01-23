@@ -111,19 +111,6 @@
 		}
 	});
 
-	// Cleanup old imageUrl when trait.imageUrl changes
-	$effect(() => {
-		// Track the current imageUrl
-		const currentUrl = trait.imageUrl;
-
-		// Return cleanup function
-		return () => {
-			if (currentUrl) {
-				URL.revokeObjectURL(currentUrl);
-			}
-		};
-	});
-
 	onMount(() => {
 		if (!imageContainer) return;
 
@@ -151,7 +138,7 @@
 			observer = null;
 		}
 
-		// ObjectURL cleanup is handled by the $effect at line 116
+		// ObjectURL cleanup is handled by the global resource manager
 	});
 </script>
 
