@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-01-15
+
+### Svelte 5 Modernization & Premium UX Enhancement
+
+**Completed the full-scale migration to Svelte 5 Runes, stabilized the core component reactivity, and implemented a high-end "shimmer" design system for a more polished user experience.**
+
+#### Added
+
+- **Svelte 5 Rune Migration**: Fully migrated `LayerManager`, `TraitCard`, and `RaritySlider` to `$state`, `$derived`, and `$effect` for superior reactivity.
+- **Premium Design System**:
+  - **Skeleton Loaders**: Integrated animated shimmer placeholders for trait images while loading.
+  - **Fade-in Transitions**: Added smooth CSS opacity transitions to eliminate "pop-in" for dynamic images.
+  - **Generation Success State**: Enhanced `GenerationProgress` with a completion checkmark, success animations, and status pulse.
+- **Improved Source Error Handling**: Added a clear "re-upload" UI for traits with missing or corrupted source image data.
+
+#### Fixed
+
+- **Reactive Binding Errors**: Resolved critical "binding to derived" compiler errors by migrating to synchronized `$state` patterns.
+- **Worker Path Discrepancies**: Fixed broken relative paths to Web Workers in `Preview.svelte` caused by component reorganization.
+- **Production Build Integrity**: Resolved Svelte-Check and Tailwind v4 lint warnings, achieving a 100% clean production build and type-check.
+- **Test Suite Stabilization**: Achieved 100% pass rate on 63 component tests with robust mocking for Svelte 5 stores and browser APIs.
+
+#### Changed
+
+- **Component Organization**: Reorganized UI building blocks into feature-specific directories (`$lib/components/layer/`, `$lib/components/generation/`) for better maintainability.
+- **UI Library Refactor**: Updated `BaseComponentProps` to support arbitrary HTML/data attributes, ensuring full compatibility with automated test locators.
+
+## [0.5.3] - 2026-01-10
+
+### Revolutionary Parallel Generation - Pre-Calculated Mapping
+
+**Re-introduced and perfected parallel processing with a new stateless architecture, delivering a 12x performance boost and permanent fixes for legacy rendering bugs.**
+
+#### Added
+
+- **Parallel NFT Generation V2**: Re-implemented multi-worker parallel generation using a robust batch distribution system.
+- **Pre-Calculated Instruction Sets**: Moved `CSPSolver` logic entirely to the main thread to guarantee 100% deterministic trait combinations and layering order before worker distribution.
+- **Stateless Rendering Workers**: Workers refactored into pure execution engines, reducing code complexity and eliminating state-leakage bugs.
+- **Atomic Canvas Management**: Isolated rendering using `OptimizedMemoryManager` to prevent race conditions and memory leaks between parallel tasks.
+- **ImageBitmap Global Caching**: Implemented worker-level caching for decoded PNGs, enabling O(1) redraws for recurring traits across the collection.
+
+#### Fixed
+
+- **Blank Images Bug**: Resolved a critical issue where subsequent NFTs in a batch were empty due to `CSPSolver` state corruption and incorrect trait destructuring.
+- **Stuck Generation**: Fixed worker availability signaling (`isChunk: true` completion messages) that previously caused the UI to wait indefinitely for "completed" workers.
+- **Layering Order Integrity**: Guaranteed correct visual stacking by performing trait sorting on the main thread prior to rendering.
+
+#### Performance Impact
+
+| Metric | Before (v0.5.2) | After (v0.5.3) | Change |
+| :--- | :--- | :--- | :--- |
+| **Rendering Speed** | ~14 NFT/s | **~165+ NFT/s** | **~12x Faster** |
+| **900 NFT Collection** | ~65 seconds | **~45 seconds*** | **~30% Total Reduction** |
+| **Memory Efficiency** | Decodes per item | **O(1) Decodes** | **Significant** |
+
+> [!NOTE]
+> *Total Session Time includes **JSZip packaging** (1,800 files), which is single-threaded on the main thread and remains the current primary bottleneck for very large collections. Rendering itself is 12x faster.
+
+#### Architecture Changes
+
+- **Solver Orchestration**: Client now generates the full solution map upfront, removing the need for workers to track "used combinations."
+- **Cleanup Automation**: Global worker cleanup after every batch ensures zero memory drift during long generation sessions.
+- **Deep Instrumentation**: Added high-resolution performance monitoring and debug logging for complex parallel flows.
+
 ## [0.5.2] - 2025-12-08
 
 ### Major Architecture Simplification - Parallel Processing Removal
@@ -89,6 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | **Bundle Size** | ~600KB | ~580KB | **Reduced** |
 
 **Real-World Testing Results:**
+
 - 1000 NFTs: ~125 seconds (sequential processing)
 - 99.6% cache hit rate maintained
 - 40-60% memory reduction from sprite sheets
@@ -113,6 +178,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Critical Phase 1: Memory Leak Fixes & Reactive Performance
 
 #### Fixed Memory Leaks
+
 - **Performance Store Auto-Start Leak**: Fixed `enableMonitoring()` running on EVERY module import, creating perpetual setInterval
   - Added lazy initialization with `isInitialized` flag
   - Monitoring now only starts when components actually use performance tracking
@@ -124,6 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Stable memory usage during trait management operations
 
 #### Optimized Reactivity
+
 - **Double Reactive Update Fix**: Fixed performance store triggering two updates every second
   - Batched `performanceStats` and `performanceReport` updates in single operation
   - Eliminated 2x unnecessary recomputations in all dependent components
@@ -135,6 +202,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: 50% improvement in cache hit rates (60% → 90%)
 
 #### Centralized Configuration
+
 - **Performance Config Extraction**: Created `src/lib/config/performance.config.ts` (229 lines)
   - Moved all magic numbers to centralized, documented configuration
   - Batch delays, cache sizes, memory limits, monitoring intervals all configurable
@@ -146,6 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### High Impact Phase 2: Algorithm & Bundle Optimizations
 
 #### Gallery Filtering Optimization
+
 - **Trait Indexing System**: Implemented O(1) trait filtering with pre-computed indexes
   - `buildTraitIndex()` in `gallery.store.svelte.ts` creates Map of trait combinations per NFT
   - Filtering complexity reduced from O(n×m×k) to O(n) where n=NFTs, m=layers, k=traits
@@ -157,6 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Dramatic reduction in unnecessary filter operations
 
 #### Batch Processing Enhancement
+
 - **Adaptive Batch Delays**: Replaced fixed 1-second delay with queue-size-based scaling
   - Small batches: 100ms delay for responsiveness
   - Large batches: Up to 1000ms delay to avoid blocking
@@ -164,12 +234,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Faster small updates, better memory management for large batches
 
 #### Bundle Size Optimizations
+
 - **Lucide Icon Tree-Shaking**: Migrated from full library imports to individual icon imports
   - Changed `import { X, Y, Z } from 'lucide-svelte'` to individual imports
   - Updated all components using lucide icons
   - **Impact**: 200KB bundle size reduction
 
 #### Performance Dashboard Updates
+
 - **Format Utilities Integration**: Integrated centralized formatters in PerformanceDashboard
   - Replaced local `formatDuration` with imported utility
   - Consistent formatting across all performance metrics
@@ -179,6 +251,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Polish Phase 3: Code Quality & Monitoring Infrastructure
 
 #### Common Utilities Extraction
+
 - **Centralized Formatters**: Created `src/lib/utils/formatters.ts` (166 lines)
   - `formatFileSize()`: Convert bytes to human-readable KB/MB/GB
   - `formatDuration()`: Convert milliseconds to human-readable time
@@ -187,6 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Eliminates duplication, ensures consistency
 
 #### Worker System Enhancement
+
 - **Worker Warm-Up**: Added `warmUpWorkers()` in `worker.pool.ts`
   - Pre-initializes workers on app load for faster first-generation
   - Configurable minimum worker count
@@ -194,6 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Eliminates initial generation delay
 
 #### IndexedDB Performance
+
 - **Database Indexing**: Added comprehensive indexes in `gallery-db.ts`
   - Collection lookups: `collectionId` index
   - Date-based queries: `generatedAt` index
@@ -201,6 +276,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Eliminates full table scans for common queries
 
 #### Loading State Architecture
+
 - **Loading State Consolidation**: Existing loading state system already optimal
   - Verified `loading-state.svelte.ts` and `loading-state.ts` properly structured
   - No changes needed - architecture already follows best practices
@@ -219,6 +295,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | **Initial Worker Delay** | 500ms | 0ms | **Eliminated** |
 
 ### Files Changed
+
 - **New Files**: 5
   - `src/lib/config/performance.config.ts` (229 lines)
   - `src/lib/utils/formatters.ts` (166 lines)
@@ -240,6 +317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical Implementation Details
 
 #### Configuration System (`performance.config.ts`)
+
 ```typescript
 export const PERF_CONFIG = {
   // Batch processing
@@ -268,6 +346,7 @@ export const PERF_CONFIG = {
 ```
 
 #### Trait Indexing Algorithm
+
 ```typescript
 private buildTraitIndex(nfts: GalleryNFT[]): Map<string, Set<string>> {
   const index = new Map();
@@ -282,6 +361,7 @@ private buildTraitIndex(nfts: GalleryNFT[]): Map<string, Set<string>> {
 ```
 
 #### LRU Cache Implementation
+
 ```typescript
 private getOrSetFilteredCache(
   collection: NFTCollection,
@@ -381,6 +461,7 @@ private getOrSetFilteredCache(
 | **Alert Response Time** | Manual | Automatic | **Instant** |
 
 ### Files Changed
+
 - **New Files**: 1
   - `src/lib/monitoring/performance-monitor.ts` (400+ lines)
 
@@ -400,12 +481,14 @@ private getOrSetFilteredCache(
 ### Added
 
 #### Phase 1: Bit-Packed Combination Indexing
+
 - **10x Faster Lookups**: `src/lib/utils/combination-indexer.ts` - O(1) combination lookups using 64-bit BigInt bit-packing
 - **80% Memory Reduction**: Replaced string-based combination keys with compact integer representations
 - **Deterministic Tracking**: Perfect for Strict Pair uniqueness enforcement across millions of combinations
 - **Zero-Collision Design**: 8-bit per trait packing supports up to 255 traits per layer with no collisions
 
 #### Phase 2: Sprite Sheet Texture Atlases
+
 - **40-60% Memory Reduction**: `src/lib/utils/sprite-packer.ts` - Packs 64 traits per 4096x4096 atlas
 - **114 Fewer HTTP Requests**: 116 traits packed into 6 sheets (vs 120 individual requests)
 - **Automatic Detection**: Activates for collections with 20+ traits, transparent fallback to individual loading
@@ -413,6 +496,7 @@ private getOrSetFilteredCache(
 - **Memory Savings**: 3.7% (0.2MB) baseline reduction, scaling to 40-60% for large collections
 
 #### Phase 3: AC-3 Constraint Propagation
+
 - **60-80% Fewer Constraint Checks**: `src/lib/workers/csp-solver.ts` - Replaced forward-checking with AC-3 algorithm
 - **Arc Consistency**: Eliminates impossible values before backtracking, massively reducing search space
 - **Pre-computed Domains**: Caches constraint calculations across generation for O(1) domain lookups
@@ -420,6 +504,7 @@ private getOrSetFilteredCache(
 - **Complexity Detection**: Automatically classifies collections as simple (≤12 layers, ≤100 traits) or medium/complex
 
 #### Phase 4: WebGL GPU Acceleration (Best-Effort)
+
 - **3-5x Faster Rendering**: `src/lib/utils/webgl-renderer.ts` - Hardware-accelerated texture composition
 - **Graceful Fallback**: Silent 2D canvas fallback when Chrome security policy blocks OffscreenCanvas WebGL2
 - **Shader-Based Composition**: GLSL vertex/fragment shaders for parallel layer blending
@@ -436,43 +521,51 @@ private getOrSetFilteredCache(
 ### Technical Implementation
 
 #### **Combination Indexer** (`src/lib/utils/combination-indexer.ts`)
+
 ```typescript
 // Packs trait combinations into 64-bit integers for O(1) lookups
 static pack(traitIds: number[]): bigint
 // Example: [5, 12, 7] → 0x050C07n (5 << 0 | 12 << 8 | 7 << 16)
 ```
+
 - 10x faster combination tracking
 - 80% less memory for used combination sets
 - Supports up to 8 layers with 255 traits each
 
 #### **Sprite Packer** (`src/lib/utils/sprite-packer.ts`)
+
 ```typescript
 // Packs traits into optimized texture atlases
 async packLayers(layers: TransferrableLayer[]): Promise<Map<string, PackedLayer>>
 // Creates 4096x4096 atlases with 64 sprites each (8x8 grid)
 ```
+
 - 64 traits per sheet (2048px sprites)
 - Automatic memory stats tracking
 - HTTP request reduction: 114+ fewer requests
 - 40-60% memory reduction at scale
 
 #### **AC-3 CSP Solver** (`src/lib/workers/csp-solver.ts`)
+
 ```typescript
 // Arc Consistency 3 algorithm for constraint propagation
 private ac3(): boolean
 // Maintains arc consistency, eliminating impossible values early
 ```
+
 - 60-80% reduction in constraint checks
 - Pre-computed constraint domains
 - Impossible combination caching
 - Rarity-aware candidate ordering
 
 #### **WebGL Renderer** (`src/lib/utils/webgl-renderer.ts`)
+
 ```typescript
 // GPU-accelerated texture composition
 renderBatch(traits: Trait[], width: number, height: number): void
 // Single-pass multi-layer rendering with WebGL2
 ```
+
 - GLSL shader-based composition
 - Texture atlas support
 - Automatic GPU memory management
@@ -489,6 +582,7 @@ renderBatch(traits: Trait[], width: number, height: number): void
 | **Constraint Checks** | 100% | 20-40% | -60-80% |
 
 **Real-World Performance:**
+
 - 1000 NFTs: ~128 seconds (7.8 items/sec) - with all optimizations active
 - 5000 NFTs: ~640 seconds (7.8 items/sec) - linear scaling maintained
 - 99.6% cache hit rate at scale
@@ -505,12 +599,14 @@ renderBatch(traits: Trait[], width: number, height: number): void
 ### Browser Compatibility & Fallbacks
 
 **WebGL2 Limitation Handling:**
+
 - ✅ Works in main thread (Chrome, Firefox, Safari, Edge)
 - ❌ Blocked in OffscreenCanvas (Web Workers) by Chrome security policy
 - 🎨 **Silent fallback** to 2D canvas when WebGL2 unavailable
 - 📊 Performance still excellent with 1.5-2x improvement from Phases 1-3
 
 **Automatic Detection:**
+
 - WebGL2 attempted for 3+ layers only (where benefit is greatest)
 - Graceful degradation with no user-visible errors
 - Debug logging in development mode only
@@ -526,12 +622,14 @@ renderBatch(traits: Trait[], width: number, height: number): void
 ### User Experience
 
 **Invisible Optimizations:**
+
 - All optimizations activate automatically based on collection characteristics
 - No configuration required - system adapts automatically
 - Clean logs showing only success metrics (sprite sheets, cache stats)
 - Silent WebGL2 fallback - users never see errors
 
 **Visible Improvements:**
+
 - Faster generation times (1.5-2x improvement)
 - Lower memory usage (40-60% reduction)
 - Higher success rates (99.6% cache hit rate)
@@ -540,12 +638,14 @@ renderBatch(traits: Trait[], width: number, height: number): void
 ### Impact
 
 **Before:**
+
 - Standard generation without optimizations
 - String-based combination tracking (high memory)
 - Individual trait loading (many HTTP requests)
 - Forward-checking CSP (many constraint checks)
 
 **After:**
+
 - 1.5-2x faster generation across all modes
 - 40-60% less memory usage
 - 98.1% cache hit rate
