@@ -25,7 +25,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { getImageDimensions } from '$lib/utils';
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import NeedsReupload from '$lib/components/ui/NeedsReupload.svelte';
 
@@ -93,14 +93,14 @@
 		layer: Layer;
 	}
 
-	let { layer = $bindable() }: Props = $props();
+	let { layer }: Props = $props();
 
-	let layerName = $derived(layer.name);
 	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
 
 	let isEditing = $state(false);
+	let editedName = $state(''); // Only used during editing
 	let fileInputElement: HTMLInputElement | null = $state(null); // Reference to file input element
 	let isDragover = $state(false);
 	let isExpanded = $state(true);
@@ -186,25 +186,29 @@
 	}
 
 	async function handleNameChange() {
-		if (layerName.trim() === '') {
+		if (editedName.trim() === '') {
 			await showValidationError('Layer name cannot be empty.');
-			layerName = layer.name; // Revert to original name
+			isEditing = false;
 			return;
 		}
 
-		if (layerName.length > 100) {
+		if (editedName.length > 100) {
 			await showValidationError('Layer name cannot exceed 100 characters.');
-			layerName = layer.name; // Revert to original name
+			isEditing = false;
 			return;
 		}
 
-		updateLayerName(layer.id, layerName);
+		updateLayerName(layer.id, editedName);
 		isEditing = false;
 	}
 
 	function cancelEdit() {
-		layerName = layer.name;
 		isEditing = false;
+	}
+
+	function startEditing() {
+		editedName = layer.name;
+		isEditing = true;
 	}
 
 	async function handleDeleteLayer() {
@@ -382,19 +386,9 @@
 						const blob = new Blob([trait.imageData], { type: 'image/png' });
 						const newUrl = URL.createObjectURL(blob);
 						img.src = newUrl;
-						// Update the trait in the layer to trigger reactivity
-						const layerIndex = project.layers.findIndex((l) => l.id === layerId);
-						if (layerIndex !== -1) {
-							const traitIndex = project.layers[layerIndex].traits.findIndex(
-								(t: any) => t.id === trait.id
-							);
-							if (traitIndex !== -1) {
-								project.layers[layerIndex].traits[traitIndex] = {
-									...project.layers[layerIndex].traits[traitIndex],
-									imageUrl: newUrl
-								};
-							}
-						}
+						untrack(() => {
+							trait.imageUrl = newUrl;
+						});
 					} catch (error) {
 						console.error('Failed to recreate image URL:', error);
 						img.style.display = 'none';
@@ -418,19 +412,9 @@
 				const blob = new Blob([trait.imageData], { type: 'image/png' });
 				const url = URL.createObjectURL(blob);
 				img.src = url;
-				// Update the trait in the layer to trigger reactivity
-				const layerIndex = project.layers.findIndex((l) => l.id === layerId);
-				if (layerIndex !== -1) {
-					const traitIndex = project.layers[layerIndex].traits.findIndex(
-						(t: any) => t.id === trait.id
-					);
-					if (traitIndex !== -1) {
-						project.layers[layerIndex].traits[traitIndex] = {
-							...project.layers[layerIndex].traits[traitIndex],
-							imageUrl: url
-						};
-					}
-				}
+				untrack(() => {
+					trait.imageUrl = url;
+				});
 				imgContainer.appendChild(img);
 			} catch (error) {
 				console.error('Failed to create image URL:', error);
@@ -617,7 +601,7 @@
 					<input
 						type="text"
 						class="border-primary text-foreground border-b bg-transparent text-lg font-medium focus:outline-none"
-						bind:value={layerName}
+						bind:value={editedName}
 						onchange={handleNameChange}
 						onkeydown={(e) => e.key === 'Enter' && handleNameChange()}
 					/>
@@ -632,7 +616,7 @@
 			</div>
 			{#if !isEditing}
 				<div class="flex space-x-1">
-					<Button variant="ghost" size="icon" onclick={() => (isEditing = true)}
+					<Button variant="ghost" size="icon" onclick={startEditing}
 						><Edit class="h-4 w-4" /></Button
 					>
 					<Button variant="ghost" size="icon" onclick={handleDeleteLayer}
@@ -823,7 +807,7 @@
 							{#each layer.traits as trait, i (trait.id)}
 								{#if trait.name.toLowerCase().includes(searchTerm.toLowerCase())}
 									<TraitCard
-										bind:trait={layer.traits[i]}
+										{trait}
 										layerId={layer.id}
 										selected={selectedTraits.has(createTraitId(trait.id))}
 										onToggleSelection={() => toggleTraitSelection(createTraitId(trait.id))}

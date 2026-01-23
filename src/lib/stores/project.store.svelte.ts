@@ -8,171 +8,47 @@ import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
 import type { StrictPairConfig } from '$lib/types/layer';
 import { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
 import { fileToArrayBuffer } from '$lib/utils';
-import {
-	validateDimensions,
-	validateProjectName,
-	validateLayerName,
-	validateTraitName,
-	validateRarityWeight
-} from '$lib/domain/validation';
-import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
+import { createLayerId, createTraitId } from '$lib/types/ids';
 import { globalResourceManager } from './resource-manager';
 import {
 	saveProjectToZip as saveProjectToZipImpl,
 	loadProjectFromZip as loadProjectFromZipImpl
 } from './file-operations';
-import { loadingStateManager } from './loading-state';
-import { performanceMonitor, timed } from '$lib/utils/performance-monitor';
+import { loadingStateManager, type LoadingState } from './loading-state';
+import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { calculateAdaptiveDelay } from '$lib/config/performance.config';
-
-// Local storage key
-const PROJECT_STORAGE_KEY = 'nft-studio-project';
-
-// State persistence functions
-interface PersistedTrait {
-	id: string;
-	name: string;
-	rarityWeight: number;
-	type?: import('$lib/types/layer').TraitType;
-	rulerRules?: import('$lib/types/layer').RulerRule[];
-}
-
-interface PersistedLayer {
-	id: string;
-	name: string;
-	order: number;
-	isOptional?: boolean;
-	traits: PersistedTrait[];
-}
-
-interface PersistedProject {
-	id: string;
-	name: string;
-	description: string;
-	outputSize: { width: number; height: number };
-	metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
-	layers: PersistedLayer[];
-	strictPairConfig?: StrictPairConfig;
-	_needsProperLoad: boolean;
-}
-
-function persistProject(projectToPersist: Project): void {
-	// Calculate total traits
-	const totalTraits = projectToPersist.layers.reduce((sum, layer) => sum + layer.traits.length, 0);
-
-	// Always persist metadata to localStorage as backup (even for projects with traits)
-	// AutoSave handles full persistence with image data, but we save metadata as fallback
-	try {
-		// Create a metadata-only version for localStorage backup
-		const metadataBackup: PersistedProject = {
-			id: projectToPersist.id,
-			name: projectToPersist.name,
-			description: projectToPersist.description,
-			outputSize: projectToPersist.outputSize,
-			metadataStandard: projectToPersist.metadataStandard,
-			layers: projectToPersist.layers.map((layer) => ({
-				id: layer.id,
-				name: layer.name,
-				order: layer.order,
-				isOptional: layer.isOptional,
-				traits: layer.traits.map((trait) => ({
-					id: trait.id,
-					name: trait.name,
-					rarityWeight: trait.rarityWeight,
-					type: trait.type,
-					rulerRules: trait.rulerRules
-				}))
-			})),
-			strictPairConfig: projectToPersist.strictPairConfig,
-			_needsProperLoad: totalTraits > 0
-		};
-
-		localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(metadataBackup));
-	} catch (error) {
-		console.warn('Failed to persist project metadata:', error);
-	}
-}
-
-function loadPersistedProject(): Project | null {
-	try {
-		const persisted = localStorage.getItem(PROJECT_STORAGE_KEY);
-		if (!persisted) {
-			return null;
-		}
-
-		const parsedProject = JSON.parse(persisted) as PersistedProject;
-
-		// Validate that we have the required structure
-		if (!parsedProject.id || !parsedProject.name || !Array.isArray(parsedProject.layers)) {
-			console.warn('Invalid persisted project structure');
-			return null;
-		}
-
-		// Check if project has any traits - if so, verify they have image data
-		const totalTraits = parsedProject.layers.reduce((sum, layer) => sum + layer.traits.length, 0);
-
-		// Convert persisted data back to full Project type
-		const fullProject: Project = {
-			id: parsedProject.id as ProjectId,
-			name: parsedProject.name,
-			description: parsedProject.description,
-			outputSize: parsedProject.outputSize,
-			layers: parsedProject.layers.map((layer) => ({
-				id: layer.id as LayerId,
-				name: layer.name,
-				order: layer.order,
-				isOptional: layer.isOptional,
-				traits: layer.traits.map((trait) => ({
-					id: trait.id as TraitId,
-					name: trait.name,
-					imageData: new ArrayBuffer(0), // Empty - needs to be reloaded
-					rarityWeight: trait.rarityWeight,
-					type: trait.type,
-					rulerRules: trait.rulerRules
-				}))
-			})),
-			strictPairConfig: parsedProject.strictPairConfig,
-			_needsProperLoad: true
-		};
-
-		// If we have trait metadata but no image data, mark as needing proper load
-		if (totalTraits > 0) {
-			fullProject._needsProperLoad = true;
-		}
-
-		return fullProject;
-	} catch (error) {
-		console.warn('Failed to load persisted project:', error);
-		return null;
-	}
-}
-
-function clearPersistedProject(): void {
-	try {
-		localStorage.removeItem(PROJECT_STORAGE_KEY);
-	} catch (error) {
-		console.warn('Failed to clear persisted project:', error);
-	}
-}
-
-// Default project
-function defaultProject(): Project {
-	return {
-		id: createProjectId(crypto.randomUUID()),
-		name: 'My NFT Collection',
-		description: 'A collection of unique NFTs',
-		outputSize: {
-			width: 0,
-			height: 0
-		},
-		layers: [],
-		_needsProperLoad: true
-	};
-}
+import { persistenceService } from '../services/persistence.service';
+import { validationService } from '../services/validation.service';
 
 // Initialize project with persisted data or default
-const persistedProject = loadPersistedProject();
-export const project = $state<Project>(persistedProject || defaultProject());
+const persistedProject = persistenceService.loadMetadataSync();
+export const project = $state<Project>(persistedProject || validationService.createDefaultProject());
+
+// Background load of full project assets if we have metadata
+if (persistedProject) {
+	setTimeout(async () => {
+		try {
+			const fullProject = await persistenceService.loadProject();
+			if (fullProject) {
+				// Reconcile assets into the reactive project state
+				fullProject.layers.forEach((fullLayer) => {
+					const targetLayer = project.layers.find((l) => l.id === fullLayer.id);
+					if (targetLayer) {
+						fullLayer.traits.forEach((fullTrait) => {
+							const targetTrait = targetLayer.traits.find((t) => t.id === fullTrait.id);
+							if (targetTrait && (!targetTrait.imageData || targetTrait.imageData.byteLength === 0)) {
+								targetTrait.imageData = fullTrait.imageData;
+							}
+						});
+					}
+				});
+				console.info('Project assets loaded in background');
+			}
+		} catch (error) {
+			console.warn('Failed to load project assets in background:', error);
+		}
+	}, 100);
+}
 
 // Export a simple store wrapper for components
 export const projectStore = {
@@ -185,31 +61,17 @@ export const projectStore = {
 	getActiveLayerCombinations
 };
 
-// Auto-persist project when it changes using a proxy approach
-// eslint-disable-next-line prefer-const
-let persistTimeout: ReturnType<typeof setTimeout> | null = null;
-
-function schedulePersist() {
-	if (persistTimeout) {
-		clearTimeout(persistTimeout);
-	}
-	persistTimeout = setTimeout(() => {
-		persistProject(project);
-		persistTimeout = null;
-	}, 500); // Debounce persistence to avoid excessive writes
-}
-
 // Enhanced state setters with automatic persistence
 export function updateProject(updates: Partial<Project>): void {
 	Object.assign(project, updates);
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void {
 	const layerIndex = project.layers.findIndex((l) => l.id === layerId);
 	if (layerIndex !== -1) {
 		Object.assign(project.layers[layerIndex], updates);
-		schedulePersist();
+		persistenceService.schedulePersist(project);
 	}
 }
 
@@ -219,7 +81,7 @@ export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial
 		const traitIndex = layer.traits.findIndex((t) => t.id === traitId);
 		if (traitIndex !== -1) {
 			Object.assign(layer.traits[traitIndex], updates);
-			schedulePersist();
+			persistenceService.schedulePersist(project);
 		}
 	}
 }
@@ -270,25 +132,20 @@ function processBatchQueue(): void {
 	}
 
 	// Persist once for all updates
-	persistProject(project);
+	persistenceService.saveProject(project);
 }
 
 function scheduleBatchPersist(): void {
-	// Clear existing timeout
 	if (batchTimeout) {
 		clearTimeout(batchTimeout);
 	}
 
-	// Calculate adaptive delay based on queue size
-	// Small batches: faster updates (100ms)
-	// Large batches: slower updates (up to 1000ms) to avoid blocking
 	const delay = calculateAdaptiveDelay(batchQueue.length);
 
-	// Set new timeout for batch completion
 	batchTimeout = setTimeout(() => {
 		processBatchQueue();
 		batchTimeout = null;
-	}, delay); // Adaptive delay based on queue size
+	}, delay);
 }
 
 export function updateTraitsBatch(
@@ -298,7 +155,6 @@ export function updateTraitsBatch(
 		updates: Partial<Trait>;
 	}>
 ): void {
-	// Add all updates to batch queue
 	for (const update of updates) {
 		batchQueue.push({
 			layerId: update.layerId,
@@ -307,7 +163,6 @@ export function updateTraitsBatch(
 			type: 'trait'
 		});
 	}
-
 	scheduleBatchPersist();
 }
 
@@ -317,7 +172,6 @@ export function updateLayersBatch(
 		updates: Partial<Layer>;
 	}>
 ): void {
-	// Add all updates to batch queue
 	for (const update of updates) {
 		batchQueue.push({
 			layerId: update.layerId,
@@ -325,25 +179,20 @@ export function updateLayersBatch(
 			type: 'layer'
 		});
 	}
-
 	scheduleBatchPersist();
 }
 
 export function addTraitsBatch(layerId: LayerId, traits: Trait[]): void {
 	const layerIndex = project.layers.findIndex((l) => l.id === layerId);
 	if (layerIndex !== -1) {
-		// Add traits immediately to the project (for UI responsiveness)
 		project.layers[layerIndex].traits.push(...traits);
 
-		// Track object URLs for cleanup
 		traits.forEach((trait) => {
 			if (trait.imageUrl) {
 				globalResourceManager.addObjectUrl(trait.imageUrl);
 			}
 		});
 	}
-
-	// Schedule persistence through unified batch system
 	scheduleBatchPersist();
 }
 
@@ -356,8 +205,6 @@ export function flushBatch(): void {
 		batchTimeout = null;
 	}
 }
-
-import type { LoadingState } from './loading-state';
 
 // Derived state functions
 export function isProjectValid(): boolean {
@@ -377,44 +224,32 @@ export function projectNeedsZipLoad(): boolean {
 	return project._needsProperLoad ?? true;
 }
 
-// Resource management is handled by the dedicated resource manager
-// Use globalResourceManager for URL tracking and cleanup
-
 // Project management functions
 export function updateProjectName(name: string): void {
-	const result = validateProjectName(name);
-	if (!result.success) {
-		throw new Error(result.error);
-	}
+	validationService.validateProjectName(name);
 	project.name = name;
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectDescription(description: string): void {
 	project.description = description;
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectMetadataStandard(standard: MetadataStandard): void {
 	project.metadataStandard = standard;
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectDimensions(dimensions: ProjectDimensions): void {
-	const result = validateDimensions(dimensions.width, dimensions.height);
-	if (!result.success) {
-		throw new Error(result.error);
-	}
+	validationService.validateDimensions(dimensions);
 	project.outputSize = dimensions;
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 // Layer management functions
 export function addLayer(name: string): void {
-	const result = validateLayerName(name);
-	if (!result.success) {
-		throw new Error(result.error);
-	}
+	validationService.validateLayerName(name);
 
 	const newLayer: Layer = {
 		id: createLayerId(crypto.randomUUID()),
@@ -424,51 +259,40 @@ export function addLayer(name: string): void {
 	};
 
 	project.layers.push(newLayer);
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function removeLayer(layerId: LayerId): void {
 	const layerIndex = project.layers.findIndex((layer: Layer) => layer.id === layerId);
 	if (layerIndex === -1) return;
 
-	// Clean up object URLs for traits in this layer
 	const layer = project.layers[layerIndex];
 	layer.traits.forEach((trait: Trait) => {
 		if (trait.imageUrl) {
-			// Clear the imageUrl first to prevent DOM from trying to load it
 			const urlToRevoke = trait.imageUrl;
 			trait.imageUrl = undefined;
 			globalResourceManager.removeObjectUrl(urlToRevoke);
 		}
 	});
 
-	// Remove the layer
 	project.layers.splice(layerIndex, 1);
-
-	// Reorder remaining layers
 	project.layers.forEach((layer: Layer, index: number) => {
 		layer.order = index;
 	});
 
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function updateLayerName(layerId: LayerId, name: string): void {
-	const result = validateLayerName(name);
-	if (!result.success) {
-		throw new Error(result.error);
-	}
-
+	validationService.validateLayerName(name);
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
 	if (!layer) return;
-
 	layer.name = name;
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function reorderLayers(layerIds: LayerId[]): void {
 	const newLayers: Layer[] = [];
-
 	layerIds.forEach((layerId: LayerId, index: number) => {
 		const layer = project.layers.find((l: Layer) => l.id === layerId);
 		if (layer) {
@@ -476,52 +300,34 @@ export function reorderLayers(layerIds: LayerId[]): void {
 			newLayers.push(layer);
 		}
 	});
-
 	project.layers = newLayers;
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
-// Batch loading state to prevent multiple rapid updates
+// Batch loading state for traits
 const pendingTraitUpdates = new Map<string, { trait: Trait; layer: Layer; file: File }>();
+const pendingTraitPromises = new Map<TraitId, { resolve: () => void; reject: (error: Error) => void }>();
 
-// Track pending trait load promises for coordination
-type TraitLoadPromise = {
-	resolve: () => void;
-	reject: (error: Error) => void;
-};
-const pendingTraitPromises = new Map<TraitId, TraitLoadPromise>();
-
-// Process pending trait updates in batches
 async function processPendingTraitUpdates(): Promise<void> {
 	if (pendingTraitUpdates.size === 0) return;
 
 	const updates = Array.from(pendingTraitUpdates.values());
 	pendingTraitUpdates.clear();
 
-	// Process all pending updates
 	const results = await Promise.all(
 		updates.map(async ({ trait, layer, file }) => {
 			try {
 				const arrayBuffer = await fileToArrayBuffer(file);
 				trait.imageData = arrayBuffer;
-				// Create object URL for preview
 				const blob = new Blob([arrayBuffer], { type: file.type || 'image/png' });
 				trait.imageUrl = URL.createObjectURL(blob);
 				globalResourceManager.addObjectUrl(trait.imageUrl);
-
-				// Resolve the promise to signal completion
 				pendingTraitPromises.get(trait.id)?.resolve();
 				pendingTraitPromises.delete(trait.id);
-
 				return { trait, layer };
 			} catch (error) {
-				console.error(`Failed to load image for trait: ${trait.name}`, error);
-				// Remove the trait if loading fails
 				const traitIndex = layer.traits.findIndex((t: Trait) => t.id === trait.id);
-				if (traitIndex !== -1) {
-					layer.traits.splice(traitIndex, 1);
-				}
-				// Reject the promise to signal failure
+				if (traitIndex !== -1) layer.traits.splice(traitIndex, 1);
 				pendingTraitPromises.get(trait.id)?.reject(error as Error);
 				pendingTraitPromises.delete(trait.id);
 				return null;
@@ -529,24 +335,18 @@ async function processPendingTraitUpdates(): Promise<void> {
 		})
 	);
 
-	// Force a single reactivity update after all traits are loaded
 	const validResults = results.filter((r): r is { trait: Trait; layer: Layer } => r !== null);
 	for (const { trait, layer } of validResults) {
 		const traitIndex = layer.traits.findIndex((t: Trait) => t.id === trait.id);
-		if (traitIndex !== -1) {
-			layer.traits[traitIndex] = trait;
-		}
+		if (traitIndex !== -1) layer.traits[traitIndex] = trait;
 	}
 }
 
-// Debounced batch processing
 let batchTimeoutId: ReturnType<typeof setTimeout> | null = null;
 const BATCH_DELAY_MS = 100;
 
 function scheduleBatchUpdate() {
-	if (batchTimeoutId) {
-		clearTimeout(batchTimeoutId);
-	}
+	if (batchTimeoutId) clearTimeout(batchTimeoutId);
 	batchTimeoutId = setTimeout(() => {
 		processPendingTraitUpdates();
 		batchTimeoutId = null;
@@ -556,35 +356,26 @@ function scheduleBatchUpdate() {
 // Trait management functions
 export function addTrait(layerId: LayerId, file: File): Promise<void> {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
-	if (!layer) {
-		throw new Error(`Layer with ID ${layerId} not found`);
-	}
+	if (!layer) throw new Error(`Layer with ID ${layerId} not found`);
 
-	// Extract trait name from filename (remove extension) before validation
 	const traitName = file.name.replace(/\.[^/.]+$/, '');
-	const result = validateTraitName(traitName);
-	if (!result.success) {
-		throw new Error(result.error);
-	}
+	validationService.validateTraitName(traitName);
 
 	const newTrait: Trait = {
 		id: createTraitId(crypto.randomUUID()),
 		name: traitName,
-		imageData: new ArrayBuffer(0), // Will be populated async
+		imageData: new ArrayBuffer(0),
 		rarityWeight: 5
 	};
 
 	layer.traits.push(newTrait);
-
-	// Create a promise that resolves when the trait is fully loaded
 	const loadPromise = new Promise<void>((resolve, reject) => {
 		pendingTraitPromises.set(newTrait.id, { resolve, reject });
 	});
 
-	// Add to pending updates for batch processing
 	pendingTraitUpdates.set(newTrait.id, { trait: newTrait, layer, file });
 	scheduleBatchUpdate();
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 
 	return loadPromise;
 }
@@ -596,87 +387,49 @@ export function removeTrait(layerId: LayerId, traitId: TraitId): void {
 	const traitIndex = layer.traits.findIndex((trait: Trait) => trait.id === traitId);
 	if (traitIndex === -1) return;
 
-	// Clean up object URL
 	const trait = layer.traits[traitIndex];
-	if (trait.imageUrl) {
-		globalResourceManager.removeObjectUrl(trait.imageUrl);
-	}
+	if (trait.imageUrl) globalResourceManager.removeObjectUrl(trait.imageUrl);
 
 	layer.traits.splice(traitIndex, 1);
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string): void {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
 	if (!layer) return;
-
 	const trait = layer.traits.find((trait: Trait) => trait.id === traitId);
 	if (!trait) return;
-
-	const result = validateTraitName(name);
-	if (!result.success) {
-		throw new Error(result.error);
-	}
-
+	validationService.validateTraitName(name);
 	trait.name = name;
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
 export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeight: number): void {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
 	if (!layer) return;
-
 	const trait = layer.traits.find((trait: Trait) => trait.id === traitId);
 	if (!trait) return;
-
-	const result = validateRarityWeight(rarityWeight);
-	if (!result.success) {
-		throw new Error(result.error);
-	}
-
+	validationService.validateRarityWeight(rarityWeight);
 	trait.rarityWeight = rarityWeight;
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
 
-// Loading state management - delegated to loading state manager
-export function startLoading(operation: string): void {
-	loadingStateManager.startLoading(operation);
-}
+// Loading state delegation
+export function startLoading(op: string) { loadingStateManager.startLoading(op); }
+export function stopLoading(op: string) { loadingStateManager.stopLoading(op); }
+export function getLoadingState(op: string) { return loadingStateManager.getLoadingState(op); }
+export function startDetailedLoading(op: string, total = 100) { loadingStateManager.startDetailedLoading(op, total); }
+export function updateDetailedLoading(op: string, p: number, m?: string) { loadingStateManager.updateDetailedLoading(op, p, m); }
+export function stopDetailedLoading(op: string, s = true) { loadingStateManager.stopDetailedLoading(op, s); }
+export function getDetailedLoadingState(op: string) { return loadingStateManager.getDetailedLoadingState(op); }
 
-export function stopLoading(operation: string): void {
-	loadingStateManager.stopLoading(operation);
-}
-
-export function getLoadingState(operation: string): boolean {
-	return loadingStateManager.getLoadingState(operation);
-}
-
-export function startDetailedLoading(operation: string, total: number = 100): void {
-	loadingStateManager.startDetailedLoading(operation, total);
-}
-
-export function updateDetailedLoading(operation: string, progress: number, message?: string): void {
-	loadingStateManager.updateDetailedLoading(operation, progress, message);
-}
-
-export function stopDetailedLoading(operation: string, success: boolean = true): void {
-	loadingStateManager.stopDetailedLoading(operation, success);
-}
-
-export function getDetailedLoadingState(operation: string): LoadingState | undefined {
-	return loadingStateManager.getDetailedLoadingState(operation);
-}
-
-// Project persistence - delegated to file operations module
+// Project persistence
 export async function saveProjectToZip(): Promise<ArrayBuffer> {
 	const timerId = performanceMonitor.startTimer('project.saveProjectToZip');
 	startLoading('project-save');
 	startDetailedLoading('project-save', 100);
-
 	try {
-		// Save using the file operations module
 		const result = await saveProjectToZipImpl(project);
-
 		stopDetailedLoading('project-save');
 		stopLoading('project-save');
 		performanceMonitor.stopTimer(timerId);
@@ -693,24 +446,15 @@ export async function loadProjectFromZip(file: File): Promise<void> {
 	try {
 		startLoading('project-load');
 		startDetailedLoading('project-load', 100);
-
-		// Clean up existing resources before loading new project
 		globalResourceManager.cleanup();
-
-		// Load project using the dedicated file operations module
 		const loadedProject = await loadProjectFromZipImpl(file);
-
-		// Update project state
 		project.id = loadedProject.id;
 		project.name = loadedProject.name;
 		project.description = loadedProject.description || '';
 		project.outputSize = loadedProject.outputSize || { width: 0, height: 0 };
 		project.layers = loadedProject.layers;
 		project._needsProperLoad = false;
-
-		// Schedule persistence
-		schedulePersist();
-
+		persistenceService.schedulePersist(project);
 		stopDetailedLoading('project-load');
 		stopLoading('project-load');
 	} catch (error) {
@@ -724,63 +468,35 @@ export function markProjectAsLoaded(): void {
 	project._needsProperLoad = false;
 }
 
-// Cleanup
 export function cleanupAllResources(): void {
 	globalResourceManager.cleanup();
 }
 
-// Persistence management
 export function clearPersistedData(): void {
-	clearPersistedProject();
+	persistenceService.clearData();
 }
 
 export function hasPersistedData(): boolean {
-	try {
-		return localStorage.getItem(PROJECT_STORAGE_KEY) !== null;
-	} catch {
-		return false;
-	}
+	return persistenceService.hasData();
 }
 
-// Strict Pair management functions
+// Strict Pair management
 export function updateStrictPairConfig(projectId: ProjectId, config: StrictPairConfig): void {
-	if (project.id !== projectId) {
-		throw new Error('Project ID mismatch');
-	}
-
+	if (project.id !== projectId) throw new Error('Project ID mismatch');
 	project.strictPairConfig = { ...config };
-	schedulePersist();
+	persistenceService.schedulePersist(project);
 }
-
-export function getStrictPairConfig(): StrictPairConfig | undefined {
-	return project.strictPairConfig ? { ...project.strictPairConfig } : undefined;
-}
-
-export function isStrictPairEnabled(): boolean {
-	return project.strictPairConfig?.enabled ?? false;
-}
-
+export function getStrictPairConfig() { return project.strictPairConfig ? { ...project.strictPairConfig } : undefined; }
+export function isStrictPairEnabled() { return project.strictPairConfig?.enabled ?? false; }
 export function getActiveLayerCombinations(): string[] {
-	return (
-		project.strictPairConfig?.layerCombinations
-			.filter((layerCombination: any) => layerCombination.active)
-			.map((layerCombination: any) => layerCombination.id) ?? []
-	);
+	return project.strictPairConfig?.layerCombinations.filter((lc: any) => lc.active).map((lc: any) => lc.id) ?? [];
 }
 
 export function resetProject(): void {
-	// Clear existing resources
 	globalResourceManager.cleanup();
-
-	// Clear persisted data
-	clearPersistedProject();
-
-	// Reset to default project
-	const newProject = defaultProject();
-	project.id = newProject.id;
-	project.name = newProject.name;
-	project.description = newProject.description;
-	project.outputSize = newProject.outputSize;
-	project.layers = newProject.layers;
-	project._needsProperLoad = newProject._needsProperLoad;
+	persistenceService.clearData();
+	const newProject = validationService.createDefaultProject();
+	Object.assign(project, newProject);
+	project.layers = []; // Force clear layers even if default has some
+	project._needsProperLoad = true;
 }

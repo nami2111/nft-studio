@@ -101,10 +101,10 @@
 			style="transform: translateY({offsetY}px);"
 		>
 			{#each traits as trait, i (trait.id)}
-				{@const isVisible = visibleTraits.some(vt => vt.id === trait.id)}
+				{@const isVisible = visibleTraits.some((vt) => vt.id === trait.id)}
 				{#if isVisible}
 					<TraitCard
-						bind:trait={traits[i]}
+						{trait}
 						{layerId}
 						selected={selectedTraits.has(trait.id)}
 						onToggleSelection={() => onToggleSelection(trait.id)}

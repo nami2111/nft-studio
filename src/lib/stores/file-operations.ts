@@ -14,14 +14,12 @@ import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 import { globalResourceManager } from './resource-manager';
 
 /**
- * Save project to ZIP file format
+ * Save project to ZIP file format using a dedicated worker
  */
 export async function saveProjectToZip(project: Project): Promise<ArrayBuffer> {
 	return await measureOperation(
 		async () => {
-			const zip = new JSZip();
-
-			// Create project metadata
+			// Extract metadata-only version for the worker
 			const projectData = {
 				name: project.name,
 				description: project.description,
@@ -41,22 +39,58 @@ export async function saveProjectToZip(project: Project): Promise<ArrayBuffer> {
 				}))
 			};
 
-			zip.file('project.json', JSON.stringify(projectData, null, 2));
-
-			// Wait for all image data to be loaded before saving
+			// Wait for image data to be ready
 			await ensureAllImagesLoaded(project);
 
-			// Add trait images
+			// Collect images into expected format for worker
+			const imageFiles: Array<{ path: string; data: ArrayBuffer }> = [];
+			const transferables: ArrayBuffer[] = [];
+
 			for (const layer of project.layers) {
 				for (const trait of layer.traits) {
 					if (trait.imageData && trait.imageData.byteLength > 0) {
-						const imagePath = `images/${layer.id}/${trait.id}.png`;
-						zip.file(imagePath, trait.imageData);
+						imageFiles.push({
+							path: `images/${layer.id}/${trait.id}.png`,
+							data: trait.imageData
+						});
+						transferables.push(trait.imageData);
 					}
 				}
 			}
 
-			return await zip.generateAsync({ type: 'arraybuffer' });
+			// Offload to worker
+			return new Promise<ArrayBuffer>((resolve, reject) => {
+				const worker = new Worker(new URL('../workers/zip.worker.ts', import.meta.url), {
+					type: 'module'
+				});
+
+				const taskId = `zip-${Date.now()}`;
+
+				worker.onmessage = (e: MessageEvent) => {
+					const { type, payload } = e.data;
+					if (type === 'zip-complete') {
+						worker.terminate();
+						resolve(payload.buffer);
+					} else if (type === 'zip-error') {
+						worker.terminate();
+						reject(new Error(payload.message));
+					}
+				};
+
+				worker.onerror = (err) => {
+					worker.terminate();
+					reject(err);
+				};
+
+				worker.postMessage({
+					type: 'zip-project',
+					taskId,
+					payload: {
+						projectData: JSON.stringify(projectData),
+						imageFiles
+					}
+				}, transferables);
+			});
 		},
 		'file.saveProjectToZip',
 		{
@@ -105,10 +139,10 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 
 	try {
 		console.log(`[loadProjectFromZip] Starting to load project from: ${file.name} (${Math.round(file.size / 1024)}KB)`);
-		
+
 		// Use the enhanced fileToArrayBuffer with retry logic
 		const arrayBuffer = await fileToArrayBuffer(file, 3, 150);
-		
+
 		console.log(`[loadProjectFromZip] File read successfully, parsing ZIP...`);
 		const zip = await JSZip.loadAsync(arrayBuffer);
 

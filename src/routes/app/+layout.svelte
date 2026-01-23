@@ -3,7 +3,6 @@
 	// import { initSatellite } from '@junobuild/core';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
-	import AutoSave from '$lib/components/project/AutoSave.svelte';
 	import ModeSwitcher from '$lib/components/shared/ModeSwitcher.svelte';
 	import { cleanupAllResources } from '$lib/stores';
 	import '../../app.css';
@@ -102,8 +101,7 @@
 				{@render children?.()}
 			</ErrorBoundary>
 
-			<!-- Auto-save component for handling project persistence -->
-			<AutoSave />
+			<!-- Auto-save logic now handled by PersistenceService in projectStore -->
 		</div>
 	</main>
 	<Toaster position="top-right" />

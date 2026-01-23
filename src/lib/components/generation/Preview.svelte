@@ -7,7 +7,7 @@
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import Shuffle from '@lucide/svelte/icons/shuffle';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 
 	let canvas: HTMLCanvasElement | null = null;
 	let ctx = $state<CanvasRenderingContext2D | null>(null);
@@ -69,20 +69,22 @@
 	$effect(() => {
 		const { layers } = project;
 
-		// Use Set-based comparison for better performance than JSON.stringify
-		const previousSelectedIds = new Set(selectedTraitIds.filter((id): id is TraitId => id !== ''));
+		// Use untrack for selectedTraitIds to prevent reactivity loops
+		// This effect should only react to project.layers changes
+		const currentIds = untrack(() => selectedTraitIds);
+		const previousSelectedIds = new Set(currentIds.filter((id): id is TraitId => id !== ''));
 
 		const newSelectedTraits: (TraitId | '')[] = [];
 
 		for (let i = 0; i < layers.length; i++) {
 			const layer = layers[i];
-			const currentSelectedId = selectedTraitIds[i];
+			const currentSelectedId = currentIds[i];
 
 			// If current selection exists in new layer, keep it, otherwise use first trait
 			if (layer.traits.length > 0) {
 				const traitExists = layer.traits.some((trait: Trait) => trait.id === currentSelectedId);
 				if (traitExists) {
-					newSelectedTraits.push(currentSelectedId);
+					newSelectedTraits.push(currentSelectedId as TraitId);
 				} else {
 					newSelectedTraits.push(layer.traits[0].id);
 				}
@@ -91,15 +93,13 @@
 			}
 		}
 
-		// Fast Set-based comparison for detecting actual changes
+		// Fast comparison for detecting actual changes
 		const hasChanged =
-			newSelectedTraits.some((id, index) => id !== '' && !previousSelectedIds.has(id)) ||
-			newSelectedTraits.length !== selectedTraitIds.length;
+			newSelectedTraits.length !== currentIds.length ||
+			newSelectedTraits.some((id, index) => id !== currentIds[index]);
 
 		if (hasChanged) {
-			// Use a temporary variable to break the reactivity cycle
-			const updatedTraits = [...newSelectedTraits];
-			selectedTraitIds = updatedTraits;
+			selectedTraitIds = newSelectedTraits;
 		}
 	});
 

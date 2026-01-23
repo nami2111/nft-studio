@@ -79,7 +79,7 @@
 			<div class="space-y-3 sm:space-y-4">
 				{#each layers as layer, i (layer.id)}
 					<div class="group relative">
-						<LayerItem bind:layer={layers[i]} />
+						<LayerItem {layer} />
 						<div class="mt-2 flex justify-end gap-1">
 							<Button
 								variant="outline"

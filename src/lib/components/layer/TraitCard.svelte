@@ -11,7 +11,7 @@
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import Crown from '@lucide/svelte/icons/crown';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
 	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
 	import { project } from '$lib/stores';
@@ -25,7 +25,7 @@
 	}
 
 	let {
-		trait = $bindable(),
+		trait,
 		layerId,
 		selected = false,
 		onToggleSelection,
@@ -34,17 +34,10 @@
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(trait.id));
 
-	let traitName = $state(trait.name);
+	let editedName = $state(''); // Only used during editing
 	let isEditing = $state(false);
 	let isVisible = $state(false);
 	let isLoaded = $state(false);
-
-	// Sync local name with prop when not editing
-	$effect(() => {
-		if (!isEditing) {
-			traitName = trait.name;
-		}
-	});
 	let observer: IntersectionObserver | null = $state(null);
 
 	// Get current layer and all layers for ruler rules manager
@@ -65,19 +58,19 @@
 	}
 
 	function handleUpdateName() {
-		if (traitName.trim() === '') {
+		if (editedName.trim() === '') {
 			toast.error('Trait name cannot be empty.');
-			traitName = trait.name; // Revert
+			isEditing = false;
 			return;
 		}
 
-		if (traitName.length > 100) {
+		if (editedName.length > 100) {
 			toast.error('Trait name cannot exceed 100 characters.');
-			traitName = trait.name; // Revert
+			isEditing = false;
 			return;
 		}
 
-		updateTraitName(layerIdTyped, traitIdTyped, traitName);
+		updateTraitName(layerIdTyped, traitIdTyped, editedName);
 		toast.success('Trait name updated.');
 		isEditing = false;
 	}
@@ -93,8 +86,12 @@
 	}
 
 	function cancelEdit() {
-		traitName = trait.name;
 		isEditing = false;
+	}
+
+	function startEditing() {
+		editedName = trait.name;
+		isEditing = true;
 	}
 
 	let imageContainer: HTMLElement;
@@ -105,7 +102,9 @@
 			try {
 				const blob = new Blob([trait.imageData], { type: 'image/png' });
 				const url = URL.createObjectURL(blob);
-				trait.imageUrl = url;
+				untrack(() => {
+					trait.imageUrl = url;
+				});
 			} catch (error) {
 				console.error('Failed to create image URL:', error);
 			}
@@ -152,11 +151,7 @@
 			observer = null;
 		}
 
-		// Cleanup ObjectURL on component destroy
-		if (trait.imageUrl) {
-			URL.revokeObjectURL(trait.imageUrl);
-			trait.imageUrl = undefined;
-		}
+		// ObjectURL cleanup is handled by the $effect at line 116
 	});
 </script>
 
@@ -276,7 +271,7 @@
 		<div class="flex items-center justify-between">
 			{#if isEditing}
 				<input
-					bind:value={traitName}
+					bind:value={editedName}
 					class="border-foreground w-full border-b-2 bg-transparent text-sm font-medium focus:outline-none"
 					onkeydown={(e) => e.key === 'Enter' && handleUpdateName()}
 					data-testid="trait-name-input"
@@ -294,11 +289,8 @@
 					{trait.name}
 				</p>
 				<div class="flex gap-1">
-					<Button
-						variant="ghost"
-						size="icon"
-						onclick={() => (isEditing = true)}
-						data-testid="edit-button"><Edit class="h-4 w-4" /></Button
+					<Button variant="ghost" size="icon" onclick={startEditing} data-testid="edit-button"
+						><Edit class="h-4 w-4" /></Button
 					>
 					<Button
 						variant="ghost"

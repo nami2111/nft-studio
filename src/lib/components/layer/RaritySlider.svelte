@@ -12,15 +12,9 @@
 	const { rarityWeight, traitId, layerId }: Props = $props();
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(traitId));
-	let sliderValue = $state([1]);
 
-	// Sync local state with prop
-	$effect(() => {
-		const newVal = Math.max(1, Math.min(5, Math.round(rarityWeight || 1)));
-		if (sliderValue[0] !== newVal) {
-			sliderValue = [newVal];
-		}
-	});
+	// Derive the slider value from the prop
+	let sliderValue = $derived([Math.max(1, Math.min(5, Math.round(rarityWeight || 1)))]);
 
 	const rarityLabels: { [key: number]: string } = {
 		1: 'Mythic',
@@ -30,18 +24,15 @@
 		5: 'Common'
 	};
 
-	$effect(() => {
-		// This will run whenever sliderValue changes
-		if (sliderValue && sliderValue.length > 0) {
-			// Ensure the value is a valid integer between 1 and 5
-			const validValue = Math.max(1, Math.min(5, Math.round(sliderValue[0] || 3)));
-			// Only update if the value actually changed
-			if (validValue !== sliderValue[0]) {
-				sliderValue = [validValue];
+	// Handle slider change
+	function handleSliderChange(newValue: number[]) {
+		if (newValue && newValue.length > 0) {
+			const currentVal = Math.max(1, Math.min(5, Math.round(newValue[0] || 3)));
+			if (currentVal !== rarityWeight) {
+				updateTraitRarity(layerIdTyped, traitIdTyped, currentVal);
 			}
-			updateTraitRarity(layerIdTyped, traitIdTyped, validValue);
 		}
-	});
+	}
 </script>
 
 <div class="space-y-2" data-testid="rarity-slider" data-rarity={rarityWeight}>
@@ -52,7 +43,14 @@
 			></label
 		>
 	</div>
-	<Slider min={1} max={5} step={1} bind:value={sliderValue} class="w-full" />
+	<Slider
+		min={1}
+		max={5}
+		step={1}
+		value={sliderValue}
+		onValueChange={handleSliderChange}
+		class="w-full"
+	/>
 	<div class="text-muted-foreground flex justify-between text-xs">
 		<span>Rare</span>
 		<span>Common</span>
