@@ -84,7 +84,7 @@
 	});
 </script>
 
-<div class="container mx-auto max-w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
+<div class="w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
 	<!-- Project Management Section -->
 	<div class="mb-3 flex justify-start sm:mb-4">
 		<ProjectManagement />
@@ -123,7 +123,7 @@
 				{:else}
 					<button
 						onclick={loadLayerManager}
-						class="bg-card/95 hover:bg-card/100 w-full rounded-lg border p-4 shadow-sm backdrop-blur-sm transition-colors"
+						class="bg-card/95 hover:bg-card w-full rounded-lg border p-4 shadow-sm backdrop-blur-sm transition-colors"
 					>
 						<div class="flex items-center justify-center py-4">
 							<span class="text-muted-foreground text-sm">Click to load Layer Manager</span>

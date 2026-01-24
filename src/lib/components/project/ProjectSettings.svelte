@@ -142,7 +142,7 @@
 			Advanced Metadata
 		</h3>
 
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<div>
 				<label for="symbol" class="text-foreground block text-xs font-medium sm:text-sm"
 					>Symbol</label

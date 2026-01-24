@@ -200,10 +200,13 @@
 
 <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
 	{#if projectNeedsZipLoad()}
-		<Card class="border-border bg-muted mb-2 inline-flex border p-2 text-xs sm:text-sm">
+		<Card
+			class="border-border bg-muted mb-2 flex w-full border p-2 text-xs sm:inline-flex sm:w-auto sm:text-sm"
+		>
 			<CardContent class="flex items-center gap-2 p-0">
 				<AlertTriangle class="text-muted-foreground h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
-				<span class="text-foreground">Don't forget to save your Project first before generate.</span
+				<span class="text-foreground leading-tight"
+					>Don't forget to save your project before generating.</span
 				>
 			</CardContent>
 		</Card>
