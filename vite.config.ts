@@ -1,13 +1,13 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
-import { VitePWA } from 'vite-plugin-pwa';
+import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 
 export default defineConfig({
 	plugins: [
 		sveltekit(),
 		tailwindcss(),
-		VitePWA({
+		SvelteKitPWA({
 			registerType: 'autoUpdate',
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,json}'],
@@ -78,8 +78,10 @@ export default defineConfig({
 				lang: 'en',
 				orientation: 'portrait-primary'
 			},
+			injectRegister: 'script',
 			devOptions: {
-				enabled: false,
+				enabled: true,
+				suppressWarnings: true,
 				type: 'module'
 			}
 		})
