@@ -17,8 +17,40 @@
 	// Helper to clamp and round rarity values
 	const normalizeRarity = (val: number) => Math.max(1, Math.min(5, Math.round(val || 1)));
 
-	// Local state for the slider, initialized from prop
-	let sliderValue = $state([normalizeRarity(rarityWeight)]);
+	// Internal primitive state for the rarity value - THE single source of truth
+	let currentValue = $state(normalizeRarity(rarityWeight));
+
+	/**
+	 * Slider component from bits-ui/shadcn often flips between number and number[]
+	 * depending on 'type="single"' vs 'type="multiple"'.
+	 * We use a dedicated getter/setter to remain resilient.
+	 */
+	let sliderProxy = $state([currentValue]);
+
+	// Sync prop changes from outside (e.g. undo/redo, batch load)
+	$effect(() => {
+		const propVal = normalizeRarity(rarityWeight);
+		if (currentValue !== propVal) {
+			currentValue = propVal;
+			sliderProxy = [propVal];
+		}
+	});
+
+	// Sync local changes to store and proxy
+	$effect(() => {
+		// When sliderProxy changes, update currentValue
+		const val = Array.isArray(sliderProxy) ? sliderProxy[0] : sliderProxy;
+		const normalized = normalizeRarity(Number(val));
+
+		if (currentValue !== normalized) {
+			currentValue = normalized;
+			// Update store, but untrack rarityWeight to avoid feedback loops
+			const propVal = untrack(() => normalizeRarity(rarityWeight));
+			if (normalized !== propVal) {
+				untrack(() => updateTraitRarity(layerIdTyped, traitIdTyped, normalized));
+			}
+		}
+	});
 
 	const rarityLabels: Record<number, string> = {
 		1: 'Mythic',
@@ -28,30 +60,8 @@
 		5: 'Common'
 	};
 
-	// Update store when slider changes
-	$effect(() => {
-		const val = sliderValue[0];
-		// We only want to trigger this when sliderValue changes.
-		// We untrack rarityWeight so we don't re-run when the prop we just updated comes back.
-		const currentProp = untrack(() => normalizeRarity(rarityWeight));
-		if (val !== undefined && val !== currentProp) {
-			untrack(() => updateTraitRarity(layerIdTyped, traitIdTyped, val));
-		}
-	});
-
-	// Sync local state if prop changes from outside
-	$effect(() => {
-		const propVal = normalizeRarity(rarityWeight);
-		// We only want to trigger this when rarityWeight changes.
-		// We untrack sliderValue so we don't re-run when we update the slider ourselves.
-		if (untrack(() => normalizeRarity(sliderValue[0] ?? rarityWeight)) !== propVal) {
-			sliderValue = [propVal];
-		}
-	});
-
-	const currentLabel = $derived(
-		rarityLabels[normalizeRarity(sliderValue[0] ?? rarityWeight)] || 'Unknown'
-	);
+	// Derived label for the header - responds immediately to currentValue changes
+	const currentLabel = $derived(rarityLabels[currentValue] || 'Unknown');
 </script>
 
 <div class="space-y-3 py-1" data-testid="rarity-slider" data-rarity={rarityWeight}>
@@ -63,7 +73,7 @@
 			Rarity
 		</label>
 		<span
-			class="bg-primary/10 text-primary border-primary/20 rounded-full border px-2 py-0.5 text-xs font-bold"
+			class="bg-primary/10 text-primary border-primary/20 rounded-full border px-2 py-0.5 text-xs font-bold transition-all duration-200"
 			data-testid="rarity-value"
 		>
 			{currentLabel}
@@ -71,25 +81,27 @@
 	</div>
 
 	<div class="px-1">
-		<Slider min={1} max={5} step={1} bind:value={sliderValue} class="w-full" />
+		<Slider min={1} max={5} step={1} bind:value={sliderProxy} class="w-full" />
 	</div>
 
 	<div class="flex justify-between px-0.5">
 		<div class="flex flex-col items-center">
 			<div
-				class="h-1 w-1 rounded-full {sliderValue[0] === 1
+				class="h-1 w-1 rounded-full transition-colors {currentValue === 1
 					? 'bg-primary'
 					: 'bg-muted-foreground/30'}"
 			></div>
-			<span class="text-muted-foreground/50 mt-1 text-[9px]">Mythic</span>
+			<span class="text-muted-foreground/50 mt-1 text-[9px] tracking-tighter uppercase">Mythic</span
+			>
 		</div>
 		<div class="flex flex-col items-center">
 			<div
-				class="h-1 w-1 rounded-full {sliderValue[0] === 5
+				class="h-1 w-1 rounded-full transition-colors {currentValue === 5
 					? 'bg-primary'
 					: 'bg-muted-foreground/30'}"
 			></div>
-			<span class="text-muted-foreground/50 mt-1 text-[9px]">Common</span>
+			<span class="text-muted-foreground/50 mt-1 text-[9px] tracking-tighter uppercase">Common</span
+			>
 		</div>
 	</div>
 </div>
