@@ -16,12 +16,22 @@
 	let statusText = $derived(generationState.statusText);
 	let memoryUsage = $derived(generationState.memoryUsage);
 	let currentSessionId = $derived(generationState.sessionId);
+	let itemsPerSecond = $derived(generationState.itemsPerSecond);
+	let eta = $derived(generationState.eta);
 
 	function handleClearState() {
 		resetState();
 	}
 
 	let isCompleted = $derived(!isGenerating && !!generationState.completionTime && progress === 100);
+
+	function formatEta(seconds: number | null): string {
+		if (seconds === null || seconds < 0) return 'Estimating...';
+		if (seconds < 60) return `${Math.round(seconds)}s`;
+		const mins = Math.floor(seconds / 60);
+		const secs = Math.round(seconds % 60);
+		return `${mins}m ${secs}s`;
+	}
 </script>
 
 <div class="space-y-4 py-4">
@@ -72,7 +82,24 @@
 					</div>
 				</div>
 			{:else}
-				<p class="text-muted-foreground text-sm break-words" in:slide>{statusText}</p>
+				<div class="flex flex-col gap-1">
+					<p class="text-foreground text-sm font-medium wrap-break-word" in:slide>{statusText}</p>
+					{#if isGenerating && (itemsPerSecond || eta !== null)}
+						<div class="text-muted-foreground flex items-center gap-3 text-xs" in:fade>
+							{#if itemsPerSecond}
+								<span class="flex items-center gap-1">
+									<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500"></span>
+									{itemsPerSecond.toFixed(1)} items/s
+								</span>
+							{/if}
+							{#if eta !== null}
+								<span class="flex items-center gap-1">
+									⏱️ {formatEta(eta)} remaining
+								</span>
+							{/if}
+						</div>
+					{/if}
+				</div>
 			{/if}
 
 			<!-- Generation Status Details -->
