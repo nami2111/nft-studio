@@ -345,6 +345,15 @@
 				}
 			};
 
+			// Prepare extra metadata for strategies
+			const extraData = {
+				symbol: projectData.symbol,
+				seller_fee_basis_points: projectData.sellerFeeBasisPoints,
+				external_url: projectData.externalUrl,
+				animation_url: projectData.animationUrl,
+				creators: projectData.creators
+			};
+
 			// Start generation using the domain service with worker message handler
 			await startWorkerGeneration(
 				projectData.layers,
@@ -354,6 +363,7 @@
 				projectData.description || '',
 				projectData.metadataStandard,
 				projectData.strictPairConfig,
+				extraData,
 				workerMessageHandler
 			);
 		} catch (error) {

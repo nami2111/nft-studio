@@ -18,7 +18,11 @@ export class ERC721Strategy implements MetadataStrategy {
 		return {
 			name,
 			description,
-			image: imageName, // Usually expects an IPFS URL, but we generate local filename first
+			image: imageName,
+			external_url: extraData?.external_url as string | undefined,
+			animation_url: extraData?.animation_url as string | undefined,
+			youtube_url: extraData?.youtube_url as string | undefined,
+			background_color: extraData?.background_color as string | undefined,
 			attributes,
 			...extraData
 		};
@@ -37,30 +41,37 @@ export class SolanaStrategy implements MetadataStrategy {
 		attributes: MetadataAttribute[],
 		extraData?: Record<string, unknown>
 	): GeneratedMetadata {
-		// Solana specific defaults
 		const symbol = (extraData?.symbol as string) || '';
 		const sellerFeeBasisPoints = (extraData?.seller_fee_basis_points as number) || 0;
-		const creators = (extraData?.creators as unknown[]) || [];
+		const creators = (extraData?.creators as any[]) || [];
 		const collection = (extraData?.collection as Record<string, unknown>) || {};
+		const externalUrl = (extraData?.external_url as string) || '';
 
 		return {
 			name,
 			symbol,
 			description,
-			image: imageName,
 			seller_fee_basis_points: sellerFeeBasisPoints,
+			image: imageName,
+			external_url: externalUrl,
 			attributes,
+			collection,
 			properties: {
 				files: [
 					{
 						uri: imageName,
 						type: 'image/png'
-					}
+					},
+					...(extraData?.animation_url
+						? [{ uri: extraData.animation_url as string, type: 'video/mp4' }]
+						: [])
 				],
-				category: 'image',
-				creators
+				category: extraData?.animation_url ? 'video' : 'image',
+				creators: creators.map((c) => ({
+					address: c.address || c,
+					share: c.share !== undefined ? c.share : 100
+				}))
 			},
-			collection,
 			...extraData
 		};
 	}

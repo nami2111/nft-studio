@@ -43,6 +43,7 @@ export async function startGeneration(
 	projectDescription: string,
 	metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard,
 	strictPairConfig?: StrictPairConfig,
+	extraData?: Record<string, unknown>,
 	onMessage?: (
 		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
 	) => void
@@ -134,7 +135,8 @@ export async function startGeneration(
 					outputSize,
 					projectName,
 					projectDescription,
-					metadataStandard
+					metadataStandard,
+					extraData
 				}
 			};
 

@@ -48,6 +48,11 @@ export interface Project {
 	description: string;
 	outputSize: ProjectDimensions;
 	metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
+	symbol?: string;
+	sellerFeeBasisPoints?: number;
+	externalUrl?: string;
+	animationUrl?: string;
+	creators?: { address: string; share: number }[];
 	layers: Layer[];
 	/** Strict Pair configuration for trait combination uniqueness */
 	strictPairConfig?: import('./layer').StrictPairConfig;

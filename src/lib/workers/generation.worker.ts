@@ -139,7 +139,8 @@ async function generateIsolatedItem(
     targetHeight: number,
     projectName: string,
     projectDescription: string,
-    metadataStandard: MetadataStandard = MetadataStandard.ERC721
+    metadataStandard: MetadataStandard = MetadataStandard.ERC721,
+    extraData?: Record<string, unknown>
 ): Promise<QueuedGeneratedItem | undefined> {
     const canvas = memoryManager.getCanvas(targetWidth, targetHeight);
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -174,7 +175,8 @@ async function generateIsolatedItem(
             `${projectName} #${index + 1}`,
             projectDescription,
             `cid:image`,
-            attributes
+            attributes,
+            extraData
         );
 
         performanceMonitor.recordProcessing(performance.now() - generationStartTime);
@@ -208,7 +210,8 @@ async function handleBatchGeneration(
     projectName: string,
     projectDescription: string,
     taskId?: TaskId,
-    metadataStandard: MetadataStandard = MetadataStandard.ERC721
+    metadataStandard: MetadataStandard = MetadataStandard.ERC721,
+    extraData?: Record<string, unknown>
 ) {
     performanceMonitor.start(solutions.length);
 
@@ -227,7 +230,8 @@ async function handleBatchGeneration(
                 outputSize.height,
                 projectName,
                 projectDescription,
-                metadataStandard
+                metadataStandard,
+                extraData
             );
 
             if (item) {
@@ -300,7 +304,7 @@ self.addEventListener('message', (e: MessageEvent) => {
 
     currentTaskQueue = currentTaskQueue.then(async () => {
         if (message.type === 'batch') {
-            const { solutions, layers, collectionSize, outputSize, projectName, projectDescription, metadataStandard } = message.payload;
+            const { solutions, layers, collectionSize, outputSize, projectName, projectDescription, metadataStandard, extraData } = message.payload;
             try {
                 await handleBatchGeneration(
                     solutions,
@@ -310,7 +314,8 @@ self.addEventListener('message', (e: MessageEvent) => {
                     projectName,
                     projectDescription,
                     message.taskId,
-                    metadataStandard
+                    metadataStandard,
+                    extraData
                 );
             } catch (error) {
                 self.postMessage({

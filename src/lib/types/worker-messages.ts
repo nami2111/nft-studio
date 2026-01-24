@@ -109,6 +109,7 @@ export interface BatchMessage extends BaseWorkerMessage {
 		projectName: string;
 		projectDescription: string;
 		metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
+		extraData?: Record<string, unknown>;
 	};
 }
 

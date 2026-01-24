@@ -3,7 +3,11 @@
 		project,
 		updateProjectName,
 		updateProjectDescription,
-		updateProjectMetadataStandard
+		updateProjectMetadataStandard,
+		updateProjectSymbol,
+		updateProjectSellerFee,
+		updateProjectExternalUrl,
+		updateProjectAnimationUrl
 	} from '$lib/stores';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -13,25 +17,31 @@
 	let projectName = $state('');
 	let projectDescription = $state('');
 	let metadataStandard = $state(MetadataStandard.ERC721);
+	let symbol = $state('');
+	let sellerFeeBasisPoints = $state(0);
+	let externalUrl = $state('');
+	let animationUrl = $state('');
+
 	const MAX_NAME_LENGTH = 100;
 	const MAX_DESC_LENGTH = 500;
 
 	// Sync with project store changes
 	$effect(() => {
 		const currentProject = project;
-		// Always sync with the current project data
 		projectName = currentProject.name;
 		projectDescription = currentProject.description;
 		metadataStandard = currentProject.metadataStandard || MetadataStandard.ERC721;
+		symbol = currentProject.symbol || '';
+		sellerFeeBasisPoints = currentProject.sellerFeeBasisPoints || 0;
+		externalUrl = currentProject.externalUrl || '';
+		animationUrl = currentProject.animationUrl || '';
 	});
 
 	// Save project name
 	function saveProjectName(value: string) {
 		projectName = value;
 		if (projectName.trim() === '') {
-			showWarning('Project name cannot be empty.', {
-				description: 'Validation Error'
-			});
+			showWarning('Project name cannot be empty.', { description: 'Validation Error' });
 			return;
 		}
 		if (projectName.length > MAX_NAME_LENGTH) {
@@ -64,85 +74,189 @@
 			description: `Switched to ${value.toUpperCase()} format`
 		});
 	}
+
+	function saveSymbol(value: string) {
+		symbol = value;
+		updateProjectSymbol(symbol);
+	}
+
+	function saveSellerFee(value: number) {
+		sellerFeeBasisPoints = value;
+		updateProjectSellerFee(sellerFeeBasisPoints);
+	}
+
+	function saveExternalUrl(value: string) {
+		externalUrl = value;
+		updateProjectExternalUrl(externalUrl);
+	}
+
+	function saveAnimationUrl(value: string) {
+		animationUrl = value;
+		updateProjectAnimationUrl(animationUrl);
+	}
 </script>
 
-<div class="space-y-3 sm:space-y-4">
-	<div>
-		<label for="projectName" class="text-foreground block text-xs font-medium sm:text-sm"
-			>Project Name</label
-		>
-		<Input
-			id="projectName"
-			type="text"
-			value={projectName}
-			onchange={(e: Event) => saveProjectName((e.target as HTMLInputElement).value)}
-			onkeydown={(e) => e.key === 'Enter' && saveProjectName(projectName)}
-			placeholder="Enter project name"
-			class="text-xs sm:text-sm"
-		/>
-		<p class="text-muted-foreground mt-1 text-xs">{projectName.length}/{MAX_NAME_LENGTH}</p>
-	</div>
+<div class="space-y-4 sm:space-y-6">
+	<div class="space-y-3 sm:space-y-4">
+		<h3 class="text-foreground text-sm font-semibold tracking-wider uppercase">
+			General Information
+		</h3>
+		<div>
+			<label for="projectName" class="text-foreground block text-xs font-medium sm:text-sm"
+				>Project Name</label
+			>
+			<Input
+				id="projectName"
+				type="text"
+				value={projectName}
+				onchange={(e: Event) => saveProjectName((e.target as HTMLInputElement).value)}
+				onkeydown={(e) => e.key === 'Enter' && saveProjectName(projectName)}
+				placeholder="Enter project name"
+				class="text-xs sm:text-sm"
+			/>
+			<p class="text-muted-foreground mt-1 text-xs">{projectName.length}/{MAX_NAME_LENGTH}</p>
+		</div>
 
-	<div>
-		<label for="projectDescription" class="text-foreground block text-xs font-medium sm:text-sm"
-			>Description</label
-		>
-		<Textarea
-			id="projectDescription"
-			rows={2}
-			value={projectDescription}
-			onchange={(e: Event) => saveProjectDescription((e.target as HTMLTextAreaElement).value)}
-			placeholder="Enter project description"
-			class="text-xs sm:text-sm"
-		/>
-		<p class="text-muted-foreground mt-1 text-xs">{projectDescription.length}/{MAX_DESC_LENGTH}</p>
-	</div>
-
-	<div>
-		<label for="metadataStandard" class="text-foreground block text-xs font-medium sm:text-sm"
-			>Metadata Standard</label
-		>
-		<div class="grid gap-2">
-			<div class="flex gap-4">
-				<label class="flex items-center gap-2 text-xs sm:text-sm">
-					<input
-						type="radio"
-						name="metadataStandard"
-						value={MetadataStandard.ERC721}
-						checked={metadataStandard === MetadataStandard.ERC721}
-						onchange={(e) => saveMetadataStandard(MetadataStandard.ERC721)}
-						class="text-primary focus:ring-primary border-input bg-background"
-					/>
-					<span class="font-medium">ERC-721 (Ethereum)</span>
-				</label>
-				<label class="flex items-center gap-2 text-xs sm:text-sm">
-					<input
-						type="radio"
-						name="metadataStandard"
-						value={MetadataStandard.SOLANA}
-						checked={metadataStandard === MetadataStandard.SOLANA}
-						onchange={(e) => saveMetadataStandard(MetadataStandard.SOLANA)}
-						class="text-primary focus:ring-primary border-input bg-background"
-					/>
-					<span class="font-medium">Solana</span>
-				</label>
-			</div>
-			<p class="text-muted-foreground text-xs">
-				{metadataStandard === MetadataStandard.ERC721
-					? 'Standard format for Ethereum-based NFTs, compatible with OpenSea and most EVM marketplaces.'
-					: 'Metaplex standard for Solana NFTs, includes symbol, seller fee, and creator information.'}
+		<div>
+			<label for="projectDescription" class="text-foreground block text-xs font-medium sm:text-sm"
+				>Description</label
+			>
+			<Textarea
+				id="projectDescription"
+				rows={3}
+				value={projectDescription}
+				onchange={(e: Event) => saveProjectDescription((e.target as HTMLTextAreaElement).value)}
+				placeholder="Enter project description"
+				class="text-xs sm:text-sm"
+			/>
+			<p class="text-muted-foreground mt-1 text-xs">
+				{projectDescription.length}/{MAX_DESC_LENGTH}
 			</p>
 		</div>
 	</div>
 
-	<div class="bg-muted rounded-md p-3 sm:p-4">
-		<h3 class="text-foreground mb-1 text-xs font-medium sm:mb-2 sm:text-sm">Project Dimensions</h3>
-		<p class="text-muted-foreground mb-1 text-xs sm:mb-2 sm:text-sm">
-			Width: {project.outputSize.width}px x Height: {project.outputSize.height}px
+	<hr class="border-border" />
+
+	<div class="space-y-3 sm:space-y-4">
+		<h3 class="text-foreground text-sm font-semibold tracking-wider uppercase">
+			Advanced Metadata
+		</h3>
+
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+			<div>
+				<label for="symbol" class="text-foreground block text-xs font-medium sm:text-sm"
+					>Symbol</label
+				>
+				<Input
+					id="symbol"
+					type="text"
+					value={symbol}
+					onchange={(e: Event) => saveSymbol((e.target as HTMLInputElement).value)}
+					placeholder="e.g. NFT"
+					class="text-xs uppercase sm:text-sm"
+				/>
+				<p class="text-muted-foreground mt-1 text-xs">Token symbol (Solana required)</p>
+			</div>
+
+			<div>
+				<label for="sellerFee" class="text-foreground block text-xs font-medium sm:text-sm"
+					>Seller Fee (BPS)</label
+				>
+				<Input
+					id="sellerFee"
+					type="number"
+					value={sellerFeeBasisPoints}
+					onchange={(e: Event) =>
+						saveSellerFee(parseInt((e.target as HTMLInputElement).value) || 0)}
+					placeholder="e.g. 500 (5%)"
+					class="text-xs sm:text-sm"
+				/>
+				<p class="text-muted-foreground mt-1 text-xs">Fee in basis points (100 = 1%)</p>
+			</div>
+		</div>
+
+		<div>
+			<label for="externalUrl" class="text-foreground block text-xs font-medium sm:text-sm"
+				>External URL</label
+			>
+			<Input
+				id="externalUrl"
+				type="url"
+				value={externalUrl}
+				onchange={(e: Event) => saveExternalUrl((e.target as HTMLInputElement).value)}
+				placeholder="https://yourwebsite.com/nft/1"
+				class="text-xs sm:text-sm"
+			/>
+			<p class="text-muted-foreground mt-1 text-xs">Optional link to your project website</p>
+		</div>
+
+		<div>
+			<label for="animationUrl" class="text-foreground block text-xs font-medium sm:text-sm"
+				>Animation/Video URL</label
+			>
+			<Input
+				id="animationUrl"
+				type="url"
+				value={animationUrl}
+				onchange={(e: Event) => saveAnimationUrl((e.target as HTMLInputElement).value)}
+				placeholder="ipfs://... or https://..."
+				class="text-xs sm:text-sm"
+			/>
+			<p class="text-muted-foreground mt-1 text-xs">Link to video or multimedia asset</p>
+		</div>
+	</div>
+
+	<hr class="border-border" />
+
+	<div class="space-y-3 sm:space-y-4">
+		<h3 class="text-foreground text-sm font-semibold tracking-wider uppercase">
+			Standard Configuration
+		</h3>
+		<div>
+			<label for="metadataStandard" class="text-foreground block text-xs font-medium sm:text-sm"
+				>Marketplace Standard</label
+			>
+			<div class="grid gap-2">
+				<div class="flex gap-4">
+					<label class="flex items-center gap-2 text-xs sm:text-sm">
+						<input
+							type="radio"
+							name="metadataStandard"
+							value={MetadataStandard.ERC721}
+							checked={metadataStandard === MetadataStandard.ERC721}
+							onchange={(e) => saveMetadataStandard(MetadataStandard.ERC721)}
+							class="text-primary focus:ring-primary border-input bg-background"
+						/>
+						<span class="font-medium">ERC-721 (EVM)</span>
+					</label>
+					<label class="flex items-center gap-2 text-xs sm:text-sm">
+						<input
+							type="radio"
+							name="metadataStandard"
+							value={MetadataStandard.SOLANA}
+							checked={metadataStandard === MetadataStandard.SOLANA}
+							onchange={(e) => saveMetadataStandard(MetadataStandard.SOLANA)}
+							class="text-primary focus:ring-primary border-input bg-background"
+						/>
+						<span class="font-medium">Metaplex (Solana)</span>
+					</label>
+				</div>
+				<p class="text-muted-foreground text-xs italic">
+					{metadataStandard === MetadataStandard.ERC721
+						? 'Optimized for OpenSea, LooksRare, and other Ethereum/EVM marketplaces.'
+						: 'Metaplex JSON standard for Solana marketplaces like Magic Eden.'}
+				</p>
+			</div>
+		</div>
+	</div>
+
+	<div class="bg-muted rounded-md border p-3 sm:p-4">
+		<h4 class="text-foreground mb-1 text-xs font-medium sm:text-sm">Current Project Dimensions</h4>
+		<p class="text-muted-foreground mb-1 text-xs sm:text-sm">
+			{project.outputSize.width}px × {project.outputSize.height}px
 		</p>
-		<p class="text-muted-foreground text-xs sm:text-sm">
-			Dimensions are automatically set based on your uploaded image files. The first image uploaded
-			will determine the project output size.
+		<p class="text-muted-foreground text-[10px] sm:text-xs">
+			Dimensions are locked once traits are uploaded to ensure consistency.
 		</p>
 	</div>
 </div>

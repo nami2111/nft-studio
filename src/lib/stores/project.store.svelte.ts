@@ -242,6 +242,31 @@ export function updateProjectMetadataStandard(standard: MetadataStandard): void 
 	persistenceService.schedulePersist(project);
 }
 
+export function updateProjectSymbol(symbol: string): void {
+	project.symbol = symbol;
+	persistenceService.schedulePersist(project);
+}
+
+export function updateProjectSellerFee(fee: number): void {
+	project.sellerFeeBasisPoints = fee;
+	persistenceService.schedulePersist(project);
+}
+
+export function updateProjectExternalUrl(url: string): void {
+	project.externalUrl = url;
+	persistenceService.schedulePersist(project);
+}
+
+export function updateProjectAnimationUrl(url: string): void {
+	project.animationUrl = url;
+	persistenceService.schedulePersist(project);
+}
+
+export function updateProjectCreators(creators: { address: string; share: number }[]): void {
+	project.creators = creators;
+	persistenceService.schedulePersist(project);
+}
+
 export function updateProjectDimensions(dimensions: ProjectDimensions): void {
 	validationService.validateDimensions(dimensions);
 	project.outputSize = dimensions;
