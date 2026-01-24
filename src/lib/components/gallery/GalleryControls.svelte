@@ -26,7 +26,7 @@
 	];
 
 	// Handle search with aggressive debouncing for better performance
-	let searchTimeout: number;
+	let searchTimeout: ReturnType<typeof setTimeout>;
 	function handleSearch(event: Event) {
 		const target = event.target as HTMLInputElement;
 		searchQuery = target.value;

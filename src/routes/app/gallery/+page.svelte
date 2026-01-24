@@ -175,9 +175,7 @@
 		</div>
 	{:else}
 		<!-- Gallery Header -->
-		<div
-			class="bg-background/95 supports-[backdrop-filter]:bg-background/60 border-b backdrop-blur"
-		>
+		<div class="bg-background/95 supports-backdrop-filter:bg-background/60 border-b backdrop-blur">
 			<div class="mx-auto max-w-screen-2xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
 				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
@@ -188,7 +186,9 @@
 					</div>
 
 					<!-- Gallery Stats -->
-					<div class="text-muted-foreground flex flex-wrap items-center gap-4 text-sm">
+					<div
+						class="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm"
+					>
 						<div>
 							<span class="text-foreground font-medium">{totalNFTs}</span> Total NFTs
 						</div>
@@ -369,7 +369,7 @@
 
 							<div class="flex gap-3">
 								<!-- NFT Image - Mobile -->
-								<div class="bg-muted h-24 w-24 flex-shrink-0 overflow-hidden rounded">
+								<div class="bg-muted h-24 w-24 shrink-0 overflow-hidden rounded">
 									{#if selectedNFT.imageData && (typeof selectedNFT.imageData === 'string' || selectedNFT.imageData.byteLength > 0)}
 										<img
 											src={imageUrlCache.get(selectedNFT.id, selectedNFT.imageData)}
@@ -407,7 +407,7 @@
 													{@const isSelected = selectedTraits[layer]?.includes(traitValue)}
 													<button
 														type="button"
-														class="flex-shrink-0 cursor-pointer rounded-full px-2 py-0.5 text-xs transition-all {isSelected
+														class="shrink-0 cursor-pointer rounded-full px-2 py-0.5 text-xs transition-all {isSelected
 															? 'bg-primary text-primary-foreground shadow-sm'
 															: 'bg-muted/70 hover:bg-muted text-foreground'}"
 														onclick={() => toggleTraitFilter(layer, traitValue)}
@@ -490,7 +490,7 @@
 					<!-- Main Layout Container - Mobile Landscape -->
 					<div class="relative">
 						<!-- Left: NFT Grid -->
-						<div class="min-h-[calc(100vh-220px)] w-[100%] pr-[320px]">
+						<div class="min-h-[calc(100vh-220px)] w-full pr-[320px]">
 							<!-- NFT Grid - Mobile Landscape with 5 columns -->
 							<div class="overflow-y-auto p-3" style="max-height: calc(100vh - 220px);">
 								<SimpleVirtualGrid
@@ -762,7 +762,7 @@
 					<!-- Main Layout Container - Tablet Portrait -->
 					<div class="relative">
 						<!-- Left: NFT Grid (100% with padding for sidebar) -->
-						<div class="min-h-[calc(100vh-280px)] w-[100%] pr-[320px]">
+						<div class="min-h-[calc(100vh-280px)] w-full pr-[320px]">
 							<!-- NFT Grid - Tablet Portrait with 4 columns -->
 							<div class="overflow-y-auto p-4" style="max-height: calc(100vh - 280px);">
 								<SimpleVirtualGrid
@@ -1251,7 +1251,7 @@
 	<!-- Portal for mobile/tablet dropdown - placed at root level -->
 	{#if sortDropdownOpen}
 		<div
-			class="fixed inset-0 z-[9999]"
+			class="fixed inset-0 z-9999"
 			role="button"
 			tabindex="0"
 			onmousedown={() => (sortDropdownOpen = false)}
@@ -1264,7 +1264,7 @@
 			<!-- Backdrop to close dropdown when clicking outside -->
 		</div>
 		<div
-			class="border-border fixed z-[10000] rounded-md border shadow-lg"
+			class="border-border fixed z-10000 rounded-md border shadow-lg"
 			style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; width: {dropdownPosition.width}px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);"
 		>
 			<button

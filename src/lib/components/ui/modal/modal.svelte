@@ -179,7 +179,7 @@
 
 			<!-- Modal Content -->
 			<div class="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
-				{@render children()}
+				{@render children?.()}
 			</div>
 		</div>
 	</div>

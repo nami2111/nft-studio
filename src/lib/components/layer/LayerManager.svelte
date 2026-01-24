@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { project, addLayer, reorderLayers } from '$lib/stores';
 	import type { LayerId } from '$lib/types/ids';
-	import LayerItem from '$lib/components/LayerItem.svelte';
+	import LayerItem from '$lib/components/layer/LayerItem.svelte';
 
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
@@ -79,7 +79,7 @@
 			<div class="space-y-3 sm:space-y-4">
 				{#each layers as layer, i (layer.id)}
 					<div class="group relative">
-						<LayerItem bind:layer={layers[i]} />
+						<LayerItem {layer} />
 						<div class="mt-2 flex justify-end gap-1">
 							<Button
 								variant="outline"
@@ -87,6 +87,7 @@
 								onclick={() => moveLayer(layer.id, 'up')}
 								disabled={layers.indexOf(layer) === 0}
 								class="px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm"
+								data-testid="move-up-btn"
 							>
 								<span class="hidden sm:inline">↑</span>
 								<span class="sm:hidden">Up</span>
@@ -97,6 +98,7 @@
 								onclick={() => moveLayer(layer.id, 'down')}
 								disabled={layers.indexOf(layer) === layers.length - 1}
 								class="px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm"
+								data-testid="move-down-btn"
 							>
 								<span class="hidden sm:inline">↓</span>
 								<span class="sm:hidden">Down</span>

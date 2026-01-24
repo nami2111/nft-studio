@@ -43,7 +43,7 @@
 		}
 	});
 
-	let updateInterval: number | null = null;
+	let updateInterval: ReturnType<typeof setInterval> | null = null;
 
 	// Computed values
 	let hasData = $derived(Object.keys(stats).length > 0);

@@ -101,7 +101,7 @@
 	let lastCacheClear = 0;
 
 	// Debounce scroll calculations
-	let scrollTimeout: number | null = null;
+	let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// LAZY image URL creation - only create when actually needed
 	let imageLoadQueue = new Set<string>();
@@ -246,10 +246,9 @@
 						nft.id
 							? 'ring-primary ring-2'
 							: ''}"
-						style="top: {row * rowHeight}px; left: {col * (100 / columns)}%; width: calc({100 /
-							columns}% - {(gap * (columns - 1)) / columns}px); height: {itemHeight}px; {col > 0
-							? `margin-left: ${gap}px;`
-							: ''}"
+						style="top: {row * rowHeight}px; left: calc({(col * 100) / columns}% + {(col * gap) /
+							columns}px); width: calc({100 / columns}% - {(gap * (columns - 1)) /
+							columns}px); height: {itemHeight}px;"
 						onclick={() => handleNFTClick(nft)}
 					>
 						<!-- NFT Image -->
@@ -370,7 +369,7 @@
 
 						<!-- Hover overlay -->
 						<div
-							class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
+							class="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
 						>
 							<div class="absolute right-0 bottom-0 left-0 p-1 text-white">
 								<div class="truncate text-[10px] font-medium">{nft.name}</div>

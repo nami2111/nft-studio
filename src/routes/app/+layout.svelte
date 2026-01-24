@@ -2,9 +2,8 @@
 	import { onMount, onDestroy, type Snippet } from 'svelte';
 	// import { initSatellite } from '@junobuild/core';
 	import { Toaster } from '$lib/components/ui/sonner';
-	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
-	import AutoSave from '$lib/components/AutoSave.svelte';
-	import ModeSwitcher from '$lib/components/ModeSwitcher.svelte';
+	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
+	import ModeSwitcher from '$lib/components/shared/ModeSwitcher.svelte';
 	import { cleanupAllResources } from '$lib/stores';
 	import '../../app.css';
 
@@ -81,15 +80,15 @@
 		>
 			<!-- Figma-style header bar -->
 			<div class="bg-card/95 mb-3 rounded-lg border shadow-sm backdrop-blur-sm sm:mb-4 md:mb-6">
-				<div class="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4">
-					<div class="flex w-full items-center justify-between">
+				<div class="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4">
+					<div class="flex flex-wrap items-center justify-between gap-3">
 						<div class="flex items-center">
 							<div class="flex space-x-1.5 sm:space-x-2">
 								<div class="h-2.5 w-2.5 rounded-full bg-red-500 sm:h-3 sm:w-3"></div>
 								<div class="h-2.5 w-2.5 rounded-full bg-yellow-500 sm:h-3 sm:w-3"></div>
 								<div class="h-2.5 w-2.5 rounded-full bg-green-500 sm:h-3 sm:w-3"></div>
 							</div>
-							<div class="ml-2 text-xs font-medium sm:ml-3 sm:text-sm md:ml-4 md:text-base">
+							<div class="ml-2 text-xs font-semibold sm:ml-3 sm:text-sm md:ml-4 md:text-base">
 								NFT Studio
 							</div>
 						</div>
@@ -102,8 +101,7 @@
 				{@render children?.()}
 			</ErrorBoundary>
 
-			<!-- Auto-save component for handling project persistence -->
-			<AutoSave />
+			<!-- Auto-save logic now handled by PersistenceService in projectStore -->
 		</div>
 	</main>
 	<Toaster position="top-right" />

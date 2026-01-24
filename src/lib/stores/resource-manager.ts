@@ -11,6 +11,7 @@ import {
 } from '$lib/utils/advanced-cache';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { formatFileSize } from '$lib/utils/formatters';
+import { MEMORY, TIME } from '$lib/config/constants';
 
 export interface CacheConfig {
 	imageBitmap?: {
@@ -43,27 +44,31 @@ export class ResourceManager {
 	};
 	private memoryPressureListener?: (event: Event) => void;
 	private cleanupTimeout: number | null = null;
+	private metricsCollectionInterval: number | null = null;
+	private memoryPressureInterval: number | null = null;
+	private componentCount = 0;
+	private cleanupCallback: (() => void) | null = null;
 
 	constructor(config: CacheConfig = {}) {
 		// Initialize specialized caches with optimized defaults
 		this.imageBitmapCache = new ImageBitmapCache({
-			maxSize: config.imageBitmap?.maxSize || 100 * 1024 * 1024, // 100MB
-			maxEntries: config.imageBitmap?.maxEntries || 500,
-			defaultTtl: config.imageBitmap?.ttl || 30 * 60 * 1000, // 30 minutes
+			maxSize: config.imageBitmap?.maxSize || MEMORY.IMAGE_BITMAP_CACHE_MAX_SIZE,
+			maxEntries: config.imageBitmap?.maxEntries || MEMORY.IMAGE_BITMAP_CACHE_MAX_ENTRIES,
+			defaultTtl: config.imageBitmap?.ttl || MEMORY.IMAGE_BITMAP_CACHE_TTL,
 			evictionPolicy: 'lru'
 		});
 
 		this.imageCache = new ImageDataCache({
-			maxSize: config.imageData?.maxSize || 50 * 1024 * 1024, // 50MB
-			maxEntries: config.imageData?.maxEntries || 200,
-			defaultTtl: config.imageData?.ttl || 15 * 60 * 1000, // 15 minutes
+			maxSize: config.imageData?.maxSize || MEMORY.IMAGE_DATA_CACHE_MAX_SIZE,
+			maxEntries: config.imageData?.maxEntries || MEMORY.IMAGE_DATA_CACHE_MAX_ENTRIES,
+			defaultTtl: config.imageData?.ttl || MEMORY.IMAGE_DATA_CACHE_TTL,
 			evictionPolicy: 'lru'
 		});
 
 		this.arrayBufferCache = new ArrayBufferCache({
-			maxSize: config.arrayBuffer?.maxSize || 200 * 1024 * 1024, // 200MB
-			maxEntries: config.arrayBuffer?.maxEntries || 1000,
-			defaultTtl: config.arrayBuffer?.ttl || 60 * 60 * 1000, // 1 hour
+			maxSize: config.arrayBuffer?.maxSize || MEMORY.ARRAY_BUFFER_CACHE_MAX_SIZE,
+			maxEntries: config.arrayBuffer?.maxEntries || MEMORY.ARRAY_BUFFER_CACHE_MAX_ENTRIES,
+			defaultTtl: config.arrayBuffer?.ttl || TIME.BUFFER_CACHE_TTL,
 			evictionPolicy: 'lru'
 		});
 
@@ -72,6 +77,37 @@ export class ResourceManager {
 
 		// Set up periodic cache metrics collection
 		this.setupCacheMetricsCollection();
+	}
+
+	/**
+	 * Bind this ResourceManager to a component lifecycle
+	 * Call onMount in your component and pass the returned cleanup function to onDestroy
+	 */
+	bindLifecycle(onDestroy: () => void): void {
+		this.componentCount++;
+		this.cleanupCallback = () => {
+			onDestroy();
+			this.componentCount--;
+			// If no components remain, perform cleanup
+			if (this.componentCount <= 0) {
+				this.performFullCleanup();
+			}
+		};
+	}
+
+	/**
+	 * Get cleanup function to pass to onDestroy
+	 */
+	getCleanupFn(): () => void {
+		return this.cleanupCallback || (() => {});
+	}
+
+	/**
+	 * Perform full cleanup when last component unmounts
+	 */
+	private performFullCleanup(): void {
+		console.info('No components remaining, performing full resource cleanup');
+		this.cleanup();
 	}
 
 	/**
@@ -90,7 +126,7 @@ export class ResourceManager {
 			window.addEventListener('memorypressure', this.memoryPressureListener);
 
 			// Also add a periodic cleanup check every 5 minutes
-			this.cleanupTimeout = window.setInterval(
+			this.memoryPressureInterval = window.setInterval(
 				() => {
 					this.performPeriodicCleanup();
 				},
@@ -149,12 +185,12 @@ export class ResourceManager {
 	 */
 	private setupCacheMetricsCollection(): void {
 		// Collect cache metrics every 30 seconds
-		setInterval(() => {
+		this.metricsCollectionInterval = window.setInterval(() => {
 			this.collectAndReportCacheMetrics();
 		}, 30 * 1000);
 
 		// Also collect metrics immediately
-		setTimeout(() => {
+		window.setTimeout(() => {
 			this.collectAndReportCacheMetrics();
 		}, 5 * 1000); // Initial collection after 5 seconds
 	}
@@ -233,6 +269,16 @@ export class ResourceManager {
 		if (this.cleanupTimeout) {
 			clearInterval(this.cleanupTimeout);
 			this.cleanupTimeout = null;
+		}
+
+		if (this.memoryPressureInterval) {
+			clearInterval(this.memoryPressureInterval);
+			this.memoryPressureInterval = null;
+		}
+
+		if (this.metricsCollectionInterval) {
+			clearInterval(this.metricsCollectionInterval);
+			this.metricsCollectionInterval = null;
 		}
 
 		// Clean up all resources
@@ -458,7 +504,6 @@ export class ResourceManager {
 		const cacheMetrics = this.getCacheMetrics();
 		this.metrics.memoryUsage = cacheMetrics.overall.totalMemoryUsage;
 	}
-
 
 	/**
 	 * Get the number of tracked URLs (legacy compatibility)

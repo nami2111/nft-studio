@@ -23,7 +23,6 @@ export interface CacheMetrics {
 	maxEntries: number;
 	memoryUsage: number;
 	hitRate: number;
-	averageAccessCount: number;
 }
 
 export interface CacheOptions<T> {
@@ -40,6 +39,11 @@ export class AdvancedCache<T = any> {
 	private metrics: CacheMetrics;
 	private options: Required<CacheOptions<T>>;
 	private cleanupTimer?: number;
+	private metricsUpdateTimer?: number;
+	private memoryPressureTimer?: number;
+	private pendingMetricsUpdate = false;
+	private lastMemoryPressureCheck = 0;
+	private readonly MEMORY_PRESSURE_CHECK_INTERVAL = 30000; // 30 seconds
 
 	constructor(options: CacheOptions<T> = {}) {
 		this.options = {
@@ -61,12 +65,23 @@ export class AdvancedCache<T = any> {
 			maxSize: this.options.maxSize,
 			maxEntries: this.options.maxEntries,
 			memoryUsage: 0,
-			hitRate: 0,
-			averageAccessCount: 0
+			hitRate: 0
 		};
 
 		// Start cleanup timer for TTL entries
 		this.startCleanupTimer();
+
+		// Start memory pressure check timer (run every 30 seconds)
+		this.startMemoryPressureTimer();
+	}
+
+	/**
+	 * Start automatic memory pressure timer
+	 */
+	private startMemoryPressureTimer(): void {
+		this.memoryPressureTimer = window.setInterval(() => {
+			this.adaptToMemoryPressure();
+		}, this.MEMORY_PRESSURE_CHECK_INTERVAL) as unknown as number;
 	}
 
 	/**
@@ -232,6 +247,14 @@ export class AdvancedCache<T = any> {
 			clearInterval(this.cleanupTimer);
 			this.cleanupTimer = undefined;
 		}
+		if (this.metricsUpdateTimer) {
+			clearTimeout(this.metricsUpdateTimer);
+			this.metricsUpdateTimer = undefined;
+		}
+		if (this.memoryPressureTimer) {
+			clearInterval(this.memoryPressureTimer);
+			this.memoryPressureTimer = undefined;
+		}
 		this.clear();
 	}
 
@@ -249,24 +272,25 @@ export class AdvancedCache<T = any> {
 	}
 
 	/**
-	 * Update calculated metrics
+	 * Update calculated metrics (throttled to every 500ms)
 	 */
 	private updateMetrics(): void {
-		this.metrics.memoryUsage = this.metrics.currentSize;
-		this.metrics.hitRate =
-			this.metrics.hits + this.metrics.misses > 0
-				? this.metrics.hits / (this.metrics.hits + this.metrics.misses)
-				: 0;
+		if (this.pendingMetricsUpdate) return;
 
-		if (this.metrics.currentEntries > 0) {
-			const totalAccessCount = Array.from(this.cache.values()).reduce(
-				(sum, entry) => sum + entry.accessCount,
-				0
-			);
-			this.metrics.averageAccessCount = totalAccessCount / this.metrics.currentEntries;
-		} else {
-			this.metrics.averageAccessCount = 0;
+		this.pendingMetricsUpdate = true;
+
+		if (this.metricsUpdateTimer) {
+			clearTimeout(this.metricsUpdateTimer);
 		}
+
+		this.metricsUpdateTimer = window.setTimeout(() => {
+			this.pendingMetricsUpdate = false;
+			this.metrics.memoryUsage = this.metrics.currentSize;
+			this.metrics.hitRate =
+				this.metrics.hits + this.metrics.misses > 0
+					? this.metrics.hits / (this.metrics.hits + this.metrics.misses)
+					: 0;
+		}, 500);
 	}
 
 	/**
@@ -275,9 +299,6 @@ export class AdvancedCache<T = any> {
 	private enforceLimits(): void {
 		// First remove expired entries
 		this.cleanup();
-
-		// Check for memory pressure and adapt limits accordingly
-		this.adaptToMemoryPressure();
 
 		// Enforce entry limit
 		while (this.cache.size > this.options.maxEntries) {

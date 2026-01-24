@@ -19,6 +19,10 @@ export interface BaseComponentProps {
 	disabled?: boolean;
 	/** Whether the component is read-only */
 	readonly?: boolean;
+	/** Test identifier for testing library */
+	'data-testid'?: string;
+	/** Allow for any other arbitrary data attributes or standard HTML attributes */
+	[key: string]: any;
 }
 
 /**
@@ -100,10 +104,10 @@ export interface KeyboardProps {
  */
 export interface InteractiveProps
 	extends BaseComponentProps,
-		KeyboardNavigableProps,
-		FocusableProps,
-		ClickableProps,
-		KeyboardProps {}
+	KeyboardNavigableProps,
+	FocusableProps,
+	ClickableProps,
+	KeyboardProps { }
 
 /**
  * Standardized props for all HTML elements.

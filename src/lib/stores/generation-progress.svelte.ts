@@ -67,6 +67,11 @@ export interface GenerationState {
 	totalBatches: number;
 	batchSize: number;
 	completedBatches: number[];
+
+	// Performance metrics
+	eta: number | null; // Seconds remaining
+	itemsPerSecond: number | null;
+	batchProgress: { current: number; total: number } | null;
 }
 
 // Default state
@@ -98,7 +103,10 @@ const defaultState: GenerationState = {
 	currentBatch: 0,
 	totalBatches: 0,
 	batchSize: 0,
-	completedBatches: []
+	completedBatches: [],
+	eta: null,
+	itemsPerSecond: null,
+	batchProgress: null
 };
 
 // Persistent generation state using Svelte 5 runes
@@ -258,13 +266,56 @@ class GenerationStateManager {
 		generationState.currentIndex = generatedCount;
 		generationState.totalItems = totalCount;
 		generationState.progress = Math.min(100, Math.max(0, progress));
-		generationState.statusText = statusText;
-		generationState.lastUpdate = Date.now();
+
+		// Calculate performance metrics
+		const now = Date.now();
+		if (generationState.startTime) {
+			const elapsedSeconds = (now - generationState.startTime) / 1000;
+			if (elapsedSeconds > 1 && generatedCount > 0) {
+				const itemsPerSecond = generatedCount / elapsedSeconds;
+				generationState.itemsPerSecond = itemsPerSecond;
+
+				const remainingItems = totalCount - generatedCount;
+				generationState.eta = remainingItems > 0 ? remainingItems / itemsPerSecond : 0;
+			}
+		}
+
+		// Update status text with more context if it's the default worker message
+		if (statusText.startsWith('Batch processing:')) {
+			const batchMatch = statusText.match(/Batch processing: (\d+)\/(\d+)/);
+			if (batchMatch) {
+				const current = parseInt(batchMatch[1]);
+				const total = parseInt(batchMatch[2]);
+				generationState.batchProgress = { current, total };
+
+				// Generate more descriptive message
+				const percent = Math.round(progress);
+				if (percent < 5) {
+					generationState.statusText = 'Starting engine and preparing layers...';
+				} else if (percent < 20) {
+					generationState.statusText = `Generating first batch of NFTs (${generatedCount}/${totalCount})...`;
+				} else if (percent < 50) {
+					generationState.statusText = `Compositing layers for #${generatedCount + 1}...`;
+				} else if (percent < 80) {
+					generationState.statusText = `Processing collection... almost halfway through!`;
+				} else if (percent < 95) {
+					generationState.statusText = `Finalizing composition and metadata...`;
+				} else {
+					generationState.statusText = `Wrapping up generation...`;
+				}
+			} else {
+				generationState.statusText = statusText;
+			}
+		} else {
+			generationState.statusText = statusText;
+		}
+
+		generationState.lastUpdate = now;
 
 		// Update memory usage if provided
 		if (memoryUsage) {
 			generationState.memoryUsage = memoryUsage;
-			generationState.lastMemoryCheck = Date.now();
+			generationState.lastMemoryCheck = now;
 		}
 
 		// Auto-save progress

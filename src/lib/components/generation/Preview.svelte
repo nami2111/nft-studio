@@ -7,7 +7,7 @@
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import Shuffle from '@lucide/svelte/icons/shuffle';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 
 	let canvas: HTMLCanvasElement | null = null;
 	let ctx = $state<CanvasRenderingContext2D | null>(null);
@@ -16,7 +16,7 @@
 	let displayHeight = 0;
 	let isCanvasInitialized = $state(false);
 	let isRandomizing = $state(false);
-	let randomizeTimeoutId: number | null = null;
+	let randomizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	// Image cache using $state.raw since we don't need deep reactivity
 	const imageCache = $state.raw(new SvelteMap<string, HTMLImageElement>());
@@ -68,17 +68,23 @@
 	// Reset selected traits when project layers change
 	$effect(() => {
 		const { layers } = project;
+
+		// Use untrack for selectedTraitIds to prevent reactivity loops
+		// This effect should only react to project.layers changes
+		const currentIds = untrack(() => selectedTraitIds);
+		const previousSelectedIds = new Set(currentIds.filter((id): id is TraitId => id !== ''));
+
 		const newSelectedTraits: (TraitId | '')[] = [];
 
 		for (let i = 0; i < layers.length; i++) {
 			const layer = layers[i];
-			const currentSelectedId = selectedTraitIds[i];
+			const currentSelectedId = currentIds[i];
 
 			// If current selection exists in new layer, keep it, otherwise use first trait
 			if (layer.traits.length > 0) {
 				const traitExists = layer.traits.some((trait: Trait) => trait.id === currentSelectedId);
 				if (traitExists) {
-					newSelectedTraits.push(currentSelectedId);
+					newSelectedTraits.push(currentSelectedId as TraitId);
 				} else {
 					newSelectedTraits.push(layer.traits[0].id);
 				}
@@ -87,12 +93,13 @@
 			}
 		}
 
-		// Only update if there's actually a change to prevent infinite loops
+		// Fast comparison for detecting actual changes
+		const hasChanged =
+			newSelectedTraits.length !== currentIds.length ||
+			newSelectedTraits.some((id, index) => id !== currentIds[index]);
 
-		if (JSON.stringify(newSelectedTraits) !== JSON.stringify(selectedTraitIds)) {
-			// Use a temporary variable to break the reactivity cycle
-			const updatedTraits = [...newSelectedTraits];
-			selectedTraitIds = updatedTraits;
+		if (hasChanged) {
+			selectedTraitIds = newSelectedTraits;
 		}
 	});
 
@@ -108,7 +115,7 @@
 	const messageHandlers = new SvelteMap<string, (e: MessageEvent) => void>();
 
 	$effect(() => {
-		imageWorker = new Worker(new URL('../workers/image-loader.worker.ts', import.meta.url));
+		imageWorker = new Worker(new URL('../../workers/image-loader.worker.ts', import.meta.url));
 
 		return () => {
 			// Clean up all message listeners
@@ -549,7 +556,7 @@
 	}
 
 	// Debounce timer for preview updates
-	let previewUpdateTimeoutId: number | null = null;
+	let previewUpdateTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	const PREVIEW_UPDATE_DEBOUNCE_MS = 200; // Increased debounce time for preview updates
 
 	// Debounced preview update function

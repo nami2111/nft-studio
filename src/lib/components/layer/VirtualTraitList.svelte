@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Trait } from '$lib/types/layer';
-	import TraitCard from '$lib/components/TraitCard.svelte';
+	import TraitCard from '$lib/components/layer/TraitCard.svelte';
 	import { onMount, onDestroy } from 'svelte';
 
 	// interface Props {
@@ -101,10 +101,10 @@
 			style="transform: translateY({offsetY}px);"
 		>
 			{#each traits as trait, i (trait.id)}
-				{@const isVisible = visibleTraits.some(vt => vt.id === trait.id)}
+				{@const isVisible = visibleTraits.some((vt) => vt.id === trait.id)}
 				{#if isVisible}
 					<TraitCard
-						bind:trait={traits[i]}
+						{trait}
 						{layerId}
 						selected={selectedTraits.has(trait.id)}
 						onToggleSelection={() => onToggleSelection(trait.id)}

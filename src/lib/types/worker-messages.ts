@@ -34,22 +34,7 @@ interface BaseWorkerMessage {
 	taskId?: TaskId;
 }
 
-// Start generation message
-export interface StartMessage extends BaseWorkerMessage {
-	type: 'start';
-	payload: {
-		layers: TransferrableLayer[];
-		collectionSize: number;
-		outputSize: {
-			width: number;
-			height: number;
-		};
-		projectName: string;
-		projectDescription: string;
-		metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
-		strictPairConfig?: StrictPairConfig;
-	};
-}
+
 
 // Progress update message
 export interface ProgressMessage extends BaseWorkerMessage {
@@ -73,6 +58,8 @@ export interface CompleteMessage extends BaseWorkerMessage {
 		images: { name: string; imageData: ArrayBuffer }[];
 		metadata: { name: string; data: object }[];
 		isChunk?: boolean; // Flag to indicate if this is a chunked response
+		generatedCount?: number;
+		totalCount?: number;
 	};
 }
 
@@ -111,6 +98,21 @@ export interface PreviewMessage extends BaseWorkerMessage {
 	};
 }
 
+// Batch generation message for parallel processing
+export interface BatchMessage extends BaseWorkerMessage {
+	type: 'batch';
+	payload: {
+		solutions: { index: number; traits: TransferrableTrait[] }[];
+		layers: TransferrableLayer[];
+		collectionSize: number;
+		outputSize: { width: number; height: number };
+		projectName: string;
+		projectDescription: string;
+		metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
+		extraData?: Record<string, unknown>;
+	};
+}
+
 // Messages that can be sent from workers to the main thread
 export type OutgoingWorkerMessage =
 	| ReadyMessage
@@ -121,47 +123,30 @@ export type OutgoingWorkerMessage =
 	| PreviewMessage
 	| { type: 'pingResponse'; pingResponse: string }
 	| {
-			type: 'analysis';
-			payload: {
-				complexity: any;
-				canUseFastGeneration: boolean;
-				estimatedSpeedup: number;
-				recommendations: string[];
-			};
-	  }
+		type: 'analysis';
+		payload: {
+			complexity: any;
+			canUseFastGeneration: boolean;
+			estimatedSpeedup: number;
+			recommendations: string[];
+		};
+	}
 	| { type: 'performance-report'; payload: any };
 
 // Messages that can be sent to workers
-export type IncomingMessage = StartMessage | { type: 'cancel' } | ReadyMessage;
+// Messages that can be sent to workers
+export type IncomingMessage = BatchMessage | { type: 'cancel' } | ReadyMessage | { type: 'preview'; payload: any } | { type: 'initialize' } | { type: 'ping'; pingId: string };
 
 // Worker pool message types
 export type GenerationWorkerMessage =
+	| BatchMessage
 	| {
-			type: 'start';
-			payload: {
-				layers: TransferrableLayer[];
-				collectionSize: number;
-				outputSize: { width: number; height: number };
-				projectName: string;
-				projectDescription: string;
-				metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
-				strictPairConfig?: StrictPairConfig;
-			};
-	  }
-	| {
-			type: 'cancel';
-	  };
+		type: 'cancel';
+	};
 
 // Type guards for discriminated unions
 
-/**
- * Type guard for StartMessage
- */
-export function isStartMessage(message: unknown): message is StartMessage {
-	return (
-		typeof message === 'object' && message !== null && 'type' in message && message.type === 'start'
-	);
-}
+
 
 /**
  * Type guard for ProgressMessage
@@ -230,6 +215,18 @@ export function isPreviewMessage(message: unknown): message is PreviewMessage {
 }
 
 /**
+ * Type guard for BatchMessage
+ */
+export function isBatchMessage(message: unknown): message is BatchMessage {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		'type' in message &&
+		message.type === 'batch'
+	);
+}
+
+/**
  * Type guard for analysis message
  */
 export function isAnalysisMessage(
@@ -288,7 +285,7 @@ export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWo
  */
 export function isIncomingMessage(message: unknown): message is IncomingMessage {
 	return (
-		isStartMessage(message) ||
+		isBatchMessage(message) ||
 		(typeof message === 'object' &&
 			message !== null &&
 			'type' in message &&

@@ -23,7 +23,7 @@ export const mockProject: Project = {
  * Mock layer data for testing
  */
 export const mockLayer: Layer = {
-	id: 'test-layer-1',
+	id: 'layer:layer-1' as any,
 	name: 'Background',
 	order: 0,
 	isOptional: false,
@@ -34,7 +34,7 @@ export const mockLayer: Layer = {
  * Mock trait data for testing
  */
 export const mockTrait: Trait = {
-	id: 'test-trait-1',
+	id: 'trait:trait-1' as any,
 	name: 'Red Background',
 	imageUrl: 'blob:test',
 	imageData: new ArrayBuffer(100),
@@ -49,19 +49,19 @@ export const mockTrait: Trait = {
 export function createMockProject(overrides: Partial<Project> = {}): Project {
 	const layer1: Layer = {
 		...mockLayer,
-		id: 'layer-1',
+		id: 'layer:layer-1' as any,
 		name: 'Background',
 		order: 0,
 		traits: [
 			{
 				...mockTrait,
-				id: 'trait-1',
+				id: 'trait:trait-1' as any,
 				name: 'Red Background',
 				rarityWeight: 3
 			},
 			{
 				...mockTrait,
-				id: 'trait-2',
+				id: 'trait:trait-2' as any,
 				name: 'Blue Background',
 				rarityWeight: 2
 			}
@@ -70,13 +70,13 @@ export function createMockProject(overrides: Partial<Project> = {}): Project {
 
 	const layer2: Layer = {
 		...mockLayer,
-		id: 'layer-2',
+		id: 'layer:layer-2' as any,
 		name: 'Character',
 		order: 1,
 		traits: [
 			{
 				...mockTrait,
-				id: 'trait-3',
+				id: 'trait:trait-3' as any,
 				name: 'Knight',
 				rarityWeight: 5
 			}

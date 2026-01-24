@@ -54,7 +54,7 @@ export const LayerSchema = z.object({
 	name: NameSchema,
 	order: z.number().int().min(0),
 	isOptional: z.boolean().optional(),
-	traits: z.array(TraitSchema).min(1)
+	traits: z.array(TraitSchema)
 });
 
 export const ProjectSchema = z.object({
@@ -62,7 +62,7 @@ export const ProjectSchema = z.object({
 	name: NameSchema,
 	description: DescriptionSchema,
 	outputSize: ProjectDimensionsSchema,
-	layers: z.array(LayerSchema).min(1)
+	layers: z.array(LayerSchema)
 });
 
 // Import/export schemas (more lenient for compatibility)
@@ -335,7 +335,7 @@ export function createValidatedProject(overrides: Partial<Project> = {}): Projec
 		id: crypto.randomUUID() as ProjectId,
 		name: 'My NFT Collection',
 		description: 'A collection of unique NFTs',
-		outputSize: { width: 0, height: 0 },
+		outputSize: { width: 100, height: 100 },
 		layers: []
 	};
 

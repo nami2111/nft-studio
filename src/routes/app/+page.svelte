@@ -1,9 +1,9 @@
 <script lang="ts">
-	import ProjectSettings from '$lib/components/ProjectSettings.svelte';
-	import ProjectManagement from '$lib/components/ProjectManagement.svelte';
-	import GenerationForm from '$lib/components/GenerationForm.svelte';
-	import Preview from '$lib/components/Preview.svelte';
-	import StrictPair from '$lib/components/StrictPair.svelte';
+	import ProjectSettings from '$lib/components/project/ProjectSettings.svelte';
+	import ProjectManagement from '$lib/components/project/ProjectManagement.svelte';
+	import GenerationForm from '$lib/components/generation/GenerationForm.svelte';
+	import Preview from '$lib/components/generation/Preview.svelte';
+	import StrictPair from '$lib/components/layer/StrictPair.svelte';
 	import { projectStore } from '$lib/stores/project.store.svelte';
 	import type { StrictPairConfig } from '$lib/types/layer';
 	import { onMount } from 'svelte';
@@ -33,7 +33,7 @@
 		if (!LayerManager && !isLoadingLayerManager) {
 			isLoadingLayerManager = true;
 			try {
-				const module = await import('$lib/components/LayerManager.svelte');
+				const module = await import('$lib/components/layer/LayerManager.svelte');
 				LayerManager = module.default;
 			} catch (error) {
 				console.error('Failed to load LayerManager:', error);
@@ -48,7 +48,7 @@
 		if (!PerformanceMonitor && !isLoadingPerformanceMonitor) {
 			isLoadingPerformanceMonitor = true;
 			try {
-				const module = await import('$lib/components/PerformanceMonitor.svelte');
+				const module = await import('$lib/components/monitor/PerformanceMonitor.svelte');
 				PerformanceMonitor = module.default;
 			} catch (error) {
 				console.error('Failed to load PerformanceMonitor:', error);
@@ -63,7 +63,7 @@
 		if (!CacheMonitor && !isLoadingCacheMonitor) {
 			isLoadingCacheMonitor = true;
 			try {
-				const module = await import('$lib/components/CacheMonitor.svelte');
+				const module = await import('$lib/components/monitor/CacheMonitor.svelte');
 				CacheMonitor = module.default;
 			} catch (error) {
 				console.error('Failed to load CacheMonitor:', error);
@@ -84,7 +84,7 @@
 	});
 </script>
 
-<div class="container mx-auto max-w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
+<div class="w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
 	<!-- Project Management Section -->
 	<div class="mb-3 flex justify-start sm:mb-4">
 		<ProjectManagement />
@@ -123,7 +123,7 @@
 				{:else}
 					<button
 						onclick={loadLayerManager}
-						class="bg-card/95 hover:bg-card/100 w-full rounded-lg border p-4 shadow-sm backdrop-blur-sm transition-colors"
+						class="bg-card/95 hover:bg-card w-full rounded-lg border p-4 shadow-sm backdrop-blur-sm transition-colors"
 					>
 						<div class="flex items-center justify-center py-4">
 							<span class="text-muted-foreground text-sm">Click to load Layer Manager</span>

@@ -160,16 +160,16 @@ export class CSPSolver {
     }
 
     solve(): Map<string, TransferrableTrait> | null {
-        const startTime = Date.now();
+        // Reset domains and selected traits for a fresh solve attempt
+        this.initializeDomains();
+        this.context.selectedTraits.clear();
 
-        // Debug: Log when solve is called
-        logger.debug(`[CSP SOLVE] Starting solve with ${this.context.layers.length} layers`);
-        // Log current selected traits to understand the assignment being tested
-        if (this.context.selectedTraits.size > 0) {
-            const currentTraits = Array.from(this.context.selectedTraits.entries())
-                .map(([layerId, trait]) => `${layerId}: ${trait.name} (${trait.id})`)
-                .join(', ');
-            logger.debug(`[CSP CURRENT] Testing with traits: ${currentTraits}`);
+        const startTime = Date.now();
+        const layerCount = this.context.layers.length;
+        const requiredLayers = this.context.layers.filter(l => !l.isOptional).length;
+
+        if (layerCount === 0) {
+            console.error(`[CSP SOLVE] CRITICAL: Solver has 0 layers!`);
         }
 
         // Run AC-3 to enforce arc consistency before backtracking
@@ -598,9 +598,8 @@ export class CSPSolver {
      * Check if assignment is complete (all required layers assigned)
      */
     private isComplete(): boolean {
-        return this.context.layers
-            .filter((layer) => !layer.isOptional)
-            .every((layer) => this.context.selectedTraits.has(layer.id));
+        const requiredLayers = this.context.layers.filter((layer) => !layer.isOptional);
+        return requiredLayers.every((layer) => this.context.selectedTraits.has(layer.id));
     }
 
     /**

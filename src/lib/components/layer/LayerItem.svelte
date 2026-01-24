@@ -2,8 +2,8 @@
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import type { Layer } from '$lib/types/layer';
 	import { createTraitId, type TraitId } from '$lib/types/ids';
-	import TraitCard from '$lib/components/TraitCard.svelte';
-	import VirtualTraitList from '$lib/components/VirtualTraitList.svelte';
+	import TraitCard from '$lib/components/layer/TraitCard.svelte';
+	import VirtualTraitList from '$lib/components/layer/VirtualTraitList.svelte';
 	import {
 		project,
 		startLoading,
@@ -17,7 +17,6 @@
 		updateProjectDimensions
 	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
-	import { toast } from 'svelte-sonner';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Edit from '@lucide/svelte/icons/edit';
 	import Check from '@lucide/svelte/icons/check';
@@ -25,21 +24,83 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { getImageDimensions } from '$lib/utils';
-	import LoadingIndicator from '$lib/components/LoadingIndicator.svelte';
-	import { onMount, onDestroy } from 'svelte';
+	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
+	import NeedsReupload from '$lib/components/ui/NeedsReupload.svelte';
+
+	// Lazy toast imports to avoid loading svelte-sonner on component mount
+	let toastModule: typeof import('svelte-sonner') | null = null;
+	async function getToast() {
+		if (!toastModule) {
+			toastModule = await import('svelte-sonner');
+		}
+		return toastModule;
+	}
+
+	async function showSuccess(message: string, options?: { description?: string }) {
+		const { toast } = await getToast();
+		toast.success(message, { description: options?.description, duration: 4000 });
+	}
+
+	async function showError(message: string, options?: { description?: string }) {
+		const { toast } = await getToast();
+		toast.error(message, { description: options?.description, duration: 6000 });
+	}
+
+	async function showWarning(message: string, options?: { description?: string }) {
+		const { toast } = await getToast();
+		toast.warning(message, { description: options?.description, duration: 5000 });
+	}
+
+	async function showInfo(message: string, options?: { description?: string }) {
+		const { toast } = await getToast();
+		toast.info(message, { description: options?.description, duration: 4000 });
+	}
+
+	async function showBulkTraitDeleteSuccess(count: number) {
+		await showSuccess(`${count} trait(s) deleted successfully.`);
+	}
+
+	async function showTraitRenameSuccess(count: number) {
+		await showSuccess(`${count} trait(s) renamed.`);
+	}
+
+	async function showValidationError(message: string) {
+		await showError(message);
+	}
+
+	async function showLayerRemoved(layerName: string) {
+		await showInfo(`Layer "${layerName}" has been removed.`);
+	}
+
+	async function showUploadPartialSuccess(successCount: number, errorCount: number) {
+		if (errorCount === 0) {
+			await showSuccess(`${successCount} file(s) uploaded successfully.`);
+		} else {
+			await showWarning(`${successCount} file(s) uploaded, ${errorCount} failed.`);
+		}
+	}
+
+	async function showUploadError(message: string) {
+		await showError(`Upload failed: ${message}`);
+	}
+
+	async function showDeleteError() {
+		await showError('Failed to delete. Please try again.');
+	}
 	interface Props {
 		layer: Layer;
 	}
 
-	let { layer = $bindable() }: Props = $props();
+	let { layer }: Props = $props();
 
-	let layerName = $derived(layer.name);
 	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
 
 	let isEditing = $state(false);
+	let editedName = $state(''); // Only used during editing
 	let fileInputElement: HTMLInputElement | null = $state(null); // Reference to file input element
 	let isDragover = $state(false);
 	let isExpanded = $state(true);
@@ -74,7 +135,7 @@
 	}
 
 	// Bulk delete traits
-	function bulkDelete() {
+	async function bulkDelete() {
 		if (selectedTraits.size === 0) return;
 
 		// Simple confirmation dialog
@@ -86,21 +147,21 @@
 					removeTrait(layer.id, traitId);
 					deletedCount++;
 				});
-				toast.success(`${deletedCount} trait(s) deleted successfully.`);
+				await showBulkTraitDeleteSuccess(deletedCount);
 				clearSelection();
 			} catch (error) {
 				console.error('Failed to delete traits:', error);
-				toast.error('Failed to delete some traits. Please try again.');
+				await showDeleteError();
 			}
 		}
 	}
 
 	// Bulk rename traits
-	function bulkRename() {
+	async function bulkRename() {
 		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
 
 		if (bulkNewName.length > 100) {
-			toast.error('Base name for bulk rename cannot exceed 100 characters.');
+			await showValidationError('Base name for bulk rename cannot exceed 100 characters.');
 			return;
 		}
 
@@ -119,42 +180,39 @@
 			count++;
 		});
 		if (successCount > 0) {
-			toast.success(`Renamed ${successCount} trait(s).`);
+			await showTraitRenameSuccess(successCount);
 		}
 		bulkNewName = '';
 	}
 
-	function handleNameChange() {
-		if (layerName.trim() === '') {
-			toast.error('Layer name cannot be empty.');
-			layerName = layer.name; // Revert to original name
+	async function handleNameChange() {
+		if (editedName.trim() === '') {
+			await showValidationError('Layer name cannot be empty.');
+			isEditing = false;
 			return;
 		}
 
-		if (layerName.length > 100) {
-			toast.error('Layer name cannot exceed 100 characters.');
-			layerName = layer.name; // Revert to original name
+		if (editedName.length > 100) {
+			await showValidationError('Layer name cannot exceed 100 characters.');
+			isEditing = false;
 			return;
 		}
 
-		updateLayerName(layer.id, layerName);
+		updateLayerName(layer.id, editedName);
 		isEditing = false;
 	}
 
 	function cancelEdit() {
-		layerName = layer.name;
 		isEditing = false;
 	}
 
-	function handleDeleteLayer() {
-		toast.info(`Layer "${layer.name}" has been removed.`, {
-			action: {
-				label: 'Undo',
-				onClick: () => {
-					console.log('Undo remove layer'); /* Add undo logic here */
-				}
-			}
-		});
+	function startEditing() {
+		editedName = layer.name;
+		isEditing = true;
+	}
+
+	async function handleDeleteLayer() {
+		await showLayerRemoved(layer.name);
 		removeLayer(layer.id);
 	}
 
@@ -182,27 +240,21 @@
 			});
 
 			if (imageFiles.length === 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.warning(
-						'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
-					);
-				});
+				await showWarning(
+					'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
+				);
 				return;
 			}
 
 			// Validate file sizes first (quick synchronous check)
 			const oversizedFiles = imageFiles.filter((file) => file.size > 10 * 1024 * 1024);
 			if (oversizedFiles.length > 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.error(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
-				});
+				await showError(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
 			}
 
 			const validFiles = imageFiles.filter((file) => file.size <= 10 * 1024 * 1024);
 			if (validFiles.length === 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.error('No valid files to upload (all files exceed 10MB limit).');
-				});
+				await showError('No valid files to upload (all files exceed 10MB limit).');
 				return;
 			}
 
@@ -228,11 +280,9 @@
 						Math.abs(width - projectData.outputSize.width) > 1 ||
 						Math.abs(height - projectData.outputSize.height) > 1
 					) {
-						import('svelte-sonner').then(({ toast }) => {
-							toast.error(
-								`First image dimensions (${width}x${height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
-							);
-						});
+						await showError(
+							`First image dimensions (${width}x${height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
+						);
 						return;
 					}
 				} else {
@@ -278,23 +328,15 @@
 			}
 
 			if (errorCount === 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.success(`${successCount} trait(s) added successfully.`);
-				});
+				await showUploadPartialSuccess(successCount, 0);
 			} else if (successCount > 0) {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.warning(`${successCount} trait(s) added, ${errorCount} failed.`);
-				});
+				await showUploadPartialSuccess(successCount, errorCount);
 			} else {
-				import('svelte-sonner').then(({ toast }) => {
-					toast.error('All files failed to upload. Please check the files and try again.');
-				});
+				await showError('All files failed to upload. Please check the files and try again.');
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-			import('svelte-sonner').then(({ toast }) => {
-				toast.error(`Error uploading files: ${message}`);
-			});
+			await showUploadError(message);
 		} finally {
 			// Stop loading state
 			stopLoading(`layer-upload-${layer.id}`);
@@ -344,19 +386,9 @@
 						const blob = new Blob([trait.imageData], { type: 'image/png' });
 						const newUrl = URL.createObjectURL(blob);
 						img.src = newUrl;
-						// Update the trait in the layer to trigger reactivity
-						const layerIndex = project.layers.findIndex((l) => l.id === layerId);
-						if (layerIndex !== -1) {
-							const traitIndex = project.layers[layerIndex].traits.findIndex(
-								(t: any) => t.id === trait.id
-							);
-							if (traitIndex !== -1) {
-								project.layers[layerIndex].traits[traitIndex] = {
-									...project.layers[layerIndex].traits[traitIndex],
-									imageUrl: newUrl
-								};
-							}
-						}
+						untrack(() => {
+							trait.imageUrl = newUrl;
+						});
 					} catch (error) {
 						console.error('Failed to recreate image URL:', error);
 						img.style.display = 'none';
@@ -380,19 +412,9 @@
 				const blob = new Blob([trait.imageData], { type: 'image/png' });
 				const url = URL.createObjectURL(blob);
 				img.src = url;
-				// Update the trait in the layer to trigger reactivity
-				const layerIndex = project.layers.findIndex((l) => l.id === layerId);
-				if (layerIndex !== -1) {
-					const traitIndex = project.layers[layerIndex].traits.findIndex(
-						(t: any) => t.id === trait.id
-					);
-					if (traitIndex !== -1) {
-						project.layers[layerIndex].traits[traitIndex] = {
-							...project.layers[layerIndex].traits[traitIndex],
-							imageUrl: url
-						};
-					}
-				}
+				untrack(() => {
+					trait.imageUrl = url;
+				});
 				imgContainer.appendChild(img);
 			} catch (error) {
 				console.error('Failed to create image URL:', error);
@@ -412,39 +434,26 @@
 			imgContainer.appendChild(loaderDiv);
 		}
 
-		// Helper function to show "needs re-upload" indicator
+		// Helper function to show "needs re-upload" indicator using SVG snippet
 		function showNeedsReupload(container: HTMLElement) {
 			const needsReuploadDiv = document.createElement('div');
 			needsReuploadDiv.className =
 				'flex h-full flex-col items-center justify-center p-2 text-center';
 
-			const iconContainer = document.createElement('div');
-			iconContainer.className = 'text-muted-foreground mb-2';
+			needsReuploadDiv.innerHTML = `
+				<div class="text-muted-foreground mb-2">
+					<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+						/>
+					</svg>
+				</div>
+				<span class="text-muted-foreground text-xs">Image needs re-upload</span>
+			`;
 
-			const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-			svg.setAttribute('class', 'h-8 w-8');
-			svg.setAttribute('fill', 'none');
-			svg.setAttribute('stroke', 'currentColor');
-			svg.setAttribute('viewBox', '0 0 24 24');
-
-			const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-			path.setAttribute('stroke-linecap', 'round');
-			path.setAttribute('stroke-linejoin', 'round');
-			path.setAttribute('stroke-width', '2');
-			path.setAttribute(
-				'd',
-				'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
-			);
-
-			svg.appendChild(path);
-			iconContainer.appendChild(svg);
-
-			const textSpan = document.createElement('span');
-			textSpan.className = 'text-muted-foreground text-xs';
-			textSpan.textContent = 'Image needs re-upload';
-
-			needsReuploadDiv.appendChild(iconContainer);
-			needsReuploadDiv.appendChild(textSpan);
 			container.appendChild(needsReuploadDiv);
 		}
 
@@ -577,7 +586,7 @@
 	});
 </script>
 
-<Card class="w-full">
+<Card class="w-full" data-testid="layer-item">
 	<CardContent class="p-4">
 		<div class="mb-3 flex items-center justify-between">
 			<div class="flex items-center space-x-2">
@@ -592,7 +601,7 @@
 					<input
 						type="text"
 						class="border-primary text-foreground border-b bg-transparent text-lg font-medium focus:outline-none"
-						bind:value={layerName}
+						bind:value={editedName}
 						onchange={handleNameChange}
 						onkeydown={(e) => e.key === 'Enter' && handleNameChange()}
 					/>
@@ -607,7 +616,7 @@
 			</div>
 			{#if !isEditing}
 				<div class="flex space-x-1">
-					<Button variant="ghost" size="icon" onclick={() => (isEditing = true)}
+					<Button variant="ghost" size="icon" onclick={startEditing}
 						><Edit class="h-4 w-4" /></Button
 					>
 					<Button variant="ghost" size="icon" onclick={handleDeleteLayer}
@@ -798,7 +807,7 @@
 							{#each layer.traits as trait, i (trait.id)}
 								{#if trait.name.toLowerCase().includes(searchTerm.toLowerCase())}
 									<TraitCard
-										bind:trait={layer.traits[i]}
+										{trait}
 										layerId={layer.id}
 										selected={selectedTraits.has(createTraitId(trait.id))}
 										onToggleSelection={() => toggleTraitSelection(createTraitId(trait.id))}

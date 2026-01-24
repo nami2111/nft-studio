@@ -23,8 +23,10 @@ describe('Enhanced Worker Pool Integration', () => {
 
 		const status = getWorkerPoolStatus();
 		expect(status).not.toBeNull();
+		// We expect complexityBreakdown to be defined
 		expect(status!.complexityBreakdown).toBeDefined();
-		expect(status!.workerHealth).toEqual([]);
-		expect(status!.workerStats).toEqual([]);
+		// Since config.maxWorkers=0 is forced to baseWorkers, we expect workers to be present
+		expect(status!.workerHealth.length).toBeGreaterThan(0);
+		expect(status!.workerStats.length).toBeGreaterThan(0);
 	});
 });

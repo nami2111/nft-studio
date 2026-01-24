@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { Progress } from '$lib/components/ui/progress';
-	import { AlertCircle } from '@lucide/svelte';
+	import { AlertCircle, CheckCircle2 } from '@lucide/svelte';
 	import { generationState, resetState } from '$lib/stores/generation-progress.svelte';
 	import { formatTime } from '$lib/utils/formatters';
+	import { fade, slide, scale } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
 
 	let { isBackground, isPaused, isGenerating } = $props<{
 		isBackground: boolean;
@@ -14,9 +16,21 @@
 	let statusText = $derived(generationState.statusText);
 	let memoryUsage = $derived(generationState.memoryUsage);
 	let currentSessionId = $derived(generationState.sessionId);
+	let itemsPerSecond = $derived(generationState.itemsPerSecond);
+	let eta = $derived(generationState.eta);
 
 	function handleClearState() {
 		resetState();
+	}
+
+	let isCompleted = $derived(!isGenerating && !!generationState.completionTime && progress === 100);
+
+	function formatEta(seconds: number | null): string {
+		if (seconds === null || seconds < 0) return 'Estimating...';
+		if (seconds < 60) return `${Math.round(seconds)}s`;
+		const mins = Math.floor(seconds / 60);
+		const secs = Math.round(seconds % 60);
+		return `${mins}m ${secs}s`;
 	}
 </script>
 
@@ -43,8 +57,50 @@
 			{isBackground ? 'Background Progress' : 'Progress'}
 		</label>
 		<div class="space-y-2">
-			<Progress value={progress} max={100} class="w-full" />
-			<p class="text-muted-foreground text-sm break-words">{statusText}</p>
+			<div class="relative overflow-hidden rounded-full">
+				<Progress
+					value={progress}
+					max={100}
+					class="w-full transition-all duration-300 {isGenerating ? 'animate-pulse-subtle' : ''}"
+				/>
+				{#if isGenerating}
+					<div
+						class="absolute inset-0 -translate-x-full animate-[shimmer_3s_infinite] bg-linear-to-r from-transparent via-white/10 to-transparent"
+					></div>
+				{/if}
+			</div>
+
+			{#if isCompleted}
+				<div
+					in:scale={{ duration: 400, delay: 200, easing: quintOut }}
+					class="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+				>
+					<CheckCircle2 class="h-5 w-5" />
+					<div class="flex-1">
+						<p class="text-sm font-bold">Generation Complete!</p>
+						<p class="text-xs opacity-80">{generationState.totalItems} NFTs ready for preview.</p>
+					</div>
+				</div>
+			{:else}
+				<div class="flex flex-col gap-1">
+					<p class="text-foreground text-sm font-medium wrap-break-word" in:slide>{statusText}</p>
+					{#if isGenerating && (itemsPerSecond || eta !== null)}
+						<div class="text-muted-foreground flex items-center gap-3 text-xs" in:fade>
+							{#if itemsPerSecond}
+								<span class="flex items-center gap-1">
+									<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500"></span>
+									{itemsPerSecond.toFixed(1)} items/s
+								</span>
+							{/if}
+							{#if eta !== null}
+								<span class="flex items-center gap-1">
+									⏱️ {formatEta(eta)} remaining
+								</span>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Generation Status Details -->
 			{#if currentSessionId}
@@ -94,3 +150,28 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	@keyframes shimmer {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(100%);
+		}
+	}
+
+	:global(.animate-pulse-subtle) {
+		animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+	}
+
+	@keyframes pulse-subtle {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.85;
+		}
+	}
+</style>
