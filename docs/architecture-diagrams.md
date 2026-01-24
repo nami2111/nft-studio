@@ -8,13 +8,14 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 #### 1. UI Layer (`src/lib/components/`)
 
-**Advanced Svelte 5 Component Architecture with Runes-Based Reactivity**
+##### Advanced Svelte 5 Component Architecture with Runes-Based Reactivity
 
-- **Layer Management Components** (`layer/`):
+- **Layer & Trait Management Components** (`layer/`):
   - `LayerManager.svelte`: Main layer orchestration with bulk operations
   - `LayerItem.svelte`: Individual layer management with drag-and-drop reordering
-  - `BulkOperations.svelte`: Batch trait editing and management
-  - `LayerFilter.svelte`: Advanced layer filtering and search
+  - `TraitCard.svelte`: Individual trait management with rarity controls
+  - `VirtualTraitList.svelte`: Efficient rendering of large trait collections
+  - `StrictPair.svelte`: Advanced trait pairing and constraints configuration
 
 - **Trait Management Components** (`layer/`):
   - `TraitCard.svelte`: Individual trait management with ruler trait controls
@@ -24,12 +25,13 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 - **Gallery Components** (`gallery/`):
   - `SimpleVirtualGrid.svelte`: High-performance virtual scrolling for NFT collections
   - `GalleryImport.svelte`: ZIP import with automatic metadata parsing
-  - `NFTDetails.svelte`: Interactive NFT information panel with trait filtering
+  - `NFTDetail.svelte`: Interactive NFT information panel with trait filtering
+  - `TraitFilter.svelte`: Multi-layer trait filtering system
 
-- **Preview System** (`preview/`):
+- **Preview & Generation System** (`generation/`):
   - `Preview.svelte`: Real-time canvas preview with debounced updates (200ms)
-  - `PreviewCache.svelte`: Intelligent image caching with adjacent trait preloading
-  - `PreviewRenderer.svelte`: Canvas-based rendering with device pixel ratio support
+  - `GenerationProgress.svelte`: Real-time progress monitoring for batch generation
+  - `GenerationControls.svelte`: Main generation configuration and trigger
 
 - **Core UI Components** (`ui/`):
   - Comprehensive component library: Button, Card, Dialog, Input, and more
@@ -38,7 +40,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 #### 2. Store Layer (`src/lib/stores/`)
 
-**Modern State Management with Svelte 5 Runes and Auto-Persistence**
+##### Modern State Management with Svelte 5 Runes and Auto-Persistence
 
 - **`project.store.svelte.ts`**: Core project state with intelligent auto-persistence
   - 500ms debounced persistence to LocalStorage
@@ -67,7 +69,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 #### 3. Domain Layer (`src/lib/domain/`)
 
-**Business Logic with Complex Validation and Worker Orchestration**
+##### Business Logic with Complex Validation and Worker Orchestration
 
 - **`validation.ts`**: Comprehensive Zod-based validation system
   - Runtime type safety with branded types
@@ -91,7 +93,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 #### 4. Worker Layer (`src/lib/workers/`)
 
-**Advanced Worker Pool with Dynamic Scaling and Health Monitoring**
+##### Advanced Worker Pool with Dynamic Scaling and Health Monitoring
 
 - **`worker.pool.ts`**: Sophisticated worker pool management
   - Dynamic scaling based on device capabilities (CPU cores, memory, mobile detection)
@@ -111,7 +113,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 #### 5. Persistence Layer (`src/lib/persistence/`)
 
-**Multi-Backend Storage with Intelligent Caching**
+##### Multi-Backend Storage with Intelligent Caching
 
 - **IndexedDB Integration**: Structured data persistence for large collections
   - Gallery collections with automatic quota monitoring
@@ -129,7 +131,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 #### 6. Utils Layer (`src/lib/utils/`)
 
-**Performance Monitoring and Error Handling**
+##### Performance Monitoring and Error Handling
 
 - **`performance-monitor.ts`**: Decorator-based performance tracking
   - Automatic metric collection and reporting

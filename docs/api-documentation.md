@@ -20,10 +20,11 @@ The project store manages the reactive state of the current NFT project using Sv
 
 ```typescript
 /**
- * Reactive project state using Svelte 5 runes.
+ * Reactive project state using Svelte 5 runes ($state).
  * Contains the current project data including layers, traits, and configuration.
  * Managed through modular store architecture with single responsibility principle.
  */
+export const project = $state<Project>(validationService.createDefaultProject());
 ```
 
 #### Project Management Functions
@@ -56,10 +57,10 @@ export function updateProjectDimensions(width: number, height: number): void;
 ```typescript
 /**
  * Adds a new layer to the project with validation.
- * @param {Omit<Layer, 'id' | 'traits'>} layer - The layer to add
+ * @param {string} name - The name of the layer to add
  * @throws {Error} If the layer name is invalid
  */
-export function addLayer(layer: Omit<Layer, 'id' | 'traits'>): void;
+export function addLayer(name: string): void;
 
 /**
  * Removes a layer from the project by ID.
@@ -88,14 +89,11 @@ export function reorderLayers(reorderedLayers: Layer[]): void;
 /**
  * Adds a new trait to a layer with image processing and security validation.
  * @param {string} layerId - The ID of the layer to add the trait to
- * @param {Omit<Trait, 'id' | 'imageData'> & { imageData: File }} trait - The trait to add
+ * @param {File} file - The image file for the trait
  * @returns {Promise<void>} Resolves when the trait is added
  * @throws {Error} If the trait name is invalid or image processing fails
  */
-export async function addTrait(
-	layerId: string,
-	trait: Omit<Trait, 'id' | 'imageData'> & { imageData: File }
-): Promise<void>;
+export function addTrait(layerId: LayerId, file: File): Promise<void>;
 
 /**
  * Removes a trait from a layer by ID.
@@ -129,14 +127,14 @@ export function updateTraitRarity(layerId: string, traitId: string, rarityWeight
  * Interface for detailed loading state information.
  */
 export interface LoadingState {
-	/** Whether the operation is currently loading */
-	isLoading: boolean;
-	/** Progress percentage (0-100) */
-	progress?: number;
-	/** Current status message */
-	message?: string;
-	/** Timestamp when the operation started */
-	startTime?: number;
+ /** Whether the operation is currently loading */
+ isLoading: boolean;
+ /** Progress percentage (0-100) */
+ progress?: number;
+ /** Current status message */
+ message?: string;
+ /** Timestamp when the operation started */
+ startTime?: number;
 }
 
 /**
@@ -165,17 +163,17 @@ export function stopDetailedLoading(key: string): void;
 
 ```typescript
 /**
- * Saves the current project to a ZIP file with security sanitization.
- * @returns {Promise<void>} Resolves when the project is saved
+ * Saves the current project to a ZIP file.
+ * @returns {Promise<ArrayBuffer>} The ZIP file data
  */
-export async function saveProjectToZip(): Promise<void>;
+export async function saveProjectToZip(): Promise<ArrayBuffer>;
 
 /**
  * Loads a project from a ZIP file with security validation.
  * @param {File} file - The ZIP file to load
- * @returns {Promise<boolean>} True if the project was loaded successfully
+ * @returns {Promise<void>} Resolves when the project is loaded
  */
-export async function loadProjectFromZip(file: File): Promise<boolean>;
+export async function loadProjectFromZip(file: File): Promise<void>;
 ```
 
 ## Domain Services API
@@ -282,9 +280,9 @@ export function removeLayerFromProject(project: Project, layerId: string): Proje
  * @returns {Project} The updated project with modified layer
  */
 export function updateLayerInProject(
-	project: Project,
-	layerId: string,
-	updates: Partial<Layer>
+ project: Project,
+ layerId: string,
+ updates: Partial<Layer>
 ): Project;
 
 /**
@@ -307,8 +305,8 @@ export function reorderLayersInProject(project: Project, reorderedLayers: Layer[
  * @throws {Error} If trait name is invalid or image processing fails
  */
 export async function addTraitToLayer(
-	layer: Layer,
-	trait: Omit<Trait, 'id' | 'imageData'> & { imageData: File }
+ layer: Layer,
+ trait: Omit<Trait, 'id' | 'imageData'> & { imageData: File }
 ): Promise<Trait>;
 
 /**
@@ -345,7 +343,7 @@ export function hasMissingImageData(layers: Layer[]): boolean;
  * @returns {Array<{ layerName: string; traitName: string }>} Array of missing image information
  */
 export function getLayersWithMissingImages(
-	layers: Layer[]
+ layers: Layer[]
 ): Array<{ layerName: string; traitName: string }>;
 ```
 
@@ -372,12 +370,12 @@ The generation worker handles intensive image processing and NFT generation oper
  * @throws {Error} If validation fails or generation encounters critical errors
  */
 async function generateCollection(
-	layers: TransferrableLayer[],
-	collectionSize: number,
-	outputSize: { width: number; height: number },
-	projectName: string,
-	projectDescription: string,
-	taskId?: string
+ layers: TransferrableLayer[],
+ collectionSize: number,
+ outputSize: { width: number; height: number },
+ projectName: string,
+ projectDescription: string,
+ taskId?: string
 ): Promise<void>;
 
 /**
@@ -389,8 +387,8 @@ async function generateCollection(
  * @returns {number} Optimal chunk size for processing (10-200 items)
  */
 function calculateOptimalChunkSize(
-	deviceCapabilities: ReturnType<typeof getDeviceCapabilities>,
-	collectionSize: number
+ deviceCapabilities: ReturnType<typeof getDeviceCapabilities>,
+ collectionSize: number
 ): number;
 
 /**
@@ -399,9 +397,9 @@ function calculateOptimalChunkSize(
  * @returns {Object} Device capabilities object
  */
 function getDeviceCapabilities(): {
-	coreCount: number;
-	memoryGB: number;
-	isMobile: boolean;
+ coreCount: number;
+ memoryGB: number;
+ isMobile: boolean;
 };
 ```
 
@@ -412,39 +410,39 @@ The worker communicates with the main thread using structured messages:
 ```typescript
 // Progress updates
 interface ProgressMessage {
-	type: 'progress';
-	taskId?: string;
-	payload: {
-		generatedCount: number;
-		totalCount: number;
-		statusText: string;
-		memoryUsage?: MemoryUsage;
-	};
+ type: 'progress';
+ taskId?: string;
+ payload: {
+  generatedCount: number;
+  totalCount: number;
+  statusText: string;
+  memoryUsage?: MemoryUsage;
+ };
 }
 
 // Completion messages
 interface CompleteMessage {
-	type: 'complete';
-	taskId?: string;
-	payload: {
-		images: Array<{ name: string; imageData: ArrayBuffer }>;
-		metadata: Array<{ name: string; data: object }>;
-	};
+ type: 'complete';
+ taskId?: string;
+ payload: {
+  images: Array<{ name: string; imageData: ArrayBuffer }>;
+  metadata: Array<{ name: string; data: object }>;
+ };
 }
 
 // Error messages
 interface ErrorMessage {
-	type: 'error';
-	taskId?: string;
-	payload: {
-		message: string;
-	};
+ type: 'error';
+ taskId?: string;
+ payload: {
+  message: string;
+ };
 }
 ```
 
 ## Utility Functions
 
-### Error Handling (`src/lib/utils/error-handler.ts`)
+### Error Handling Utility (`src/lib/utils/error-handler.ts`)
 
 ```typescript
 /**
@@ -465,8 +463,8 @@ export function handleValidationError<T>(error: Error, options: { context: objec
  * @param {string} options.description - Error description for user display
  */
 export function handleFileError(
-	error: unknown,
-	options: { context: object; title: string; description: string }
+ error: unknown,
+ options: { context: object; title: string; description: string }
 ): void;
 ```
 
@@ -518,31 +516,31 @@ Core types are defined in `src/lib/types/`:
 ```typescript
 // Project configuration and data
 interface Project {
-	id: string;
-	name: string;
-	description: string;
-	outputSize: { width: number; height: number };
-	layers: Layer[];
+ id: string;
+ name: string;
+ description: string;
+ outputSize: { width: number; height: number };
+ layers: Layer[];
 }
 
 // Layer containing traits and rendering order
 interface Layer {
-	id: string;
-	name: string;
-	order: number;
-	isOptional?: boolean;
-	traits: Trait[];
+ id: string;
+ name: string;
+ order: number;
+ isOptional?: boolean;
+ traits: Trait[];
 }
 
 // Individual trait with image data and rarity configuration
 interface Trait {
-	id: string;
-	name: string;
-	imageData: ArrayBuffer;
-	imageUrl: string;
-	width: number;
-	height: number;
-	rarityWeight: number;
+ id: string;
+ name: string;
+ imageData: ArrayBuffer;
+ imageUrl: string;
+ width: number;
+ height: number;
+ rarityWeight: number;
 }
 ```
 
@@ -555,6 +553,6 @@ Worker communication types are defined in `src/lib/types/worker-messages.ts`:
 - **ErrorMessage**: Error reporting from workers
 - **TransferrableLayer**: Optimized data transfer for workers
 
-```
-
+```typescript
+// Footer content
 ```
