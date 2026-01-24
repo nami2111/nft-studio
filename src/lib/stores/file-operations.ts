@@ -89,7 +89,7 @@ export async function saveProjectToZip(project: Project): Promise<ArrayBuffer> {
 						projectData: JSON.stringify(projectData),
 						imageFiles
 					}
-				}, transferables);
+				});
 			});
 		},
 		'file.saveProjectToZip',
@@ -205,6 +205,7 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 					globalResourceManager.addObjectUrl(trait.imageUrl);
 				} else {
 					// Create empty image data if file not found
+					console.error(`[loadProjectFromZip] Image not found in ZIP: ${imagePath}`);
 					trait.imageData = new ArrayBuffer(0);
 				}
 			}

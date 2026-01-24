@@ -31,22 +31,19 @@ self.onmessage = async (event: MessageEvent<ZipMessage>) => {
             zip.file('project.json', projectData);
 
             // Add all image files
-            const assetsFolder = zip.folder('assets');
-            if (assetsFolder) {
-                for (let i = 0; i < imageFiles.length; i++) {
-                    const file = imageFiles[i];
-                    assetsFolder.file(file.path, file.data);
+            for (let i = 0; i < imageFiles.length; i++) {
+                const file = imageFiles[i];
+                zip.file(file.path, file.data);
 
-                    // Report progress every 5 files
-                    if (i % 5 === 0 || i === imageFiles.length - 1) {
-                        (self as any).postMessage({
-                            type: 'zip-progress',
-                            taskId,
-                            payload: {
-                                progress: Math.round(((i + 1) / imageFiles.length) * 100)
-                            }
-                        });
-                    }
+                // Report progress every 5 files
+                if (i % 5 === 0 || i === imageFiles.length - 1) {
+                    (self as any).postMessage({
+                        type: 'zip-progress',
+                        taskId,
+                        payload: {
+                            progress: Math.round(((i + 1) / imageFiles.length) * 100)
+                        }
+                    });
                 }
             }
 
