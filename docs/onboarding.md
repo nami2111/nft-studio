@@ -41,7 +41,7 @@ NFT Studio provides two sophisticated modes for working with NFT collections:
 
 ### Generate Mode (`/app`)
 
-**Professional NFT Creation Environment**
+#### Professional NFT Creation Environment
 
 - **Purpose**: Create new NFT collections from layers and traits with advanced controls
 - **Core Features**:
@@ -59,7 +59,7 @@ NFT Studio provides two sophisticated modes for working with NFT collections:
 
 ### Gallery Mode (`/app/gallery`)
 
-**Interactive Collection Analysis & Management**
+#### Interactive Collection Analysis & Management
 
 - **Purpose**: View, filter, and analyze existing NFT collections with professional tools
 - **Core Features**:
@@ -87,7 +87,7 @@ For detailed information about Gallery Mode features and interactive filtering, 
 
 ## Project Structure
 
-```
+```bash
 nft-studio/
 ├── docs/                    # Comprehensive documentation
 │   ├── onboarding.md        # Developer onboarding guide
@@ -98,32 +98,38 @@ nft-studio/
 ├── src/                     # Source code
 │   ├── lib/                 # Core application code
 │   │   ├── components/       # Reusable UI components
-│   │   │   ├── layer/       # Layer management components
+│   │   │   ├── layer/       # Layer and trait management components
 │   │   │   ├── gallery/     # Gallery and collection components
-│   │   │   ├── preview/     # Preview system components
-│   │   │   └── ui/          # Base UI component library
+│   │   │   ├── generation/  # Generation and preview components
+│   │   │   ├── layout/      # Page layout and structural components
+│   │   │   ├── monitor/     # Performance monitoring components
+│   │   │   ├── project/     # Project management components
+│   │   │   ├── shared/      # Common shared components
+│   │   │   └── ui/          # Base UI component library (Shadcn-like)
 │   │   ├── stores/           # State management with Svelte 5 runes
 │   │   │   ├── project.store.svelte.ts  # Main project state
 │   │   │   ├── gallery.store.svelte.ts  # Gallery collection state
 │   │   │   ├── resource-manager.ts     # Memory and cache management
 │   │   │   └── file-operations.ts      # Import/export functionality
 │   │   ├── domain/           # Business logic and validation
-│   │   │   ├── validation.ts          # Zod-based validation
+│   │   │   ├── validation.ts          # Logic-based validation
 │   │   │   ├── project.domain.ts      # Project business logic
 │   │   │   ├── worker.service.ts      # Worker orchestration
 │   │   │   └── rarity-calculator.ts   # Rarity calculation algorithms
+│   │   ├── services/         # Application services
+│   │   │   ├── persistence.service.ts  # Storage management
+│   │   │   └── validation.service.ts   # Core validation service
 │   │   ├── workers/          # Advanced worker pool system
 │   │   │   ├── worker.pool.ts         # Dynamic worker pool management
-│   │   │   ├── generation.worker.ts   # Canvas-based generation
-│   │   │   └── generation.worker.client.ts  # Worker client interface
+│   │   │   └── generation.worker.ts   # Canvas-based generation
 │   │   ├── utils/            # Performance and utility functions
 │   │   │   ├── performance-monitor.ts  # Performance tracking
 │   │   │   ├── error-handler.ts       # Error management
 │   │   │   └── advanced-cache.ts       # Three-tier caching system
-│   │   ├── types/            # TypeScript definitions with branded types
+│   │   ├── types/            # TypeScript definitions
 │   │   └── persistence/      # Data storage abstraction
 │   ├── routes/               # SvelteKit page routes
-│   │   ├── +page.svelte      # Landing page (Hero component)
+│   │   ├── +page.svelte      # Landing page
 │   │   ├── +layout.svelte    # Root layout
 │   │   ├── app/              # Main application
 │   │   │   ├── +page.svelte  # Generate mode interface

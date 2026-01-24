@@ -298,10 +298,10 @@
 							<div class="px-4 py-4 sm:px-6 sm:py-6">
 								<div class="prose max-w-none">
 									<p class="text-muted-foreground mb-6 leading-relaxed">
-										NFT Studio is a professional web application built with SvelteKit 2, TypeScript,
-										and Web Workers. It provides artists and creators with a comprehensive toolkit
-										for building generative NFT collections through an intuitive, high-performance
-										interface.
+										NFT Studio is a professional web application built with SvelteKit 2, Svelte 5,
+										TypeScript, and Web Workers. It provides artists and creators with a
+										comprehensive toolkit for building generative NFT collections through an
+										intuitive, high-performance interface.
 									</p>
 
 									<div class="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -331,7 +331,7 @@
 											<div class="flex flex-wrap gap-2">
 												<span
 													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-													>SvelteKit 2</span
+													>SvelteKit 2 & Svelte 5</span
 												>
 												<span
 													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
