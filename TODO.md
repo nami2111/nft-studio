@@ -14,7 +14,7 @@ Full migration from custom shadcn-svelte components to @neobr/svelte with brutal
 
 ### Phase 1: Dependencies & Configuration
 
-- [x] Install dependencies: `pnpm add @neobr/svelte @neobr/tailwind-preset`
+- [ ] Install dependencies: `pnpm add @neobr/svelte @neobr/tailwind-preset`
 - [ ] Update src/app.css with NeoBr-UI design system (OKLCH colors, brutalist shadows)
 - [ ] Configure Tailwind v4 with brutalist tokens
 - [ ] Update vite.config.ts if needed for new source paths
