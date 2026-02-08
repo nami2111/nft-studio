@@ -35,6 +35,8 @@
 		class?: string;
 		/** Maximum width class (e.g., 'max-w-lg', 'max-w-4xl') */
 		maxWidth?: string;
+		/** Maximum height class (e.g., 'max-h-[80vh]') */
+		maxHeight?: string;
 		/** Close handler */
 		onClose?: () => void;
 		/** Modal content */
@@ -47,6 +49,7 @@
 		description = '',
 		class: className,
 		maxWidth = 'max-w-lg',
+		maxHeight = 'max-h-[85vh]',
 		onClose,
 		children
 	}: Props = $props();
@@ -67,7 +70,7 @@
 </script>
 
 {#if portalTarget && open}
-	<div use:portal={portalTarget} class={cn('modal-wrapper', maxWidth, className)}>
+	<div use:portal={portalTarget} class={cn('modal-wrapper', maxWidth, maxHeight, className)}>
 		<NeoBrModal bind:open {title} onClose={handleClose}>
 			{#if description}
 				<p class="text-muted-foreground mb-4 text-sm">{description}</p>
@@ -80,6 +83,9 @@
 <style>
 	.modal-wrapper :global(.modal-content) {
 		max-width: var(--modal-max-width, 32rem);
+		max-height: var(--modal-max-height, 85vh);
+		overflow-y: auto;
+		overflow-x: hidden;
 	}
 
 	.modal-wrapper.max-w-xs :global(.modal-content) {

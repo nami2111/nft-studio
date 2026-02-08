@@ -228,7 +228,6 @@
 
 	/* Performance optimization: Reduce motion for users who prefer it */
 	@media (prefers-reduced-motion: reduce) {
-
 		*,
 		*::before,
 		*::after {
@@ -282,7 +281,7 @@
 	}
 
 	/* Ensure modal backdrop covers everything */
-	[role='dialog']>div:first-child {
+	[role='dialog'] > div:first-child {
 		z-index: 99998 !important;
 	}
 
