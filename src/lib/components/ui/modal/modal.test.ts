@@ -27,7 +27,6 @@ describe('Modal', () => {
 		onClose = vi.fn();
 		vi.clearAllMocks();
 
-
 		// Mock window dimensions
 		Object.defineProperty(window, 'innerHeight', {
 			writable: true,
@@ -49,7 +48,7 @@ describe('Modal', () => {
 				pageTop: 0,
 				scale: 1,
 				// Add dispatchEvent for EventTarget compatibility if needed, though simple mock usually suffices for component checks
-				dispatchEvent: vi.fn(),
+				dispatchEvent: vi.fn()
 			};
 
 			Object.defineProperty(window, 'visualViewport', {
@@ -70,7 +69,7 @@ describe('Modal', () => {
 				props: {
 					open: true,
 					onClose,
-					title: 'Test Modal',
+					title: 'Test Modal'
 				}
 			});
 
@@ -84,7 +83,7 @@ describe('Modal', () => {
 				props: {
 					open: true,
 					onClose,
-					title: 'Test Modal',
+					title: 'Test Modal'
 				}
 			});
 
@@ -99,7 +98,7 @@ describe('Modal', () => {
 				props: {
 					open: true,
 					onClose,
-					title: 'Test Modal',
+					title: 'Test Modal'
 				}
 			});
 
@@ -118,7 +117,7 @@ describe('Modal', () => {
 				props: {
 					open: true,
 					onClose,
-					title: 'Test Modal',
+					title: 'Test Modal'
 				}
 			});
 

@@ -226,8 +226,8 @@
 	}
 </script>
 
-<Card class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
-	<div class="border-b px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+<Card class="bg-card/95 rounded-lg border-2 shadow-sm backdrop-blur-sm">
+	<div class="border-b-2 px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
 		<div class="flex items-center justify-between">
 			<h2 class="flex items-center gap-2 text-base font-semibold sm:text-lg lg:text-xl">
 				<Settings class="size-4" />
@@ -260,7 +260,7 @@
 			</Button>
 
 			{#if strictPairConfig.enabled}
-				<div class="space-y-3 border-t pt-3">
+				<div class="space-y-3 border-t-2 pt-3">
 					<!-- Add Layer Combination Button -->
 					<Button
 						variant="outline"
@@ -279,7 +279,7 @@
 							<h4 class="text-sm font-medium">Layer Combinations</h4>
 
 							{#each strictPairConfig.layerCombinations as layerCombination}
-								<div class="group bg-card hover:bg-muted/50 rounded-lg border p-3 transition-all">
+								<div class="group bg-card hover:bg-muted/50 rounded-lg border-2 p-3 transition-all">
 									<div class="space-y-2">
 										<!-- Top row: Description -->
 										<div class="text-sm leading-tight font-medium break-words">
@@ -443,7 +443,7 @@
 					<div
 						role="button"
 						tabindex="0"
-						class="hover:bg-muted/50 flex cursor-pointer items-center space-x-3 rounded-lg border p-3 {isLayerSelected(
+						class="hover:bg-muted/50 flex cursor-pointer items-center space-x-3 rounded-lg border-2 p-3 {isLayerSelected(
 							layer.id
 						)
 							? 'bg-primary/10 border-primary'
@@ -461,7 +461,7 @@
 						<input
 							type="checkbox"
 							checked={isLayerSelected(layer.id)}
-							class="accent-primary focus:ring-primary h-4 w-4 rounded border-input focus:ring-2 focus:ring-offset-2 pointer-events-none"
+							class="accent-primary focus:ring-primary border-input pointer-events-none h-4 w-4 rounded focus:ring-2 focus:ring-offset-2"
 							tabindex="-1"
 							aria-hidden="true"
 						/>
@@ -508,7 +508,7 @@
 				type="text"
 				placeholder={generateDefaultLayerCombinationDescription(selectedLayerIds)}
 				bind:value={newLayerPairDescription}
-				class="mt-2 w-full rounded-md border px-3 py-2 text-sm"
+				class="mt-2 w-full rounded-md border-2 px-3 py-2 text-sm"
 			/>
 		</div>
 

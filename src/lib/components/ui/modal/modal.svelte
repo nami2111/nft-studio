@@ -1,186 +1,132 @@
-<script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { X } from '@lucide/svelte';
+<script module>
+	/**
+	 * Portal action to render content at a different DOM location
+	 */
+	export function portal(node: HTMLElement, target: HTMLElement) {
+		target.appendChild(node);
 
-	// X is the correct component name, not XIcon
-	const XIcon = X;
+		return {
+			destroy() {
+				if (node.parentNode === target) {
+					target.removeChild(node);
+				}
+			}
+		};
+	}
+</script>
+
+<script lang="ts">
+	/**
+	 * Modal wrapper component that extends @neobr/svelte Modal with additional props.
+	 * Adds maxWidth and description support while using the NeoBr-UI Modal internally.
+	 */
+	import { Modal as NeoBrModal } from '@neobr/svelte';
 	import type { Snippet } from 'svelte';
 	import { cn } from '$lib/utils';
-	import type { HTMLAttributes } from 'svelte/elements';
 
-	interface Props extends HTMLAttributes<HTMLDivElement> {
+	interface Props {
 		/** Whether the modal is open */
-		open: boolean;
-		/** Callback when modal should close */
-		onClose: () => void;
-		/** Modal content */
-		children: Snippet;
+		open?: boolean;
 		/** Modal title */
-		title: string;
-		/** Maximum width classes */
-		maxWidth?: string;
-		/** Additional CSS classes */
+		title?: string;
+		/** Modal description */
+		description?: string;
+		/** Additional CSS classes for the modal content */
 		class?: string;
+		/** Maximum width class (e.g., 'max-w-lg', 'max-w-4xl') */
+		maxWidth?: string;
+		/** Close handler */
+		onClose?: () => void;
+		/** Modal content */
+		children?: Snippet;
 	}
 
 	let {
-		open = $bindable(),
-		onClose,
-		children,
-		title,
-		maxWidth = 'max-w-2xl',
+		open = $bindable(false),
+		title = '',
+		description = '',
 		class: className,
-		...restProps
+		maxWidth = 'max-w-lg',
+		onClose,
+		children
 	}: Props = $props();
 
-	let modalElement = $state<HTMLElement>();
-	let overlayElement = $state<HTMLElement>();
-
-	// Handle ESC key to close
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && open) {
-			event.preventDefault();
-			onClose();
-		}
+	function handleClose() {
+		open = false;
+		onClose?.();
 	}
 
-	// Handle overlay click to close
-	function handleOverlayClick(event: MouseEvent) {
-		if (event.target === overlayElement && open) {
-			onClose();
-		}
-	}
+	// Portal target for rendering modal at body level
+	let portalTarget = $state<HTMLElement | null>(null);
 
-	// Handle viewport height changes for mobile keyboards
-	function handleViewportChange() {
-		if (modalElement && open) {
-			const viewportHeight = window.visualViewport?.height || window.innerHeight;
-			const modalHeight = modalElement.offsetHeight;
-			const isMobile = viewportHeight < 768; // Mobile breakpoint
-			const maxMobileHeight = viewportHeight * 0.85; // More space on mobile
-			const maxDesktopHeight = viewportHeight * 0.9; // Slightly less on desktop
-			const availableSpace = isMobile ? maxMobileHeight : maxDesktopHeight;
-
-			// Clear any existing styles first
-			modalElement.style.marginTop = '';
-			modalElement.style.maxHeight = '';
-			modalElement.style.overflowY = '';
-
-			// If modal is too tall for viewport, adjust positioning
-			if (modalHeight > availableSpace) {
-				modalElement.style.maxHeight = `${availableSpace}px`;
-				modalElement.style.overflowY = 'auto';
-			}
-			// Don't apply any margin - let flexbox handle centering naturally
-		}
-	}
-
-	// Focus management
-	function focusModal() {
-		if (modalElement && open) {
-			const focusableElements = modalElement.querySelectorAll(
-				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-			);
-			const firstFocusable = focusableElements[0] as HTMLElement;
-			if (firstFocusable) {
-				firstFocusable.focus();
-			}
-		}
-	}
-
-	// Prevent body scroll when modal is open
-	function toggleBodyScroll() {
-		if (open) {
-			document.body.style.overflow = 'hidden';
-		} else {
-			document.body.style.overflow = '';
-		}
-	}
-
-	// Set up event listeners
-	onMount(() => {
-		document.addEventListener('keydown', handleKeydown);
-
-		// Handle viewport changes for mobile keyboards
-		if (window.visualViewport) {
-			window.visualViewport.addEventListener('resize', handleViewportChange);
-		} else {
-			// Fallback for browsers that don't support Visual Viewport API
-			window.addEventListener('resize', handleViewportChange);
-		}
-
-		return () => {
-			document.removeEventListener('keydown', handleKeydown);
-			if (window.visualViewport) {
-				window.visualViewport.removeEventListener('resize', handleViewportChange);
-			} else {
-				window.removeEventListener('resize', handleViewportChange);
-			}
-			document.body.style.overflow = '';
-		};
-	});
-
-	// React to modal open/close
 	$effect(() => {
-		toggleBodyScroll();
-		if (open) {
-			// Small delay to ensure modal is rendered
-			setTimeout(() => {
-				focusModal();
-				handleViewportChange();
-			}, 50);
+		if (typeof document !== 'undefined') {
+			portalTarget = document.body;
 		}
-	});
-
-	onDestroy(() => {
-		document.body.style.overflow = '';
 	});
 </script>
 
-{#if open}
-	<div
-		bind:this={overlayElement}
-		class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[10vh] sm:p-6 sm:pt-[8vh]"
-		onclick={handleOverlayClick}
-		onkeydown={handleKeydown}
-		role="dialog"
-		aria-modal="true"
-		aria-labelledby="modal-title"
-		tabindex="-1"
-	>
-		<div
-			bind:this={modalElement}
-			class={cn(
-				'z-50 max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-gray-800 bg-white shadow-2xl transition-all duration-200 sm:max-h-[90vh] dark:border-gray-200 dark:bg-gray-900',
-				maxWidth,
-				className
-			)}
-			{...restProps}
-		>
-			<!-- Modal Header -->
-			<div
-				class="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 dark:border-gray-700"
-			>
-				<h2
-					id="modal-title"
-					class="text-base font-semibold text-gray-900 sm:text-lg dark:text-white"
-				>
-					{title}
-				</h2>
-				<button
-					type="button"
-					class="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-					onclick={onClose}
-					aria-label="Close modal"
-				>
-					<XIcon class="h-4 w-4 sm:h-5 sm:w-5" />
-				</button>
-			</div>
-
-			<!-- Modal Content -->
-			<div class="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
-				{@render children?.()}
-			</div>
-		</div>
+{#if portalTarget && open}
+	<div use:portal={portalTarget} class={cn('modal-wrapper', maxWidth, className)}>
+		<NeoBrModal bind:open {title} onClose={handleClose}>
+			{#if description}
+				<p class="text-muted-foreground mb-4 text-sm">{description}</p>
+			{/if}
+			{@render children?.()}
+		</NeoBrModal>
 	</div>
 {/if}
+
+<style>
+	.modal-wrapper :global(.modal-content) {
+		max-width: var(--modal-max-width, 32rem);
+	}
+
+	.modal-wrapper.max-w-xs :global(.modal-content) {
+		max-width: 20rem;
+	}
+
+	.modal-wrapper.max-w-sm :global(.modal-content) {
+		max-width: 24rem;
+	}
+
+	.modal-wrapper.max-w-md :global(.modal-content) {
+		max-width: 28rem;
+	}
+
+	.modal-wrapper.max-w-lg :global(.modal-content) {
+		max-width: 32rem;
+	}
+
+	.modal-wrapper.max-w-xl :global(.modal-content) {
+		max-width: 36rem;
+	}
+
+	.modal-wrapper.max-w-2xl :global(.modal-content) {
+		max-width: 42rem;
+	}
+
+	.modal-wrapper.max-w-3xl :global(.modal-content) {
+		max-width: 48rem;
+	}
+
+	.modal-wrapper.max-w-4xl :global(.modal-content) {
+		max-width: 56rem;
+	}
+
+	.modal-wrapper.max-w-5xl :global(.modal-content) {
+		max-width: 64rem;
+	}
+
+	.modal-wrapper.max-w-6xl :global(.modal-content) {
+		max-width: 72rem;
+	}
+
+	.modal-wrapper.max-w-7xl :global(.modal-content) {
+		max-width: 80rem;
+	}
+
+	.modal-wrapper.max-w-full :global(.modal-content) {
+		max-width: 100%;
+	}
+</style>

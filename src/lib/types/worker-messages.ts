@@ -34,8 +34,6 @@ interface BaseWorkerMessage {
 	taskId?: TaskId;
 }
 
-
-
 // Progress update message
 export interface ProgressMessage extends BaseWorkerMessage {
 	type: 'progress';
@@ -123,30 +121,34 @@ export type OutgoingWorkerMessage =
 	| PreviewMessage
 	| { type: 'pingResponse'; pingResponse: string }
 	| {
-		type: 'analysis';
-		payload: {
-			complexity: any;
-			canUseFastGeneration: boolean;
-			estimatedSpeedup: number;
-			recommendations: string[];
-		};
-	}
+			type: 'analysis';
+			payload: {
+				complexity: any;
+				canUseFastGeneration: boolean;
+				estimatedSpeedup: number;
+				recommendations: string[];
+			};
+	  }
 	| { type: 'performance-report'; payload: any };
 
 // Messages that can be sent to workers
 // Messages that can be sent to workers
-export type IncomingMessage = BatchMessage | { type: 'cancel' } | ReadyMessage | { type: 'preview'; payload: any } | { type: 'initialize' } | { type: 'ping'; pingId: string };
+export type IncomingMessage =
+	| BatchMessage
+	| { type: 'cancel' }
+	| ReadyMessage
+	| { type: 'preview'; payload: any }
+	| { type: 'initialize' }
+	| { type: 'ping'; pingId: string };
 
 // Worker pool message types
 export type GenerationWorkerMessage =
 	| BatchMessage
 	| {
-		type: 'cancel';
-	};
+			type: 'cancel';
+	  };
 
 // Type guards for discriminated unions
-
-
 
 /**
  * Type guard for ProgressMessage
@@ -219,19 +221,14 @@ export function isPreviewMessage(message: unknown): message is PreviewMessage {
  */
 export function isBatchMessage(message: unknown): message is BatchMessage {
 	return (
-		typeof message === 'object' &&
-		message !== null &&
-		'type' in message &&
-		message.type === 'batch'
+		typeof message === 'object' && message !== null && 'type' in message && message.type === 'batch'
 	);
 }
 
 /**
  * Type guard for analysis message
  */
-export function isAnalysisMessage(
-	message: unknown
-): message is {
+export function isAnalysisMessage(message: unknown): message is {
 	type: 'analysis';
 	payload: {
 		complexity: any;

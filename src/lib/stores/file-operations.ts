@@ -115,30 +115,35 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 	}
 
 	if (!file.name.toLowerCase().endsWith('.zip')) {
-		throw new Error(
-			`Invalid file type: "${file.name}". Please select a valid .zip project file.`
-		);
+		throw new Error(`Invalid file type: "${file.name}". Please select a valid .zip project file.`);
 	}
 
 	if (file.size === 0) {
 		throw new Error(`File "${file.name}" is empty. Please select a valid project file.`);
 	}
 
-	if (file.size > 200 * 1024 * 1024) { // 200MB limit for projects
+	if (file.size > 200 * 1024 * 1024) {
+		// 200MB limit for projects
 		throw new Error(
 			`File "${file.name}" is too large (${Math.round(file.size / 1024 / 1024)}MB). ` +
-			`Maximum allowed size is 200MB.`
+				`Maximum allowed size is 200MB.`
 		);
 	}
 
 	// Check if file looks like a valid ZIP
-	if (file.type && file.type !== 'application/zip' && file.type !== 'application/x-zip-compressed') {
+	if (
+		file.type &&
+		file.type !== 'application/zip' &&
+		file.type !== 'application/x-zip-compressed'
+	) {
 		console.warn(`[loadProjectFromZip] Unexpected MIME type: ${file.type} for ${file.name}`);
 		// Don't throw here as some browsers don't set MIME types correctly
 	}
 
 	try {
-		console.log(`[loadProjectFromZip] Starting to load project from: ${file.name} (${Math.round(file.size / 1024)}KB)`);
+		console.log(
+			`[loadProjectFromZip] Starting to load project from: ${file.name} (${Math.round(file.size / 1024)}KB)`
+		);
 
 		// Use the enhanced fileToArrayBuffer with retry logic
 		const arrayBuffer = await fileToArrayBuffer(file, 3, 150);
@@ -151,7 +156,7 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		if (!projectFile) {
 			throw new Error(
 				`Invalid project file: "project.json" not found in ${file.name}. ` +
-				`This file may be corrupted or is not a valid NFT Studio project file.`
+					`This file may be corrupted or is not a valid NFT Studio project file.`
 			);
 		}
 
@@ -160,9 +165,7 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		// Validate imported project
 		const validationResult = validateImportedProject(projectData);
 		if (!validationResult.success) {
-			throw new Error(
-				`Invalid project structure in ${file.name}: ${validationResult.error}`
-			);
+			throw new Error(`Invalid project structure in ${file.name}: ${validationResult.error}`);
 		}
 
 		// Process the stored project data and load trait images

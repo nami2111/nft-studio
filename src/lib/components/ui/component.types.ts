@@ -103,11 +103,12 @@ export interface KeyboardProps {
  * Standardized props for interactive components.
  */
 export interface InteractiveProps
-	extends BaseComponentProps,
-	KeyboardNavigableProps,
-	FocusableProps,
-	ClickableProps,
-	KeyboardProps { }
+	extends
+		BaseComponentProps,
+		KeyboardNavigableProps,
+		FocusableProps,
+		ClickableProps,
+		KeyboardProps {}
 
 /**
  * Standardized props for all HTML elements.

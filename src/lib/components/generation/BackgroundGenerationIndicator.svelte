@@ -36,7 +36,7 @@
 
 {#if isBackground && !isMinimized}
 	<div
-		class="fixed right-4 bottom-4 z-50 max-w-sm space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
+		class="fixed right-4 bottom-4 z-50 max-w-sm space-y-3 rounded-lg border-2 border-gray-200 bg-white p-4 shadow-lg"
 		role="alert"
 		aria-live="polite"
 	>

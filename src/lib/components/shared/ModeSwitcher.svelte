@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { Settings, LayoutGrid } from '@lucide/svelte';
 
 	interface Props {

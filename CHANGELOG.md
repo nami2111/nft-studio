@@ -54,14 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Performance Impact
 
-| Metric | Before (v0.5.2) | After (v0.5.3) | Change |
-| :--- | :--- | :--- | :--- |
-| **Rendering Speed** | ~14 NFT/s | **~165+ NFT/s** | **~12x Faster** |
-| **900 NFT Collection** | ~65 seconds | **~45 seconds*** | **~30% Total Reduction** |
-| **Memory Efficiency** | Decodes per item | **O(1) Decodes** | **Significant** |
+| Metric                 | Before (v0.5.2)  | After (v0.5.3)    | Change                   |
+| :--------------------- | :--------------- | :---------------- | :----------------------- |
+| **Rendering Speed**    | ~14 NFT/s        | **~165+ NFT/s**   | **~12x Faster**          |
+| **900 NFT Collection** | ~65 seconds      | **~45 seconds\*** | **~30% Total Reduction** |
+| **Memory Efficiency**  | Decodes per item | **O(1) Decodes**  | **Significant**          |
 
 > [!NOTE]
-> *Total Session Time includes **JSZip packaging** (1,800 files), which is single-threaded on the main thread and remains the current primary bottleneck for very large collections. Rendering itself is 12x faster.
+> \*Total Session Time includes **JSZip packaging** (1,800 files), which is single-threaded on the main thread and remains the current primary bottleneck for very large collections. Rendering itself is 12x faster.
 
 #### Architecture Changes
 
@@ -143,14 +143,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Performance Impact
 
-| Metric | Before | After | Change |
-|--------|--------|-------|---------|
+| Metric               | Before      | After       | Change         |
+| -------------------- | ----------- | ----------- | -------------- |
 | **Generation Speed** | 8 items/sec | 8 items/sec | **Maintained** |
-| **Memory Usage** | Higher | 20-30% less | **Improved** |
-| **Code Complexity** | High | Low | **Simplified** |
-| **Debugging** | Difficult | Easy | **Improved** |
-| **Error Handling** | Complex | Simple | **Improved** |
-| **Bundle Size** | ~600KB | ~580KB | **Reduced** |
+| **Memory Usage**     | Higher      | 20-30% less | **Improved**   |
+| **Code Complexity**  | High        | Low         | **Simplified** |
+| **Debugging**        | Difficult   | Easy        | **Improved**   |
+| **Error Handling**   | Complex     | Simple      | **Improved**   |
+| **Bundle Size**      | ~600KB      | ~580KB      | **Reduced**    |
 
 **Real-World Testing Results:**
 
@@ -285,14 +285,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance Impact Summary
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Gallery Filter (10K NFTs)** | 500ms | 50ms | **10x faster** |
-| **Bundle Size** | 800KB | 600KB | **25% smaller** |
-| **Memory Leaks** | Yes | No | **Stable** |
-| **Cache Hit Rate** | 60% | 90% | **+50%** |
-| **Small Batch Updates** | 1000ms | 100ms | **10x faster** |
-| **Initial Worker Delay** | 500ms | 0ms | **Eliminated** |
+| Metric                        | Before | After | Improvement     |
+| ----------------------------- | ------ | ----- | --------------- |
+| **Gallery Filter (10K NFTs)** | 500ms  | 50ms  | **10x faster**  |
+| **Bundle Size**               | 800KB  | 600KB | **25% smaller** |
+| **Memory Leaks**              | Yes    | No    | **Stable**      |
+| **Cache Hit Rate**            | 60%    | 90%   | **+50%**        |
+| **Small Batch Updates**       | 1000ms | 100ms | **10x faster**  |
+| **Initial Worker Delay**      | 500ms  | 0ms   | **Eliminated**  |
 
 ### Files Changed
 
@@ -320,28 +320,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```typescript
 export const PERF_CONFIG = {
-  // Batch processing
-  batch: {
-    delay: { min: 100, max: 1000, base: 50 },
-    maxItems: 1000
-  },
-  // Cache management
-  cache: {
-    galleryFilter: { maxEntries: 50 },
-    imageData: { maxSizeMB: 50 }
-  },
-  // Worker scaling
-  workers: {
-    min: 2,
-    max: 8,
-    utilization: 0.75
-  },
-  // Memory monitoring
-  memory: {
-    maxImagesInMemory: 500,
-    warnAtMB: 400,
-    errorAtMB: 500
-  }
+	// Batch processing
+	batch: {
+		delay: { min: 100, max: 1000, base: 50 },
+		maxItems: 1000
+	},
+	// Cache management
+	cache: {
+		galleryFilter: { maxEntries: 50 },
+		imageData: { maxSizeMB: 50 }
+	},
+	// Worker scaling
+	workers: {
+		min: 2,
+		max: 8,
+		utilization: 0.75
+	},
+	// Memory monitoring
+	memory: {
+		maxImagesInMemory: 500,
+		warnAtMB: 400,
+		errorAtMB: 500
+	}
 } as const;
 ```
 
@@ -452,13 +452,13 @@ private getOrSetFilteredCache(
 
 ### Performance Impact
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Observability** | Limited | Comprehensive | **Full visibility** |
-| **Cache Monitoring** | None | Real-time | **+100%** |
-| **DB Query Tracking** | None | Automatic | **+100%** |
-| **Memory Monitoring** | None | Continuous | **+100%** |
-| **Alert Response Time** | Manual | Automatic | **Instant** |
+| Metric                  | Before  | After         | Improvement         |
+| ----------------------- | ------- | ------------- | ------------------- |
+| **Observability**       | Limited | Comprehensive | **Full visibility** |
+| **Cache Monitoring**    | None    | Real-time     | **+100%**           |
+| **DB Query Tracking**   | None    | Automatic     | **+100%**           |
+| **Memory Monitoring**   | None    | Continuous    | **+100%**           |
+| **Alert Response Time** | Manual  | Automatic     | **Instant**         |
 
 ### Files Changed
 
@@ -573,13 +573,13 @@ renderBatch(traits: Trait[], width: number, height: number): void
 
 ### Performance Metrics Achieved
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Generation Speed** | Baseline | 1.5-2x faster | 150-200% |
-| **Memory Usage** | Baseline | 40-60% reduction | 60-40% remaining |
-| **Cache Hit Rate** | 85% | 98.1% | +13.1% |
-| **HTTP Requests** | 120 | 6 | -95% |
-| **Constraint Checks** | 100% | 20-40% | -60-80% |
+| Metric                | Before   | After            | Improvement      |
+| --------------------- | -------- | ---------------- | ---------------- |
+| **Generation Speed**  | Baseline | 1.5-2x faster    | 150-200%         |
+| **Memory Usage**      | Baseline | 40-60% reduction | 60-40% remaining |
+| **Cache Hit Rate**    | 85%      | 98.1%            | +13.1%           |
+| **HTTP Requests**     | 120      | 6                | -95%             |
+| **Constraint Checks** | 100%     | 20-40%           | -60-80%          |
 
 **Real-World Performance:**
 

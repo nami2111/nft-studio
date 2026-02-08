@@ -6,67 +6,69 @@
 import JSZip from 'jszip';
 
 interface ZipMessage {
-    type: 'zip-project';
-    taskId: string;
-    payload: {
-        projectData: string; // JSON string of the project
-        imageFiles: Array<{
-            path: string;
-            data: ArrayBuffer;
-        }>;
-    };
+	type: 'zip-project';
+	taskId: string;
+	payload: {
+		projectData: string; // JSON string of the project
+		imageFiles: Array<{
+			path: string;
+			data: ArrayBuffer;
+		}>;
+	};
 }
 
 self.onmessage = async (event: MessageEvent<ZipMessage>) => {
-    const { type, taskId, payload } = event.data;
+	const { type, taskId, payload } = event.data;
 
-    if (type === 'zip-project') {
-        const { projectData, imageFiles } = payload;
+	if (type === 'zip-project') {
+		const { projectData, imageFiles } = payload;
 
-        // Since esModuleInterop is true, we can use JSZip as a constructor directly
-        const zip = new JSZip();
+		// Since esModuleInterop is true, we can use JSZip as a constructor directly
+		const zip = new JSZip();
 
-        try {
-            // Add project metadata
-            zip.file('project.json', projectData);
+		try {
+			// Add project metadata
+			zip.file('project.json', projectData);
 
-            // Add all image files
-            for (let i = 0; i < imageFiles.length; i++) {
-                const file = imageFiles[i];
-                zip.file(file.path, file.data);
+			// Add all image files
+			for (let i = 0; i < imageFiles.length; i++) {
+				const file = imageFiles[i];
+				zip.file(file.path, file.data);
 
-                // Report progress every 5 files
-                if (i % 5 === 0 || i === imageFiles.length - 1) {
-                    (self as any).postMessage({
-                        type: 'zip-progress',
-                        taskId,
-                        payload: {
-                            progress: Math.round(((i + 1) / imageFiles.length) * 100)
-                        }
-                    });
-                }
-            }
+				// Report progress every 5 files
+				if (i % 5 === 0 || i === imageFiles.length - 1) {
+					(self as any).postMessage({
+						type: 'zip-progress',
+						taskId,
+						payload: {
+							progress: Math.round(((i + 1) / imageFiles.length) * 100)
+						}
+					});
+				}
+			}
 
-            // Generate ZIP file
-            const content = await zip.generateAsync({ type: 'arraybuffer' });
+			// Generate ZIP file
+			const content = await zip.generateAsync({ type: 'arraybuffer' });
 
-            // Return the final ZIP
-            (self as any).postMessage({
-                type: 'zip-complete',
-                taskId,
-                payload: {
-                    buffer: content
-                }
-            }, [content]);
-
-        } catch (error) {
-            (self as any).postMessage({
-                type: 'zip-error',
-                taskId,
-                payload: {
-                    error: error instanceof Error ? error.message : String(error)
-                }
-            });
-        }
-    }
+			// Return the final ZIP
+			(self as any).postMessage(
+				{
+					type: 'zip-complete',
+					taskId,
+					payload: {
+						buffer: content
+					}
+				},
+				[content]
+			);
+		} catch (error) {
+			(self as any).postMessage({
+				type: 'zip-error',
+				taskId,
+				payload: {
+					error: error instanceof Error ? error.message : String(error)
+				}
+			});
+		}
+	}
 };

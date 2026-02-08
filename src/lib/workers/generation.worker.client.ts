@@ -24,8 +24,8 @@ import { type TaskId } from '$lib/types/ids';
 // Callback for handling messages from workers
 let messageHandler:
 	| ((
-		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	) => void)
+			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	  ) => void)
 	| null = null;
 
 // Set up message callback
@@ -62,15 +62,22 @@ export async function startGeneration(
 		const usedCombinations = new Map<string, Set<bigint>>();
 
 		// Ensure we have at least a global uniqueness rule
-		const activeStrictPairConfig = strictPairConfig ? { ...strictPairConfig } : { enabled: true, layerCombinations: [] };
-		if (!activeStrictPairConfig.layerCombinations || activeStrictPairConfig.layerCombinations.length === 0) {
+		const activeStrictPairConfig = strictPairConfig
+			? { ...strictPairConfig }
+			: { enabled: true, layerCombinations: [] };
+		if (
+			!activeStrictPairConfig.layerCombinations ||
+			activeStrictPairConfig.layerCombinations.length === 0
+		) {
 			activeStrictPairConfig.enabled = true;
-			activeStrictPairConfig.layerCombinations = [{
-				id: '__global__',
-				layerIds: layers.map(l => l.id),
-				active: true,
-				description: 'Global Uniqueness'
-			}];
+			activeStrictPairConfig.layerCombinations = [
+				{
+					id: '__global__',
+					layerIds: layers.map((l) => l.id),
+					active: true,
+					description: 'Global Uniqueness'
+				}
+			];
 		}
 
 		const solver = new CSPSolver(layers, usedCombinations, activeStrictPairConfig);
@@ -160,7 +167,6 @@ export async function startGeneration(
 		}
 
 		performanceMonitor.stopTimer(timerId);
-
 	} catch (error) {
 		performanceMonitor.stopTimer(timerId, { error: String(error) });
 		console.error('Generation failure:', error);

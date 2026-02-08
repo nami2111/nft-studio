@@ -68,7 +68,6 @@ describe('Zod Validation Module', () => {
 			expect(result2.error).toBeUndefined();
 		});
 
-
 		it('sanitizes and accepts long project names', () => {
 			const result1 = validateProjectName('');
 			const result2 = validateProjectName('a'.repeat(101));

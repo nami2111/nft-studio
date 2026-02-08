@@ -77,7 +77,7 @@
 	}
 </script>
 
-<div class="cache-monitor rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+<div class="cache-monitor rounded-lg border-2 border-gray-200 bg-white p-4 shadow-sm">
 	<div class="mb-4 flex items-center justify-between">
 		<h3 class="text-lg font-semibold text-gray-800">Cache Monitor</h3>
 		<div class="flex gap-2">

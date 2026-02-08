@@ -61,7 +61,7 @@
 	});
 </script>
 
-<div class="relative min-h-screen overflow-x-hidden bg-white text-black">
+<div class="relative min-h-screen bg-white text-black">
 	<!-- Simplified decorative background elements -->
 	<div class="pointer-events-none absolute inset-0 overflow-hidden">
 		<!-- Subtle high contrast pattern - hidden on mobile for performance -->
@@ -79,7 +79,7 @@
 			class="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 lg:px-8 xl:max-w-screen-2xl 2xl:max-w-[1800px]"
 		>
 			<!-- Figma-style header bar -->
-			<div class="bg-card/95 mb-3 rounded-lg border shadow-sm backdrop-blur-sm sm:mb-4 md:mb-6">
+			<div class="bg-card/95 mb-3 rounded-lg border-2 shadow-sm backdrop-blur-sm sm:mb-4 md:mb-6">
 				<div class="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4">
 					<div class="flex flex-wrap items-center justify-between gap-3">
 						<div class="flex items-center">

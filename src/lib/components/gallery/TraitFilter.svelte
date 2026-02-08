@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import type { GalleryNFT } from '$lib/types/gallery';
-	import Badge from '$lib/components/ui/badge/badge.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Card from '$lib/components/ui/card/card.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Card } from '$lib/components/ui/card';
 
 	interface Props {
 		class?: string;

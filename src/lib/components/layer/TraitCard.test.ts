@@ -26,7 +26,7 @@ vi.mock('$lib/stores', () => {
 		},
 		subscribe: (fn: any) => {
 			// Basic subscribe mock for compatibility
-			return () => { };
+			return () => {};
 		}
 	};
 
@@ -54,7 +54,8 @@ vi.mock('svelte-sonner', () => ({
 // Child components are unmocked to verify full rendering, except for RaritySlider which hangs in JSDOM
 vi.mock('$lib/components/layer/RaritySlider.svelte', () => ({
 	default: vi.fn().mockImplementation(() => ({
-		$$render: () => `<div data-testid="rarity-slider">Rarity: <span data-testid="rarity-value">Epic</span></div>`
+		$$render: () =>
+			`<div data-testid="rarity-slider">Rarity: <span data-testid="rarity-value">Epic</span></div>`
 	}))
 }));
 
@@ -248,8 +249,6 @@ describe('TraitCard', () => {
 		});
 
 		it('updates trait name when save is clicked', async () => {
-
-
 			render(TraitCard, {
 				props: { trait: mockTrait, layerId }
 			});
@@ -272,8 +271,6 @@ describe('TraitCard', () => {
 		});
 
 		it('updates trait name when Enter key is pressed', async () => {
-
-
 			render(TraitCard, {
 				props: { trait: mockTrait, layerId }
 			});
@@ -315,8 +312,6 @@ describe('TraitCard', () => {
 		});
 
 		it('shows error for empty trait name', async () => {
-
-
 			render(TraitCard, {
 				props: { trait: mockTrait, layerId }
 			});
@@ -339,8 +334,6 @@ describe('TraitCard', () => {
 		});
 
 		it('shows error for trait name exceeding 100 characters', async () => {
-
-
 			render(TraitCard, {
 				props: { trait: mockTrait, layerId }
 			});
@@ -381,7 +374,6 @@ describe('TraitCard', () => {
 		it('removes trait when confirmation is accepted', async () => {
 			global.confirm = vi.fn(() => true);
 
-
 			render(TraitCard, {
 				props: { trait: mockTrait, layerId }
 			});
@@ -395,7 +387,6 @@ describe('TraitCard', () => {
 
 		it('does not remove trait when confirmation is cancelled', () => {
 			global.confirm = vi.fn(() => false);
-
 
 			render(TraitCard, {
 				props: { trait: mockTrait, layerId }
@@ -416,7 +407,7 @@ describe('TraitCard', () => {
 			});
 
 			// Mock console.error
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 			render(TraitCard, {
 				props: { trait: mockTrait, layerId }
@@ -577,7 +568,6 @@ describe('TraitCard', () => {
 
 	describe('Error Scenarios', () => {
 		it('handles missing layer data gracefully', () => {
-
 			project.set({ ...mockProject, layers: [] });
 
 			render(TraitCard, {

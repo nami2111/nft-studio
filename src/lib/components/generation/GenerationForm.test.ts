@@ -15,14 +15,28 @@ vi.mock('$lib/stores', async () => {
 
 	// Create a proxy that reads from the module-level mockProjectState
 	const projectProxy = {
-		get id() { return mockProjectState?.id; },
-		get name() { return mockProjectState?.name; },
-		get layers() { return mockProjectState?.layers; },
-		get outputSize() { return mockProjectState?.outputSize; },
-		get strictPairConfig() { return mockProjectState?.strictPairConfig; },
-		get metadataStandard() { return mockProjectState?.metadataStandard; },
+		get id() {
+			return mockProjectState?.id;
+		},
+		get name() {
+			return mockProjectState?.name;
+		},
+		get layers() {
+			return mockProjectState?.layers;
+		},
+		get outputSize() {
+			return mockProjectState?.outputSize;
+		},
+		get strictPairConfig() {
+			return mockProjectState?.strictPairConfig;
+		},
+		get metadataStandard() {
+			return mockProjectState?.metadataStandard;
+		},
 		// Setter to allow tests to update the state via the store import if needed
-		set: (newState: any) => { mockProjectState = newState; }
+		set: (newState: any) => {
+			mockProjectState = newState;
+		}
 	};
 
 	return {
@@ -47,7 +61,9 @@ vi.mock('$lib/utils/error-handling', () => ({
 
 // Mock generation store
 vi.mock('$lib/stores/generation-progress.svelte', () => ({
-	get generationState() { return generationStateMock; },
+	get generationState() {
+		return generationStateMock;
+	},
 	resetState: vi.fn(),
 	startGeneration: vi.fn(),
 	pauseGeneration: vi.fn(),

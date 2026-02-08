@@ -1,7 +1,2 @@
-import Root from './badge.svelte';
-
-export {
-	Root,
-	//
-	Root as Badge
-};
+// Re-export from @neobr/svelte
+export { Badge } from '@neobr/svelte';

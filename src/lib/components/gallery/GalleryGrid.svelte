@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { GalleryNFT } from '$lib/types/gallery';
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
-	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import VirtualNFTGrid from './VirtualNFTGrid.svelte';
 
 	interface Props {

@@ -16,13 +16,27 @@ const setMockProject = (newState: any) => {
 // Mock dependencies
 vi.mock('$lib/stores', async () => {
 	const projectProxy = {
-		get id() { return mockProjectState?.id; },
-		get name() { return mockProjectState?.name; },
-		get layers() { return mockProjectState?.layers || []; },
-		get outputSize() { return mockProjectState?.outputSize; },
-		get description() { return mockProjectState?.description; },
-		get _needsProperLoad() { return mockProjectState?._needsProperLoad; },
-		set: (newState: any) => { mockProjectState = newState; }
+		get id() {
+			return mockProjectState?.id;
+		},
+		get name() {
+			return mockProjectState?.name;
+		},
+		get layers() {
+			return mockProjectState?.layers || [];
+		},
+		get outputSize() {
+			return mockProjectState?.outputSize;
+		},
+		get description() {
+			return mockProjectState?.description;
+		},
+		get _needsProperLoad() {
+			return mockProjectState?._needsProperLoad;
+		},
+		set: (newState: any) => {
+			mockProjectState = newState;
+		}
 	};
 
 	return {
@@ -139,11 +153,11 @@ describe('ProjectManagement', () => {
 			// We wait for modal
 			const modal = await screen.findByRole('dialog');
 
-			// Find button inside modal. 
+			// Find button inside modal.
 			// The modal button has text "Save Project".
 			// Use within() to scope search
 			const { getAllByText } = await import('@testing-library/svelte');
-			// Actually 'within' is exported from @testing-library/dom usually, or screen. 
+			// Actually 'within' is exported from @testing-library/dom usually, or screen.
 			// Let's just find all 'Save Project' and click the last one, or use specific attributes.
 			// The component uses <Button ...><Save .../> Save Project</Button> inside modal.
 

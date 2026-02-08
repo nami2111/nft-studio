@@ -160,7 +160,6 @@ export async function clearAllCollections(): Promise<void> {
 	productionMonitor.recordDatabaseQuery('clearAllCollections', duration);
 }
 
-
 /**
  * Get storage estimate (how much space is being used)
  */

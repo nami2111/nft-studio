@@ -362,7 +362,7 @@
 		root.className = 'lazy-trait-loaded';
 
 		const wrapper = document.createElement('div');
-		wrapper.className = 'overflow-hidden rounded-lg border border-border';
+		wrapper.className = 'overflow-hidden rounded-lg border-2 border-border';
 
 		const imgContainer = document.createElement('div');
 		imgContainer.className = 'flex aspect-square items-center justify-center bg-muted';

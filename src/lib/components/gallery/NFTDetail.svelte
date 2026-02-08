@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { GalleryNFT } from '$lib/types/gallery';
-	import Card from '$lib/components/ui/card/card.svelte';
-	import Badge from '$lib/components/ui/badge/badge.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
+	import { Card } from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { getMimeType, getFileExtension } from '$lib/utils/image-format-detector';
 
 	interface Props {

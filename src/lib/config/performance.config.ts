@@ -204,17 +204,19 @@ export function getOptimalBatchSize(collectionSize: number): number {
 /**
  * Calculate adaptive batch delay based on queue size
  */
-export function calculateAdaptiveDelay(queueSize: number, config: typeof PERF_CONFIG.batch.delay = PERF_CONFIG.batch.delay): number {
-	return Math.min(
-		config.max,
-		Math.max(config.min, queueSize * config.base)
-	);
+export function calculateAdaptiveDelay(
+	queueSize: number,
+	config: typeof PERF_CONFIG.batch.delay = PERF_CONFIG.batch.delay
+): number {
+	return Math.min(config.max, Math.max(config.min, queueSize * config.base));
 }
 
 /**
  * Get optimal worker count based on device capabilities
  */
-export function getOptimalWorkerCount(maxWorkers = PERF_CONFIG.generation.workers.maxWorkers): number {
+export function getOptimalWorkerCount(
+	maxWorkers = PERF_CONFIG.generation.workers.maxWorkers
+): number {
 	if (typeof navigator === 'undefined') return 4;
 
 	const cores = navigator.hardwareConcurrency || 4;

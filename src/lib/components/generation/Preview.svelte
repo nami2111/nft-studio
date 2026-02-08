@@ -718,7 +718,7 @@
 	}
 </script>
 
-<Card class="sticky top-3 sm:top-4">
+<Card class="sticky top-3 shadow-none sm:top-4">
 	<CardContent class="p-3 sm:p-4">
 		<h2 class="mb-2 text-base font-bold sm:mb-3 sm:text-lg">Preview</h2>
 		<div

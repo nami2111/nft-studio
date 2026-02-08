@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import { exportRarityData } from '$lib/domain/rarity-calculator';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Card from '$lib/components/ui/card/card.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Card } from '$lib/components/ui/card';
 	import { getMimeType, getFileExtension } from '$lib/utils/image-format-detector';
 
 	interface Props {

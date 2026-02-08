@@ -10,18 +10,12 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
-		"lib": [
-			"dom",
-			"ES2024"
-		],
+		"lib": ["dom", "ES2024"],
 		"module": "esnext",
 		"incremental": true,
 		"composite": true,
 		"tsBuildInfoFile": ".tsbuildinfo",
-		"types": [
-			"node",
-			"vite-plugin-pwa/client"
-		]
+		"types": ["node", "vite-plugin-pwa/client"]
 	},
 	"exclude": [
 		"src/lib/components/**/*.test.ts",

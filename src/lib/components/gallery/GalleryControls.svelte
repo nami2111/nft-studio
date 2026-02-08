@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import type { GalleryCollection, GallerySortOption } from '$lib/types/gallery';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Card from '$lib/components/ui/card/card.svelte';
+	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
+	import { Card } from '$lib/components/ui/card';
 
 	interface Props {
 		class?: string;

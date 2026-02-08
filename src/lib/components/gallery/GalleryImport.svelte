@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Card from '$lib/components/ui/card/card.svelte';
-	import Progress from '$lib/components/ui/progress/progress.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Card } from '$lib/components/ui/card';
+	import { Progress } from '$lib/components/ui/progress';
 	import { showError, showSuccess, showWarning } from '$lib/utils/error-handling';
 	import { ZipReader, BlobReader, BlobWriter, TextWriter, type Entry } from '@zip.js/zip.js';
 	import { detectImageFormat } from '$lib/utils/image-format-detector';
@@ -45,7 +45,7 @@
 		const target = event.target as HTMLInputElement;
 		const files = target.files;
 		if (files && files.length > 0) {
-			selectedFiles = Array.from(files).filter(file => file.name.endsWith('.zip'));
+			selectedFiles = Array.from(files).filter((file) => file.name.endsWith('.zip'));
 			if (selectedFiles.length > 0) {
 				await processFiles(selectedFiles);
 			}
@@ -58,7 +58,7 @@
 
 		const files = event.dataTransfer?.files;
 		if (files && files.length > 0) {
-			selectedFiles = Array.from(files).filter(file => file.name.endsWith('.zip'));
+			selectedFiles = Array.from(files).filter((file) => file.name.endsWith('.zip'));
 			if (selectedFiles.length > 0) {
 				await processFiles(selectedFiles);
 			}
@@ -77,14 +77,14 @@
 
 	async function processFiles(files: File[]) {
 		// Validate all files are ZIP files
-		const invalidFiles = files.filter(file => !file.name.endsWith('.zip'));
+		const invalidFiles = files.filter((file) => !file.name.endsWith('.zip'));
 		if (invalidFiles.length > 0) {
 			showWarning('Invalid files detected', {
 				description: `${invalidFiles.length} non-ZIP files will be skipped. Only ZIP files are supported.`
 			});
 		}
 
-		const zipFiles = files.filter(file => file.name.endsWith('.zip'));
+		const zipFiles = files.filter((file) => file.name.endsWith('.zip'));
 		if (zipFiles.length === 0) {
 			showWarning('No valid ZIP files', {
 				description: 'Please select at least one ZIP file containing NFT collections.'
@@ -93,14 +93,14 @@
 		}
 
 		// Check for oversized files
-		const oversizedFiles = zipFiles.filter(file => file.size > LARGE_FILE_THRESHOLD);
+		const oversizedFiles = zipFiles.filter((file) => file.size > LARGE_FILE_THRESHOLD);
 		if (oversizedFiles.length > 0) {
 			showWarning('Large files detected', {
 				description: `${oversizedFiles.length} files exceed 2GB and will be skipped. Please split large collections.`
 			});
 		}
 
-		const validFiles = zipFiles.filter(file => file.size <= LARGE_FILE_THRESHOLD);
+		const validFiles = zipFiles.filter((file) => file.size <= LARGE_FILE_THRESHOLD);
 		if (validFiles.length === 0) {
 			return;
 		}
@@ -173,7 +173,7 @@
 			// Convert to gallery format
 			importProgress = 80;
 			importMessage = 'Creating collection...';
-			await new Promise(resolve => setTimeout(resolve, 0));
+			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			const galleryNFTs = allImages.map((image, index) => {
 				const matchingMetadata = allMetadata.find((meta) => meta.name === image.name);
@@ -191,8 +191,7 @@
 			});
 
 			// Generate collection name from first file
-			let collectionName = validFiles[0].name
-				.replace('.zip', '');
+			let collectionName = validFiles[0].name.replace('.zip', '');
 
 			// For multiple files, remove _part_X_of_Y pattern first
 			if (validFiles.length > 1) {
@@ -213,7 +212,7 @@
 			// Import into gallery store
 			importProgress = 90;
 			importMessage = 'Finalizing collection...';
-			await new Promise(resolve => setTimeout(resolve, 0));
+			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			const collection = galleryStore.importCollection(
 				galleryNFTs,
@@ -228,12 +227,12 @@
 			showSuccess('Import successful', {
 				description: `Imported ${galleryNFTs.length} NFTs from ${totalProcessedFiles} ZIP files to "${collection.name}".`
 			});
-
 		} catch (error) {
 			console.error('Import failed:', error);
 			showError(error, {
 				title: 'Import Failed',
-				description: 'Failed to process the ZIP files. Please ensure they are valid NFT collection exports.'
+				description:
+					'Failed to process the ZIP files. Please ensure they are valid NFT collection exports.'
 			});
 		} finally {
 			isImporting = false;
@@ -248,154 +247,170 @@
 		}
 	}
 
-async function processStandardZipFile(file: File): Promise<{ images: any[], metadata: any[] }> {
-	const { default: JSZip } = await import('jszip');
-	const zip = await JSZip.loadAsync(file);
+	async function processStandardZipFile(file: File): Promise<{ images: any[]; metadata: any[] }> {
+		const { default: JSZip } = await import('jszip');
+		const zip = await JSZip.loadAsync(file);
 
-	const images: { name: string; imageData: ArrayBuffer; imageFormat: string }[] = [];
-	const metadata: { name: string; data: any }[] = [];
+		const images: { name: string; imageData: ArrayBuffer; imageFormat: string }[] = [];
+		const metadata: { name: string; data: any }[] = [];
 
-	// Process images from the main zip object
-	const allFiles = Object.keys(zip.files);
+		// Process images from the main zip object
+		const allFiles = Object.keys(zip.files);
 
-	const imageFiles = allFiles.filter(
-		(filename) =>
-			filename.startsWith('images/') &&
-			(filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.webp') || filename.endsWith('.gif'))
-	);
-	const metadataFiles = allFiles.filter(
-		(filename) => filename.startsWith('metadata/') && filename.endsWith('.json')
-	);
+		const imageFiles = allFiles.filter(
+			(filename) =>
+				filename.startsWith('images/') &&
+				(filename.endsWith('.png') ||
+					filename.endsWith('.jpg') ||
+					filename.endsWith('.jpeg') ||
+					filename.endsWith('.webp') ||
+					filename.endsWith('.gif'))
+		);
+		const metadataFiles = allFiles.filter(
+			(filename) => filename.startsWith('metadata/') && filename.endsWith('.json')
+		);
 
-	// Process files in batches
-	const batchSize = 100;
+		// Process files in batches
+		const batchSize = 100;
 
-	// Process images in batches
-	for (let i = 0; i < imageFiles.length; i += batchSize) {
-		const batch = imageFiles.slice(i, i + batchSize);
+		// Process images in batches
+		for (let i = 0; i < imageFiles.length; i += batchSize) {
+			const batch = imageFiles.slice(i, i + batchSize);
 
-		for (const filename of batch) {
-			const imageFile = zip.file(filename);
-			if (imageFile) {
-				const imageData = await imageFile.async('arraybuffer');
-				const imageFormat = detectImageFormat(imageData);
-				images.push({
-					name: filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
-					imageData,
-					imageFormat
-				});
-			}
-		}
-	}
-
-	// Process metadata in batches
-	for (let i = 0; i < metadataFiles.length; i += batchSize) {
-		const batch = metadataFiles.slice(i, i + batchSize);
-
-		for (const filename of batch) {
-			const metadataFile = zip.file(filename);
-			if (metadataFile) {
-				try {
-					const metadataText = await metadataFile.async('text');
-					const metadataData = JSON.parse(metadataText);
-					metadata.push({
-						name: filename.replace('metadata/', '').replace('.json', ''),
-						data: metadataData
+			for (const filename of batch) {
+				const imageFile = zip.file(filename);
+				if (imageFile) {
+					const imageData = await imageFile.async('arraybuffer');
+					const imageFormat = detectImageFormat(imageData);
+					images.push({
+						name: filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
+						imageData,
+						imageFormat
 					});
-				} catch (error) {
-					console.warn(`Failed to parse metadata file ${filename}:`, error);
 				}
 			}
 		}
+
+		// Process metadata in batches
+		for (let i = 0; i < metadataFiles.length; i += batchSize) {
+			const batch = metadataFiles.slice(i, i + batchSize);
+
+			for (const filename of batch) {
+				const metadataFile = zip.file(filename);
+				if (metadataFile) {
+					try {
+						const metadataText = await metadataFile.async('text');
+						const metadataData = JSON.parse(metadataText);
+						metadata.push({
+							name: filename.replace('metadata/', '').replace('.json', ''),
+							data: metadataData
+						});
+					} catch (error) {
+						console.warn(`Failed to parse metadata file ${filename}:`, error);
+					}
+				}
+			}
+		}
+
+		return { images, metadata };
 	}
 
-	return { images, metadata };
-}
+	async function processLargeZipFile(file: File): Promise<{ images: any[]; metadata: any[] }> {
+		const zipReader = new ZipReader(new BlobReader(file));
+		const entries = await zipReader.getEntries();
 
-async function processLargeZipFile(file: File): Promise<{ images: any[], metadata: any[] }> {
-	const zipReader = new ZipReader(new BlobReader(file));
-	const entries = await zipReader.getEntries();
+		const images: { name: string; blobUrl: string; imageFormat: string }[] = [];
+		const metadata: { name: string; data: any }[] = [];
 
-	const images: { name: string; blobUrl: string; imageFormat: string }[] = [];
-	const metadata: { name: string; data: any }[] = [];
+		// Process entries in batches
+		const batchSize = 100;
 
-	// Process entries in batches
-	const batchSize = 100;
+		for (let i = 0; i < entries.length; i += batchSize) {
+			const batch = entries.slice(i, i + batchSize);
+			const batchImages: { name: string; blobUrl: string; imageFormat: string }[] = [];
+			const batchMetadata: { name: string; data: any }[] = [];
 
-	for (let i = 0; i < entries.length; i += batchSize) {
-		const batch = entries.slice(i, i + batchSize);
-		const batchImages: { name: string; blobUrl: string; imageFormat: string }[] = [];
-		const batchMetadata: { name: string; data: any }[] = [];
-
-		// Process images in this batch
-		for (const entry of batch) {
-			if (entry.filename.startsWith('images/') &&
-				(entry.filename.endsWith('.png') || entry.filename.endsWith('.jpg') || entry.filename.endsWith('.jpeg') || entry.filename.endsWith('.webp') || entry.filename.endsWith('.gif'))) {
-
-				try {
-					// Check if entry has getData method (it's a file, not directory)
-					if ('getData' in entry && typeof entry.getData === 'function') {
-						const blob = await entry.getData(new BlobWriter());
-						if (blob) {
-							// Detect format from blob
-							const arrayBuffer = await blob.arrayBuffer();
-							const imageFormat = detectImageFormat(arrayBuffer);
-							const blobUrl = URL.createObjectURL(blob);
-							batchImages.push({
-								name: entry.filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
-								blobUrl,
-								imageFormat
-							});
+			// Process images in this batch
+			for (const entry of batch) {
+				if (
+					entry.filename.startsWith('images/') &&
+					(entry.filename.endsWith('.png') ||
+						entry.filename.endsWith('.jpg') ||
+						entry.filename.endsWith('.jpeg') ||
+						entry.filename.endsWith('.webp') ||
+						entry.filename.endsWith('.gif'))
+				) {
+					try {
+						// Check if entry has getData method (it's a file, not directory)
+						if ('getData' in entry && typeof entry.getData === 'function') {
+							const blob = await entry.getData(new BlobWriter());
+							if (blob) {
+								// Detect format from blob
+								const arrayBuffer = await blob.arrayBuffer();
+								const imageFormat = detectImageFormat(arrayBuffer);
+								const blobUrl = URL.createObjectURL(blob);
+								batchImages.push({
+									name: entry.filename
+										.replace(/^images\//, '')
+										.replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
+									blobUrl,
+									imageFormat
+								});
+							}
 						}
+					} catch (error) {
+						console.warn(`Failed to process image ${entry.filename}:`, error);
 					}
-				} catch (error) {
-					console.warn(`Failed to process image ${entry.filename}:`, error);
+				}
+
+				// Process metadata in this batch
+				if (entry.filename.startsWith('metadata/') && entry.filename.endsWith('.json')) {
+					try {
+						// Check if entry has getData method (it's a file, not directory)
+						if ('getData' in entry && typeof entry.getData === 'function') {
+							const text = await entry.getData(new TextWriter());
+							if (text) {
+								const metadataData = JSON.parse(text);
+								batchMetadata.push({
+									name: entry.filename.replace('metadata/', '').replace('.json', ''),
+									data: metadataData
+								});
+							}
+						}
+					} catch (error) {
+						console.warn(`Failed to parse metadata file ${entry.filename}:`, error);
+					}
 				}
 			}
 
-			// Process metadata in this batch
-			if (entry.filename.startsWith('metadata/') && entry.filename.endsWith('.json')) {
-				try {
-					// Check if entry has getData method (it's a file, not directory)
-					if ('getData' in entry && typeof entry.getData === 'function') {
-						const text = await entry.getData(new TextWriter());
-						if (text) {
-							const metadataData = JSON.parse(text);
-							batchMetadata.push({
-								name: entry.filename.replace('metadata/', '').replace('.json', ''),
-								data: metadataData
-							});
-						}
-					}
-				} catch (error) {
-					console.warn(`Failed to parse metadata file ${entry.filename}:`, error);
-				}
+			// Merge batch results
+			images.push(...batchImages);
+			metadata.push(...batchMetadata);
+
+			// Memory cleanup between batches
+			if (i + batchSize < entries.length) {
+				// Force garbage collection hint
+				await new Promise((resolve) => setTimeout(resolve, 10));
 			}
 		}
 
-		// Merge batch results
-		images.push(...batchImages);
-		metadata.push(...batchMetadata);
+		await zipReader.close();
 
-		// Memory cleanup between batches
-		if (i + batchSize < entries.length) {
-			// Force garbage collection hint
-			await new Promise(resolve => setTimeout(resolve, 10));
-		}
+		return {
+			images: images.map((img) => ({
+				...img,
+				imageData: img.blobUrl,
+				isBlobUrl: true,
+				imageFormat: img.imageFormat
+			})),
+			metadata
+		};
 	}
 
-	await zipReader.close();
-
-	return {
-		images: images.map(img => ({ ...img, imageData: img.blobUrl, isBlobUrl: true, imageFormat: img.imageFormat })),
-		metadata
-	};
-}
-
-async function processFile(file: File) {
-	// Delegate to processFiles for single file processing
-	await processFiles([file]);
-}
+	async function processFile(file: File) {
+		// Delegate to processFiles for single file processing
+		await processFiles([file]);
+	}
 
 	function triggerFileSelect() {
 		fileInput?.click();
@@ -420,9 +435,14 @@ async function processFile(file: File) {
 
 			// Process images in this batch
 			for (const entry of batch) {
-				if (entry.filename.startsWith('images/') &&
-					(entry.filename.endsWith('.png') || entry.filename.endsWith('.jpg') || entry.filename.endsWith('.jpeg') || entry.filename.endsWith('.webp') || entry.filename.endsWith('.gif'))) {
-
+				if (
+					entry.filename.startsWith('images/') &&
+					(entry.filename.endsWith('.png') ||
+						entry.filename.endsWith('.jpg') ||
+						entry.filename.endsWith('.jpeg') ||
+						entry.filename.endsWith('.webp') ||
+						entry.filename.endsWith('.gif'))
+				) {
 					try {
 						// Check if entry has getData method (it's a file, not directory)
 						if ('getData' in entry && typeof entry.getData === 'function') {
@@ -433,7 +453,9 @@ async function processFile(file: File) {
 								const imageFormat = detectImageFormat(arrayBuffer);
 								const blobUrl = URL.createObjectURL(blob);
 								batchImages.push({
-									name: entry.filename.replace(/^images\//, '').replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
+									name: entry.filename
+										.replace(/^images\//, '')
+										.replace(/\.(png|jpg|jpeg|webp|gif)$/, ''),
 									blobUrl,
 									imageFormat
 								});
@@ -475,7 +497,7 @@ async function processFile(file: File) {
 			// Memory cleanup between batches
 			if (i + batchSize < entries.length) {
 				// Force garbage collection hint
-				await new Promise(resolve => setTimeout(resolve, 10));
+				await new Promise((resolve) => setTimeout(resolve, 10));
 			}
 		}
 
@@ -488,7 +510,7 @@ async function processFile(file: File) {
 		// Convert to gallery format with blob URLs
 		importProgress = 60;
 		importMessage = 'Converting to gallery format...';
-		await new Promise(resolve => setTimeout(resolve, 0));
+		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		const galleryNFTs = images.map((image, index) => {
 			const matchingMetadata = metadata.find((meta) => meta.name === image.name);
@@ -509,7 +531,7 @@ async function processFile(file: File) {
 		// Import into gallery store
 		importProgress = 75;
 		importMessage = 'Importing to gallery...';
-		await new Promise(resolve => setTimeout(resolve, 0));
+		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		const collectionName = file.name
 			.replace('.zip', '')
@@ -525,16 +547,16 @@ async function processFile(file: File) {
 		// Calculate rarity for the collection
 		importProgress = 90;
 		importMessage = 'Calculating rarity...';
-		await new Promise(resolve => setTimeout(resolve, 0));
+		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
 		galleryStore.updateCollection(collection.id, updatedCollection);
 
 		// Clean up blob URLs when collection is removed
 		const originalRemove = galleryStore.removeCollection.bind(galleryStore);
-		galleryStore.removeCollection = function(id: string) {
+		galleryStore.removeCollection = function (id: string) {
 			if (id === collection.id) {
-				galleryNFTs.forEach(nft => {
+				galleryNFTs.forEach((nft) => {
 					if (nft.isBlobUrl && nft.imageData) {
 						URL.revokeObjectURL(nft.imageData);
 					}
@@ -594,8 +616,10 @@ async function processFile(file: File) {
 					{isImporting ? 'Importing...' : 'Drop ZIP file here or click to browse'}
 				</div>
 				<div class="text-muted-foreground text-xs">Supports ZIP files exported from NFT Studio</div>
-				<div class="text-muted-foreground mt-1 text-xs">Tip: You can select multiple ZIP files at once (Ctrl+Click or Cmd+Click)</div>
-				<div class="text-orange-600 mt-1 text-xs font-medium">
+				<div class="text-muted-foreground mt-1 text-xs">
+					Tip: You can select multiple ZIP files at once (Ctrl+Click or Cmd+Click)
+				</div>
+				<div class="mt-1 text-xs font-medium text-orange-600">
 					⚠️ Limitations: Max 10,000 NFTs per collection, 2GB total size across all files
 				</div>
 				{#if isImporting && importMessage}

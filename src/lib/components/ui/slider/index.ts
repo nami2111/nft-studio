@@ -1,7 +1,2 @@
-import Root from './slider.svelte';
-
-export {
-	Root,
-	//
-	Root as Slider
-};
+// Re-export from @neobr/svelte
+export { Slider } from '@neobr/svelte';

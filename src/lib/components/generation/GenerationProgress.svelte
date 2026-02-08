@@ -37,7 +37,7 @@
 <div class="space-y-4 py-4">
 	<!-- Background Generation Status -->
 	{#if isBackground}
-		<div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+		<div class="mb-4 rounded-lg border-2 border-yellow-200 bg-yellow-50 p-4">
 			<div class="flex items-center gap-2">
 				<AlertCircle class="h-4 w-4 text-yellow-600" />
 				<div class="flex-1">

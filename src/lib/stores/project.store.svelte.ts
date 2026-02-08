@@ -332,7 +332,10 @@ export function reorderLayers(layerIds: LayerId[]): void {
 
 // Batch loading state for traits
 const pendingTraitUpdates = new Map<string, { trait: Trait; layer: Layer; file: File }>();
-const pendingTraitPromises = new Map<TraitId, { resolve: () => void; reject: (error: Error) => void }>();
+const pendingTraitPromises = new Map<
+	TraitId,
+	{ resolve: () => void; reject: (error: Error) => void }
+>();
 
 async function processPendingTraitUpdates(): Promise<void> {
 	if (pendingTraitUpdates.size === 0) return;
@@ -441,13 +444,27 @@ export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeig
 }
 
 // Loading state delegation
-export function startLoading(op: string) { loadingStateManager.startLoading(op); }
-export function stopLoading(op: string) { loadingStateManager.stopLoading(op); }
-export function getLoadingState(op: string) { return loadingStateManager.getLoadingState(op); }
-export function startDetailedLoading(op: string, total = 100) { loadingStateManager.startDetailedLoading(op, total); }
-export function updateDetailedLoading(op: string, p: number, m?: string) { loadingStateManager.updateDetailedLoading(op, p, m); }
-export function stopDetailedLoading(op: string, s = true) { loadingStateManager.stopDetailedLoading(op, s); }
-export function getDetailedLoadingState(op: string) { return loadingStateManager.getDetailedLoadingState(op); }
+export function startLoading(op: string) {
+	loadingStateManager.startLoading(op);
+}
+export function stopLoading(op: string) {
+	loadingStateManager.stopLoading(op);
+}
+export function getLoadingState(op: string) {
+	return loadingStateManager.getLoadingState(op);
+}
+export function startDetailedLoading(op: string, total = 100) {
+	loadingStateManager.startDetailedLoading(op, total);
+}
+export function updateDetailedLoading(op: string, p: number, m?: string) {
+	loadingStateManager.updateDetailedLoading(op, p, m);
+}
+export function stopDetailedLoading(op: string, s = true) {
+	loadingStateManager.stopDetailedLoading(op, s);
+}
+export function getDetailedLoadingState(op: string) {
+	return loadingStateManager.getDetailedLoadingState(op);
+}
 
 // Project persistence
 export async function saveProjectToZip(): Promise<ArrayBuffer> {
@@ -512,10 +529,18 @@ export function updateStrictPairConfig(projectId: ProjectId, config: StrictPairC
 	project.strictPairConfig = { ...config };
 	persistenceService.schedulePersist(project);
 }
-export function getStrictPairConfig() { return project.strictPairConfig ? { ...project.strictPairConfig } : undefined; }
-export function isStrictPairEnabled() { return project.strictPairConfig?.enabled ?? false; }
+export function getStrictPairConfig() {
+	return project.strictPairConfig ? { ...project.strictPairConfig } : undefined;
+}
+export function isStrictPairEnabled() {
+	return project.strictPairConfig?.enabled ?? false;
+}
 export function getActiveLayerCombinations(): string[] {
-	return project.strictPairConfig?.layerCombinations.filter((lc: any) => lc.active).map((lc: any) => lc.id) ?? [];
+	return (
+		project.strictPairConfig?.layerCombinations
+			.filter((lc: any) => lc.active)
+			.map((lc: any) => lc.id) ?? []
+	);
 }
 
 export function resetProject(): void {

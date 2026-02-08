@@ -162,7 +162,9 @@ export class ExportService {
 		// Calculate number of ZIP files needed based on size
 		const estimatedZipCount = Math.ceil(estimatedTotalSize / MAX_ZIP_SIZE);
 
-		console.log(`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`);
+		console.log(
+			`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`
+		);
 		console.log(`Will create approximately ${estimatedZipCount} ZIP files`);
 
 		let currentZip = new JSZip();
@@ -237,7 +239,10 @@ export class ExportService {
 	/**
 	 * Estimate the average size per NFT (image + metadata)
 	 */
-	private static estimateSizePerNFT(images: { imageData: ArrayBuffer }[], metadata: { data: Record<string, unknown> }[]): number {
+	private static estimateSizePerNFT(
+		images: { imageData: ArrayBuffer }[],
+		metadata: { data: Record<string, unknown> }[]
+	): number {
 		// Sample the first 10 items to estimate average size
 		const sampleSize = Math.min(10, images.length);
 		let totalSize = 0;
@@ -255,7 +260,12 @@ export class ExportService {
 	/**
 	 * Download ZIP file with index in filename
 	 */
-	private static async downloadZipWithIndex(content: Blob, project: Project, index: number, total: number): Promise<void> {
+	private static async downloadZipWithIndex(
+		content: Blob,
+		project: Project,
+		index: number,
+		total: number
+	): Promise<void> {
 		const url = URL.createObjectURL(content);
 		const a = document.createElement('a');
 		a.href = url;
