@@ -148,7 +148,7 @@
 >
 	<div class="bg-muted flex aspect-square items-center justify-center" bind:this={imageContainer}>
 		{#if showSelection}
-			<div class="absolute top-2 left-2 z-10 flex items-center">
+			<div class="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center">
 				<input
 					type="checkbox"
 					checked={selected}
@@ -159,7 +159,7 @@
 				/>
 			</div>
 		{/if}
-		<div class="absolute top-2 right-2 z-10 flex items-center gap-1">
+		<div class="absolute top-2 right-2 z-10 flex h-8 items-center justify-center gap-1">
 			<TraitTypeToggle {trait} {layerId} />
 			{#if trait.type === 'ruler' && currentLayer && allLayers}
 				<RulerRulesManager
