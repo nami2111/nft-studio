@@ -2,53 +2,28 @@
 	import type { GalleryNFT } from '$lib/types/gallery';
 	import { Card } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { getMimeType, getFileExtension } from '$lib/utils/image-format-detector';
+	import { getMimeType } from '$lib/utils/image-format-detector';
+	import { imageUrlCache } from '$lib/utils/object-url-cache';
 
 	interface Props {
 		selectedNFT?: GalleryNFT | null;
 		class?: string;
+		hideCard?: boolean;
+		selectedTraits?: Record<string, string[]>;
+		ontraitclick?: (layer: string, value: string) => void;
 	}
 
-	let { selectedNFT, class: className = '' }: Props = $props();
+	let {
+		selectedNFT,
+		class: className = '',
+		hideCard = false,
+		selectedTraits = {},
+		ontraitclick
+	}: Props = $props();
 
-	let imageUrl = $state<string | null>(null);
-	let isLoadingImage = $state(false);
-
-	// Handle image URL creation and cleanup
-	$effect(() => {
-		if (imageUrl) {
-			URL.revokeObjectURL(imageUrl);
-			imageUrl = null;
-		}
-
-		if (selectedNFT) {
-			isLoadingImage = true;
-			// Handle both ArrayBuffer and Blob URL
-			if (typeof selectedNFT.imageData === 'string') {
-				// Already a Blob URL
-				imageUrl = selectedNFT.imageData;
-			} else if (selectedNFT.imageData instanceof ArrayBuffer) {
-				// Use the original image format if available
-				const imageFormat = selectedNFT.imageFormat || 'png';
-				const mimeType = getMimeType(imageFormat);
-				// Create image URL from ArrayBuffer with correct MIME type
-				const blob = new Blob([selectedNFT.imageData], { type: mimeType });
-				imageUrl = URL.createObjectURL(blob);
-			}
-			isLoadingImage = false;
-		}
-	});
-
-	// Cleanup on destroy
-	$effect(() => {
-		return () => {
-			if (imageUrl) {
-				URL.revokeObjectURL(imageUrl);
-			}
-		};
-	});
+	let imageUrl = $derived(
+		selectedNFT ? imageUrlCache.get(selectedNFT.id, selectedNFT.imageData) : null
+	);
 
 	function getRarityColor(rank: number, total: number): string {
 		const percentage = (rank / total) * 100;
@@ -62,143 +37,136 @@
 	function formatRarityScore(score: number): string {
 		return score.toFixed(2);
 	}
-
-	function downloadNFT() {
-		if (!selectedNFT || !imageUrl) return;
-
-		const link = document.createElement('a');
-		link.href = imageUrl;
-		// Use the original image format for the file extension
-		const extension = getFileExtension(selectedNFT.imageFormat || 'png');
-		link.download = `${selectedNFT.name}${extension}`;
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-	}
-
-	function copyMetadata() {
-		if (!selectedNFT) return;
-
-		const metadata = {
-			name: selectedNFT.name,
-			description: selectedNFT.description,
-			traits: selectedNFT.metadata.traits,
-			rarityScore: selectedNFT.rarityScore,
-			rarityRank: selectedNFT.rarityRank,
-			generatedAt: selectedNFT.generatedAt
-		};
-
-		navigator.clipboard.writeText(JSON.stringify(metadata, null, 2));
-	}
 </script>
 
-<div class="space-y-4 {className}">
+{#snippet content()}
 	{#if selectedNFT}
-		<Card class="p-4">
+		<div class="space-y-6">
 			<!-- NFT Image -->
-			<div class="mb-4">
-				<div class="bg-muted aspect-square overflow-hidden rounded-lg">
-					{#if isLoadingImage}
-						<Skeleton class="h-full w-full" />
-					{:else if imageUrl}
-						<img src={imageUrl} alt={selectedNFT.name} class="h-full w-full object-contain" />
-					{/if}
-				</div>
+			<div class="bg-muted/30 ring-border relative aspect-square overflow-hidden rounded-xl ring-1">
+				{#if imageUrl}
+					<img
+						src={imageUrl}
+						alt={selectedNFT.name}
+						class="h-full w-full object-contain transition-transform hover:scale-105"
+					/>
+				{:else}
+					<div class="bg-muted h-full w-full animate-pulse"></div>
+				{/if}
 			</div>
 
 			<!-- NFT Name and Rarity -->
-			<div class="mb-4">
-				<div class="flex items-start justify-between">
-					<h2 class="text-foreground text-lg font-semibold">
+			<div>
+				<div class="flex items-start justify-between gap-4">
+					<h2 class="text-foreground text-xl font-bold tracking-tight">
 						{selectedNFT.name}
 					</h2>
 					<Badge
 						variant="secondary"
 						class="{getRarityColor(
 							selectedNFT.rarityRank,
-							100 // TODO: Get actual total from gallery
-						)} text-sm font-semibold"
+							100
+						)} shrink-0 text-xs font-bold uppercase transition-colors"
 					>
-						#{selectedNFT.rarityRank}
+						Rank #{selectedNFT.rarityRank}
 					</Badge>
 				</div>
 				{#if selectedNFT.description}
-					<p class="text-muted-foreground mt-1 text-sm">
+					<p class="text-muted-foreground mt-2 text-sm leading-relaxed">
 						{selectedNFT.description}
 					</p>
 				{/if}
 			</div>
 
 			<!-- Rarity Information -->
-			<div class="mb-4 space-y-2">
-				<h3 class="text-foreground text-sm font-medium">Rarity Information</h3>
-				<div class="space-y-1">
-					<div class="flex justify-between text-sm">
-						<span class="text-muted-foreground">Rarity Score:</span>
-						<span class="font-medium">{formatRarityScore(selectedNFT.rarityScore)}</span>
+			<div class="space-y-3">
+				<h3 class="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+					Rarity Details
+				</h3>
+				<div class="grid grid-cols-2 gap-3">
+					<div class="bg-muted/30 ring-border rounded-lg p-3 ring-1">
+						<div class="text-muted-foreground text-[10px] uppercase">Score</div>
+						<div class="text-lg font-bold tabular-nums">
+							{formatRarityScore(selectedNFT.rarityScore)}
+						</div>
 					</div>
-					<div class="flex justify-between text-sm">
-						<span class="text-muted-foreground">Rarity Rank:</span>
-						<span class="font-medium">#{selectedNFT.rarityRank}</span>
+					<div class="bg-muted/30 ring-border rounded-lg p-3 ring-1">
+						<div class="text-muted-foreground text-[10px] uppercase">Rank</div>
+						<div class="text-lg font-bold tabular-nums">#{selectedNFT.rarityRank}</div>
 					</div>
 				</div>
 			</div>
 
 			<!-- Traits -->
-			<div class="mb-4">
-				<h3 class="text-foreground mb-2 text-sm font-medium">Traits</h3>
-				<div class="space-y-2">
+			<div class="space-y-3">
+				<h3 class="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Traits</h3>
+				<div class="grid gap-2">
 					{#each selectedNFT.metadata.traits as trait}
-						<div class="flex items-center justify-between rounded-md border p-2">
-							<div class="text-sm">
-								<div class="text-foreground font-medium">{trait.layer}</div>
-								<div class="text-muted-foreground">{trait.trait}</div>
+						{@const layer = trait.layer || (trait as any).trait_type || 'Attribute'}
+						{@const value = trait.trait || (trait as any).value || 'None'}
+						{@const isSelected = selectedTraits[layer]?.includes(value)}
+						<button
+							type="button"
+							onclick={() => ontraitclick?.(layer, value)}
+							class="ring-border flex items-center justify-between rounded-lg p-3 ring-1 transition-all {isSelected
+								? 'bg-primary text-primary-foreground ring-primary shadow-sm'
+								: 'bg-muted/10 hover:bg-muted/30 text-foreground'}"
+						>
+							<div class="min-w-0 text-left">
+								<div
+									class="mb-0.5 text-[10px] font-bold tracking-wider uppercase {isSelected
+										? 'text-primary-foreground/90'
+										: 'text-muted-foreground'}"
+								>
+									{layer}
+								</div>
+								<div class="truncate text-sm font-semibold">{value}</div>
 							</div>
-							<Badge variant="outline" class="text-xs">
+							<Badge
+								variant={isSelected ? 'secondary' : 'outline'}
+								class="shrink-0 font-mono text-[10px] {isSelected
+									? 'bg-primary-foreground text-primary border-transparent'
+									: 'bg-background/50'}"
+							>
 								{trait.rarity}%
 							</Badge>
-						</div>
+						</button>
 					{/each}
 				</div>
 			</div>
+		</div>
+	{/if}
+{/snippet}
 
-			<!-- Additional Information -->
-			<div class="mb-4 space-y-2">
-				<h3 class="text-foreground text-sm font-medium">Details</h3>
-				<div class="space-y-1">
-					<div class="flex justify-between text-sm">
-						<span class="text-muted-foreground">Collection ID:</span>
-						<span class="font-mono text-xs">{selectedNFT.collectionId.slice(0, 8)}...</span>
-					</div>
-					<div class="flex justify-between text-sm">
-						<span class="text-muted-foreground">Generated:</span>
-						<span class="font-medium">{new Date(selectedNFT.generatedAt).toLocaleDateString()}</span
-						>
-					</div>
-				</div>
-			</div>
-
-			<!-- Actions -->
-			<div class="flex gap-2">
-				<Button size="sm" variant="outline" onclick={downloadNFT}>Download</Button>
-				<Button size="sm" variant="outline" onclick={copyMetadata}>Copy Metadata</Button>
-			</div>
-		</Card>
+<div class={className}>
+	{#if selectedNFT}
+		{#if hideCard}
+			{@render content()}
+		{:else}
+			<Card class="p-6 shadow-sm">
+				{@render content()}
+			</Card>
+		{/if}
 	{:else}
 		<!-- Empty State -->
-		<Card class="p-8 text-center">
-			<svg
-				class="text-muted-foreground mx-auto h-16 w-16"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-				aria-hidden="true"
-			>
-				<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="1" />
-				<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1" />
-				<polyline points="21 15 16 10 5 21" stroke-width="1" />
-			</svg>
-			<div class="text-muted-foreground text-sm">Select an NFT to view details</div>
+		<Card class="flex flex-col items-center justify-center p-12 text-center opacity-60">
+			<div class="bg-muted mb-4 rounded-full p-4">
+				<svg
+					class="text-muted-foreground h-10 w-10"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+				>
+					<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="1.5" />
+					<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1.5" />
+					<polyline points="21 15 16 10 5 21" stroke-width="1.5" />
+				</svg>
+			</div>
+			<div class="text-foreground text-base font-medium">No NFT Selected</div>
+			<div class="text-muted-foreground mt-1 text-sm">
+				Select an NFT from the gallery to view its details, traits, and rarity.
+			</div>
 		</Card>
 	{/if}
 </div>
