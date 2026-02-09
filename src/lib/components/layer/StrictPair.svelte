@@ -440,21 +440,14 @@
 				aria-labelledby="layer-selection-label"
 			>
 				{#each availableLayers as layer}
-					<div
-						role="button"
-						tabindex="0"
-						class="hover:bg-muted/50 flex cursor-pointer items-center space-x-3 rounded-lg border-2 p-3 {isLayerSelected(
+					<button
+						type="button"
+						class="hover:bg-muted/50 flex w-full cursor-pointer items-center space-x-3 rounded-lg border-2 p-3 text-left transition-colors {isLayerSelected(
 							layer.id
 						)
 							? 'bg-primary/10 border-primary'
 							: ''}"
 						onclick={() => toggleLayerSelection(layer.id)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								toggleLayerSelection(layer.id);
-							}
-						}}
 						aria-pressed={isLayerSelected(layer.id)}
 						aria-label={`Select ${layer.name} layer`}
 					>
@@ -469,7 +462,7 @@
 							<div class="text-sm font-medium">{layer.name}</div>
 							<div class="text-muted-foreground text-xs">{layer.traits.length} traits</div>
 						</div>
-					</div>
+					</button>
 				{/each}
 			</div>
 			<div class="text-muted-foreground mt-3 text-xs">
@@ -525,14 +518,13 @@
 			>
 				Cancel
 			</Button>
-			<Button
-				variant="outline"
-				size="sm"
+			<button
+				class="focus-visible:ring-ring btn-brutalist bg-background hover:bg-accent rounded-brutalist inline-flex h-9 cursor-pointer items-center justify-center border-2 px-3 text-sm font-bold tracking-[0.1em] whitespace-nowrap transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
 				onclick={addLayerCombination}
 				disabled={selectedLayerIds.length < 2}
 			>
 				Add Layer Combination
-			</Button>
+			</button>
 		</div>
 	</div>
 </Modal>
