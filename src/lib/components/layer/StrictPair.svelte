@@ -229,7 +229,7 @@
 	}
 </script>
 
-<Card class="rounded-lg">
+<Card class="rounded-lg shadow-none">
 	<CardHeader>
 		<div class="flex items-center justify-between">
 			<CardTitle class="flex items-center gap-2">

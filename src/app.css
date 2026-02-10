@@ -273,20 +273,4 @@
 			margin-right: auto;
 		}
 	}
-
-	/* Ensure modals always appear above all other content with maximum z-index */
-	[role='dialog'] {
-		z-index: 99999 !important;
-		position: fixed !important;
-	}
-
-	/* Ensure modal backdrop covers everything */
-	[role='dialog'] > div:first-child {
-		z-index: 99998 !important;
-	}
-
-	/* Ensure modal content is above backdrop */
-	[role='dialog'] .card {
-		z-index: 99999 !important;
-	}
 }

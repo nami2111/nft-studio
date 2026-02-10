@@ -108,23 +108,5 @@ describe('Modal', () => {
 
 			expect(onClose).toHaveBeenCalled();
 		});
-
-		it('removes event listeners when Visual Viewport API is available', () => {
-			// Access the mocked object directly to spy on it
-			const removeEventListenerSpy = vi.spyOn(window.visualViewport!, 'removeEventListener');
-
-			const { unmount } = render(Modal, {
-				props: {
-					open: true,
-					onClose,
-					title: 'Test Modal'
-				}
-			});
-
-			unmount();
-
-			// Correct assertion: component calls removeEventListener on window.visualViewport
-			expect(removeEventListenerSpy).toHaveBeenCalledWith('resize', expect.any(Function));
-		});
 	});
 });

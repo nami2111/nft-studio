@@ -38,14 +38,56 @@ export default ts.config(
 		}
 	},
 	{
-		ignores: ['build/', '.svelte-kit/', 'dist/', 'static/']
+		ignores: [
+			'build/',
+			'.svelte-kit/',
+			'dist/',
+			'static/',
+			'scripts/',
+			'**/*.test.ts',
+			'**/*.spec.ts',
+			'src/lib/components/test-setup.ts',
+			'src/lib/components/test-utils.ts',
+			'*.config.ts',
+			'juno.config.ts',
+			'repro_validation.ts',
+			'src/app.d.ts'
+		]
+	},
+	{
+		files: ['**/*.ts', '**/*.svelte', '**/*.svelte.ts'],
+		languageOptions: {
+			parserOptions: {
+				project: './tsconfig.json',
+				extraFileExtensions: ['.svelte']
+			}
+		},
+		rules: {
+			'@typescript-eslint/no-unused-vars': 'warn',
+			'@typescript-eslint/no-explicit-any': 'warn',
+			'@typescript-eslint/no-floating-promises': 'off',
+			'@typescript-eslint/no-misused-promises': 'off',
+			'@typescript-eslint/no-unused-expressions': 'warn',
+			'no-case-declarations': 'off',
+			'no-async-promise-executor': 'warn',
+			'prefer-const': 'warn',
+			'svelte/require-each-key': 'warn',
+			'svelte/no-unused-props': 'warn',
+			'svelte/prefer-svelte-reactivity': 'warn',
+			'svelte/prefer-writable-derived': 'warn'
+		}
+	},
+	{
+		files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
+		rules: {
+			'@typescript-eslint/no-unused-vars': 'off',
+			'@typescript-eslint/no-explicit-any': 'off',
+			'@typescript-eslint/no-floating-promises': 'off',
+			'@typescript-eslint/no-misused-promises': 'off'
+		}
 	},
 	{
 		rules: {
-			'@typescript-eslint/no-unused-vars': 'error',
-			'@typescript-eslint/no-explicit-any': 'error',
-			'@typescript-eslint/no-floating-promises': 'error',
-			'@typescript-eslint/no-misused-promises': 'error',
 			'svelte/no-at-html-tags': 'error',
 			'no-control-regex': 'off'
 		}

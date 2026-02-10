@@ -19,10 +19,11 @@
 </script>
 
 <svelte:head>
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html webManifestLink}
 </svelte:head>
 
-<div class="min-h-screen bg-white text-black">
+<div class="bg-background text-foreground min-h-screen">
 	<SecurityPolicies />
 	<main id="main-content" class="min-h-screen">
 		{@render children?.()}

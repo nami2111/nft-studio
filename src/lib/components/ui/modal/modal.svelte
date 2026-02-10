@@ -70,7 +70,7 @@
 </script>
 
 {#if portalTarget && open}
-	<div use:portal={portalTarget} class={cn('modal-wrapper', maxWidth, maxHeight, className)}>
+	<div use:portal={portalTarget}>
 		<NeoBrModal bind:open {title} onClose={handleClose}>
 			{#if description}
 				<p class="text-muted-foreground mb-4 text-sm">{description}</p>
@@ -79,60 +79,3 @@
 		</NeoBrModal>
 	</div>
 {/if}
-
-<style>
-	.modal-wrapper :global(.modal-content) {
-		max-width: var(--modal-max-width, 32rem);
-		max-height: var(--modal-max-height, 85vh);
-		overflow-y: auto;
-		overflow-x: hidden;
-	}
-
-	.modal-wrapper.max-w-xs :global(.modal-content) {
-		max-width: 20rem;
-	}
-
-	.modal-wrapper.max-w-sm :global(.modal-content) {
-		max-width: 24rem;
-	}
-
-	.modal-wrapper.max-w-md :global(.modal-content) {
-		max-width: 28rem;
-	}
-
-	.modal-wrapper.max-w-lg :global(.modal-content) {
-		max-width: 32rem;
-	}
-
-	.modal-wrapper.max-w-xl :global(.modal-content) {
-		max-width: 36rem;
-	}
-
-	.modal-wrapper.max-w-2xl :global(.modal-content) {
-		max-width: 42rem;
-	}
-
-	.modal-wrapper.max-w-3xl :global(.modal-content) {
-		max-width: 48rem;
-	}
-
-	.modal-wrapper.max-w-4xl :global(.modal-content) {
-		max-width: 56rem;
-	}
-
-	.modal-wrapper.max-w-5xl :global(.modal-content) {
-		max-width: 64rem;
-	}
-
-	.modal-wrapper.max-w-6xl :global(.modal-content) {
-		max-width: 72rem;
-	}
-
-	.modal-wrapper.max-w-7xl :global(.modal-content) {
-		max-width: 80rem;
-	}
-
-	.modal-wrapper.max-w-full :global(.modal-content) {
-		max-width: 100%;
-	}
-</style>
