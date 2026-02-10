@@ -85,7 +85,7 @@
 		"@junobuild/analytics": "^0.2.10",
 		"@junobuild/core": "^3.4.1",
 		"@junobuild/functions": "^0.5.5",
-		"@neobr/svelte": "^1.0.7",
+		"@neobr/svelte": "^1.0.8",
 		"@neobr/tailwind-preset": "^1.0.4",
 		"@zip.js/zip.js": "^2.8.15",
 		"bits-ui": "^2.15.4",

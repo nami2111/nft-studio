@@ -128,8 +128,7 @@
 		bind:open={isDialogOpen}
 		title="Manage Ruler Rules for '{trait.name}'"
 		onClose={() => (isDialogOpen = false)}
-		maxWidth="max-w-7xl"
-		maxHeight="max-h-[90vh]"
+		size="full"
 	>
 		<div class="space-y-4 overflow-y-auto pr-2">
 			{#if availableLayers.length === 0}

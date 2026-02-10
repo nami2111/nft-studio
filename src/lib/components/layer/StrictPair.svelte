@@ -532,14 +532,14 @@
 			>
 				Cancel
 			</Button>
-			<button
-				type="button"
-				class="btn-brutalist bg-primary text-primary-foreground hover:bg-primary-hover rounded-brutalist inline-flex h-9 cursor-pointer items-center justify-center px-3 text-sm font-bold tracking-[0.1em] whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50"
+			<Button
+				variant="default"
+				size="sm"
 				onclick={addLayerCombination}
 				disabled={isAddButtonDisabled}
 			>
 				Add Layer Combination
-			</button>
+			</Button>
 		</div>
 	</div>
 </Modal>
