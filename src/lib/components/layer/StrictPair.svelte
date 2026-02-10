@@ -5,7 +5,6 @@
 	import { Modal } from '$lib/components/ui/modal';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { Checkbox } from '$lib/components/ui/checkbox';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
@@ -35,6 +34,9 @@
 	let showLayerPairModal = $state(false);
 	let selectedLayerIds: LayerId[] = $state([]);
 	let newLayerPairDescription = $state('');
+
+	// Derived values
+	let isAddButtonDisabled = $derived(selectedLayerIds.length < 2);
 
 	// No event dispatcher needed - use callback prop directly
 
@@ -129,10 +131,8 @@
 
 	// Handle layer selection
 	function toggleLayerSelection(layerId: LayerId) {
-		const existingIndex = selectedLayerIds.indexOf(layerId);
-
-		if (existingIndex !== -1) {
-			selectedLayerIds = selectedLayerIds.filter((_, index) => index !== existingIndex);
+		if (selectedLayerIds.includes(layerId)) {
+			selectedLayerIds = selectedLayerIds.filter((id) => id !== layerId);
 		} else {
 			selectedLayerIds = [...selectedLayerIds, layerId];
 		}
@@ -423,7 +423,7 @@
 
 <!-- Add Layer Combination Modal -->
 <Modal
-	open={showLayerPairModal}
+	bind:open={showLayerPairModal}
 	onClose={() => {
 		showLayerPairModal = false;
 		selectedLayerIds = [];
@@ -442,27 +442,44 @@
 				role="group"
 				aria-labelledby="layer-selection-label"
 			>
-				{#each availableLayers as layer}
-					<button
-						type="button"
-						class="hover:bg-muted/50 flex w-full cursor-pointer items-center space-x-3 rounded-lg border-2 p-3 text-left transition-colors {isLayerSelected(
+				{#each availableLayers as layer (layer.id)}
+					<label
+						class="hover:bg-muted/50 flex w-full cursor-pointer items-center space-x-3 rounded-lg border-2 p-3 transition-colors {isLayerSelected(
 							layer.id
 						)
 							? 'bg-primary/10 border-primary'
 							: ''}"
-						onclick={() => toggleLayerSelection(layer.id)}
-						aria-pressed={isLayerSelected(layer.id)}
-						aria-label={`Select ${layer.name} layer`}
 					>
-						<Checkbox
+						<input
+							type="checkbox"
 							checked={isLayerSelected(layer.id)}
-							onCheckedChange={() => toggleLayerSelection(layer.id)}
+							onchange={() => toggleLayerSelection(layer.id)}
+							class="sr-only"
 						/>
+						<div
+							class="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 {isLayerSelected(
+								layer.id
+							)
+								? 'border-primary bg-primary'
+								: 'border-foreground bg-background'}"
+						>
+							{#if isLayerSelected(layer.id)}
+								<svg
+									class="text-primary-foreground h-3.5 w-3.5"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									stroke-width="4"
+								>
+									<path stroke-linecap="square" stroke-linejoin="miter" d="M20 6L9 17L4 12" />
+								</svg>
+							{/if}
+						</div>
 						<div class="flex-1">
 							<div class="text-sm font-medium">{layer.name}</div>
 							<div class="text-muted-foreground text-xs">{layer.traits.length} traits</div>
 						</div>
-					</button>
+					</label>
 				{/each}
 			</div>
 			<div class="text-muted-foreground mt-3 text-xs">
@@ -515,14 +532,14 @@
 			>
 				Cancel
 			</Button>
-			<Button
-				variant="default"
-				size="sm"
+			<button
+				type="button"
+				class="btn-brutalist bg-primary text-primary-foreground hover:bg-primary-hover rounded-brutalist inline-flex h-9 cursor-pointer items-center justify-center px-3 text-sm font-bold tracking-[0.1em] whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50"
 				onclick={addLayerCombination}
-				disabled={selectedLayerIds.length < 2}
+				disabled={isAddButtonDisabled}
 			>
 				Add Layer Combination
-			</Button>
+			</button>
 		</div>
 	</div>
 </Modal>
