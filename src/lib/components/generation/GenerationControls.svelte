@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import { Play } from '@lucide/svelte';
 
 	let {
@@ -20,13 +22,12 @@
 <div class="space-y-4">
 	<!-- Collection Size Input -->
 	<div class="grid gap-2 pb-2 sm:grid-cols-[1fr_3fr] sm:items-center sm:gap-4">
-		<label class="text-sm font-medium sm:text-right" for="collectionSize">Collection Size</label>
-		<input
+		<Label class="sm:text-right" for="collectionSize">Collection Size</Label>
+		<Input
 			id="collectionSize"
 			type="number"
 			min="1"
 			max="10000"
-			class="border-input bg-background focus:border-ring focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 			bind:value={collectionSize}
 			disabled={isGenerating}
 		/>
@@ -49,7 +50,10 @@
 		<Button
 			variant="outline"
 			onclick={onGenerate}
-			disabled={isGenerating || collectionSize <= 0 || collectionSize > 10000}
+			disabled={isGenerating ||
+				collectionSize === null ||
+				collectionSize <= 0 ||
+				collectionSize > 10000}
 			size="sm"
 			class="w-full transition-all sm:w-auto"
 		>

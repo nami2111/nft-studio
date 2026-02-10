@@ -3,6 +3,9 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Modal } from '$lib/components/ui/modal';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
@@ -226,18 +229,18 @@
 	}
 </script>
 
-<Card class="bg-card/95 rounded-lg border-2 shadow-sm backdrop-blur-sm">
-	<div class="border-b-2 px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+<Card class="rounded-lg">
+	<CardHeader>
 		<div class="flex items-center justify-between">
-			<h2 class="flex items-center gap-2 text-base font-semibold sm:text-lg lg:text-xl">
+			<CardTitle class="flex items-center gap-2">
 				<Settings class="size-4" />
 				Strict Pair Mode
-			</h2>
+			</CardTitle>
 			<Badge variant={strictPairConfig.enabled ? 'default' : 'secondary'}>
 				{strictPairConfig.enabled ? 'Enabled' : 'Disabled'}
 			</Badge>
 		</div>
-	</div>
+	</CardHeader>
 
 	<CardContent class="pt-0 pb-4">
 		<div class="space-y-4">
@@ -451,12 +454,9 @@
 						aria-pressed={isLayerSelected(layer.id)}
 						aria-label={`Select ${layer.name} layer`}
 					>
-						<input
-							type="checkbox"
+						<Checkbox
 							checked={isLayerSelected(layer.id)}
-							class="accent-primary focus:ring-primary border-input pointer-events-none h-4 w-4 rounded focus:ring-2 focus:ring-offset-2"
-							tabindex="-1"
-							aria-hidden="true"
+							onCheckedChange={() => toggleLayerSelection(layer.id)}
 						/>
 						<div class="flex-1">
 							<div class="text-sm font-medium">{layer.name}</div>
@@ -492,16 +492,13 @@
 		</fieldset>
 
 		<!-- Description -->
-		<div>
-			<label for="layer-combination-description" class="text-sm font-medium"
-				>Description (optional)</label
-			>
-			<input
+		<div class="space-y-2">
+			<Label for="layer-combination-description">Description (optional)</Label>
+			<Input
 				id="layer-combination-description"
 				type="text"
 				placeholder={generateDefaultLayerCombinationDescription(selectedLayerIds)}
 				bind:value={newLayerPairDescription}
-				class="mt-2 w-full rounded-md border-2 px-3 py-2 text-sm"
 			/>
 		</div>
 
@@ -518,13 +515,14 @@
 			>
 				Cancel
 			</Button>
-			<button
-				class="focus-visible:ring-ring btn-brutalist bg-background hover:bg-accent rounded-brutalist inline-flex h-9 cursor-pointer items-center justify-center border-2 px-3 text-sm font-bold tracking-[0.1em] whitespace-nowrap transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+			<Button
+				variant="default"
+				size="sm"
 				onclick={addLayerCombination}
 				disabled={selectedLayerIds.length < 2}
 			>
 				Add Layer Combination
-			</button>
+			</Button>
 		</div>
 	</div>
 </Modal>

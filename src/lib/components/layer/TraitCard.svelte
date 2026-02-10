@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import type { Trait } from '$lib/types/layer';
 	import RaritySlider from '$lib/components/layer/RaritySlider.svelte';
 	import { removeTrait, updateTraitName } from '$lib/stores';
@@ -143,17 +145,15 @@
 </script>
 
 <Card
-	class="relative overflow-hidden border-2 {selected ? 'ring-primary ring-2' : ''}"
+	class="relative overflow-hidden {selected ? 'ring-primary ring-2' : ''}"
 	data-testid="trait-card"
 >
 	<div class="bg-muted flex aspect-square items-center justify-center" bind:this={imageContainer}>
 		{#if showSelection}
 			<div class="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center">
-				<input
-					type="checkbox"
+				<Checkbox
 					checked={selected}
-					onchange={onToggleSelection}
-					class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300 focus:ring-offset-0"
+					onCheckedChange={onToggleSelection}
 					aria-label="Select trait"
 					data-testid="trait-select-checkbox"
 				/>
@@ -257,9 +257,9 @@
 	<CardContent class="p-3" data-testid="card-content">
 		<div class="flex items-center justify-between">
 			{#if isEditing}
-				<input
+				<Input
 					bind:value={editedName}
-					class="border-foreground w-full border-b-2 bg-transparent text-sm font-medium focus:outline-none"
+					class="h-8 border-b-2 bg-transparent text-sm font-medium focus:outline-none"
 					onkeydown={(e) => e.key === 'Enter' && handleUpdateName()}
 					data-testid="trait-name-input"
 				/>

@@ -286,7 +286,7 @@
 	}
 
 	/* Ensure modal content is above backdrop */
-	[role='dialog'] .card-brutalist {
+	[role='dialog'] .card {
 		z-index: 99999 !important;
 	}
 }
