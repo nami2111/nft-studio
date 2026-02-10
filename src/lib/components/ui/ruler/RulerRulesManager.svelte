@@ -131,7 +131,7 @@
 		maxWidth="max-w-7xl"
 		maxHeight="max-h-[90vh]"
 	>
-		<div class="max-h-[80vh] space-y-4 overflow-y-auto pr-2">
+		<div class="space-y-4 overflow-y-auto pr-2">
 			{#if availableLayers.length === 0}
 				<p class="text-muted-foreground text-sm">No other layers available to create rules for.</p>
 			{:else}
