@@ -68,7 +68,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 ### Core Framework
 
 - **Frontend**: SvelteKit 2, Svelte 5 with runes, TypeScript
-- **Styling**: Tailwind CSS 4, bits-ui components, lucide-svelte icons
+- **Styling**: Tailwind CSS 4, NeoBr-UI design system (brutalist components), lucide-svelte icons
 - **State Management**: Svelte 5 runes ($state, $derived, $effect) with modular store architecture
 - **Build System**: Vite with static adapter, bundle visualization, and PWA support
 
@@ -90,9 +90,10 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 
 ### UI/UX Components
 
-- **Custom Components**: Modal system, virtual scrolling grid, interactive trait filters
+- **Design System**: NeoBr-UI brutalist component library with custom wrappers for modal, card, button, input, checkbox, and more
+- **Custom Components**: Modal system with portal rendering, virtual scrolling grid, interactive trait filters
 - **Notifications**: svelte-sonner for toast notifications and user feedback
-- **Theme System**: mode-watcher for dark/light theme switching
+- **Theme System**: mode-watcher for dark/light theme switching with NeoBr-UI dark mode support
 - **Responsive Design**: Mobile-first approach with adaptive layouts
 
 ### Development & Testing
@@ -159,7 +160,7 @@ src/
 │   ├── components/         # Reusable UI components
 │   │   ├── layer/          # Layer-specific components (bulk ops, upload, filter)
 │   │   ├── preview/        # Preview system (cache, renderer, selector)
-│   │   └── ui/             # Base UI components (button, card, dialog, input, etc.)
+│   │   └── ui/             # NeoBr-UI component wrappers (button, card, modal, input, etc.)
 │   ├── domain/             # Business logic and validation
 │   ├── persistence/        # Data storage and retrieval
 │   ├── stores/             # Modular Svelte stores using Svelte 5 runes
@@ -175,7 +176,7 @@ src/
 ├── routes/                 # SvelteKit page routes (+page.svelte, app/+page.svelte)
 ├── hooks/                  # SvelteKit hooks
 ├── satellite/              # Juno satellite configuration
-└── app.css                 # Global styles
+└── app.css                 # Global styles with NeoBr-UI preset
 ```
 
 ### Available Scripts
@@ -397,6 +398,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Built with [SvelteKit](https://kit.svelte.dev/) and Svelte 5
+- UI components from [NeoBr-UI](https://github.com/nami2111/NeoBr-UI) brutalist design system
 - Custom modal system for consistent viewport-based positioning
 - Icons from [Lucide](https://lucide.dev/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
