@@ -224,7 +224,7 @@
 							name="metadataStandard"
 							value={MetadataStandard.ERC721}
 							checked={metadataStandard === MetadataStandard.ERC721}
-							onchange={(e) => saveMetadataStandard(MetadataStandard.ERC721)}
+							onchange={() => saveMetadataStandard(MetadataStandard.ERC721)}
 							class="text-primary focus:ring-primary border-input bg-background"
 						/>
 						<span class="font-medium">ERC-721 (EVM)</span>
@@ -235,7 +235,7 @@
 							name="metadataStandard"
 							value={MetadataStandard.SOLANA}
 							checked={metadataStandard === MetadataStandard.SOLANA}
-							onchange={(e) => saveMetadataStandard(MetadataStandard.SOLANA)}
+							onchange={() => saveMetadataStandard(MetadataStandard.SOLANA)}
 							class="text-primary focus:ring-primary border-input bg-background"
 						/>
 						<span class="font-medium">Metaplex (Solana)</span>

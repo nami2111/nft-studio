@@ -73,6 +73,7 @@
 		severity: EnhancedErrorInfo['severity'];
 		recoveryOptions: string[];
 		suggestedActions: string[];
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		icon: any;
 	} {
 		const message = err.message.toLowerCase();
@@ -400,7 +401,7 @@
 					<div class="mb-6">
 						<h3 class="mb-3 text-lg font-medium">What you can try:</h3>
 						<div class="grid gap-2">
-							{#each errorInfo.suggestedActions as action}
+							{#each errorInfo.suggestedActions as action (action)}
 								<div class="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
 									<div class="h-2 w-2 rounded-full bg-blue-500"></div>
 									<span>{action}</span>
@@ -451,7 +452,7 @@
 						<div class="border-t pt-3">
 							<h4 class="mb-2 text-sm font-medium">Quick fixes:</h4>
 							<div class="grid grid-cols-1 gap-2">
-								{#each errorInfo.recoveryOptions as option}
+								{#each errorInfo.recoveryOptions as option (option)}
 									<Button
 										onclick={() => executeRecoveryAction(option)}
 										variant="ghost"

@@ -8,7 +8,6 @@
 	import { formatDuration, formatTime } from '$lib/utils/formatters';
 
 	let performanceStatus = $derived(performanceAnalyzer.getStatus());
-	const performanceReport = $state<any>(null);
 	let updateInterval: number;
 
 	// Real-time performance metrics
@@ -80,21 +79,6 @@
 				return 'bg-red-500';
 			default:
 				return 'bg-gray-500';
-		}
-	}
-
-	function getPerformanceColor(rating: string): string {
-		switch (rating) {
-			case 'excellent':
-				return 'text-green-600';
-			case 'good':
-				return 'text-blue-600';
-			case 'fair':
-				return 'text-yellow-600';
-			case 'poor':
-				return 'text-red-600';
-			default:
-				return 'text-gray-600';
 		}
 	}
 

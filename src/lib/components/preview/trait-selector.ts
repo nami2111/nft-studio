@@ -4,7 +4,7 @@
  */
 
 import type { Layer } from '$lib/types/layer';
-import type { TraitId } from '$lib/types/ids';
+import type { TraitId, LayerId } from '$lib/types/ids';
 import { validateTraitCompatibility, getCompatibleTraits } from '$lib/domain/validation';
 
 export class TraitSelector {
@@ -121,7 +121,7 @@ export class TraitSelector {
 				if (!traitId) return null;
 				return { traitId, layerId: layer.id };
 			})
-			.filter((selection) => selection !== null) as { traitId: TraitId; layerId: any }[];
+			.filter((selection) => selection !== null) as { traitId: TraitId; layerId: LayerId }[];
 
 		const validation = validateTraitCompatibility(selectedTraits, layers);
 		return {
@@ -143,7 +143,7 @@ export class TraitSelector {
 				if (!traitId || i === layerIndex) return null; // Exclude current layer
 				return { traitId, layerId: l.id };
 			})
-			.filter((selection) => selection !== null) as { traitId: TraitId; layerId: any }[];
+			.filter((selection) => selection !== null) as { traitId: TraitId; layerId: LayerId }[];
 
 		return getCompatibleTraits(layer.id, selectedTraits, layers);
 	}

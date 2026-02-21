@@ -18,7 +18,7 @@
 	const normalizeRarity = (val: number) => Math.max(1, Math.min(5, Math.round(val || 1)));
 
 	// Internal primitive state for the rarity value - THE single source of truth
-	let currentValue = $state(normalizeRarity(rarityWeight));
+	let currentValue = $state(untrack(() => normalizeRarity(rarityWeight)));
 
 	// Sync prop changes from outside (e.g. undo/redo, batch load)
 	$effect(() => {

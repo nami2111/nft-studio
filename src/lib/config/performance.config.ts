@@ -221,7 +221,7 @@ export function getOptimalWorkerCount(
 
 	const cores = navigator.hardwareConcurrency || 4;
 	// deviceMemory is experimental - use type assertion
-	const memoryGB = (navigator as any).deviceMemory || 4;
+	const memoryGB = (navigator as Navigator & { deviceMemory?: number }).deviceMemory || 4;
 
 	// Use configured CPU utilization, capped by memory
 	const byCores = Math.floor(cores * PERF_CONFIG.generation.workers.cpuUtilization);

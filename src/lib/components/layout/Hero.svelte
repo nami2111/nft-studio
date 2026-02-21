@@ -3,7 +3,6 @@
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
-	import FloatingElement from '$lib/components/shared/FloatingElement.svelte';
 	import WindowControls from '$lib/components/shared/WindowControls.svelte';
 </script>
 

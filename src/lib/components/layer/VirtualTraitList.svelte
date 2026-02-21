@@ -14,7 +14,7 @@
 		layerId,
 		searchTerm = '',
 		selectedTraits = new Set(),
-		onToggleSelection = (traitId: string) => {},
+		onToggleSelection = () => {},
 		showSelection = false
 	} = $props();
 
@@ -100,7 +100,7 @@
 			class="absolute top-0 left-0 grid w-full grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"
 			style="transform: translateY({offsetY}px);"
 		>
-			{#each traits as trait, i (trait.id)}
+			{#each traits as trait (trait.id)}
 				{@const isVisible = visibleTraits.some((vt) => vt.id === trait.id)}
 				{#if isVisible}
 					<TraitCard
