@@ -25,11 +25,11 @@
 		children?: Snippet;
 	}
 
+	/* eslint-disable prefer-const */
 	let {
 		open = $bindable(false),
 		title = '',
 		description = '',
-		class: className,
 		size = 'md',
 		onClose,
 		children
@@ -48,6 +48,7 @@
 		}
 	});
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const ModalComponent = NeoBrModal as any;
 </script>
 

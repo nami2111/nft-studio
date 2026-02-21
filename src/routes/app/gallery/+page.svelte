@@ -2,16 +2,13 @@
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
-	import type { GalleryNFT, GalleryCollection } from '$lib/types/gallery';
+	import type { GalleryNFT, GalleryCollection, GallerySortOption } from '$lib/types/gallery';
 	import { trackGalleryPageVisit } from '$lib/utils/analytics';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
 	import CollectionStats from '$lib/components/gallery/CollectionStats.svelte';
 	import NFTDetail from '$lib/components/gallery/NFTDetail.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
-	import { formatDate } from '$lib/utils/formatters';
-	import { detectImageFormat, getMimeType } from '$lib/utils/image-format-detector';
+	import { Button } from '$components/ui/button/index.js';
 
 	const isLoading = $derived(galleryStore.isLoading);
 	const collections = $derived(galleryStore.collections);
@@ -20,11 +17,12 @@
 
 	// The active collection from the store, with a safe fallback in the template
 	const selectedCollection = $derived(galleryStore.selectedCollection);
-	const totalNFTsInCollection = $derived(selectedCollection?.totalSupply || 0);
 
 	// Use store state for filters
 	let searchQuery = $state(galleryStore.filterOptions.search || '');
-	let selectedSort = $state<any>(galleryStore.sortOption || 'rarity-asc');
+	let selectedSort = $state<GallerySortOption>(
+		(galleryStore.sortOption as GallerySortOption) || 'rarity-asc'
+	);
 	let selectedTraits = $state<Record<string, string[]>>(
 		galleryStore.filterOptions.selectedTraits || {}
 	);
@@ -65,10 +63,8 @@
 		}
 	});
 
-	// Get all unique traits for filters from the store
-	const allTraits = $derived(galleryStore.allTraits);
-
 	// Track Object URLs for cleanup
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const objectUrls = new Set<string>();
 
 	// Clean up Object URLs when component is destroyed
@@ -76,16 +72,6 @@
 		objectUrls.forEach((url) => URL.revokeObjectURL(url));
 		objectUrls.clear();
 	});
-
-	function createObjectUrl(imageData: ArrayBuffer): string {
-		// Detect the image format from the binary data
-		const imageFormat = detectImageFormat(imageData);
-		const mimeType = getMimeType(imageFormat);
-
-		const url = URL.createObjectURL(new Blob([imageData], { type: mimeType }));
-		objectUrls.add(url);
-		return url;
-	}
 
 	function forceClearCache() {
 		console.log('Force clearing gallery cache...');
@@ -98,7 +84,7 @@
 		galleryStore.setSelectedNFT(nft);
 	}
 
-	function selectCollection(collection: any) {
+	function selectCollection(collection: GalleryCollection) {
 		galleryStore.setSelectedCollection(collection);
 	}
 
@@ -529,7 +515,7 @@
 									}}
 									value={selectedCollection?.id}
 								>
-									{#each collections as collection}
+									{#each collections as collection (collection.id)}
 										<option value={collection.id}>{collection.name}</option>
 									{/each}
 								</select>

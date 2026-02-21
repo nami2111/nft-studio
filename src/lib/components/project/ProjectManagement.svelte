@@ -16,11 +16,6 @@
 		startLoading,
 		stopLoading
 	} from '$lib/stores';
-	import JSZip from 'jszip';
-	import type { Project, Layer, Trait } from '$lib/types/project';
-	import { validateImportedProject } from '$lib/domain';
-	import { generateLayerId, generateTraitId } from '$lib/types/ids';
-	import { globalResourceManager } from '$lib/stores/resource-manager';
 	import FolderOpen from '@lucide/svelte/icons/folder-open';
 	import Save from '@lucide/svelte/icons/save';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';

@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { project } from '$lib/stores';
-	import {
-		startGeneration as startWorkerGeneration,
-		cancelGeneration as cancelWorkerGeneration
-	} from '$lib/domain/worker.service';
+	import { startGeneration as startWorkerGeneration } from '$lib/domain/worker.service';
 	import type {
 		ProgressMessage,
 		CompleteMessage,
@@ -11,16 +8,6 @@
 		CancelledMessage,
 		PreviewMessage
 	} from '$lib/types/worker-messages';
-	import {
-		isProgressMessage,
-		isCompleteMessage,
-		isErrorMessage,
-		isCancelledMessage,
-		isPreviewMessage,
-		isAnalysisMessage,
-		isPerformanceReportMessage
-	} from '$lib/types/worker-messages';
-	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
 	import {
 		generationState,
@@ -232,7 +219,7 @@
 					| ErrorMessage
 					| CancelledMessage
 					| PreviewMessage
-					| { type: 'analysis' | 'performance-report'; payload: any }
+					| { type: 'analysis' | 'performance-report'; payload: Record<string, unknown> }
 			) => {
 				const message = data;
 

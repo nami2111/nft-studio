@@ -8,10 +8,9 @@
 	import Settings from '@lucide/svelte/icons/settings';
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
-	import Info from '@lucide/svelte/icons/info';
 	import type { StrictPairConfig, LayerCombination } from '$lib/types/layer';
 	import type { Layer } from '$lib/types/project';
-	import type { LayerId, TraitId } from '$lib/types/ids';
+	import type { LayerId } from '$lib/types/ids';
 
 	// Props
 	const {
@@ -19,10 +18,6 @@
 		onupdateStrictPairConfig
 	}: {
 		project: {
-			id: string;
-			name: string;
-			description: string;
-			outputSize: { width: number; height: number };
 			layers: Layer[];
 			strictPairConfig?: StrictPairConfig;
 		};
@@ -30,7 +25,6 @@
 	} = $props();
 
 	// State
-	const isOpen = $state(false);
 	let showLayerPairModal = $state(false);
 	let selectedLayerIds: LayerId[] = $state([]);
 	let newLayerPairDescription = $state('');
@@ -143,18 +137,6 @@
 		return selectedLayerIds.includes(layerId);
 	}
 
-	// Get layer name by ID
-	function getLayerName(layerId: string): string {
-		const layer = availableLayers.find((l) => l.id === layerId);
-		return layer?.name || 'Unknown Layer';
-	}
-
-	// Get layer traits count
-	function getLayerTraitsCount(layerId: string): number {
-		const layer = availableLayers.find((l) => l.id === layerId);
-		return layer?.traits.length || 0;
-	}
-
 	// Calculate total unique combinations possible for a layer combination
 	function calculateTotalCombinations(layerCombination: LayerCombination): number {
 		let total = 1;
@@ -201,30 +183,6 @@
 		return {
 			willBlock: blockingCombinations.length > 0,
 			blockingCombinations
-		};
-	}
-
-	// Get combination analytics
-	function getCombinationAnalytics(): {
-		totalPossibleCombinations: number;
-		activeCombinations: number;
-		averageCombinationsPerRule: number;
-	} {
-		let totalPossible = 0;
-		let activeCount = 0;
-
-		for (const combination of strictPairConfig.layerCombinations) {
-			if (!combination.active) continue;
-
-			const possible = calculateTotalCombinations(combination);
-			totalPossible += possible;
-			activeCount++;
-		}
-
-		return {
-			totalPossibleCombinations: totalPossible,
-			activeCombinations: activeCount,
-			averageCombinationsPerRule: activeCount > 0 ? totalPossible / activeCount : 0
 		};
 	}
 </script>
@@ -281,7 +239,7 @@
 						<div class="space-y-3">
 							<h4 class="text-sm font-medium">Layer Combinations</h4>
 
-							{#each strictPairConfig.layerCombinations as layerCombination}
+							{#each strictPairConfig.layerCombinations as layerCombination (layerCombination.id)}
 								<div class="group bg-card hover:bg-muted/50 rounded-lg border-2 p-3 transition-all">
 									<div class="space-y-2">
 										<!-- Top row: Description -->

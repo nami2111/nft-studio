@@ -1,9 +1,5 @@
 <script lang="ts">
-	import {
-		generationState,
-		getSummary,
-		cancelGeneration
-	} from '$lib/stores/generation-progress.svelte';
+	import { generationState, cancelGeneration } from '$lib/stores/generation-progress.svelte';
 	import { AlertCircle, X } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 

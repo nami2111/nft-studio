@@ -27,7 +27,6 @@
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import NeedsReupload from '$lib/components/ui/NeedsReupload.svelte';
 
 	// Lazy toast imports to avoid loading svelte-sonner on component mount
 	let toastModule: typeof import('svelte-sonner') | null = null;
@@ -354,10 +353,7 @@
 	// Lazy loading for trait cards with improved memory management
 	let observer: IntersectionObserver | null = null;
 
-	function createSafeLazyTraitCard(
-		trait: (typeof layer.traits)[number],
-		layerId: string
-	): HTMLElement {
+	function createSafeLazyTraitCard(trait: (typeof layer.traits)[number]): HTMLElement {
 		const root = document.createElement('div');
 		root.className = 'lazy-trait-loaded';
 
@@ -557,7 +553,7 @@
 					if (!placeholder) return;
 
 					// Build safe DOM instead of innerHTML
-					const traitCard = createSafeLazyTraitCard(trait, layer.id);
+					const traitCard = createSafeLazyTraitCard(trait);
 					container.replaceChild(traitCard, placeholder);
 
 					// Unobserve after loading to save memory
@@ -804,7 +800,7 @@
 						<div
 							class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4"
 						>
-							{#each layer.traits as trait, i (trait.id)}
+							{#each layer.traits as trait (trait.id)}
 								{#if trait.name.toLowerCase().includes(searchTerm.toLowerCase())}
 									<TraitCard
 										{trait}

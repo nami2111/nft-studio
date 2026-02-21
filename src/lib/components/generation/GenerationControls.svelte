@@ -4,6 +4,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Play } from '@lucide/svelte';
 
+	/* eslint-disable prefer-const */
 	let {
 		collectionSize = $bindable(),
 		isGenerating,
