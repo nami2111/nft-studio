@@ -2,7 +2,6 @@
 	import type { GalleryNFT } from '$lib/types/gallery';
 	import { Card } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import { getMimeType } from '$lib/utils/image-format-detector';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 
 	interface Props {
@@ -101,9 +100,13 @@
 			<div class="space-y-3">
 				<h3 class="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Traits</h3>
 				<div class="grid gap-2">
-					{#each selectedNFT.metadata.traits as trait}
-						{@const layer = trait.layer || (trait as any).trait_type || 'Attribute'}
-						{@const value = trait.trait || (trait as any).value || 'None'}
+					{#each selectedNFT.metadata.traits as trait, i (i)}
+						{@const layer =
+							trait.layer ||
+							((trait as Record<string, unknown>).trait_type as string) ||
+							'Attribute'}
+						{@const value =
+							trait.trait || ((trait as Record<string, unknown>).value as string) || 'None'}
 						{@const isSelected = selectedTraits[layer]?.includes(value)}
 						<button
 							type="button"

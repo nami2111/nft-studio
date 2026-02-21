@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
-	import type { GalleryNFT } from '$lib/types/gallery';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Card } from '$lib/components/ui/card';
@@ -27,8 +26,8 @@
 
 		for (const nft of nfts) {
 			for (const trait of nft.metadata.traits) {
-				const layer = trait.layer || (trait as any).trait_type;
-				const traitValue = trait.trait || (trait as any).value;
+				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 
 				if (!layer || !traitValue) continue;
 
@@ -88,8 +87,8 @@
 		const nfts = sourceNFTs();
 		return nfts.filter((nft) =>
 			nft.metadata.traits.some((t) => {
-				const tLayer = t.layer || (t as any).trait_type;
-				const tValue = t.trait || (t as any).value;
+				const tLayer = t.layer || (t as Record<string, unknown>).trait_type;
+				const tValue = t.trait || (t as Record<string, unknown>).value;
 				return tLayer === layer && tValue === trait;
 			})
 		).length;
@@ -111,11 +110,11 @@
 			</div>
 		{:else}
 			<div class="space-y-3">
-				{#each availableTraits() as traitGroup}
+				{#each availableTraits() as traitGroup (traitGroup.layer)}
 					<div class="space-y-2">
 						<h4 class="text-foreground text-sm font-medium">{traitGroup.layer}</h4>
 						<div class="flex flex-wrap gap-1">
-							{#each traitGroup.traits as trait}
+							{#each traitGroup.traits as trait (trait)}
 								{@const count = getTraitCount(traitGroup.layer, trait)}
 								{@const isSelected = isTraitSelected(traitGroup.layer, trait)}
 								<button
@@ -147,8 +146,8 @@
 				<div class="border-t pt-3">
 					<div class="text-muted-foreground mb-2 text-sm">Active Filters:</div>
 					<div class="flex flex-wrap gap-1">
-						{#each Object.entries(selectedTraits) as [layer, traits]}
-							{#each traits as trait}
+						{#each Object.entries(selectedTraits) as [layer, traits] (layer)}
+							{#each traits as trait (trait)}
 								<Badge variant="secondary" class="text-xs">
 									{layer}: {trait}
 								</Badge>

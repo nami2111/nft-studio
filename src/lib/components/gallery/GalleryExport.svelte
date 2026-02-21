@@ -95,11 +95,6 @@
 			isExporting = false;
 		}
 	}
-
-	function exportSelectedNFTs() {
-		// TODO: Implement selected NFTs export
-		console.log('Export selected NFTs - not implemented yet');
-	}
 </script>
 
 <Card class="p-4 {className}">

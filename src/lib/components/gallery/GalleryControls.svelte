@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
-	import type { GalleryCollection, GallerySortOption } from '$lib/types/gallery';
+	import type { GallerySortOption } from '$lib/types/gallery';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Card } from '$lib/components/ui/card';
@@ -62,10 +62,6 @@
 		galleryStore.setSortOption('newest');
 	}
 
-	function showAllCollections() {
-		selectedCollection = '';
-		galleryStore.setSelectedCollection(null);
-	}
 </script>
 
 <Card class="p-4 {className}">
@@ -91,7 +87,7 @@
 					class="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 				>
 					<option value="">All Collections</option>
-					{#each collections as collection}
+					{#each collections as collection (collection.id)}
 						<option value={collection.id}>
 							{collection.name} ({collection.totalSupply} NFTs)
 						</option>
@@ -106,7 +102,7 @@
 					onchange={handleSortChange}
 					class="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 				>
-					{#each sortOptions as option}
+					{#each sortOptions as option (option.value)}
 						<option value={option.value}>{option.label}</option>
 					{/each}
 				</select>

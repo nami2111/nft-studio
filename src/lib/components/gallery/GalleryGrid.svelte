@@ -33,7 +33,7 @@
 	<!-- Loading State -->
 	{#if isLoading}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-			{#each Array(12) as _}
+			{#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as i (i)}
 				<div class="space-y-3">
 					<Skeleton class="aspect-[4/5] w-full rounded-lg" />
 					<Skeleton class="h-4 w-3/4" />

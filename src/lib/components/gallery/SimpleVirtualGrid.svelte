@@ -38,19 +38,7 @@
 
 	// Update visible range with performance tracking
 	function calculateVisibleRange() {
-		// Debug logging disabled to prevent console spam in gallery mode
-		const start = performance.now();
-		const endTiming = () => {
-			const end = performance.now();
-			// Grid calculations are now fast enough that debug logging causes spam
-			// Only uncomment for debugging specific performance issues
-			// if (end - start > 500) {
-			// 	debugLog(`⏱️ Grid Range: ${(end - start).toFixed(2)}ms`);
-			// }
-		};
-
 		if (!scrollElement || !nfts || nfts.length === 0) {
-			endTiming();
 			return;
 		}
 
@@ -73,8 +61,6 @@
 		// Convert row indices to item indices (multiply by columns)
 		visibleStart = overscanStartRow * columns;
 		visibleEnd = Math.min(nfts.length, overscanEndRow * columns);
-
-		endTiming();
 	}
 
 	// Update visible range when scrolling (debounced for performance)
@@ -95,10 +81,6 @@
 			}
 		}, 16); // ~60fps
 	}
-
-	// Debounce cache to prevent rapid URL creation
-	const urlCache = new Map<string, string>();
-	const lastCacheClear = 0;
 
 	// Debounce scroll calculations
 	let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -124,21 +106,12 @@
 			imageLoadQueue.add(nft.id);
 
 			// Load image in background without blocking UI
-			const loadTimeout = setTimeout(() => {
-				const startUrl = performance.now();
+			setTimeout(() => {
 				try {
 					const url = imageUrlCache.get(nft.id, nft.imageData);
 					imageUrls[nft.id] = url; // This triggers reactivity!
 					imageLoadQueue.delete(nft.id);
-
-					// Logging disabled to prevent console spam - can be re-enabled for debugging
-					const endUrl = performance.now();
-					// if (endUrl - startUrl > 500) {
-					// 	debugLog(`🖼️ Slow: ${nft.id} (${(endUrl - startUrl).toFixed(2)}ms)`);
-					// }
-				} catch (error) {
-					// Error logging disabled to prevent console spam - can be re-enabled for debugging
-					// debugLog(`🖼️ ❌ Failed: ${nft.id}`);
+				} catch {
 					imageLoadQueue.delete(nft.id);
 					imageUrls[nft.id] = 'error';
 				}
