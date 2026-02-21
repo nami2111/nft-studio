@@ -4,12 +4,10 @@
  * Implements differential persistence to optimize saving large projects
  */
 
-import type { Project, Layer, Trait } from '$lib/types/project';
-import type { LayerId } from '$lib/types/ids';
+import type { Project } from '$lib/types/project';
 import {
 	SmartStorageStore,
-	IndexedDbStore,
-	loadFromLocalStorageSync
+	IndexedDbStore
 } from '$lib/persistence/storage';
 import { logger } from '$lib/utils/logger';
 
@@ -18,15 +16,15 @@ const LAYER_ASSETS_PREFIX = 'nft-studio-layer-assets-';
 const LEGACY_STORAGE_KEY = 'nft-studio-project';
 
 export class PersistenceService {
-	private metaStorage = new SmartStorageStore<any>(METADATA_KEY);
-	private assetStorages = new Map<string, IndexedDbStore<any>>();
+	private metaStorage = new SmartStorageStore<Record<string, unknown>>(METADATA_KEY);
+	private assetStorages = new Map<string, IndexedDbStore<{ layerId: string; traits: { id: string; imageData: ArrayBuffer }[] }>>();
 	private persistTimeout: ReturnType<typeof setTimeout> | null = null;
 	private lastSavedMetadata: string | null = null;
 
 	/**
 	 * Get or create an IndexedDbStore for a specific layer's assets
 	 */
-	private getAssetStorage(layerId: string): IndexedDbStore<any> {
+	private getAssetStorage(layerId: string): IndexedDbStore<{ layerId: string; traits: { id: string; imageData: ArrayBuffer }[] }> {
 		const key = `${LAYER_ASSETS_PREFIX}${layerId}`;
 		if (!this.assetStorages.has(key)) {
 			this.assetStorages.set(key, new IndexedDbStore(key));
@@ -100,12 +98,12 @@ export class PersistenceService {
 			}
 
 			// Assemble the full project
-			const project = skeleton as Project;
+			const project = skeleton as unknown as Project;
 
 			const assetPromises = project.layers.map(async (layer) => {
 				const assets = await this.getAssetStorage(layer.id).load();
 				if (assets && assets.traits) {
-					assets.traits.forEach((assetTrait: any) => {
+					assets.traits.forEach((assetTrait: { id: string; imageData: ArrayBuffer }) => {
 						const trait = layer.traits.find((t) => t.id === assetTrait.id);
 						if (trait) {
 							trait.imageData = assetTrait.imageData;
@@ -193,7 +191,7 @@ export class PersistenceService {
 	/**
 	 * Create a project skeleton with empty image data for metadata storage
 	 */
-	private createProjectSkeleton(project: Project): any {
+	private createProjectSkeleton(project: Project): Record<string, unknown> {
 		return {
 			...project,
 			layers: project.layers.map((layer) => ({

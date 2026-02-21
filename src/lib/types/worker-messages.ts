@@ -1,7 +1,7 @@
 // src/lib/types/worker-messages.ts
 
 import type { LayerId, TraitId, TaskId } from './ids';
-import type { TraitType, RulerRule, StrictPairConfig } from './layer';
+import type { TraitType, RulerRule } from './layer';
 
 // Worker message interfaces for generation worker
 export interface TransferrableTrait {
@@ -123,13 +123,13 @@ export type OutgoingWorkerMessage =
 	| {
 		type: 'analysis';
 		payload: {
-			complexity: any;
+			complexity: unknown;
 			canUseFastGeneration: boolean;
 			estimatedSpeedup: number;
 			recommendations: string[];
 		};
 	}
-	| { type: 'performance-report'; payload: any };
+	| { type: 'performance-report'; payload: Record<string, unknown> };
 
 // Messages that can be sent to workers
 // Messages that can be sent to workers
@@ -137,7 +137,7 @@ export type IncomingMessage =
 	| BatchMessage
 	| { type: 'cancel' }
 	| ReadyMessage
-	| { type: 'preview'; payload: any }
+	| { type: 'preview'; payload: Record<string, unknown> }
 	| { type: 'initialize' }
 	| { type: 'ping'; pingId: string };
 
@@ -231,7 +231,7 @@ export function isBatchMessage(message: unknown): message is BatchMessage {
 export function isAnalysisMessage(message: unknown): message is {
 	type: 'analysis';
 	payload: {
-		complexity: any;
+		complexity: unknown;
 		canUseFastGeneration: boolean;
 		estimatedSpeedup: number;
 		recommendations: string[];
@@ -251,7 +251,7 @@ export function isAnalysisMessage(message: unknown): message is {
  */
 export function isPerformanceReportMessage(
 	message: unknown
-): message is { type: 'performance-report'; payload: any } {
+): message is { type: 'performance-report'; payload: Record<string, unknown> } {
 	return (
 		typeof message === 'object' &&
 		message !== null &&

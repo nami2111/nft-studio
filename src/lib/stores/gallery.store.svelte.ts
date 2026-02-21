@@ -15,7 +15,6 @@ import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-cal
 import {
 	initGalleryDB,
 	saveCollection,
-	getCollection,
 	getAllCollections,
 	deleteCollection,
 	clearAllCollections,
@@ -92,8 +91,8 @@ class GalleryStore {
 				const traits = nft.metadata?.traits || [];
 				for (let j = 0; j < traits.length; j++) {
 					const trait = traits[j];
-					const layer = trait.layer || (trait as any).trait_type;
-					const value = trait.trait || (trait as any).value;
+					const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+					const value = trait.trait || ((trait as Record<string, unknown>).value as string);
 
 					if (layer && value) {
 						const key = `${layer}:${value}`;
@@ -191,7 +190,7 @@ class GalleryStore {
 		debugCount('Source NFTs', sourceNFTs.length);
 
 		// Create cache key
-		const filterKey = this.createFilterKey(sourceNFTs);
+		const filterKey = this.createFilterKey();
 
 		// Check cache first
 		if (this.filteredCache.has(filterKey)) {
@@ -240,7 +239,7 @@ class GalleryStore {
 
 			// Use the inverse index for high-performance set intersection
 			const selectedTraitOptions = Object.entries(this._state.filterOptions.selectedTraits!).filter(
-				([_, values]) => values.length > 0
+				([, values]) => values.length > 0
 			);
 
 			if (selectedTraitOptions.length > 0) {
@@ -344,7 +343,7 @@ class GalleryStore {
 	 * Create cache key for current filters
 	 * Uses immutable collection ID only - never includes mutable count
 	 */
-	private createFilterKey(_sourceNFTs: GalleryNFT[]): string {
+	private createFilterKey(): string {
 		const search = this._state.filterOptions.search || '';
 		const traits = this._state.filterOptions.selectedTraits
 			? JSON.stringify(Object.entries(this._state.filterOptions.selectedTraits).sort())
@@ -507,7 +506,6 @@ class GalleryStore {
 			const estimate = await getStorageEstimate();
 			if (estimate.quota > 0) {
 				const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
-				const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
 				// Only log storage when usage changes significantly (>1MB)
 				const usage = parseFloat(usageMB);
 				if (!this._lastLoggedUsage || Math.abs(usage - this._lastLoggedUsage) > 1) {
@@ -546,7 +544,6 @@ class GalleryStore {
 			const estimate = await getStorageEstimate();
 			if (estimate.quota > 0) {
 				const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
-				const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
 				// Only log storage when usage changes significantly (>1MB)
 				const usage = parseFloat(usageMB);
 				if (!this._lastLoggedUsage || Math.abs(usage - this._lastLoggedUsage) > 1) {
@@ -564,7 +561,7 @@ class GalleryStore {
 
 	// Import generated NFTs from generation system
 	importGeneratedNFTs(
-		nfts: Array<{ name: string; imageData: ArrayBuffer; metadata: any; index: number }>,
+		nfts: Array<{ name: string; imageData: ArrayBuffer; metadata: Record<string, unknown>; index: number }>,
 		projectName: string,
 		projectDescription: string
 	) {
@@ -579,7 +576,7 @@ class GalleryStore {
 				id: `nft-${collectionId}-${index}`,
 				name: nft.name,
 				imageData: nft.imageData,
-				metadata: nft.metadata,
+				metadata: nft.metadata as GalleryNFT['metadata'],
 				rarityScore: 0, // Will be calculated
 				rarityRank: 0, // Will be calculated
 				collectionId: collectionId,
@@ -603,7 +600,7 @@ class GalleryStore {
 		nfts: Array<{
 			name: string;
 			imageData: ArrayBuffer | string;
-			metadata: any;
+			metadata: Record<string, unknown>;
 			index: number;
 			isBlobUrl?: boolean;
 			imageFormat?: string;
@@ -631,7 +628,7 @@ class GalleryStore {
 				name: nft.name,
 				imageData: nft.imageData,
 				imageFormat: nft.imageFormat || 'png', // Default to png if not provided
-				metadata: nft.metadata,
+				metadata: nft.metadata as GalleryNFT['metadata'],
 				rarityScore: 0, // Will be calculated
 				rarityRank: 0, // Will be calculated
 				collectionId: collectionId,
@@ -656,7 +653,7 @@ class GalleryStore {
 		nfts: Array<{
 			name: string;
 			imageData: ArrayBuffer | string;
-			metadata: any;
+			metadata: Record<string, unknown>;
 			index: number;
 			isBlobUrl?: boolean;
 			imageFormat?: string;
@@ -672,7 +669,7 @@ class GalleryStore {
 			name: nft.name,
 			imageData: nft.imageData,
 			imageFormat: nft.imageFormat || 'png', // Default to png if not provided
-			metadata: nft.metadata,
+			metadata: nft.metadata as GalleryNFT['metadata'],
 			rarityScore: Math.random() * 100, // Placeholder - will be calculated properly
 			rarityRank: collection.nfts.length + index + 1, // Placeholder - will be calculated properly
 			collectionId: collectionId,
@@ -692,7 +689,7 @@ class GalleryStore {
 
 	// Validate imported data
 	validateImportData(
-		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata?: any }>
+		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata?: Record<string, unknown> }>
 	): {
 		isValid: boolean;
 		errors: string[];
