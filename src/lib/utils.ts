@@ -144,27 +144,19 @@ export async function fileToArrayBuffer(
 				}
 			}
 
-			// For other errors or last attempt, throw with detailed context
-			const errorContext = {
-				fileName: file.name,
-				fileSize: file.size,
-				fileType: file.type,
-				attempt,
-				maxRetries,
-				originalError: lastError.message
-			};
+
 
 			if (lastError.name === 'NotFoundError' || lastError.message.includes('could not be found')) {
 				throw new Error(
 					`Failed to access file "${file.name}". The file may have been moved, deleted, or is not accessible. ` +
-						`Please try dragging the file again or select it using the file browser.`
+					`Please try dragging the file again or select it using the file browser.`
 				);
 			}
 
 			if (lastError.name === 'SecurityError' || lastError.message.includes('security')) {
 				throw new Error(
 					`Security error reading file "${file.name}". This may be due to browser security restrictions. ` +
-						`Please try using the file browser instead of drag and drop.`
+					`Please try using the file browser instead of drag and drop.`
 				);
 			}
 
@@ -174,7 +166,7 @@ export async function fileToArrayBuffer(
 
 			throw new Error(
 				`Failed to read file "${file.name}": ${lastError.message} ` +
-					`(attempt ${attempt}/${maxRetries})`
+				`(attempt ${attempt}/${maxRetries})`
 			);
 		}
 	}
@@ -182,7 +174,7 @@ export async function fileToArrayBuffer(
 	// This should never be reached, but just in case
 	throw new Error(
 		`Failed to read file "${file.name}" after ${maxRetries} attempts. ` +
-			`Last error: ${lastError?.message || 'Unknown error'}`
+		`Last error: ${lastError?.message || 'Unknown error'}`
 	);
 }
 
@@ -233,5 +225,5 @@ export function normalizeFilename(name: string): string {
 export type WithoutChildrenOrChild<T> = T extends { children?: unknown }
 	? Omit<T, 'children'>
 	: T extends { child?: unknown }
-		? Omit<T, 'child'>
-		: T;
+	? Omit<T, 'child'>
+	: T;

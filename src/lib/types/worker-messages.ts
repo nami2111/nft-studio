@@ -100,7 +100,7 @@ export interface PreviewMessage extends BaseWorkerMessage {
 export interface BatchMessage extends BaseWorkerMessage {
 	type: 'batch';
 	payload: {
-		solutions: { index: number; traits: TransferrableTrait[] }[];
+		solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[];
 		layers: TransferrableLayer[];
 		collectionSize: number;
 		outputSize: { width: number; height: number };
@@ -121,14 +121,14 @@ export type OutgoingWorkerMessage =
 	| PreviewMessage
 	| { type: 'pingResponse'; pingResponse: string }
 	| {
-			type: 'analysis';
-			payload: {
-				complexity: any;
-				canUseFastGeneration: boolean;
-				estimatedSpeedup: number;
-				recommendations: string[];
-			};
-	  }
+		type: 'analysis';
+		payload: {
+			complexity: any;
+			canUseFastGeneration: boolean;
+			estimatedSpeedup: number;
+			recommendations: string[];
+		};
+	}
 	| { type: 'performance-report'; payload: any };
 
 // Messages that can be sent to workers
@@ -145,8 +145,8 @@ export type IncomingMessage =
 export type GenerationWorkerMessage =
 	| BatchMessage
 	| {
-			type: 'cancel';
-	  };
+		type: 'cancel';
+	};
 
 // Type guards for discriminated unions
 

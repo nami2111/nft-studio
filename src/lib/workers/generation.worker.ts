@@ -24,8 +24,6 @@ const workerArrayBufferCache = new WorkerArrayBufferCache();
 const performanceMonitor = new SequentialPerformanceMonitor();
 const imageBitmapCache = new Map<string, ImageBitmap>();
 const memoryManager = new OptimizedMemoryManager();
-const traitCombinationCache = new TraitCombinationCache();
-const blobProcessingOptimizer = new BlobProcessingOptimizer();
 const predictiveTraitLoader = new PredictiveTraitLoader();
 
 // Serial task execution queue
@@ -201,14 +199,14 @@ async function generateIsolatedItem(
 }
 
 function getMemoryUsage(): number {
-	return (performance as any).memory?.usedJSHeapSize || 0;
+	return (performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory?.usedJSHeapSize ?? 0;
 }
 
 /**
  * Main batch generation handler
  */
 async function handleBatchGeneration(
-	solutions: { index: number; traits: any[] }[],
+	solutions: { index: number; traits: { trait: TransferrableTrait; layerId: string }[] }[],
 	layers: TransferrableLayer[],
 	collectionSize: number,
 	outputSize: { width: number; height: number },
@@ -285,7 +283,7 @@ async function handleBatchGeneration(
 		};
 
 		const transferrables = imageBuffers.map((img) => img.buffer) as unknown as Transferable[];
-		(self as any).postMessage(message, transferrables);
+		(self as unknown as Worker).postMessage(message, transferrables);
 
 		self.postMessage({
 			type: 'complete',
@@ -341,7 +339,7 @@ self.addEventListener('message', (e: MessageEvent) => {
 			} else if (message.type === 'initialize') {
 				self.postMessage({ type: 'ready' });
 			} else if (message.type === 'ping') {
-				self.postMessage({ type: 'pingResponse', pingResponse: (message as any).pingId });
+				self.postMessage({ type: 'pingResponse', pingResponse: (message as unknown as { pingId: string }).pingId });
 			}
 		})
 		.catch((err) => {
@@ -349,4 +347,4 @@ self.addEventListener('message', (e: MessageEvent) => {
 		});
 });
 
-export {};
+export { };

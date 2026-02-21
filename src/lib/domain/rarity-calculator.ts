@@ -40,6 +40,16 @@ export interface StrategicCombination {
 	filler: number; // Low-value combinations
 }
 
+export interface NFTRarityResult {
+	nft: GalleryNFT;
+	rarityScore: number;
+	rarityRank?: number;
+	traitRarities: TraitRarity[] | EnhancedTraitRarity[];
+	strategicBreakdown?: { strategic: number; balanced: number; filler: number; };
+	emergentRarity?: boolean;
+	combinationUniqueness?: string;
+}
+
 /**
  * Rarity calculation methods
  */
@@ -78,8 +88,8 @@ export function calculateTraitRarities(collection: GalleryCollection): Map<strin
 	// Count occurrences of each trait
 	for (const nft of collection.nfts) {
 		for (const trait of nft.metadata.traits) {
-			const layer = trait.layer || (trait as any).trait_type;
-			const traitValue = trait.trait || (trait as any).value;
+			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 			const key = `${layer}:${traitValue}`;
 			const existing = traitMap.get(key);
 			if (existing) {
@@ -127,8 +137,8 @@ export function calculateEnhancedTraitRarities(
 	// Count occurrences of each trait
 	for (const nft of collection.nfts) {
 		for (const trait of nft.metadata.traits) {
-			const layer = trait.layer || (trait as any).trait_type;
-			const traitValue = trait.trait || (trait as any).value;
+			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 			const key = `${layer}:${traitValue}`;
 			const existing = traitMap.get(key);
 			if (existing) {
@@ -188,9 +198,9 @@ export function calculateNFTRarities(
 	method: RarityMethod = RarityMethod.TRAIT_RARITY
 ): {
 	traitRarities: Map<string, TraitRarity>;
-	nftRarities: any[];
-	rarestNFT: GalleryNFT;
-	mostCommonNFT: GalleryNFT;
+	nftRarities: NFTRarityResult[];
+	rarestNFT?: GalleryNFT;
+	mostCommonNFT?: GalleryNFT;
 } {
 	// Use enhanced calculation for new methods
 	if (method === RarityMethod.ENHANCED_WEIGHTED) {
@@ -213,8 +223,8 @@ export function calculateNFTRarities(
 		let totalScore = 0;
 
 		for (const trait of nft.metadata.traits) {
-			const layer = trait.layer || (trait as any).trait_type;
-			const traitValue = trait.trait || (trait as any).value;
+			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 			const key = `${layer}:${traitValue}`;
 			const traitRarity = traitRarities.get(key);
 			if (traitRarity) {
@@ -284,14 +294,19 @@ export function calculateEnhancedNFTRarities(
 	layerImportance: LayerImportance[] = DEFAULT_LAYER_IMPORTANCE,
 	customWeights: Map<string, number> = new Map(),
 	tiers: RarityTier[] = DEFAULT_RARITY_TIERS
-): any {
+): {
+	traitRarities: Map<string, EnhancedTraitRarity>;
+	nftRarities: NFTRarityResult[];
+	rarestNFT?: GalleryNFT;
+	mostCommonNFT?: GalleryNFT;
+} {
 	const enhancedTraitRarities = calculateEnhancedTraitRarities(
 		collection,
 		layerImportance,
 		customWeights,
 		tiers
 	);
-	const nftRarities: any[] = [];
+	const nftRarities: NFTRarityResult[] = [];
 
 	for (const nft of collection.nfts) {
 		const traitRarityData: EnhancedTraitRarity[] = [];
@@ -301,8 +316,8 @@ export function calculateEnhancedNFTRarities(
 		let fillerCount = 0;
 
 		for (const trait of nft.metadata.traits) {
-			const layer = trait.layer || (trait as any).trait_type;
-			const traitValue = trait.trait || (trait as any).value;
+			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 			const key = `${layer}:${traitValue}`;
 			const traitRarity = enhancedTraitRarities.get(key);
 			if (traitRarity) {
@@ -350,15 +365,20 @@ export function calculateEnhancedNFTRarities(
 /**
  * Calculate emergent rarity based on trait combinations
  */
-export function calculateEmergentNFTRarities(collection: GalleryCollection): any {
+export function calculateEmergentNFTRarities(collection: GalleryCollection): {
+	traitRarities: Map<string, TraitRarity>;
+	nftRarities: NFTRarityResult[];
+	rarestNFT?: GalleryNFT;
+	mostCommonNFT?: GalleryNFT;
+} {
 	// Group NFTs by trait combinations
 	const combinationMap = new Map<string, GalleryNFT[]>();
 
 	for (const nft of collection.nfts) {
 		const sortedTraits = nft.metadata.traits
 			.map((trait) => {
-				const layer = trait.layer || (trait as any).trait_type;
-				const traitValue = trait.trait || (trait as any).value;
+				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 				return `${layer}:${traitValue}`;
 			})
 			.sort()
@@ -371,14 +391,14 @@ export function calculateEmergentNFTRarities(collection: GalleryCollection): any
 	}
 
 	// Calculate emergent rarity scores
-	const nftRarities: any[] = [];
+	const nftRarities: NFTRarityResult[] = [];
 	const totalNFTs = collection.nfts.length;
 
 	for (const nft of collection.nfts) {
 		const sortedTraits = nft.metadata.traits
 			.map((trait) => {
-				const layer = trait.layer || (trait as any).trait_type;
-				const traitValue = trait.trait || (trait as any).value;
+				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 				return `${layer}:${traitValue}`;
 			})
 			.sort()
@@ -460,8 +480,8 @@ export function calculateStrategicCombinations(
 	// Count traits in target layer
 	for (const nft of collection.nfts) {
 		for (const trait of nft.metadata.traits) {
-			const layer = trait.layer || (trait as any).trait_type;
-			const traitValue = trait.trait || (trait as any).value;
+			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 
 			if (layer === targetLayer) {
 				layerTraits.set(traitValue, (layerTraits.get(traitValue) || 0) + 1);
@@ -474,7 +494,7 @@ export function calculateStrategicCombinations(
 	let balanced = 0;
 	let filler = 0;
 
-	for (const [trait, count] of layerTraits) {
+	for (const [, count] of layerTraits) {
 		const percentage = (count / totalNFTs) * 100;
 		const score = 100 / percentage;
 		const classification = classifyStrategicValue(score, percentage);
@@ -511,7 +531,7 @@ export function updateCollectionWithRarity(
 
 	return {
 		...collection,
-		nfts: updatedNFTs
+		nfts: updatedNFTs as GalleryNFT[]
 	};
 }
 
@@ -541,8 +561,8 @@ export function findNFTsWithTraits(
 	return collection.nfts.filter((nft) => {
 		return requiredTraits.every((required) => {
 			return nft.metadata.traits.some((trait) => {
-				const layer = trait.layer || (trait as any).trait_type;
-				const traitValue = trait.trait || (trait as any).value;
+				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 				return layer === required.layer && traitValue === required.trait;
 			});
 		});
@@ -555,15 +575,15 @@ export function findNFTsWithTraits(
 export function calculateNFTSimilarity(nft1: GalleryNFT, nft2: GalleryNFT): number {
 	const traits1 = new Set(
 		nft1.metadata.traits.map((t) => {
-			const layer = t.layer || (t as any).trait_type;
-			const traitValue = t.trait || (t as any).value;
+			const layer = t.layer || ((t as Record<string, unknown>).trait_type as string);
+			const traitValue = t.trait || ((t as Record<string, unknown>).value as string);
 			return `${layer}:${traitValue}`;
 		})
 	);
 	const traits2 = new Set(
 		nft2.metadata.traits.map((t) => {
-			const layer = t.layer || (t as any).trait_type;
-			const traitValue = t.trait || (t as any).value;
+			const layer = t.layer || ((t as Record<string, unknown>).trait_type as string);
+			const traitValue = t.trait || ((t as Record<string, unknown>).value as string);
 			return `${layer}:${traitValue}`;
 		})
 	);
@@ -601,8 +621,14 @@ export function exportRarityData(collection: GalleryCollection): {
 	collection: string;
 	method: string;
 	generatedAt: string;
-	traits: any[];
-	nfts: any[];
+	traits: Array<Record<string, unknown>>;
+	nfts: Array<{
+		id: string;
+		name: string;
+		rarityScore: number;
+		rarityRank: number;
+		traits: Array<{ layer: string; trait: string; rarityScore: number }>;
+	}>;
 } {
 	const stats = calculateNFTRarities(collection);
 
@@ -622,7 +648,7 @@ export function exportRarityData(collection: GalleryCollection): {
 			name: data.nft.name,
 			rarityScore: data.rarityScore,
 			rarityRank: index + 1,
-			traits: data.traitRarities.map((trait: TraitRarity) => ({
+			traits: data.traitRarities.map((trait: TraitRarity | EnhancedTraitRarity) => ({
 				layer: trait.layer,
 				trait: trait.trait,
 				rarityScore: trait.rarityScore

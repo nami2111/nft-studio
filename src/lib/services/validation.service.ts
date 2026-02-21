@@ -4,7 +4,7 @@
  */
 
 import * as validation from '$lib/domain/validation';
-import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
+import type { Project, ProjectDimensions } from '$lib/types/project';
 import { createProjectId } from '$lib/types/ids';
 
 export class ValidationService {

@@ -6,15 +6,14 @@
 	import StrictPair from '$lib/components/layer/StrictPair.svelte';
 	import { projectStore } from '$lib/stores/project.store.svelte';
 	import type { StrictPairConfig } from '$lib/types/layer';
-	import { onMount } from 'svelte';
+	import { onMount, type Component } from 'svelte';
 
 	const currentProject = $derived(projectStore.currentProject);
 
 	// Lazy-loaded components for code splitting
-	let LayerManager = $state<any>(null);
-	let PerformanceMonitor = $state<any>(null);
-	let CacheMonitor = $state<any>(null);
-	const ErrorBoundary = $state<any>(null);
+	let LayerManager = $state<Component | null>(null);
+	let PerformanceMonitor = $state<Component | null>(null);
+	let CacheMonitor = $state<Component | null>(null);
 
 	// Loading states for lazy components
 	let isLoadingLayerManager = $state(false);
@@ -34,7 +33,7 @@
 			isLoadingLayerManager = true;
 			try {
 				const module = await import('$lib/components/layer/LayerManager.svelte');
-				LayerManager = module.default;
+				LayerManager = module.default as unknown as Component;
 			} catch (error) {
 				console.error('Failed to load LayerManager:', error);
 			} finally {
@@ -49,7 +48,7 @@
 			isLoadingPerformanceMonitor = true;
 			try {
 				const module = await import('$lib/components/monitor/PerformanceMonitor.svelte');
-				PerformanceMonitor = module.default;
+				PerformanceMonitor = module.default as unknown as Component;
 			} catch (error) {
 				console.error('Failed to load PerformanceMonitor:', error);
 			} finally {
@@ -59,12 +58,13 @@
 	}
 
 	// Lazy load Cache Monitor
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async function loadCacheMonitor() {
 		if (!CacheMonitor && !isLoadingCacheMonitor) {
 			isLoadingCacheMonitor = true;
 			try {
 				const module = await import('$lib/components/monitor/CacheMonitor.svelte');
-				CacheMonitor = module.default;
+				CacheMonitor = module.default as unknown as Component;
 			} catch (error) {
 				console.error('Failed to load CacheMonitor:', error);
 			} finally {

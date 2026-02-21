@@ -7,8 +7,8 @@ import type { Project, Layer, Trait } from '$lib/types/project';
 import type { LayerId, TraitId } from '$lib/types/ids';
 import { fileToArrayBuffer } from '$lib/utils';
 import { validateImportedProject } from '$lib/domain/validation';
-import { recoverableFileOperation, handleFileError } from '$lib/utils/error-handler';
-import { withTiming, measureOperation } from '$lib/utils/performance-monitor';
+import { handleFileError } from '$lib/utils/error-handler';
+import { measureOperation } from '$lib/utils/performance-monitor';
 import JSZip from 'jszip';
 import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 import { globalResourceManager } from './resource-manager';
@@ -126,7 +126,7 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		// 200MB limit for projects
 		throw new Error(
 			`File "${file.name}" is too large (${Math.round(file.size / 1024 / 1024)}MB). ` +
-				`Maximum allowed size is 200MB.`
+			`Maximum allowed size is 200MB.`
 		);
 	}
 
@@ -156,7 +156,7 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		if (!projectFile) {
 			throw new Error(
 				`Invalid project file: "project.json" not found in ${file.name}. ` +
-					`This file may be corrupted or is not a valid NFT Studio project file.`
+				`This file may be corrupted or is not a valid NFT Studio project file.`
 			);
 		}
 

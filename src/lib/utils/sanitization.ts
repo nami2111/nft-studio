@@ -140,7 +140,9 @@ export function createSafeElement<K extends keyof HTMLElementTagNameMap>(
  */
 export function isTrustedTypesSupported(): boolean {
 	return (
-		'trustedTypes' in window && typeof (window as any).trustedTypes?.createPolicy === 'function'
+		'trustedTypes' in window &&
+		typeof (window as unknown as { trustedTypes?: { createPolicy: unknown } }).trustedTypes?.createPolicy ===
+		'function'
 	);
 }
 
@@ -150,11 +152,15 @@ export function isTrustedTypesSupported(): boolean {
  */
 export function initTrustedTypesPolicy(): void {
 	if (isTrustedTypesSupported()) {
-		(window as any).trustedTypes.createPolicy('default', {
+		(
+			window as unknown as {
+				trustedTypes: { createPolicy: (name: string, rules: Record<string, unknown>) => void };
+			}
+		).trustedTypes.createPolicy('default', {
 			createHTML: (htmlString: string) => {
 				return sanitizeHTML(htmlString);
 			},
-			createScript: (_scriptString: string) => {
+			createScript: () => {
 				throw new Error('Script creation via Trusted Types is forbidden');
 			},
 			createScriptURL: (urlString: string) => {

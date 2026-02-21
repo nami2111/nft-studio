@@ -110,8 +110,9 @@
 								onerror={(e) => {
 									const target = e.target as HTMLImageElement;
 									target.style.display = 'none';
-									target.nextElementSibling &&
-										((target.nextElementSibling as HTMLElement).style.display = 'flex');
+									if (target.nextElementSibling) {
+										(target.nextElementSibling as HTMLElement).style.display = 'flex';
+									}
 								}}
 							/>
 							<div
@@ -146,7 +147,11 @@
 								{#if nft.metadata.traits?.length > 0}
 									<div class="mt-1 text-xs opacity-75">
 										{Array.from(
-											new Set(nft.metadata.traits.map((t) => t.layer || (t as any).trait_type))
+											new Set(
+												nft.metadata.traits.map(
+													(t) => t.layer || (t as Record<string, unknown>).trait_type
+												)
+											)
 										).join(', ')}
 									</div>
 								{/if}

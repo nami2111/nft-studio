@@ -3,6 +3,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Card } from '$lib/components/ui/card';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
 		class?: string;
@@ -22,7 +23,7 @@
 	// Derive available traits from source NFTs (more efficient)
 	const availableTraits = $derived(() => {
 		const nfts = sourceNFTs();
-		const traitMap = new Map<string, Set<string>>();
+		const traitMap = new SvelteMap<string, Set<string>>();
 
 		for (const nft of nfts) {
 			for (const trait of nft.metadata.traits) {
@@ -45,11 +46,8 @@
 	});
 
 	// Selected traits state
-	let selectedTraits = $state<Record<string, string[]>>({});
-
-	// Initialize from store
-	$effect(() => {
-		selectedTraits = { ...(galleryStore.filterOptions.selectedTraits || {}) };
+	let selectedTraits = $derived<Record<string, string[]>>({
+		...(galleryStore.filterOptions.selectedTraits || {})
 	});
 
 	function toggleTrait(layer: string, trait: string) {

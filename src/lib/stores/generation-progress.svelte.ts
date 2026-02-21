@@ -7,10 +7,7 @@
 import type { Layer, StrictPairConfig } from '$lib/types/layer';
 import type {
 	ProgressMessage,
-	CompleteMessage,
-	ErrorMessage,
-	CancelledMessage,
-	PreviewMessage
+	ErrorMessage
 } from '$lib/types/worker-messages';
 import { MetadataStandard } from '$lib/domain/metadata/strategies';
 
@@ -654,7 +651,7 @@ class GenerationStateManager {
 	/**
 	 * Serialize state for storage
 	 */
-	private serializeState(): any {
+	private serializeState(): Record<string, unknown> {
 		return {
 			...generationState,
 			usedCombinations: Array.from(generationState.usedCombinations.entries()),
@@ -666,9 +663,9 @@ class GenerationStateManager {
 	/**
 	 * Restore state from serialized data
 	 */
-	private restoreState(serializedState: any): void {
+	private restoreState(serializedState: Record<string, unknown>): void {
 		// Convert arrays back to Maps
-		if (serializedState.usedCombinations) {
+		if (serializedState.usedCombinations && Array.isArray(serializedState.usedCombinations)) {
 			serializedState.usedCombinations = new Map(
 				serializedState.usedCombinations.map(([key, value]: [string, string[]]) => [
 					key,
@@ -677,8 +674,8 @@ class GenerationStateManager {
 			);
 		}
 
-		if (serializedState.lastWarningTimes) {
-			serializedState.lastWarningTimes = new Map(serializedState.lastWarningTimes);
+		if (serializedState.lastWarningTimes && Array.isArray(serializedState.lastWarningTimes)) {
+			serializedState.lastWarningTimes = new Map(serializedState.lastWarningTimes as [string, number][]);
 		}
 
 		// Restore state

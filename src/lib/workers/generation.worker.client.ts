@@ -24,8 +24,8 @@ import { type TaskId } from '$lib/types/ids';
 // Callback for handling messages from workers
 let messageHandler:
 	| ((
-			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	  ) => void)
+		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	) => void)
 	| null = null;
 
 // Set up message callback
@@ -81,7 +81,7 @@ export async function startGeneration(
 		}
 
 		const solver = new CSPSolver(layers, usedCombinations, activeStrictPairConfig);
-		const solutions: { index: number; traits: any[] }[] = [];
+		const solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[] = [];
 
 		console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
 		const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');

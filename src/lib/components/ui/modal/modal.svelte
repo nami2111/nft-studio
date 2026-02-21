@@ -19,7 +19,6 @@
 		open?: boolean;
 		title?: string;
 		description?: string;
-		class?: string;
 		size?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'auto';
 		onClose?: () => void;
 		children?: Snippet;
