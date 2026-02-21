@@ -9,7 +9,7 @@
 		class?: string;
 	}
 
-	let { class: className = '' }: Props = $props();
+	const { class: className = '' }: Props = $props();
 
 	// Get source NFTs for trait extraction (avoid filtering overhead)
 	const sourceNFTs = $derived(() => {

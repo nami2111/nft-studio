@@ -11,11 +11,11 @@
 		class?: string;
 	}
 
-	let { selectedNFT = null, onselect, class: className = '' }: Props = $props();
+	const { selectedNFT = null, onselect, class: className = '' }: Props = $props();
 
-	let nfts = $derived(galleryStore.filteredAndSortedNFTs);
-	let isLoading = $derived(galleryStore.isLoading);
-	let error = $derived(galleryStore.error);
+	const nfts = $derived(galleryStore.filteredAndSortedNFTs);
+	const isLoading = $derived(galleryStore.isLoading);
+	const error = $derived(galleryStore.error);
 
 	function handleNFTClick(nft: GalleryNFT) {
 		onselect?.(nft);

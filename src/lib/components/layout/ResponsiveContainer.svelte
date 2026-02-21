@@ -14,7 +14,7 @@
 		class?: string;
 	}
 
-	let { children, mobile, tablet, desktop, class: className }: Props = $props();
+	const { children, mobile, tablet, desktop, class: className }: Props = $props();
 </script>
 
 <div class={className}>

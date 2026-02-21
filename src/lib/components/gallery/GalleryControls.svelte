@@ -9,7 +9,7 @@
 		class?: string;
 	}
 
-	let { class: className = '' }: Props = $props();
+	const { class: className = '' }: Props = $props();
 
 	let searchQuery = $state(galleryStore.filterOptions.search || '');
 	let selectedCollection = $state(galleryStore.selectedCollection?.id || '');

@@ -8,14 +8,14 @@
 	import { formatDuration, formatTime } from '$lib/utils/formatters';
 
 	let performanceStatus = $derived(performanceAnalyzer.getStatus());
-	let performanceReport = $state<any>(null);
+	const performanceReport = $state<any>(null);
 	let updateInterval: number;
 
 	// Real-time performance metrics
-	let currentSpeed = $derived(calculateCurrentSpeed());
-	let estimatedCompletion = $derived(calculateEstimatedCompletion());
-	let memoryEfficiency = $derived(getMemoryEfficiency());
-	let algorithm = $derived(getCurrentAlgorithm());
+	const currentSpeed = $derived(calculateCurrentSpeed());
+	const estimatedCompletion = $derived(calculateEstimatedCompletion());
+	const memoryEfficiency = $derived(getMemoryEfficiency());
+	const algorithm = $derived(getCurrentAlgorithm());
 
 	onMount(() => {
 		// Update performance metrics every second

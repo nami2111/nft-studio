@@ -8,14 +8,14 @@
 	import { Button } from '$lib/components/ui/button';
 
 	// Derived state
-	let isBackground = $derived(generationState.isBackground);
-	let progress = $derived(generationState.progress);
-	let statusText = $derived(generationState.statusText);
-	let sessionId = $derived(generationState.sessionId);
-	let currentItems = $derived(generationState.currentIndex);
-	let totalItems = $derived(generationState.totalItems);
-	let warnings = $derived(generationState.warnings);
-	let error = $derived(generationState.error);
+	const isBackground = $derived(generationState.isBackground);
+	const progress = $derived(generationState.progress);
+	const statusText = $derived(generationState.statusText);
+	const sessionId = $derived(generationState.sessionId);
+	const currentItems = $derived(generationState.currentIndex);
+	const totalItems = $derived(generationState.totalItems);
+	const warnings = $derived(generationState.warnings);
+	const error = $derived(generationState.error);
 
 	// UI state
 	let isMinimized = $state(false);

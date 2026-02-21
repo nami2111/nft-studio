@@ -13,14 +13,14 @@
 	import { formatDate } from '$lib/utils/formatters';
 	import { detectImageFormat, getMimeType } from '$lib/utils/image-format-detector';
 
-	let isLoading = $derived(galleryStore.isLoading);
-	let collections = $derived(galleryStore.collections);
-	let totalNFTs = $derived(collections.reduce((sum, col) => sum + col.totalSupply, 0));
-	let selectedNFT = $derived(galleryStore.selectedNFT);
+	const isLoading = $derived(galleryStore.isLoading);
+	const collections = $derived(galleryStore.collections);
+	const totalNFTs = $derived(collections.reduce((sum, col) => sum + col.totalSupply, 0));
+	const selectedNFT = $derived(galleryStore.selectedNFT);
 
 	// The active collection from the store, with a safe fallback in the template
-	let selectedCollection = $derived(galleryStore.selectedCollection);
-	let totalNFTsInCollection = $derived(selectedCollection?.totalSupply || 0);
+	const selectedCollection = $derived(galleryStore.selectedCollection);
+	const totalNFTsInCollection = $derived(selectedCollection?.totalSupply || 0);
 
 	// Use store state for filters
 	let searchQuery = $state(galleryStore.filterOptions.search || '');
@@ -53,7 +53,7 @@
 	let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
 
 	// Use store's optimized filtering and sorting
-	let filteredNFTs = $derived(galleryStore.filteredAndSortedNFTs);
+	const filteredNFTs = $derived(galleryStore.filteredAndSortedNFTs);
 
 	// No longer syncing selectedCollection back to store via $effect to avoid loops.
 	// We handle initial selection in an effect that only runs when collections load.
@@ -66,7 +66,7 @@
 	});
 
 	// Get all unique traits for filters from the store
-	let allTraits = $derived(galleryStore.allTraits);
+	const allTraits = $derived(galleryStore.allTraits);
 
 	// Track Object URLs for cleanup
 	const objectUrls = new Set<string>();

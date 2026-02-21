@@ -3,7 +3,7 @@
 	// Currently the previews are handled via the gallery or not shown directly in the form in a grid
 	// But we can add it here for future enhancement
 
-	let { previews } = $props<{
+	const { previews } = $props<{
 		previews: { index: number; url: string }[];
 	}>();
 </script>

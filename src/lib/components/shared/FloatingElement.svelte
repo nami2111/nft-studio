@@ -10,7 +10,7 @@
 		class?: string;
 	}
 
-	let {
+	const {
 		bgColor = 'bg-blue-500',
 		shape = 'circle',
 		size = 'h-6 w-6',
@@ -18,7 +18,7 @@
 	}: Props = $props();
 
 	// Generate shape class
-	let shapeClass = $derived(shape === 'circle' ? 'rounded-full' : 'rounded-md');
+	const shapeClass = $derived(shape === 'circle' ? 'rounded-full' : 'rounded-md');
 </script>
 
 <div class={className}>

@@ -9,13 +9,13 @@
 		children?: Snippet;
 	}
 
-	let { children }: Props = $props();
+	const { children }: Props = $props();
 
 	onMount(() => {
 		setupSessionCleanup();
 	});
 
-	let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
+	const webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
 </script>
 
 <svelte:head>

@@ -8,7 +8,7 @@
 		class?: string;
 	}
 
-	let { text, iconColor = 'text-green-500', class: className }: Props = $props();
+	const { text, iconColor = 'text-green-500', class: className }: Props = $props();
 </script>
 
 <li class={className + ' flex items-start'}>

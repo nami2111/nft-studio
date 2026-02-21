@@ -6,24 +6,26 @@
 	import { fade, slide, scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 
-	let { isBackground, isPaused, isGenerating } = $props<{
+	const { isBackground, isPaused, isGenerating } = $props<{
 		isBackground: boolean;
 		isPaused: boolean;
 		isGenerating: boolean;
 	}>();
 
-	let progress = $derived(generationState.progress);
-	let statusText = $derived(generationState.statusText);
-	let memoryUsage = $derived(generationState.memoryUsage);
-	let currentSessionId = $derived(generationState.sessionId);
-	let itemsPerSecond = $derived(generationState.itemsPerSecond);
-	let eta = $derived(generationState.eta);
+	const progress = $derived(generationState.progress);
+	const statusText = $derived(generationState.statusText);
+	const memoryUsage = $derived(generationState.memoryUsage);
+	const currentSessionId = $derived(generationState.sessionId);
+	const itemsPerSecond = $derived(generationState.itemsPerSecond);
+	const eta = $derived(generationState.eta);
 
 	function handleClearState() {
 		resetState();
 	}
 
-	let isCompleted = $derived(!isGenerating && !!generationState.completionTime && progress === 100);
+	const isCompleted = $derived(
+		!isGenerating && !!generationState.completionTime && progress === 100
+	);
 
 	function formatEta(seconds: number | null): string {
 		if (seconds === null || seconds < 0) return 'Estimating...';

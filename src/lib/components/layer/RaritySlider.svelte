@@ -10,7 +10,7 @@
 		layerId: string;
 	}
 
-	let { rarityWeight, traitId, layerId }: Props = $props();
+	const { rarityWeight, traitId, layerId }: Props = $props();
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(traitId));
 

@@ -8,7 +8,7 @@
 	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import { showError, showSuccess } from '$lib/utils/error-handling';
 
-	let layers = $derived(project.layers);
+	const layers = $derived(project.layers);
 	let isAddingLayer = $state(false);
 
 	async function handleAddLayer() {

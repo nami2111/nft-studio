@@ -84,7 +84,7 @@ export class PersistenceService {
 	async loadProject(): Promise<Project | null> {
 		try {
 			// Try new storage first
-			let skeleton = await this.metaStorage.load();
+			const skeleton = await this.metaStorage.load();
 
 			// Migration path for legacy data
 			if (!skeleton) {

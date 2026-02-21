@@ -9,9 +9,9 @@
 		class?: string;
 	}
 
-	let { class: className = '' }: Props = $props();
+	const { class: className = '' }: Props = $props();
 
-	let selectedCollection = $derived(galleryStore.selectedCollection);
+	const selectedCollection = $derived(galleryStore.selectedCollection);
 	let isExporting = $state(false);
 
 	async function exportCollectionAsJSON() {

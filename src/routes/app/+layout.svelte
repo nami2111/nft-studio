@@ -11,7 +11,7 @@
 		children?: Snippet;
 	}
 
-	let { children }: Props = $props();
+	const { children }: Props = $props();
 
 	onMount(async () => {
 		// Warm up worker pool in background for faster first generation

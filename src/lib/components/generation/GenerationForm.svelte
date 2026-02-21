@@ -47,10 +47,10 @@
 	let isPackaging = $state(false);
 
 	// Derived state from persistent store
-	let isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
-	let isBackground = $derived(generationState.isBackground);
-	let isPaused = $derived(generationState.isPaused);
-	let previews = $derived(generationState.previews);
+	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
+	const isBackground = $derived(generationState.isBackground);
+	const isPaused = $derived(generationState.isPaused);
+	const previews = $derived(generationState.previews);
 
 	// Component lifecycle management
 	onDestroy(() => {

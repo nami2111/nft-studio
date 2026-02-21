@@ -3,7 +3,7 @@
 		message?: string;
 	}
 
-	let { message = 'Image needs re-upload' }: Props = $props();
+	const { message = 'Image needs re-upload' }: Props = $props();
 </script>
 
 <div class="flex h-full flex-col items-center justify-center p-2 text-center">

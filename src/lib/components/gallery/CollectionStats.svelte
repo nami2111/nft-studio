@@ -6,7 +6,7 @@
 		class?: string;
 	}
 
-	let { collection, class: className = '' }: Props = $props();
+	const { collection, class: className = '' }: Props = $props();
 
 	// Derived stats
 	const rarestRank = $derived(

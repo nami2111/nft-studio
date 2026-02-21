@@ -27,7 +27,7 @@
 	});
 
 	// Get available layers (excluding current layer)
-	let availableLayers = $derived(allLayers.filter((l) => l.id !== layer.id));
+	const availableLayers = $derived(allLayers.filter((l) => l.id !== layer.id));
 
 	// Get traits for a specific layer
 	function getTraitsForLayer(layerId: LayerId): Trait[] {

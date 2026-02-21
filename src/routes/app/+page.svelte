@@ -8,13 +8,13 @@
 	import type { StrictPairConfig } from '$lib/types/layer';
 	import { onMount } from 'svelte';
 
-	let currentProject = $derived(projectStore.currentProject);
+	const currentProject = $derived(projectStore.currentProject);
 
 	// Lazy-loaded components for code splitting
 	let LayerManager = $state<any>(null);
 	let PerformanceMonitor = $state<any>(null);
 	let CacheMonitor = $state<any>(null);
-	let ErrorBoundary = $state<any>(null);
+	const ErrorBoundary = $state<any>(null);
 
 	// Loading states for lazy components
 	let isLoadingLayerManager = $state(false);

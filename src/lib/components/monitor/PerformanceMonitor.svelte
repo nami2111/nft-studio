@@ -46,7 +46,7 @@
 	let updateInterval: ReturnType<typeof setInterval> | null = null;
 
 	// Computed values
-	let hasData = $derived(Object.keys(stats).length > 0);
+	const hasData = $derived(Object.keys(stats).length > 0);
 	let showDetails = $state(false);
 	let showRealTime = $state(true); // Show real-time metrics by default
 

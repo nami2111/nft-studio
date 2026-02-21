@@ -13,7 +13,7 @@
 		gap?: number;
 	}
 
-	let {
+	const {
 		nfts,
 		selectedNFT = null,
 		onselect,
@@ -98,14 +98,14 @@
 
 	// Debounce cache to prevent rapid URL creation
 	const urlCache = new Map<string, string>();
-	let lastCacheClear = 0;
+	const lastCacheClear = 0;
 
 	// Debounce scroll calculations
 	let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// LAZY image URL creation - only create when actually needed
-	let imageLoadQueue = new Set<string>();
-	let imageUrls = $state<Record<string, string>>({});
+	const imageLoadQueue = new Set<string>();
+	const imageUrls = $state<Record<string, string>>({});
 
 	// Request image URL creation (async, non-blocking)
 	function requestImageUrl(nft: GalleryNFT): string {

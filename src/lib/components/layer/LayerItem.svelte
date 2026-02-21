@@ -93,26 +93,26 @@
 		layer: Layer;
 	}
 
-	let { layer }: Props = $props();
+	const { layer }: Props = $props();
 
-	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
+	const isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
 
 	let isEditing = $state(false);
 	let editedName = $state(''); // Only used during editing
-	let fileInputElement: HTMLInputElement | null = $state(null); // Reference to file input element
+	const fileInputElement: HTMLInputElement | null = $state(null); // Reference to file input element
 	let isDragover = $state(false);
 	let isExpanded = $state(true);
 	let searchTerm = $state(''); // For trait search/filter
 
 	// Filter traits based on search term
-	let filteredTraits = $derived(
+	const filteredTraits = $derived(
 		layer.traits.filter((trait) => trait.name.toLowerCase().includes(searchTerm.toLowerCase()))
 	);
 
 	// Bulk operation states
-	let selectedTraits = new SvelteSet<TraitId>();
+	const selectedTraits = new SvelteSet<TraitId>();
 	let bulkNewName = $state('');
 
 	// Toggle trait selection

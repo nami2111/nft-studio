@@ -20,7 +20,7 @@
 	const traitIdTyped = $derived(createTraitId(trait.id));
 
 	// Get current layer
-	let currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
+	const currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
 
 	// Toggle trait type
 	function toggleTraitType() {

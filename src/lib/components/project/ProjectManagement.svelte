@@ -32,15 +32,15 @@
 	let loadDialogOpen = $state(false);
 	let saveDialogOpen = $state(false);
 	let loadFileInputElement: HTMLInputElement | null = null;
-	let saveFileInputElement: HTMLInputElement | null = null;
+	const saveFileInputElement: HTMLInputElement | null = null;
 	let isDragOver = $state(false);
-	let isProjectLoading = $derived(getLoadingState('project-load'));
-	let isProjectSaving = $derived(getLoadingState('project-save'));
-	let projectLoadProgress = $derived(getDetailedLoadingState('project-load'));
-	let projectSaveProgress = $derived(getDetailedLoadingState('project-save'));
+	const isProjectLoading = $derived(getLoadingState('project-load'));
+	const isProjectSaving = $derived(getLoadingState('project-save'));
+	const projectLoadProgress = $derived(getDetailedLoadingState('project-load'));
+	const projectSaveProgress = $derived(getDetailedLoadingState('project-save'));
 
 	// Track unsaved changes
-	let hasUnsavedChanges = $derived(
+	const hasUnsavedChanges = $derived(
 		project.layers.length > 0 || project.name.trim() !== '' || project.description.trim() !== ''
 	);
 

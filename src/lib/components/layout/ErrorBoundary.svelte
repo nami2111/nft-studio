@@ -47,7 +47,7 @@
 		maxRetries?: number; // Maximum retry attempts
 	}
 
-	let {
+	const {
 		children,
 		fallback,
 		onError,

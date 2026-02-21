@@ -14,7 +14,7 @@
 	import type { LayerId, TraitId } from '$lib/types/ids';
 
 	// Props
-	let {
+	const {
 		project,
 		onupdateStrictPairConfig
 	}: {
@@ -30,18 +30,18 @@
 	} = $props();
 
 	// State
-	let isOpen = $state(false);
+	const isOpen = $state(false);
 	let showLayerPairModal = $state(false);
 	let selectedLayerIds: LayerId[] = $state([]);
 	let newLayerPairDescription = $state('');
 
 	// Derived values
-	let isAddButtonDisabled = $derived(selectedLayerIds.length < 2);
+	const isAddButtonDisabled = $derived(selectedLayerIds.length < 2);
 
 	// No event dispatcher needed - use callback prop directly
 
 	// Reactive strict pair config
-	let strictPairConfig = $derived.by(
+	const strictPairConfig = $derived.by(
 		() =>
 			project.strictPairConfig || {
 				enabled: false,
@@ -50,7 +50,7 @@
 	);
 
 	// Available layers for combinations
-	let availableLayers = $derived.by(() =>
+	const availableLayers = $derived.by(() =>
 		project.layers.filter((layer) => layer.traits.length > 0).sort((a, b) => a.order - b.order)
 	);
 

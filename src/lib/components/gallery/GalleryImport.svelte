@@ -12,7 +12,7 @@
 		class?: string;
 	}
 
-	let { class: className = '' }: Props = $props();
+	const { class: className = '' }: Props = $props();
 
 	let isImporting = $state(false);
 	let isDragging = $state(false);

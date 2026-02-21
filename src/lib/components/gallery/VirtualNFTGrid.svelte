@@ -10,12 +10,12 @@
 		class?: string;
 	}
 
-	let { nfts, selectedNFT = null, onselect, class: className = '' }: Props = $props();
+	const { nfts, selectedNFT = null, onselect, class: className = '' }: Props = $props();
 
 	// Virtual scrolling state
 	let scrollElement: HTMLDivElement;
-	let itemHeight = 250; // Height of each item including gap
-	let containerHeight = 600; // Visible container height
+	const itemHeight = 250; // Height of each item including gap
+	const containerHeight = 600; // Visible container height
 	let scrollTop = 0;
 
 	// Calculate visible range

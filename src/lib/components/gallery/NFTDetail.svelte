@@ -13,7 +13,7 @@
 		ontraitclick?: (layer: string, value: string) => void;
 	}
 
-	let {
+	const {
 		selectedNFT,
 		class: className = '',
 		hideCard = false,
@@ -21,7 +21,7 @@
 		ontraitclick
 	}: Props = $props();
 
-	let imageUrl = $derived(
+	const imageUrl = $derived(
 		selectedNFT ? imageUrlCache.get(selectedNFT.id, selectedNFT.imageData) : null
 	);
 

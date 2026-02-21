@@ -26,7 +26,7 @@
 		showSelection?: boolean;
 	}
 
-	let {
+	const {
 		trait,
 		layerId,
 		selected = false,
@@ -43,8 +43,8 @@
 	let observer: IntersectionObserver | null = $state(null);
 
 	// Get current layer and all layers for ruler rules manager
-	let currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
-	let allLayers = $derived(project.layers);
+	const currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
+	const allLayers = $derived(project.layers);
 
 	function handleRemoveTrait() {
 		// Simple confirmation dialog
