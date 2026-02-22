@@ -153,7 +153,7 @@
 	});
 </script>
 
-<div class="bg-background flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
+<div class="bg-background flex h-screen flex-col overflow-hidden">
 	{#if isLoading}
 		<!-- Loading State -->
 		<div class="flex min-h-[60vh] items-center justify-center">
@@ -198,7 +198,7 @@
 			</div>
 		</header>
 
-		<main class="flex-1 overflow-y-auto lg:overflow-hidden">
+		<main class="flex-1 overflow-hidden">
 			<!-- Main Content -->
 			{#if collections.length === 0}
 				<!-- Empty State with Import -->
@@ -224,7 +224,7 @@
 				</div>
 			{:else}
 				<!-- Mobile Layout (below 640px) -->
-				<div class="flex flex-col sm:hidden">
+				<div class="flex h-full flex-col sm:hidden">
 					{#if selectedCollection}
 						<!-- Collection Header - Mobile -->
 						<div class="bg-background/95 border-b p-4 backdrop-blur">
@@ -269,7 +269,7 @@
 						</div>
 
 						<!-- NFT Grid -->
-						<div class="flex-1 overflow-y-auto p-2">
+						<div class="relative min-h-0 flex-1">
 							<SimpleVirtualGrid
 								nfts={filteredNFTs}
 								{selectedNFT}
@@ -277,6 +277,7 @@
 								columns={3}
 								itemHeight={150}
 								gap={8}
+								class="h-full"
 							/>
 						</div>
 
@@ -331,7 +332,7 @@
 									>
 								</div>
 							</div>
-							<div class="flex-1 overflow-y-auto p-3">
+							<div class="relative min-h-0 flex-1">
 								<SimpleVirtualGrid
 									nfts={filteredNFTs}
 									{selectedNFT}
@@ -339,6 +340,7 @@
 									columns={4}
 									itemHeight={160}
 									gap={10}
+									class="h-full"
 								/>
 							</div>
 						</div>
@@ -373,7 +375,7 @@
 									</div>
 								</div>
 							</div>
-							<div class="flex-1 overflow-y-auto p-4">
+							<div class="relative min-h-0 flex-1">
 								<SimpleVirtualGrid
 									nfts={filteredNFTs}
 									{selectedNFT}
@@ -381,6 +383,7 @@
 									columns={5}
 									itemHeight={180}
 									gap={12}
+									class="h-full"
 								/>
 							</div>
 						</div>
@@ -480,7 +483,7 @@
 							</div>
 
 							<!-- NFT Grid with Virtual Scrolling -->
-							<div class="scrollbar-gutter-stable bg-muted/5 flex-1 overflow-y-auto">
+							<div class="scrollbar-gutter-stable bg-muted/5 relative min-h-0 flex-1">
 								<SimpleVirtualGrid
 									nfts={filteredNFTs}
 									{selectedNFT}
@@ -488,7 +491,7 @@
 									columns={6}
 									itemHeight={220}
 									gap={16}
-									class="p-6"
+									class="h-full p-6"
 								/>
 							</div>
 						{/if}
