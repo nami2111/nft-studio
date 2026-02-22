@@ -43,7 +43,8 @@ export class SolanaStrategy implements MetadataStrategy {
 	): GeneratedMetadata {
 		const symbol = (extraData?.symbol as string) || '';
 		const sellerFeeBasisPoints = (extraData?.seller_fee_basis_points as number) || 0;
-		const creators = (extraData?.creators as Array<{ address?: string; share?: number } | string>) || [];
+		const creators =
+			(extraData?.creators as Array<{ address?: string; share?: number } | string>) || [];
 		const collection = (extraData?.collection as Record<string, unknown>) || {};
 		const externalUrl = (extraData?.external_url as string) || '';
 

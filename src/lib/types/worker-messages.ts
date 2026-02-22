@@ -121,14 +121,14 @@ export type OutgoingWorkerMessage =
 	| PreviewMessage
 	| { type: 'pingResponse'; pingResponse: string }
 	| {
-		type: 'analysis';
-		payload: {
-			complexity: unknown;
-			canUseFastGeneration: boolean;
-			estimatedSpeedup: number;
-			recommendations: string[];
-		};
-	}
+			type: 'analysis';
+			payload: {
+				complexity: unknown;
+				canUseFastGeneration: boolean;
+				estimatedSpeedup: number;
+				recommendations: string[];
+			};
+	  }
 	| { type: 'performance-report'; payload: Record<string, unknown> };
 
 // Messages that can be sent to workers
@@ -145,8 +145,8 @@ export type IncomingMessage =
 export type GenerationWorkerMessage =
 	| BatchMessage
 	| {
-		type: 'cancel';
-	};
+			type: 'cancel';
+	  };
 
 // Type guards for discriminated unions
 

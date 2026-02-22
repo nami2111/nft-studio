@@ -45,7 +45,7 @@ export interface NFTRarityResult {
 	rarityScore: number;
 	rarityRank?: number;
 	traitRarities: TraitRarity[] | EnhancedTraitRarity[];
-	strategicBreakdown?: { strategic: number; balanced: number; filler: number; };
+	strategicBreakdown?: { strategic: number; balanced: number; filler: number };
 	emergentRarity?: boolean;
 	combinationUniqueness?: string;
 }

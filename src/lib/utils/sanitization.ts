@@ -141,8 +141,8 @@ export function createSafeElement<K extends keyof HTMLElementTagNameMap>(
 export function isTrustedTypesSupported(): boolean {
 	return (
 		'trustedTypes' in window &&
-		typeof (window as unknown as { trustedTypes?: { createPolicy: unknown } }).trustedTypes?.createPolicy ===
-		'function'
+		typeof (window as unknown as { trustedTypes?: { createPolicy: unknown } }).trustedTypes
+			?.createPolicy === 'function'
 	);
 }
 

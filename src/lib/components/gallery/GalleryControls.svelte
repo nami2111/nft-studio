@@ -61,7 +61,6 @@
 		galleryStore.setSelectedCollection(null);
 		galleryStore.setSortOption('newest');
 	}
-
 </script>
 
 <Card class="p-4 {className}">

@@ -139,9 +139,9 @@ export async function addTrait(
 				layers: project.layers.map((l) =>
 					l.id === layerId
 						? {
-							...l,
-							traits: [...l.traits, newTrait]
-						}
+								...l,
+								traits: [...l.traits, newTrait]
+							}
 						: l
 				)
 			};
@@ -171,9 +171,9 @@ export function removeTrait(project: Project, layerId: string, traitId: string):
 		layers: project.layers.map((layer) =>
 			layer.id === layerId
 				? {
-					...layer,
-					traits: layer.traits.filter((trait) => trait.id !== traitId)
-				}
+						...layer,
+						traits: layer.traits.filter((trait) => trait.id !== traitId)
+					}
 				: layer
 		)
 	};
@@ -197,9 +197,9 @@ export function updateTraitName(
 		layers: project.layers.map((layer) =>
 			layer.id === layerId
 				? {
-					...layer,
-					traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, name } : trait))
-				}
+						...layer,
+						traits: layer.traits.map((trait) => (trait.id === traitId ? { ...trait, name } : trait))
+					}
 				: layer
 		)
 	};
@@ -223,11 +223,11 @@ export function updateTraitRarity(
 		layers: project.layers.map((layer) =>
 			layer.id === layerId
 				? {
-					...layer,
-					traits: layer.traits.map((trait) =>
-						trait.id === traitId ? { ...trait, rarityWeight } : trait
-					)
-				}
+						...layer,
+						traits: layer.traits.map((trait) =>
+							trait.id === traitId ? { ...trait, rarityWeight } : trait
+						)
+					}
 				: layer
 		)
 	};

@@ -15,9 +15,7 @@ import {
 } from '$lib/workers/generation.worker.client';
 import { prepareLayersForWorker } from '$lib/domain/project.domain';
 import { recoverableWorkerOperation, recoverableFileOperation } from '$lib/utils/error-handler';
-import {
-	generationState
-} from '$lib/stores/generation-progress.svelte';
+import { generationState } from '$lib/stores/generation-progress.svelte';
 
 /**
  * Domain service for worker-related operations with persistent state integration

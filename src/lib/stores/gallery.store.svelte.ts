@@ -561,7 +561,12 @@ class GalleryStore {
 
 	// Import generated NFTs from generation system
 	importGeneratedNFTs(
-		nfts: Array<{ name: string; imageData: ArrayBuffer; metadata: Record<string, unknown>; index: number }>,
+		nfts: Array<{
+			name: string;
+			imageData: ArrayBuffer;
+			metadata: Record<string, unknown>;
+			index: number;
+		}>,
 		projectName: string,
 		projectDescription: string
 	) {
@@ -689,7 +694,11 @@ class GalleryStore {
 
 	// Validate imported data
 	validateImportData(
-		nfts: Array<{ name: string; imageData: ArrayBuffer | string; metadata?: Record<string, unknown> }>
+		nfts: Array<{
+			name: string;
+			imageData: ArrayBuffer | string;
+			metadata?: Record<string, unknown>;
+		}>
 	): {
 		isValid: boolean;
 		errors: string[];

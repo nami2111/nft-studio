@@ -3,8 +3,6 @@
  * Extends existing project types with gallery-specific functionality
  */
 
-
-
 /**
  * Gallery NFT interface representing a generated NFT in the gallery
  */

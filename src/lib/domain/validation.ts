@@ -7,7 +7,6 @@ import { z } from 'zod';
 import type { Project, Layer, Trait } from '$lib/types/project';
 import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
 
-
 // Validation result interface
 export interface ValidationResult {
 	success: boolean;

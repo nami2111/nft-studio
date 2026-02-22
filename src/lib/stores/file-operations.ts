@@ -126,7 +126,7 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		// 200MB limit for projects
 		throw new Error(
 			`File "${file.name}" is too large (${Math.round(file.size / 1024 / 1024)}MB). ` +
-			`Maximum allowed size is 200MB.`
+				`Maximum allowed size is 200MB.`
 		);
 	}
 
@@ -156,7 +156,7 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		if (!projectFile) {
 			throw new Error(
 				`Invalid project file: "project.json" not found in ${file.name}. ` +
-				`This file may be corrupted or is not a valid NFT Studio project file.`
+					`This file may be corrupted or is not a valid NFT Studio project file.`
 			);
 		}
 

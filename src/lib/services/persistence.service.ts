@@ -5,10 +5,7 @@
  */
 
 import type { Project } from '$lib/types/project';
-import {
-	SmartStorageStore,
-	IndexedDbStore
-} from '$lib/persistence/storage';
+import { SmartStorageStore, IndexedDbStore } from '$lib/persistence/storage';
 import { logger } from '$lib/utils/logger';
 
 const METADATA_KEY = 'nft-studio-project-metadata';
@@ -17,14 +14,19 @@ const LEGACY_STORAGE_KEY = 'nft-studio-project';
 
 export class PersistenceService {
 	private metaStorage = new SmartStorageStore<Record<string, unknown>>(METADATA_KEY);
-	private assetStorages = new Map<string, IndexedDbStore<{ layerId: string; traits: { id: string; imageData: ArrayBuffer }[] }>>();
+	private assetStorages = new Map<
+		string,
+		IndexedDbStore<{ layerId: string; traits: { id: string; imageData: ArrayBuffer }[] }>
+	>();
 	private persistTimeout: ReturnType<typeof setTimeout> | null = null;
 	private lastSavedMetadata: string | null = null;
 
 	/**
 	 * Get or create an IndexedDbStore for a specific layer's assets
 	 */
-	private getAssetStorage(layerId: string): IndexedDbStore<{ layerId: string; traits: { id: string; imageData: ArrayBuffer }[] }> {
+	private getAssetStorage(
+		layerId: string
+	): IndexedDbStore<{ layerId: string; traits: { id: string; imageData: ArrayBuffer }[] }> {
 		const key = `${LAYER_ASSETS_PREFIX}${layerId}`;
 		if (!this.assetStorages.has(key)) {
 			this.assetStorages.set(key, new IndexedDbStore(key));

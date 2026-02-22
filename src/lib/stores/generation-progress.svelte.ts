@@ -5,10 +5,7 @@
  */
 
 import type { Layer, StrictPairConfig } from '$lib/types/layer';
-import type {
-	ProgressMessage,
-	ErrorMessage
-} from '$lib/types/worker-messages';
+import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
 import { MetadataStandard } from '$lib/domain/metadata/strategies';
 
 // Generation state interface
@@ -675,7 +672,9 @@ class GenerationStateManager {
 		}
 
 		if (serializedState.lastWarningTimes && Array.isArray(serializedState.lastWarningTimes)) {
-			serializedState.lastWarningTimes = new Map(serializedState.lastWarningTimes as [string, number][]);
+			serializedState.lastWarningTimes = new Map(
+				serializedState.lastWarningTimes as [string, number][]
+			);
 		}
 
 		// Restore state

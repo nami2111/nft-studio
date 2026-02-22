@@ -199,7 +199,9 @@ async function generateIsolatedItem(
 }
 
 function getMemoryUsage(): number {
-	return (performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory?.usedJSHeapSize ?? 0;
+	return (
+		(performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory?.usedJSHeapSize ?? 0
+	);
 }
 
 /**
@@ -339,7 +341,10 @@ self.addEventListener('message', (e: MessageEvent) => {
 			} else if (message.type === 'initialize') {
 				self.postMessage({ type: 'ready' });
 			} else if (message.type === 'ping') {
-				self.postMessage({ type: 'pingResponse', pingResponse: (message as unknown as { pingId: string }).pingId });
+				self.postMessage({
+					type: 'pingResponse',
+					pingResponse: (message as unknown as { pingId: string }).pingId
+				});
 			}
 		})
 		.catch((err) => {
@@ -347,4 +352,4 @@ self.addEventListener('message', (e: MessageEvent) => {
 		});
 });
 
-export { };
+export {};
