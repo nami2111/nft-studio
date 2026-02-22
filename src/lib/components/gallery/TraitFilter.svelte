@@ -46,38 +46,38 @@
 	});
 
 	// Selected traits state
-	let selectedTraits = $derived<Record<string, string[]>>({
-		...(galleryStore.filterOptions.selectedTraits || {})
-	});
+	const selectedTraits = $derived(() => galleryStore.filterOptions.selectedTraits || {});
 
 	function toggleTrait(layer: string, trait: string) {
-		if (!selectedTraits[layer]) {
-			selectedTraits[layer] = [];
+		const current = { ...selectedTraits() };
+		if (!current[layer]) {
+			current[layer] = [];
+		} else {
+			current[layer] = [...current[layer]];
 		}
 
-		const index = selectedTraits[layer].indexOf(trait);
+		const index = current[layer].indexOf(trait);
 		if (index === -1) {
-			selectedTraits[layer].push(trait);
+			current[layer].push(trait);
 		} else {
-			selectedTraits[layer].splice(index, 1);
-			if (selectedTraits[layer].length === 0) {
-				delete selectedTraits[layer];
+			current[layer].splice(index, 1);
+			if (current[layer].length === 0) {
+				delete current[layer];
 			}
 		}
 
 		// Update store filters
 		galleryStore.setFilterOptions({
-			selectedTraits: Object.keys(selectedTraits).length > 0 ? selectedTraits : undefined
+			selectedTraits: Object.keys(current).length > 0 ? current : undefined
 		});
 	}
 
 	function clearAllTraits() {
-		selectedTraits = {};
 		galleryStore.setFilterOptions({ selectedTraits: undefined });
 	}
 
 	function isTraitSelected(layer: string, trait: string): boolean {
-		return selectedTraits[layer]?.includes(trait) || false;
+		return selectedTraits()[layer]?.includes(trait) || false;
 	}
 
 	function getTraitCount(layer: string, trait: string): number {
@@ -97,7 +97,7 @@
 	<div class="space-y-4">
 		<div class="flex items-center justify-between">
 			<h3 class="text-foreground font-semibold">Filter by Traits</h3>
-			{#if Object.keys(selectedTraits).length > 0}
+			{#if Object.keys(selectedTraits()).length > 0}
 				<Button variant="ghost" size="sm" onclick={clearAllTraits}>Clear All</Button>
 			{/if}
 		</div>
@@ -140,11 +140,11 @@
 			</div>
 
 			<!-- Active filters summary -->
-			{#if Object.keys(selectedTraits).length > 0}
+			{#if Object.keys(selectedTraits()).length > 0}
 				<div class="border-t pt-3">
 					<div class="text-muted-foreground mb-2 text-sm">Active Filters:</div>
 					<div class="flex flex-wrap gap-1">
-						{#each Object.entries(selectedTraits) as [layer, traits] (layer)}
+						{#each Object.entries(selectedTraits()) as [layer, traits] (layer)}
 							{#each traits as trait (trait)}
 								<Badge variant="secondary" class="text-xs">
 									{layer}: {trait}

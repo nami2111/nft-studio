@@ -10,7 +10,7 @@ export class OptimizedMemoryManager {
 	private deviceMemoryGB: number;
 
 	constructor() {
-		this.deviceMemoryGB = (navigator as any).deviceMemory || 4;
+		this.deviceMemoryGB = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
 		this.maxPoolSize = Math.min(this.deviceMemoryGB * 2, 10); // 2 canvases per GB, max 10
 		console.log(`🎯 Memory Manager: Max pool size ${this.maxPoolSize} canvases`);
 	}

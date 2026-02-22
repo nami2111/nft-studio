@@ -86,7 +86,8 @@
 	let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// LAZY image URL creation - only create when actually needed
-	const imageLoadQueue = new Set<string>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const imageLoadQueue = new Set<string>(); // Use native Set for internal queue, doesn't need to be reactive
 	const imageUrls = $state<Record<string, string>>({});
 
 	// Request image URL creation (async, non-blocking)
@@ -106,6 +107,8 @@
 			imageLoadQueue.add(nft.id);
 
 			// Load image in background without blocking UI
+			// We use setTimeout to ensure this update happens outside the current render cycle,
+			// which avoids the state_unsafe_mutation error.
 			setTimeout(() => {
 				try {
 					const url = imageUrlCache.get(nft.id, nft.imageData);

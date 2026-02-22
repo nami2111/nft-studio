@@ -26,7 +26,7 @@ export class TraitCombinationCache {
 
 	constructor() {
 		// Cache up to 50 combinations for each 1GB of device memory, capped at 500
-		const deviceMemoryGB = (navigator as any).deviceMemory || 4;
+		const deviceMemoryGB = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
 		this.maxCombinations = Math.min(deviceMemoryGB * 50, 500);
 		// Allocate 10% of device memory for combination cache
 		this.maxMemoryBytes = Math.min(deviceMemoryGB * 1024 * 1024 * 1024 * 0.1, 200 * 1024 * 1024); // Cap at 200MB

@@ -161,19 +161,25 @@ export class PerformanceAnalyzer {
 		if (!this.currentMetrics) return;
 
 		if ('memory' in performance) {
-			const mem = (performance as any).memory;
-			const snapshot: MemorySnapshot = {
-				used: mem.usedJSHeapSize,
-				total: mem.totalJSHeapSize,
-				limit: mem.jsHeapSizeLimit,
-				timestamp: Date.now()
-			};
+			const mem = (
+				performance as unknown as {
+					memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
+				}
+			).memory;
+			if (mem) {
+				const snapshot: MemorySnapshot = {
+					used: mem.usedJSHeapSize,
+					total: mem.totalJSHeapSize,
+					limit: mem.jsHeapSizeLimit,
+					timestamp: Date.now()
+				};
 
-			this.currentMetrics.memoryUsage.push(snapshot);
+				this.currentMetrics.memoryUsage.push(snapshot);
 
-			// Keep only last 100 snapshots to prevent memory bloat
-			if (this.currentMetrics.memoryUsage.length > 100) {
-				this.currentMetrics.memoryUsage.shift();
+				// Keep only last 100 snapshots to prevent memory bloat
+				if (this.currentMetrics.memoryUsage.length > 100) {
+					this.currentMetrics.memoryUsage.shift();
+				}
 			}
 		}
 	}
@@ -292,7 +298,7 @@ export class PerformanceAnalyzer {
 	 */
 	private generateRecommendations(
 		metrics: GenerationMetrics,
-		timeBreakdown: any,
+		timeBreakdown: Record<string, number>,
 		itemsPerSecond: number
 	): string[] {
 		const recommendations: string[] = [];

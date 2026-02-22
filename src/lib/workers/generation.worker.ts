@@ -4,7 +4,6 @@ import type {
 	TransferrableTrait,
 	TransferrableLayer,
 	CompleteMessage,
-	ErrorMessage,
 	IncomingMessage
 } from '$lib/types/worker-messages';
 import { type TaskId } from '$lib/types/ids';
@@ -13,10 +12,8 @@ import { MetadataStandard } from '$lib/domain/metadata/strategies';
 
 // Refactored Cache & Optimization Imports
 import { WorkerArrayBufferCache } from './cache/array-buffer.cache';
-import { TraitCombinationCache } from './cache/combination.cache';
 import { OptimizedMemoryManager } from './memory/memory.manager';
 import { SequentialPerformanceMonitor } from './monitoring/performance.monitor';
-import { BlobProcessingOptimizer } from './optimization/blob.optimizer';
 import { PredictiveTraitLoader } from './optimization/predictive.loader';
 
 // Global worker instances

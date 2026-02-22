@@ -17,7 +17,6 @@ import {
 } from './worker.pool';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { CSPSolver } from './csp-solver';
-import { type TaskId } from '$lib/types/ids';
 
 // Worker pool will be initialized on demand
 
@@ -126,7 +125,7 @@ export async function startGeneration(
 		// 2. Chunk the solutions into batches and send to the pool
 		const BATCH_SIZE = 50;
 		const totalBatches = Math.ceil(solutions.length / BATCH_SIZE);
-		const batchPromises: Promise<any>[] = [];
+		const batchPromises: Promise<unknown>[] = [];
 
 		console.log(`📦 Distributing ${totalBatches} batches to worker pool...`);
 

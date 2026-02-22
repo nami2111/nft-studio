@@ -39,7 +39,7 @@ export class WorkerArrayBufferCache {
 
 	constructor() {
 		// Intelligent cache sizing based on device capabilities
-		this.deviceMemoryGB = (navigator as any).deviceMemory || 4;
+		this.deviceMemoryGB = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
 		this.maxEntries = this.calculateOptimalEntries();
 		this.maxMemoryBytes = this.calculateOptimalMemory();
 

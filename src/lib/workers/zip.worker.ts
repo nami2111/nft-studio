@@ -37,7 +37,7 @@ self.onmessage = async (event: MessageEvent<ZipMessage>) => {
 
 				// Report progress every 5 files
 				if (i % 5 === 0 || i === imageFiles.length - 1) {
-					(self as any).postMessage({
+					(self as unknown as Worker).postMessage({
 						type: 'zip-progress',
 						taskId,
 						payload: {
@@ -51,7 +51,7 @@ self.onmessage = async (event: MessageEvent<ZipMessage>) => {
 			const content = await zip.generateAsync({ type: 'arraybuffer' });
 
 			// Return the final ZIP
-			(self as any).postMessage(
+			(self as unknown as Worker).postMessage(
 				{
 					type: 'zip-complete',
 					taskId,
@@ -59,10 +59,10 @@ self.onmessage = async (event: MessageEvent<ZipMessage>) => {
 						buffer: content
 					}
 				},
-				[content]
+				[content] as unknown as Transferable[]
 			);
 		} catch (error) {
-			(self as any).postMessage({
+			(self as unknown as Worker).postMessage({
 				type: 'zip-error',
 				taskId,
 				payload: {

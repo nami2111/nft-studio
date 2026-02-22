@@ -80,12 +80,20 @@ export class MemoryMonitor {
 
 		// Try to get actual memory usage from performance API
 		if ('memory' in performance) {
-			const memory = (performance as any).memory;
-			used = memory.usedJSHeapSize;
-			total = memory.jsHeapSizeLimit;
+			const memory = (
+				performance as unknown as { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }
+			).memory;
+			if (memory) {
+				used = memory.usedJSHeapSize;
+				total = memory.jsHeapSizeLimit;
+			}
 		} else if (typeof window !== 'undefined' && 'webkitPerformance' in window) {
 			// Safari fallback
-			const memory = (window as any).webkitPerformance.memory;
+			const memory = (
+				window as unknown as {
+					webkitPerformance?: { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } };
+				}
+			).webkitPerformance?.memory;
 			if (memory) {
 				used = memory.usedJSHeapSize;
 				total = memory.jsHeapSizeLimit;
@@ -130,7 +138,7 @@ export class MemoryMonitor {
 	static triggerGarbageCollection(): void {
 		if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
 			try {
-				(globalThis as any).gc();
+				(globalThis as unknown as { gc?: () => void }).gc?.();
 				console.log('🧹 Forced garbage collection');
 			} catch (error) {
 				console.warn('Garbage collection not available or failed:', error);

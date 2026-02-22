@@ -7,6 +7,14 @@ export interface CacheMetrics {
 	memoryUsage: number;
 }
 
+interface PerformanceWithMemory extends Performance {
+	memory?: {
+		usedJSHeapSize: number;
+		totalJSHeapSize: number;
+		jsHeapSizeLimit: number;
+	};
+}
+
 export interface DatabaseMetrics {
 	queryCount: number;
 	slowQueries: Array<{
@@ -248,7 +256,7 @@ export class ProductionMonitor {
 	private captureMemoryMetrics(): void {
 		if (typeof window === 'undefined' || !('performance' in window)) return;
 
-		const memory = (performance as any).memory;
+		const memory = (performance as PerformanceWithMemory).memory;
 		if (!memory) return;
 
 		const metrics: MemoryMetrics = {
@@ -423,7 +431,7 @@ export class ProductionMonitor {
 		// This is checked in CI/CD pipeline
 
 		// Check memory usage percentage
-		const memory = (performance as any).memory;
+		const memory = (performance as PerformanceWithMemory).memory;
 		const currentMemoryMB = this.getAverageMemoryUsage();
 		const memoryLimitMB = memory ? memory.jsHeapSizeLimit / (1024 * 1024) : 4096; // Default 4GB
 		const memoryUsagePercent = (currentMemoryMB / memoryLimitMB) * 100;

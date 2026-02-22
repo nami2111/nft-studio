@@ -11,6 +11,7 @@ import type {
 	GallerySortOption
 } from '$lib/types/gallery';
 import { untrack } from 'svelte';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
 import {
 	initGalleryDB,
@@ -77,12 +78,12 @@ class GalleryStore {
 	 * This allows for near-instant set intersection filtering instead of O(N) scanning
 	 */
 	private buildTraitIndex(nfts: GalleryNFT[]): {
-		index: Map<string, Set<string>>;
-		categories: Map<string, string[]>;
+		index: SvelteMap<string, SvelteSet<string>>;
+		categories: SvelteMap<string, string[]>;
 	} {
 		const startTiming = debugTime('Build trait index');
-		const index = new Map<string, Set<string>>();
-		const traitStats = new Map<string, Set<string>>();
+		const index = new SvelteMap<string, SvelteSet<string>>();
+		const traitStats = new SvelteMap<string, SvelteSet<string>>();
 
 		// Use untrack and avoid reactive overhead - this is critical for loop performance in Svelte 5
 		untrack(() => {
@@ -99,13 +100,13 @@ class GalleryStore {
 
 						// Update inverse index
 						if (!index.has(key)) {
-							index.set(key, new Set());
+							index.set(key, new SvelteSet());
 						}
 						index.get(key)!.add(nft.id);
 
 						// Update categories for UI
 						if (!traitStats.has(layer)) {
-							traitStats.set(layer, new Set());
+							traitStats.set(layer, new SvelteSet());
 						}
 						traitStats.get(layer)!.add(value);
 					}
@@ -114,7 +115,7 @@ class GalleryStore {
 		});
 
 		// Format categories for UI (sorting values)
-		const categories = new Map<string, string[]>();
+		const categories = new SvelteMap<string, string[]>();
 		for (const [layer, values] of traitStats.entries()) {
 			categories.set(layer, Array.from(values).sort());
 		}
@@ -128,8 +129,8 @@ class GalleryStore {
 	private _lastLoggedUsage: number | null = null;
 
 	// Trait index cache for efficient filtering - maps "layer:trait" to a Set of NFT IDs
-	private _traitIndex = new Map<string, Set<string>>();
-	private _traitCategories = new Map<string, string[]>();
+	private _traitIndex = new SvelteMap<string, SvelteSet<string>>();
+	private _traitCategories = new SvelteMap<string, string[]>();
 	private _traitIndexCollectionId: string | null = null;
 
 	// Main state
@@ -243,11 +244,11 @@ class GalleryStore {
 			);
 
 			if (selectedTraitOptions.length > 0) {
-				let candidateIds: Set<string> | null = null;
+				let candidateIds: SvelteSet<string> | null = null;
 
 				for (const [layer, values] of selectedTraitOptions) {
 					// Collect all NFT IDs that match ANY of the selected traits in this layer (OR logic)
-					const layerMatchIds = new Set<string>();
+					const layerMatchIds = new SvelteSet<string>();
 					for (const value of values) {
 						const matches = this._traitIndex.get(`${layer}:${value}`);
 						if (matches) {
@@ -264,7 +265,7 @@ class GalleryStore {
 						// Faster intersection: iterate over the smaller set
 						const smaller = candidateIds.size < layerMatchIds.size ? candidateIds : layerMatchIds;
 						const larger = smaller === candidateIds ? layerMatchIds : candidateIds;
-						const intersected = new Set<string>();
+						const intersected = new SvelteSet<string>();
 
 						for (const id of smaller) {
 							if (larger.has(id)) {
@@ -278,7 +279,7 @@ class GalleryStore {
 					if (candidateIds.size === 0) break;
 				}
 
-				const finalIds = candidateIds || new Set<string>();
+				const finalIds = candidateIds || new SvelteSet<string>();
 				filtered = filtered.filter((nft) => finalIds.has(nft.id));
 			}
 			debugCount('After trait filters', filtered.length);

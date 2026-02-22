@@ -168,7 +168,7 @@ export class CSPSolver {
 
 		const startTime = Date.now();
 		const layerCount = this.context.layers.length;
-		const requiredLayers = this.context.layers.filter((l) => !l.isOptional).length;
+		// const requiredLayers = this.context.layers.filter((l) => !l.isOptional).length;
 
 		if (layerCount === 0) {
 			console.error(`[CSP SOLVE] CRITICAL: Solver has 0 layers!`);

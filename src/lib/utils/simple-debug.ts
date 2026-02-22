@@ -2,7 +2,7 @@
  * Simple debug utility for gallery performance monitoring
  */
 
-export function debugLog(message: string, ...args: any[]) {
+export function debugLog(message: string, ...args: unknown[]) {
 	if (import.meta.env.DEV) {
 		console.log('🎨', message, ...args);
 	}

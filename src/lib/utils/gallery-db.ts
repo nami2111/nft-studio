@@ -103,7 +103,7 @@ export async function getCollection(id: string): Promise<GalleryCollection | und
 	return {
 		...stored,
 		generatedAt: stored.generatedAt ? new Date(stored.generatedAt) : new Date(),
-		nfts: stored.nfts.map((nft: any) => ({
+		nfts: stored.nfts.map((nft: Record<string, unknown> & { generatedAt?: string | Date }) => ({
 			...nft,
 			generatedAt: nft.generatedAt ? new Date(nft.generatedAt) : new Date(),
 			imageData: new ArrayBuffer(0) // Empty buffer, will be filled from cache if available
@@ -126,7 +126,7 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 	return storedCollections.map((stored) => ({
 		...stored,
 		generatedAt: stored.generatedAt ? new Date(stored.generatedAt) : new Date(),
-		nfts: stored.nfts.map((nft: any) => ({
+		nfts: stored.nfts.map((nft: Record<string, unknown> & { generatedAt?: string | Date }) => ({
 			...nft,
 			generatedAt: nft.generatedAt ? new Date(nft.generatedAt) : new Date(),
 			imageData: new ArrayBuffer(0) // Empty buffer, will be filled from cache if available

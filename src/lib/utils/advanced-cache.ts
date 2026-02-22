@@ -34,7 +34,7 @@ export interface CacheOptions<T> {
 	onEvict?: (key: string, entry: CacheEntry<T>) => void; // Callback when entry is evicted
 }
 
-export class AdvancedCache<T = any> {
+export class AdvancedCache<T = unknown> {
 	private cache = new Map<string, CacheEntry<T>>();
 	private metrics: CacheMetrics;
 	private options: Required<CacheOptions<T>>;
@@ -319,7 +319,7 @@ export class AdvancedCache<T = any> {
 
 		try {
 			// Check memory usage if available
-			const memoryInfo = (performance as any).memory;
+			const memoryInfo = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
 			if (memoryInfo) {
 				const usedMB = memoryInfo.usedJSHeapSize / 1024 / 1024;
 
@@ -405,7 +405,7 @@ export class AdvancedCache<T = any> {
 	/**
 	 * Default size estimator for common types
 	 */
-	private defaultSizeEstimator(data: any): number {
+	private defaultSizeEstimator(data: unknown): number {
 		if (data === null || data === undefined) return 0;
 
 		if (typeof data === 'string') {

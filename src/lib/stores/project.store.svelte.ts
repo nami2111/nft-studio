@@ -14,11 +14,12 @@ import {
 	saveProjectToZip as saveProjectToZipImpl,
 	loadProjectFromZip as loadProjectFromZipImpl
 } from './file-operations';
-import { loadingStateManager, type LoadingState } from './loading-state';
+import { loadingStateManager } from './loading-state';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { calculateAdaptiveDelay } from '$lib/config/performance.config';
 import { persistenceService } from '../services/persistence.service';
 import { validationService } from '../services/validation.service';
+import { SvelteMap } from 'svelte/reactivity';
 
 // Initialize project with a fresh default project
 // Note: Auto-load disabled - users must manually load saved projects via "Load Project" button
@@ -331,8 +332,8 @@ export function reorderLayers(layerIds: LayerId[]): void {
 }
 
 // Batch loading state for traits
-const pendingTraitUpdates = new Map<string, { trait: Trait; layer: Layer; file: File }>();
-const pendingTraitPromises = new Map<
+const pendingTraitUpdates = new SvelteMap<string, { trait: Trait; layer: Layer; file: File }>();
+const pendingTraitPromises = new SvelteMap<
 	TraitId,
 	{ resolve: () => void; reject: (error: Error) => void }
 >();
@@ -538,8 +539,8 @@ export function isStrictPairEnabled() {
 export function getActiveLayerCombinations(): string[] {
 	return (
 		project.strictPairConfig?.layerCombinations
-			.filter((lc: any) => lc.active)
-			.map((lc: any) => lc.id) ?? []
+			.filter((lc: { active: boolean; id: string }) => lc.active)
+			.map((lc: { active: boolean; id: string }) => lc.id) ?? []
 	);
 }
 
