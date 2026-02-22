@@ -28,7 +28,7 @@
 
 	<div class="relative z-20 mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
 		<!-- High contrast card -->
-		<Card class="text-white shadow-2xl backdrop-blur-sm">
+		<Card class="shadow-2xl backdrop-blur-sm">
 			<CardHeader class="px-6 py-4">
 				<WindowControls title="NFT Studio" />
 			</CardHeader>
@@ -45,17 +45,13 @@
 					<div
 						class="mt-10 flex flex-col justify-center gap-4 sm:flex-row sm:items-center sm:justify-center"
 					>
-						<Button
-							size="lg"
-							class="w-full bg-white text-black transition-all hover:scale-105 hover:bg-gray-100 hover:shadow-lg sm:w-auto"
-							onclick={() => goto(resolve('/app'))}
-						>
+						<Button size="lg" class="w-full sm:w-auto" onclick={() => goto(resolve('/app'))}>
 							Get Started
 						</Button>
 						<Button
 							variant="outline"
 							size="lg"
-							class="w-full transition-all hover:scale-105 hover:shadow-lg sm:w-auto"
+							class="w-full text-black sm:w-auto"
 							onclick={() => goto(resolve('/about'))}
 						>
 							Learn More
