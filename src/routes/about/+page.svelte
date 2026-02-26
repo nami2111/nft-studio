@@ -132,7 +132,7 @@
 						<div class="space-y-2">
 							<Button
 								variant="outline"
-								size="sm"
+								size="lg"
 								class="w-full"
 								onclick={() => (window.location.href = '/app')}
 							>
@@ -140,7 +140,7 @@
 							</Button>
 							<Button
 								variant="outline"
-								size="sm"
+								size="lg"
 								class="w-full"
 								onclick={() => (window.location.href = '/')}
 							>
@@ -227,7 +227,7 @@
 					<Button
 						variant="outline"
 						size="lg"
-						class="w-full transition-all hover:scale-105 hover:shadow-lg"
+						class="w-full"
 						onclick={() => (window.location.href = '/app')}
 					>
 						Launch Studio
@@ -235,7 +235,7 @@
 					<Button
 						variant="outline"
 						size="lg"
-						class="w-full transition-all hover:scale-105 hover:shadow-lg"
+						class="w-full"
 						onclick={() => (window.location.href = '/')}
 					>
 						Homepage
