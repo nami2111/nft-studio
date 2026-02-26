@@ -48,8 +48,9 @@
 
 			<div class="mt-auto flex flex-col gap-4 pt-6 sm:flex-row sm:gap-6 sm:pt-8">
 				<Button
+					variant="primary"
 					size="lg"
-					class="group relative h-16 w-full border-4 border-black bg-black px-10 text-xl font-black text-white transition-none hover:translate-x-[-4px] hover:translate-y-[-4px] hover:shadow-[8px_8px_0px_0px_rgba(139,92,246,1)] active:translate-x-0 active:translate-y-0 active:shadow-none sm:w-auto"
+					class="h-14 w-full px-8 text-base font-bold tracking-wider sm:w-auto"
 					onclick={() => goto(resolve('/app'))}
 				>
 					START BLUEPRINT ↗
@@ -57,7 +58,7 @@
 				<Button
 					variant="outline"
 					size="lg"
-					class="h-16 w-full border-4 border-black bg-white px-10 text-xl font-black text-black transition-none hover:bg-gray-100 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:w-auto"
+					class="h-14 w-full px-8 text-base font-bold tracking-wider sm:w-auto"
 					onclick={() => goto(resolve('/about'))}
 				>
 					DOCS
