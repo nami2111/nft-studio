@@ -7,19 +7,17 @@
 </script>
 
 <section
-	class="relative flex min-h-[70vh] flex-col items-center justify-center overflow-hidden bg-[#F2F2F2] p-4 font-mono text-black sm:p-8 lg:min-h-screen"
+	class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#F2F2F2] p-4 font-mono text-black sm:p-8"
 >
 	<!-- Blueprint Grid Layer -->
 	<div class="blueprint-grid absolute inset-0 opacity-[0.07]"></div>
 
 	<!-- Schematic Grid Layout -->
 	<div
-		class="relative z-10 grid w-full max-w-(--breakpoint-2xl) grid-cols-1 gap-0 border-4 border-black lg:grid-cols-12"
+		class="relative z-10 grid w-full max-w-(--breakpoint-2xl) grid-cols-1 gap-0 border-4 border-black bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] lg:grid-cols-12"
 	>
 		<!-- Left Column: Typography & Actions -->
-		<div
-			class="flex flex-col border-b-4 border-black p-6 sm:p-8 lg:col-span-7 lg:border-r-4 lg:border-b-0 lg:p-12"
-		>
+		<div class="flex flex-col p-5 sm:p-8 lg:col-span-7 lg:border-r-4 lg:p-12">
 			<div
 				class="mb-4 flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase opacity-60"
 			>
@@ -28,7 +26,7 @@
 			</div>
 
 			<h1
-				class="mb-6 text-3xl leading-[0.85] font-extrabold tracking-tighter break-words uppercase selection:bg-purple-500 selection:text-white md:mb-8 md:text-5xl lg:text-8xl"
+				class="mb-6 text-4xl leading-[0.85] font-extrabold tracking-tighter break-words uppercase selection:bg-purple-500 selection:text-white sm:text-5xl md:mb-8 lg:text-8xl"
 			>
 				Create<br class="hidden sm:block" /> Stunning<br class="hidden sm:block" /> NFT<br
 					class="hidden sm:block"
