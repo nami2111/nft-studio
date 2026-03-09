@@ -1,4 +1,4 @@
-import { trackGenerationCompleted } from '$lib/utils/analytics';
+
 import { MemoryMonitor } from '$lib/utils/memory-monitor';
 import type { Project } from '$lib/types/project';
 
@@ -30,11 +30,7 @@ export class ExportService {
 				await this.packageZipStandard({ project, images, metadata, onProgress });
 			}
 
-			// Track generation completion analytics
-			if (startTime) {
-				const durationSeconds = Math.round((Date.now() - startTime) / 1000);
-				trackGenerationCompleted(images.length, durationSeconds);
-			}
+
 		} catch (error) {
 			console.error('Export failed:', error);
 			throw error;

@@ -11,8 +11,6 @@ export class WorkerArrayBufferCache {
 			size: number;
 			accessCount: number;
 			creationTime: number;
-			predictedUsage: number; // AI-predicted future usage score
-			lastAccessedBatch: number; // Track which batch last accessed this
 		}
 	>();
 
@@ -27,15 +25,9 @@ export class WorkerArrayBufferCache {
 		hits: 0,
 		misses: 0,
 		evictions: 0,
-		memoryPressure: 0,
-		predictiveHits: 0,
-		prefetchedItems: 0,
-		cacheEfficiency: 0
+		memoryPressure: 0
 	};
 
-	// Predictive caching for frequently accessed patterns
-	private accessPatterns = new Map<string, number[]>(); // traitName -> batch numbers accessed
-	private frequentTraits = new Set<string>(); // Traits accessed frequently
 
 	constructor() {
 		// Intelligent cache sizing based on device capabilities
@@ -48,86 +40,6 @@ export class WorkerArrayBufferCache {
 		);
 	}
 
-	/**
-	 * Calculate predicted usage score for a cache key based on access patterns
-	 */
-	private calculatePredictedUsage(key: string): number {
-		// Extract trait name from cache key (format: traitName_size_width_height)
-		const traitName = key.split('_')[0];
-
-		// Check if this trait is frequently accessed
-		if (this.frequentTraits.has(traitName)) {
-			return 2.0; // High predicted usage
-		}
-
-		// Check access pattern frequency
-		const pattern = this.accessPatterns.get(traitName);
-		if (pattern && pattern.length > 3) {
-			return 1.5; // Medium-high predicted usage
-		}
-
-		return 1.0; // Default predicted usage
-	}
-
-	/**
-	 * Update batch number for predictive caching
-	 */
-	updateBatch(batchNumber: number): void {
-		this.currentBatch = batchNumber;
-
-		// Update frequent traits based on access patterns
-		this.updateFrequentTraits();
-	}
-
-	/**
-	 * Record access pattern for predictive caching
-	 */
-	recordAccess(key: string): void {
-		const traitName = key.split('_')[0];
-		const pattern = this.accessPatterns.get(traitName) || [];
-		pattern.push(this.currentBatch);
-
-		// Keep only recent patterns (last 10 batches)
-		if (pattern.length > 10) {
-			pattern.shift();
-		}
-
-		this.accessPatterns.set(traitName, pattern);
-	}
-
-	/**
-	 * Update frequently accessed traits based on patterns
-	 */
-	private updateFrequentTraits(): void {
-		this.frequentTraits.clear();
-
-		for (const [traitName, pattern] of this.accessPatterns) {
-			// A trait is considered frequent if accessed in >50% of recent batches
-			const recentBatches = pattern.filter((batch: number) => batch >= this.currentBatch - 10);
-
-			if (recentBatches.length > 5) {
-				this.frequentTraits.add(traitName);
-			}
-		}
-	}
-
-	/**
-	 * Prefetch predicted items based on access patterns
-	 */
-	prefetchPredictedItems(availableBuffers: ArrayBuffer[], traitNames: string[]): void {
-		for (let i = 0; i < availableBuffers.length && i < traitNames.length; i++) {
-			const traitName = traitNames[i];
-			const buffer = availableBuffers[i];
-
-			if (this.frequentTraits.has(traitName)) {
-				const cacheKey = `${traitName}_${buffer.byteLength}_0_0`;
-				if (!this.cache.has(cacheKey)) {
-					this.set(cacheKey, buffer);
-					this.stats.prefetchedItems++;
-				}
-			}
-		}
-	}
 
 	private calculateOptimalEntries(): number {
 		// Base calculation on device memory and CPU cores
@@ -183,9 +95,7 @@ export class WorkerArrayBufferCache {
 			accessTime: Date.now(),
 			size: bufferSize,
 			accessCount: 1,
-			creationTime: Date.now(),
-			predictedUsage: this.calculatePredictedUsage(key),
-			lastAccessedBatch: this.currentBatch
+			creationTime: Date.now()
 		});
 
 		this.currentMemoryUsage += bufferSize;
@@ -242,15 +152,8 @@ export class WorkerArrayBufferCache {
 		this.cache.clear();
 		this.currentMemoryUsage = 0;
 		this.currentBatch = 0;
-		this.accessPatterns.clear();
-		this.frequentTraits.clear();
-		this.stats.hits = 0;
-		this.stats.misses = 0;
 		this.stats.evictions = 0;
 		this.stats.memoryPressure = 0;
-		this.stats.predictiveHits = 0;
-		this.stats.prefetchedItems = 0;
-		this.stats.cacheEfficiency = 0;
 	}
 
 	get size(): number {
@@ -261,20 +164,9 @@ export class WorkerArrayBufferCache {
 		return this.currentMemoryUsage;
 	}
 
-	/**
-	 * Get enhanced cache performance statistics
-	 */
 	getStats() {
 		const totalOps = this.stats.hits + this.stats.misses;
 		const hitRate = totalOps > 0 ? (this.stats.hits / totalOps) * 100 : 0;
-
-		// Calculate memory efficiency
-		const memoryEfficiency =
-			this.currentMemoryUsage > 0
-				? (this.stats.hits / (this.stats.hits + this.stats.misses)) *
-					(1 - this.currentMemoryUsage / this.maxMemoryBytes) *
-					100
-				: 0;
 
 		return {
 			...this.stats,
@@ -282,11 +174,7 @@ export class WorkerArrayBufferCache {
 			entries: this.cache.size,
 			memoryUsageMB: (this.currentMemoryUsage / 1024 / 1024).toFixed(1),
 			maxMemoryMB: (this.maxMemoryBytes / 1024 / 1024).toFixed(1),
-			memoryUtilization: ((this.currentMemoryUsage / this.maxMemoryBytes) * 100).toFixed(1),
-			cacheEfficiency: memoryEfficiency.toFixed(1),
-			frequentTraitsCount: this.frequentTraits.size,
-			predictiveHits: this.stats.predictiveHits,
-			prefetchedItems: this.stats.prefetchedItems
+			memoryUtilization: ((this.currentMemoryUsage / this.maxMemoryBytes) * 100).toFixed(1)
 		};
 	}
 }

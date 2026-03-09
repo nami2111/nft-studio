@@ -3,7 +3,7 @@
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import type { GalleryNFT, GalleryCollection, GallerySortOption } from '$lib/types/gallery';
-	import { trackGalleryPageVisit } from '$lib/utils/analytics';
+
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
 	import CollectionStats from '$lib/components/gallery/CollectionStats.svelte';
@@ -114,10 +114,8 @@
 		selectedTraits = {};
 	}
 
-	// Page visit tracking
 	onMount(() => {
 		// DANGER: Removed galleryStore.clearGallery() which was deleting all user data!
-		trackGalleryPageVisit();
 	});
 
 	// Toggle dropdown and calculate position

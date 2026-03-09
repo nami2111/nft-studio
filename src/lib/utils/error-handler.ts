@@ -5,7 +5,7 @@
 
 import { showError, AppError } from './error-handling';
 import type { ErrorOptions, ErrorContext } from './error-handling';
-import { logError as logAppError, logWarning } from './error-logger';
+
 import {
 	ValidationError,
 	StorageError,
@@ -83,9 +83,9 @@ export async function handleError<T>(
 	// Log error if requested
 	if (logError) {
 		if (appError.recoverable) {
-			logWarning(appError.message, appError.context);
+			console.warn(`[WARNING] ${appError.message}`, appError.context);
 		} else {
-			logAppError(appError, appError.context);
+			console.error(`[ERROR] ${appError.message}`, appError.context);
 		}
 	}
 
@@ -147,9 +147,9 @@ export async function handleStorageError<T>(
 		error instanceof StorageError
 			? error
 			: new StorageError(error instanceof Error ? error.message : String(error), {
-					...options.context,
-					operation: options.operation
-				});
+				...options.context,
+				operation: options.operation
+			});
 
 	return handleError<T>(storageError, {
 		title: 'Storage Error',
@@ -169,9 +169,9 @@ export async function handleFileError<T>(
 		error instanceof FileError
 			? error
 			: new FileError(error instanceof Error ? error.message : String(error), {
-					...options.context,
-					operation: options.operation
-				});
+				...options.context,
+				operation: options.operation
+			});
 
 	return handleError<T>(fileError, {
 		title: 'File Error',
@@ -191,9 +191,9 @@ export async function handleValidationError<T>(
 		error instanceof ValidationError
 			? error
 			: new ValidationError(error instanceof Error ? error.message : String(error), {
-					...options.context,
-					operation: options.operation
-				});
+				...options.context,
+				operation: options.operation
+			});
 
 	return handleError<T>(validationError, {
 		title: 'Validation Error',
@@ -213,9 +213,9 @@ export async function handleWorkerError<T>(
 		error instanceof WorkerError
 			? error
 			: new WorkerError(error instanceof Error ? error.message : String(error), {
-					...options.context,
-					operation: options.operation
-				});
+				...options.context,
+				operation: options.operation
+			});
 
 	return handleError<T>(workerError, {
 		title: 'Generation Error',
@@ -235,9 +235,9 @@ export async function handleGenerationError<T>(
 		error instanceof GenerationError
 			? error
 			: new GenerationError(error instanceof Error ? error.message : String(error), {
-					...options.context,
-					operation: options.operation
-				});
+				...options.context,
+				operation: options.operation
+			});
 
 	return handleError<T>(generationError, {
 		title: 'Generation Error',
@@ -257,9 +257,9 @@ export async function handleNetworkError<T>(
 		error instanceof NetworkError
 			? error
 			: new NetworkError(error instanceof Error ? error.message : String(error), {
-					...options.context,
-					operation: options.operation
-				});
+				...options.context,
+				operation: options.operation
+			});
 
 	return handleError<T>(networkError, {
 		title: 'Network Error',

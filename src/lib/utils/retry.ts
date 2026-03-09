@@ -3,8 +3,12 @@
  */
 
 import { showError } from './error-handling';
-import { logError, logWarning } from './error-logger';
-import type { ErrorContext } from './error-logger';
+export interface ErrorContext {
+	component?: string;
+	action?: string;
+	userAction?: string;
+	additionalData?: Record<string, unknown>;
+}
 
 export interface RetryConfig {
 	maxAttempts: number;
@@ -74,7 +78,7 @@ export class RetryOperation<T> {
 
 				// Check if we should retry based on the retry condition
 				if (this.config.retryCondition && !this.config.retryCondition(error)) {
-					logWarning(
+					console.warn(
 						`Operation failed and not retrying: ${error instanceof Error ? error.message : String(error)}`,
 						{
 							...this.context,
@@ -95,7 +99,7 @@ export class RetryOperation<T> {
 				// Calculate delay with exponential backoff
 				const delayMs = this.calculateDelay(attempt);
 
-				logWarning(`Operation failed on attempt ${attempt}, retrying in ${delayMs}ms`, {
+				console.warn(`Operation failed on attempt ${attempt}, retrying in ${delayMs}ms`, {
 					...this.context,
 					additionalData: {
 						attempt,
@@ -119,7 +123,7 @@ export class RetryOperation<T> {
 		const finalError =
 			lastError instanceof Error ? lastError : new Error('Unknown error after retries');
 
-		logError(finalError, {
+		console.error(`Final failure: ${finalError.message}`, {
 			...this.context,
 			additionalData: {
 				totalAttempts: this.config.maxAttempts,

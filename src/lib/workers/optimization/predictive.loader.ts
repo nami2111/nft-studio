@@ -100,23 +100,6 @@ export class PredictiveTraitLoader {
 		return similarity >= 0.7;
 	}
 
-	/**
-	 * Get most common trait combinations
-	 */
-	getMostCommonCombinations(limit: number = 10): Array<{ traits: string[]; frequency: number }> {
-		return Array.from(this.patternFrequency.entries())
-			.map(([pattern, frequency]) => ({
-				traits: pattern.split('|'),
-				frequency
-			}))
-			.sort((a, b) => b.frequency - a.frequency)
-			.slice(0, limit);
-	}
-
-	updateBatch(batchNumber: number): void {
-		this.currentBatch = batchNumber;
-	}
-
 	clear(): void {
 		this.loadHistory = [];
 		this.patternFrequency.clear();

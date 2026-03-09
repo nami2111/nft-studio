@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { performanceAnalyzer } from '$lib/utils/performance-analyzer';
 	import { generationState } from '$lib/stores/generation-progress.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { Progress } from '$lib/components/ui/progress';
@@ -7,7 +6,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { formatDuration, formatTime } from '$lib/utils/formatters';
 
-	let performanceStatus = $derived(performanceAnalyzer.getStatus());
+	let performanceStatus = $state({ isActive: false });
 	let updateInterval: number;
 
 	// Real-time performance metrics
@@ -19,7 +18,9 @@
 	onMount(() => {
 		// Update performance metrics every second
 		updateInterval = window.setInterval(() => {
-			performanceStatus = performanceAnalyzer.getStatus();
+			performanceStatus = {
+				isActive: generationState.isGenerating
+			};
 		}, 1000);
 	});
 

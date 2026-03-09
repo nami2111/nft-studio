@@ -213,13 +213,7 @@
 
 			// Set up worker message handler that delegates to persistent store
 			const workerMessageHandler = async (
-				data:
-					| ProgressMessage
-					| CompleteMessage
-					| ErrorMessage
-					| CancelledMessage
-					| PreviewMessage
-					| { type: 'analysis' | 'performance-report'; payload: Record<string, unknown> }
+				data: ProgressMessage | CompleteMessage | ErrorMessage | CancelledMessage | PreviewMessage
 			) => {
 				const message = data;
 
@@ -247,11 +241,6 @@
 							break;
 						case 'cancelled':
 							completeGeneration(); // Mark as complete but cancelled
-							break;
-						case 'analysis':
-						case 'performance-report':
-							// Log analysis and performance reports in background
-							console.log(`📊 Background ${message.type}:`, message.payload);
 							break;
 					}
 					return;
@@ -314,18 +303,6 @@
 							title: 'Generation Error',
 							description: 'An error occurred during generation. Please try again.'
 						});
-						break;
-					case 'analysis':
-						// Handle collection analysis message
-						if ('payload' in message && message.payload?.complexity) {
-							console.log('📊 Collection analysis:', message.payload);
-						}
-						break;
-					case 'performance-report':
-						// Handle performance report message
-						if ('payload' in message && message.payload) {
-							console.log('📈 Performance report:', message.payload);
-						}
 						break;
 					default:
 						console.warn('Unknown message type from worker:', (message as { type: string }).type);
