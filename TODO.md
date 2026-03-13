@@ -1,129 +1,245 @@
-# NeoBr-UI Migration Plan
+# Svelte Snippets Migration Plan
 
 ## Overview
 
-Full migration from custom shadcn-svelte components to @neobr/svelte with brutalist styling and Catppuccin color palette.
+Migrate repetitive template patterns to Svelte 5 snippets to eliminate code duplication, improve maintainability, and establish single source of truth for reusable UI patterns.
 
-## Configuration
+## Benefits
 
-- Color Palette: NeoBr-UI Colors (Catppuccin-inspired OKLCH)
-- Migration Strategy: Package Import with Local Wrappers
-- Visual Style: Full Brutalist
+- **30-50% less template code** through DRY principles
+- **Single change point** for repeated UI elements
+- **Type-safe** snippet parameters
+- **Scoped** - can reference component state naturally
 
-## Migration Status: ✅ COMPLETE
+---
 
-### Phase 1: Dependencies & Configuration ✅
+## Component 1: Gallery Page
 
-- [x] Install dependencies: `@neobr/svelte@1.0.7`, `@neobr/tailwind-preset@1.0.4`
-- [x] Update src/app.css with NeoBr-UI design system (OKLCH colors, brutalist shadows)
-- [x] Add `@source` directive to enable Tailwind v4 component scanning
-- [x] Configure Tailwind v4 with brutalist tokens via `@neobr/tailwind-preset`
+**File:** `src/routes/app/gallery/+page.svelte` (616 lines)
 
-### Phase 2: Component Migration ✅
+### Current Issue
 
-| Priority | Component    | Status  | Implementation                                             |
-| -------- | ------------ | ------- | ---------------------------------------------------------- |
-| High     | Button       | ✅ Done | Re-export from `@neobr/svelte`                             |
-| High     | Card         | ✅ Done | Re-export Card, CardHeader, CardFooter, etc. from package  |
-| High     | Input        | ✅ Done | Re-export from `@neobr/svelte`                             |
-| High     | Textarea     | ✅ Done | Re-export from `@neobr/svelte`                             |
-| High     | Badge        | ✅ Done | Re-export from `@neobr/svelte`                             |
-| Medium   | Slider       | ✅ Done | Re-export from `@neobr/svelte`, updated RaritySlider usage |
-| Medium   | Progress     | ✅ Done | Re-export from `@neobr/svelte`                             |
-| Medium   | Skeleton     | ✅ Done | Re-export from `@neobr/svelte`                             |
-| Medium   | Modal        | ✅ Done | Local wrapper with maxWidth support around NeoBr Modal     |
-| Medium   | Toast/Sonner | ✅ Done | Re-export Toaster from svelte-sonner                       |
+4 nearly identical responsive layout sections with repeated markup:
 
-### Phase 3: Import Updates ✅
+- Mobile (lines 225-313)
+- Mobile Landscape/Small Tablet (lines 316-356)
+- Tablet (lines 359-399)
+- Desktop (lines 402-540)
 
-- [x] Updated all imports from direct `.svelte` files to index exports
-- [x] Changed default imports to named imports (e.g., `{ Button }` instead of `Button`)
+### Patterns to Extract
 
-### Phase 4: Cleanup ✅
+| Snippet Name       | Description                          | Parameters                                          |
+| ------------------ | ------------------------------------ | --------------------------------------------------- |
+| `searchInput`      | Search input with icon               | `value: string` (bindable)                          |
+| `sortDropdown`     | Sort select dropdown                 | `value: string` (bindable), `options: SortOption[]` |
+| `nftDetailPanel`   | NFT detail sidebar                   | `nft: NFT`, `onclose: () => void`                   |
+| `responsiveHeader` | Collection header with title/actions | `title: string`, `count: number`                    |
 
-- [x] Removed old component `.svelte` files that are now re-exported from @neobr/svelte
-- [x] Removed unused Dialog components (NeoBr-UI doesn't provide Dialog, but it wasn't being used)
-- [x] Removed unused custom Toast component (using svelte-sonner instead)
-- [x] Kept local wrapper for Modal with maxWidth prop support
-- [x] Kept NFT-specific components (RulerRulesManager, TraitTypeToggle, NeedsReupload)
+### Migration Steps
 
-### Phase 5: Verification ✅
+1. Create `searchInput` snippet for search field
+2. Create `sortDropdown` snippet for sort options
+3. Create `nftDetailPanel` snippet for detail sidebar
+4. Replace 4 inline implementations with snippet calls
+5. Verify responsive behavior unchanged
 
-- [x] `pnpm check` - TypeScript validation passed (0 errors, 1 pre-existing warning)
-- [x] `pnpm format` - Code formatted successfully
+---
 
-## Visual Changes Applied
+## Component 2: CollectionStats
 
-- **Colors**: OKLCH-based Catppuccin palette via `@neobr/tailwind-preset`
-  - Primary: Lavender
-  - Secondary: Peach
-  - Destructive: Pink
-  - Success: Green
-  - Warning: Yellow
+**File:** `src/lib/components/gallery/CollectionStats.svelte`
 
-- **Shadows**: Hard offset brutalist shadows
-- **Borders**: Bold 2px borders
-- **Radius**: Brutalist radius
-- **Typography**: Bold uppercase headings with letter-spacing
+### Current Issue
 
-## Dependencies
+4 identical stat cell patterns repeated (lines 27-48):
 
-- `@neobr/svelte@1.0.7`: Core Svelte 5 components with brutalist styling
-- `@neobr/tailwind-preset@1.0.4`: Brutal design system and OKLCH color tokens
+```svelte
+<div class="space-y-1">
+	<div class="text-muted-foreground text-xs">Label</div>
+	<div class="text-lg font-bold tabular-nums">Value</div>
+</div>
+```
 
-## Files Modified
+### Patterns to Extract
 
-### Core Configuration
+| Snippet Name | Description              | Parameters                                 |
+| ------------ | ------------------------ | ------------------------------------------ |
+| `statCell`   | Single stat display cell | `label: string`, `value: string \| number` |
 
-- `src/app.css` - NeoBr-UI design system import
-- `package.json` - Updated dependencies
+### Migration Steps
 
-### Component Index Files (Re-exports)
+1. Extract grid-cell markup to `statCell` snippet
+2. Replace 4 inline cells with `{@render statCell(...)}`
+3. Add optional icon parameter for future extensibility
+4. Verify stat rendering unchanged
 
-- `src/lib/components/ui/button/index.ts`
-- `src/lib/components/ui/card/index.ts`
-- `src/lib/components/ui/input/index.ts`
-- `src/lib/components/ui/textarea/index.ts`
-- `src/lib/components/ui/badge/index.ts`
-- `src/lib/components/ui/slider/index.ts`
-- `src/lib/components/ui/progress/index.ts`
-- `src/lib/components/ui/skeleton/index.ts`
-- `src/lib/components/ui/modal/index.ts` (wrapper with maxWidth)
-- `src/lib/components/ui/sonner/index.ts`
+---
 
-### Updated Import Statements
+## Component 3: ErrorBoundary
 
-- `src/lib/components/gallery/*.svelte` - Updated to named imports
-- `src/lib/components/shared/ModeSwitcher.svelte` - Updated to named imports
-- `src/lib/components/layer/RaritySlider.svelte` - Updated Slider usage
+**File:** `src/lib/components/layout/ErrorBoundary.svelte` (521 lines)
 
-## Migration Complete
+### Current Issue
 
-The NeoBr-UI brutalist design system has been successfully integrated. All UI components now use @neobr/svelte either directly or through local wrapper components.
+Repeated patterns:
 
-Run `pnpm dev` to see the brutalist design in action.
+- Severity badge styling (lines 369-378)
+- Recovery action buttons (lines 455-477)
+- Icon rendering with conditions (lines 461-472)
 
-## Migration Corrections Applied (2026-02-08)
+### Patterns to Extract
 
-After reviewing the initial migration, the following critical corrections were made:
+| Snippet Name      | Description                | Parameters                                     |
+| ----------------- | -------------------------- | ---------------------------------------------- |
+| `severityBadge`   | Error severity indicator   | `severity: 'error' \| 'warning' \| 'info'`     |
+| `errorIcon`       | Error type icon            | `type: ErrorType`                              |
+| `recoveryActions` | Retry/dismiss button group | `onretry: () => void`, `ondismiss: () => void` |
+| `fallbackInfo`    | Error details display      | `error: Error`, `stack: boolean`               |
 
-### Configuration Fixes
+### Migration Steps
 
-- **Added `@source` directive** to `src/app.css` to enable Tailwind v4 to scan NeoBr-UI components
-  - Without this, Tailwind couldn't generate CSS classes from the component library
-  - This is required for brutalist styling classes to work properly
+1. Create `severityBadge` snippet for severity levels
+2. Create `errorIcon` snippet for icon conditions
+3. Create `recoveryActions` snippet for button group
+4. Replace inline implementations with snippets
+5. Verify error handling unchanged
 
-### Component Cleanup
+---
 
-- **Removed unused Dialog components** (8 files)
-  - NeoBr-UI doesn't provide Dialog components
-  - The custom Dialog implementation wasn't being used anywhere in the codebase
-- **Removed unused Toast component** (2 files)
-  - The custom Toast implementation wasn't being used
-  - Project uses `svelte-sonner` for toast notifications (as documented in Phase 2)
+## Component 4: NFTDetail Empty State
 
-### Verification
+**File:** `src/lib/components/gallery/NFTDetail.svelte`
 
-- ✅ `pnpm check` - 0 errors, 1 pre-existing warning (as expected)
-- ✅ `pnpm build` - Build completes successfully
-- ✅ All NeoBr-UI components properly scanned and styled
+### Current Issue
+
+Empty state pattern (lines 155-174) could be reusable:
+
+```svelte
+<Card class="flex flex-col items-center justify-center p-12 text-center opacity-60">
+	<div class="bg-muted mb-4 rounded-full p-4">
+		<svg>...</svg>
+	</div>
+	<div class="text-foreground text-base font-medium">No NFT Selected</div>
+	<div class="text-muted-foreground mt-1 text-sm">...</div>
+</Card>
+```
+
+### Patterns to Extract
+
+| Snippet Name | Description                   | Parameters                                              |
+| ------------ | ----------------------------- | ------------------------------------------------------- |
+| `emptyState` | Generic empty state with icon | `icon: Snippet`, `title: string`, `description: string` |
+
+### Migration Steps
+
+1. Create `emptyState` snippet with icon, title, description params
+2. Extract SVG to separate icon snippet or pass as param
+3. Replace inline empty state with snippet call
+4. Consider making reusable in shared components
+
+---
+
+## Component 5: LayerItem Toast Helpers
+
+**File:** `src/lib/components/layer/LayerItem.svelte` (824 lines)
+
+### Current Issue
+
+8+ similar toast helper functions (lines 40-90):
+
+```svelte
+function showSuccess(message: string) {
+  toast.success(message, {
+    duration: 3000,
+    icon: '✓',
+    style: 'background: oklch(0.7 0.15 150); color: white;'
+  });
+}
+
+function showError(message: string) {
+  toast.error(message, {
+    duration: 5000,
+    icon: '✗',
+    style: 'background: oklch(0.5 0.2 360); color: white;'
+  });
+}
+
+function showWarning(message: string) { ... }
+function showInfo(message: string) { ... }
+```
+
+### Note on This Component
+
+Toast helpers are **JavaScript functions**, not template patterns. Snippets are for **markup reusability**.
+
+**Alternative Approaches:**
+
+| Option                         | Description                        | Recommendation        |
+| ------------------------------ | ---------------------------------- | --------------------- |
+| A. Create toast utility module | Move to `src/lib/utils/toasts.ts`  | ✅ Recommended        |
+| B. Use snippets for toast UI   | Extract toast markup, call from JS | ❌ Overcomplicated    |
+| C. Keep as-is                  | Functions work fine                | ❌ Not using snippets |
+
+### Recommended Migration for LayerItem
+
+1. Create `src/lib/utils/toasts.ts` with typed toast functions
+2. Export: `showSuccess`, `showError`, `showWarning`, `showInfo`
+3. Import and use in LayerItem and other components
+4. Delete duplicate toast functions
+
+```typescript
+// src/lib/utils/toasts.ts
+export function showSuccess(message: string) {
+	toast.success(message, { duration: 3000, icon: '✓' });
+}
+
+export function showError(message: string) {
+	toast.error(message, { duration: 5000, icon: '✗' });
+}
+
+// ... etc
+```
+
+---
+
+## Implementation Order
+
+| Priority | Component               | Effort | Impact                 |
+| -------- | ----------------------- | ------ | ---------------------- |
+| 1        | CollectionStats         | Low    | High (4→1)             |
+| 2        | NFTDetail Empty State   | Low    | Medium                 |
+| 3        | Gallery Page            | High   | Very High (4 sections) |
+| 4        | ErrorBoundary           | Medium | Medium                 |
+| 5        | LayerItem (toast utils) | Low    | Medium (cleanup)       |
+
+---
+
+## Verification Checklist
+
+After each migration:
+
+- [ ] `pnpm check` - TypeScript validation
+- [ ] `pnpm format` - Code formatted
+- [ ] Visual regression - UI looks identical
+- [ ] Functionality - All interactions work
+
+---
+
+## Migration Status
+
+### Completed
+
+- [ ] CollectionStats - Extract `statCell` snippet
+- [ ] NFTDetail - Extract `emptyState` snippet
+- [ ] Gallery Page - Extract responsive snippets
+- [ ] ErrorBoundary - Extract error UI snippets
+- [ ] LayerItem - Extract toast utilities to module
+
+---
+
+## Notes
+
+- Snippets can access component `$state` and `$derived` values directly
+- Use `Snippet<[Type]>` for typed parameters in component props
+- Consider exporting reusable snippets from shared component libraries
+- Keep snippets focused and single-purpose
