@@ -25,7 +25,7 @@
 
 	// Virtual scrolling state
 	let scrollElement: HTMLDivElement | null = $state(null);
-	let containerHeight = $state(700);
+	let containerHeight = $state(0);
 	let scrollTop = $state(0);
 
 	// Calculate visible range
@@ -166,11 +166,45 @@
 		// Images will be loaded on-demand when they come into view
 	});
 
+	// ResizeObserver to properly track container height changes
+	let resizeObserver: ResizeObserver | null = null;
+	let hasInitialized = $state(false);
+	let wrapperElement: HTMLDivElement | undefined = $state();
+
 	onMount(() => {
+		// Set up ResizeObserver on the wrapper element to track its height
+		if (wrapperElement) {
+			resizeObserver = new ResizeObserver((entries) => {
+				for (const entry of entries) {
+					const newHeight = entry.contentRect.height;
+					if (newHeight > 0) {
+						containerHeight = newHeight;
+						if (!hasInitialized) {
+							hasInitialized = true;
+						}
+					}
+				}
+			});
+			resizeObserver.observe(wrapperElement);
+
+			// Also try to get initial height immediately
+			const initialHeight = wrapperElement.clientHeight;
+			if (initialHeight > 0) {
+				containerHeight = initialHeight;
+				hasInitialized = true;
+			}
+		}
+
 		// Calculate initial visible range after DOM is ready
-		setTimeout(() => {
+		requestAnimationFrame(() => {
 			calculateVisibleRange();
-		}, 0);
+		});
+
+		return () => {
+			if (resizeObserver) {
+				resizeObserver.disconnect();
+			}
+		};
 	});
 
 	// Recalculate when nfts or container height change
@@ -197,7 +231,7 @@
 	const totalHeight = $derived(Math.ceil(nfts.length / columns) * rowHeight);
 </script>
 
-<div class="flex h-full flex-col {className}">
+<div bind:this={wrapperElement} class="flex h-full flex-col {className}">
 	<!-- Debug info - strictly flex-none to push content down -->
 	{#if import.meta.env.DEV}
 		<div

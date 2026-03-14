@@ -59,6 +59,10 @@
 		if (collections.length > 0 && !galleryStore.selectedCollection) {
 			untrack(() => {
 				galleryStore.setSelectedCollection(collections[0]);
+				// Auto-select first NFT to trigger proper layout calculation
+				if (collections[0].nfts.length > 0) {
+					galleryStore.setSelectedNFT(collections[0].nfts[0]);
+				}
 			});
 		}
 	});
@@ -151,10 +155,10 @@
 	});
 </script>
 
-<div class="bg-background flex h-screen flex-col overflow-hidden">
+<div class="bg-background flex min-h-[100dvh] flex-col overflow-visible">
 	{#if isLoading}
 		<!-- Loading State -->
-		<div class="flex min-h-[60vh] items-center justify-center">
+		<div class="flex min-h-[60vh] items-center justify-center px-4">
 			<div class="text-center">
 				<div class="text-muted-foreground mb-2 text-lg">Loading gallery...</div>
 				<div class="bg-muted mx-auto h-2 w-48 max-w-sm animate-pulse rounded-full"></div>
@@ -196,11 +200,11 @@
 			</div>
 		</header>
 
-		<main class="flex-1 overflow-hidden">
+		<main class="flex-1 overflow-visible">
 			<!-- Main Content -->
 			{#if collections.length === 0}
 				<!-- Empty State with Import -->
-				<div class="flex min-h-[calc(100vh-200px)] items-center justify-center p-6">
+				<div class="flex min-h-[calc(100dvh-200px)] items-center justify-center px-4 pb-24">
 					<div class="w-full max-w-4xl text-center">
 						<svg
 							class="text-muted-foreground mx-auto h-16 w-16"
@@ -222,10 +226,10 @@
 				</div>
 			{:else}
 				<!-- Mobile Layout (below 640px) -->
-				<div class="flex h-full flex-col sm:hidden">
+				<div class="flex h-[100dvh] flex-col sm:hidden">
 					{#if selectedCollection}
 						<!-- Collection Header - Mobile -->
-						<div class="bg-background/95 border-b p-4 backdrop-blur">
+						<div class="bg-background/95 shrink-0 border-b p-4 backdrop-blur">
 							<h2 class="text-lg font-bold">{selectedCollection.name}</h2>
 							<div class="text-muted-foreground mt-1 text-xs">
 								{selectedCollection.totalSupply} NFTs • {new Date(
@@ -267,13 +271,13 @@
 						</div>
 
 						<!-- NFT Grid -->
-						<div class="relative min-h-0 flex-1">
+						<div class="relative min-h-0 flex-1 pb-32">
 							<SimpleVirtualGrid
 								nfts={filteredNFTs}
 								{selectedNFT}
 								onselect={selectNFT}
 								columns={3}
-								itemHeight={150}
+								itemHeight={120}
 								gap={8}
 								class="h-full"
 							/>
@@ -282,7 +286,7 @@
 						<!-- Mobile Details Sheet -->
 						{#if selectedNFT}
 							<div
-								class="bg-background/95 fixed inset-x-0 bottom-0 z-50 max-h-[60vh] overflow-y-auto border-t p-4 shadow-2xl backdrop-blur-xl"
+								class="bg-background/95 pb-safe fixed inset-x-0 bottom-0 z-50 max-h-[60vh] overflow-y-auto border-t p-4 shadow-2xl backdrop-blur-xl"
 							>
 								<div class="mb-4 flex items-center justify-between">
 									<h3 class="font-bold">NFT Details</h3>
@@ -315,7 +319,7 @@
 				<!-- Mobile Landscape / Small Tablet (640px to 767px) -->
 				<div class="hidden h-full sm:flex md:hidden">
 					{#if selectedCollection}
-						<div class="flex flex-1 flex-col overflow-hidden">
+						<div class="flex flex-1 flex-col overflow-hidden pb-24">
 							<div class="bg-background/95 border-b p-4 backdrop-blur">
 								<h2 class="truncate text-xl font-bold">{selectedCollection.name}</h2>
 								<div class="flex items-center gap-2">
