@@ -2,9 +2,13 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { enhancedImages } from '@sveltejs/enhanced-img';
+import juno from '@junobuild/vite-plugin';
 
 export default defineConfig({
 	plugins: [
+		enhancedImages(),
+		juno(),
 		sveltekit(),
 		tailwindcss(),
 		SvelteKitPWA({
