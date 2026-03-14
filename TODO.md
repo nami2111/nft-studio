@@ -229,11 +229,11 @@ After each migration:
 
 ### Completed
 
-- [ ] CollectionStats - Extract `statCell` snippet
-- [ ] NFTDetail - Extract `emptyState` snippet
-- [ ] Gallery Page - Extract responsive snippets
+- [x] CollectionStats - Extract `statCell` snippet
+- [x] NFTDetail - Extract `emptyState` snippet
+- [ ] Gallery Page - Extract responsive snippets (skipped - layouts intentionally differ per breakpoint)
 - [ ] ErrorBoundary - Extract error UI snippets
-- [ ] LayerItem - Extract toast utilities to module
+- [x] LayerItem - Extract toast utilities to module
 
 ---
 

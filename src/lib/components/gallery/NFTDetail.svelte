@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { GalleryNFT } from '$lib/types/gallery';
 	import { Card } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
@@ -37,6 +38,30 @@
 		return score.toFixed(2);
 	}
 </script>
+
+{#snippet emptyState(icon: Snippet, title: string, description: string)}
+	<Card class="flex flex-col items-center justify-center p-12 text-center opacity-60">
+		<div class="bg-muted mb-4 rounded-full p-4">
+			{@render icon()}
+		</div>
+		<div class="text-foreground text-base font-medium">{title}</div>
+		<div class="text-muted-foreground mt-1 text-sm">{description}</div>
+	</Card>
+{/snippet}
+
+{#snippet nftImageIcon()}
+	<svg
+		class="text-muted-foreground h-10 w-10"
+		fill="none"
+		stroke="currentColor"
+		viewBox="0 0 24 24"
+		aria-hidden="true"
+	>
+		<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="1.5" />
+		<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1.5" />
+		<polyline points="21 15 16 10 5 21" stroke-width="1.5" />
+	</svg>
+{/snippet}
 
 {#snippet content()}
 	{#if selectedNFT}
@@ -151,25 +176,10 @@
 			</Card>
 		{/if}
 	{:else}
-		<!-- Empty State -->
-		<Card class="flex flex-col items-center justify-center p-12 text-center opacity-60">
-			<div class="bg-muted mb-4 rounded-full p-4">
-				<svg
-					class="text-muted-foreground h-10 w-10"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-					aria-hidden="true"
-				>
-					<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="1.5" />
-					<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1.5" />
-					<polyline points="21 15 16 10 5 21" stroke-width="1.5" />
-				</svg>
-			</div>
-			<div class="text-foreground text-base font-medium">No NFT Selected</div>
-			<div class="text-muted-foreground mt-1 text-sm">
-				Select an NFT from the gallery to view its details, traits, and rarity.
-			</div>
-		</Card>
+		{@render emptyState(
+			nftImageIcon,
+			'No NFT Selected',
+			'Select an NFT from the gallery to view its details, traits, and rarity.'
+		)}
 	{/if}
 </div>
