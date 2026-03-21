@@ -144,7 +144,7 @@
 			-1px -1px;
 	}
 
-	:global(section) {
+	section {
 		cursor: crosshair;
 	}
 </style>

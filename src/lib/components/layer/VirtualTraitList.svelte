@@ -82,17 +82,17 @@
 			}, 0);
 
 			// Also update on resize
-			window.addEventListener('resize', updateContainerHeight);
 		}
 	});
 
 	onDestroy(() => {
 		if (container) {
 			container.removeEventListener('scroll', handleScroll);
-			window.removeEventListener('resize', updateContainerHeight);
 		}
 	});
 </script>
+
+<svelte:window onresize={updateContainerHeight} />
 
 <div class="relative h-full overflow-auto" bind:this={container}>
 	<div style="height: {totalHeight}px;">
@@ -100,17 +100,14 @@
 			class="absolute top-0 left-0 grid w-full grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"
 			style="transform: translateY({offsetY}px);"
 		>
-			{#each traits as trait (trait.id)}
-				{@const isVisible = visibleTraits.some((vt) => vt.id === trait.id)}
-				{#if isVisible}
-					<TraitCard
-						{trait}
-						{layerId}
-						selected={selectedTraits.has(trait.id)}
-						onToggleSelection={() => onToggleSelection(trait.id)}
-						{showSelection}
-					/>
-				{/if}
+			{#each visibleTraits as trait (trait.id)}
+				<TraitCard
+					{trait}
+					{layerId}
+					selected={selectedTraits.has(trait.id)}
+					onToggleSelection={() => onToggleSelection(trait.id)}
+					{showSelection}
+				/>
 			{/each}
 		</div>
 	</div>

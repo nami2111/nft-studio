@@ -22,19 +22,24 @@
 	let externalUrl = $state('');
 	let animationUrl = $state('');
 
+	// Track focused fields to avoid overwriting unsaved edits
+	let focusedField = $state<string | null>(null);
+
 	const MAX_NAME_LENGTH = 100;
 	const MAX_DESC_LENGTH = 500;
 
-	// Sync with project store changes
+	// Sync with project store changes (skip focused fields to preserve unsaved edits)
 	$effect(() => {
 		const currentProject = project;
-		projectName = currentProject.name;
-		projectDescription = currentProject.description;
-		metadataStandard = currentProject.metadataStandard || MetadataStandard.ERC721;
-		symbol = currentProject.symbol || '';
-		sellerFeeBasisPoints = currentProject.sellerFeeBasisPoints || 0;
-		externalUrl = currentProject.externalUrl || '';
-		animationUrl = currentProject.animationUrl || '';
+		if (focusedField !== 'projectName') projectName = currentProject.name;
+		if (focusedField !== 'projectDescription') projectDescription = currentProject.description;
+		if (focusedField !== 'metadataStandard')
+			metadataStandard = currentProject.metadataStandard || MetadataStandard.ERC721;
+		if (focusedField !== 'symbol') symbol = currentProject.symbol || '';
+		if (focusedField !== 'sellerFee')
+			sellerFeeBasisPoints = currentProject.sellerFeeBasisPoints || 0;
+		if (focusedField !== 'externalUrl') externalUrl = currentProject.externalUrl || '';
+		if (focusedField !== 'animationUrl') animationUrl = currentProject.animationUrl || '';
 	});
 
 	// Save project name
@@ -111,6 +116,8 @@
 				value={projectName}
 				onchange={(e: Event) => saveProjectName((e.target as HTMLInputElement).value)}
 				onkeydown={(e) => e.key === 'Enter' && saveProjectName(projectName)}
+				onfocus={() => (focusedField = 'projectName')}
+				onblur={() => (focusedField = null)}
 				placeholder="Enter project name"
 				class="text-xs sm:text-sm"
 			/>
@@ -126,6 +133,8 @@
 				rows={3}
 				value={projectDescription}
 				onchange={(e: Event) => saveProjectDescription((e.target as HTMLTextAreaElement).value)}
+				onfocus={() => (focusedField = 'projectDescription')}
+				onblur={() => (focusedField = null)}
 				placeholder="Enter project description"
 				class="text-xs sm:text-sm"
 			/>
@@ -152,6 +161,8 @@
 					type="text"
 					value={symbol}
 					onchange={(e: Event) => saveSymbol((e.target as HTMLInputElement).value)}
+					onfocus={() => (focusedField = 'symbol')}
+					onblur={() => (focusedField = null)}
 					placeholder="e.g. NFT"
 					class="text-xs uppercase sm:text-sm"
 				/>
@@ -168,6 +179,8 @@
 					value={sellerFeeBasisPoints}
 					onchange={(e: Event) =>
 						saveSellerFee(parseInt((e.target as HTMLInputElement).value) || 0)}
+					onfocus={() => (focusedField = 'sellerFee')}
+					onblur={() => (focusedField = null)}
 					placeholder="e.g. 500 (5%)"
 					class="text-xs sm:text-sm"
 				/>
@@ -184,6 +197,8 @@
 				type="url"
 				value={externalUrl}
 				onchange={(e: Event) => saveExternalUrl((e.target as HTMLInputElement).value)}
+				onfocus={() => (focusedField = 'externalUrl')}
+				onblur={() => (focusedField = null)}
 				placeholder="https://yourwebsite.com/nft/1"
 				class="text-xs sm:text-sm"
 			/>
@@ -199,6 +214,8 @@
 				type="url"
 				value={animationUrl}
 				onchange={(e: Event) => saveAnimationUrl((e.target as HTMLInputElement).value)}
+				onfocus={() => (focusedField = 'animationUrl')}
+				onblur={() => (focusedField = null)}
 				placeholder="ipfs://... or https://..."
 				class="text-xs sm:text-sm"
 			/>

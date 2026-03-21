@@ -321,16 +321,6 @@
 		unsubscribes.push(() => {
 			console.error = originalConsoleError;
 		});
-
-		// Listen for navigation events
-		if (resetOnNavigation) {
-			const handlePopState = () => handleNavigation();
-			window.addEventListener('popstate', handlePopState);
-
-			unsubscribes.push(() => {
-				window.removeEventListener('popstate', handlePopState);
-			});
-		}
 	});
 
 	onDestroy(() => {
@@ -339,6 +329,8 @@
 		unsubscribes = [];
 	});
 </script>
+
+<svelte:window onpopstate={handleNavigation} />
 
 {#if hasError}
 	{#if fallback}
@@ -507,15 +499,15 @@
 
 <style>
 	/* Ensure proper contrast and readability */
-	:global(.dark) .text-gray-900 {
+	:global(.dark) :global(.text-gray-900) {
 		color: rgb(243 244 246);
 	}
 
-	:global(.dark) .text-gray-600 {
+	:global(.dark) :global(.text-gray-600) {
 		color: rgb(156 163 175);
 	}
 
-	:global(.dark) .text-gray-500 {
+	:global(.dark) :global(.text-gray-500) {
 		color: rgb(107 114 128);
 	}
 </style>

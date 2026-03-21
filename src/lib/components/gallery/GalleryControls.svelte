@@ -15,6 +15,13 @@
 	let selectedCollection = $state(galleryStore.selectedCollection?.id || '');
 	let sortOption = $state(galleryStore.sortOption);
 
+	// Sync local state from store when it changes externally
+	$effect(() => {
+		searchQuery = galleryStore.filterOptions.search || '';
+		selectedCollection = galleryStore.selectedCollection?.id || '';
+		sortOption = galleryStore.sortOption;
+	});
+
 	const collections = $derived(galleryStore.collections);
 	const sortOptions: { value: GallerySortOption; label: string }[] = [
 		{ value: 'newest', label: 'Newest First' },

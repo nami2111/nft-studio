@@ -160,15 +160,9 @@
 		onselect?.(nft);
 	}
 
-	// Minimal preloading to avoid overwhelming the cache - DISABLED FOR PERFORMANCE
-	$effect(() => {
-		// Skip preloading to avoid the 44-216ms URL creation bottleneck
-		// Images will be loaded on-demand when they come into view
-	});
-
 	// ResizeObserver to properly track container height changes
 	let resizeObserver: ResizeObserver | null = null;
-	let hasInitialized = $state(false);
+	let hasInitialized = false;
 	let wrapperElement: HTMLDivElement | undefined = $state();
 
 	onMount(() => {

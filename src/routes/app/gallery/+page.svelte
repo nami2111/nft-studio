@@ -139,21 +139,13 @@
 	// Close dropdown when clicking outside
 	function handleClickOutside(event: MouseEvent) {
 		const target = event.target as Element;
-		if (!target.closest('.sort-dropdown-container')) {
+		if (sortDropdownOpen && !target.closest('.sort-dropdown-container')) {
 			sortDropdownOpen = false;
 		}
 	}
-
-	// Add/remove event listener for click outside
-	$effect(() => {
-		if (sortDropdownOpen) {
-			document.addEventListener('click', handleClickOutside);
-			return () => {
-				document.removeEventListener('click', handleClickOutside);
-			};
-		}
-	});
 </script>
+
+<svelte:document onclick={handleClickOutside} />
 
 <div class="bg-background flex min-h-[100dvh] flex-col overflow-visible">
 	{#if isLoading}

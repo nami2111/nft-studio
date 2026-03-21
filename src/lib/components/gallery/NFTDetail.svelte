@@ -125,7 +125,7 @@
 			<div class="space-y-3">
 				<h3 class="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Traits</h3>
 				<div class="grid gap-2">
-					{#each selectedNFT.metadata.traits as trait, i (i)}
+					{#each selectedNFT.metadata.traits as trait ((trait.layer || (trait as Record<string, unknown>).trait_type || '') + ':' + (trait.trait || (trait as Record<string, unknown>).value || ''))}
 						{@const layer =
 							trait.layer ||
 							((trait as Record<string, unknown>).trait_type as string) ||

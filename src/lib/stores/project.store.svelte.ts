@@ -1,6 +1,11 @@
 /**
  * Modern Svelte 5 runes-based project store for NFT Studio
  * Focused on core state management and business logic
+ *
+ * @note The `project` export is intentionally a module-level singleton.
+ * This app is a single-session SPA (no SSR, no multi-user), so a global
+ * singleton is appropriate. If multi-instance support is ever needed,
+ * migrate to Svelte context (setContext/getContext).
  */
 
 import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';

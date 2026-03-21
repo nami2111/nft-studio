@@ -2,6 +2,9 @@
  * Persistent Generation State Store
  * Manages generation state that survives component unmounts and preserves generation logic integrity
  * Including strict pair tracking, rarity distribution, and progress
+ *
+ * @note The `generationState` export is intentionally a module-level singleton.
+ * Generation must persist across route changes; context-scoped state would be lost on unmount.
  */
 
 import type { Layer, StrictPairConfig } from '$lib/types/layer';

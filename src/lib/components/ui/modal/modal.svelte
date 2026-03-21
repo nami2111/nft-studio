@@ -1,16 +1,3 @@
-<script module>
-	export function portal(node: HTMLElement, target: HTMLElement) {
-		target.appendChild(node);
-		return {
-			destroy() {
-				if (node.parentNode === target) {
-					target.removeChild(node);
-				}
-			}
-		};
-	}
-</script>
-
 <script lang="ts">
 	import { Modal as NeoBrModal } from '@neobr/svelte';
 	import type { Snippet } from 'svelte';
@@ -39,20 +26,21 @@
 		onClose?.();
 	}
 
-	let portalTarget = $state<HTMLElement | null>(null);
-
-	$effect(() => {
-		if (typeof document !== 'undefined') {
-			portalTarget = document.body;
-		}
-	});
+	function portalToBody(node: HTMLElement) {
+		document.body.appendChild(node);
+		return () => {
+			if (node.parentNode === document.body) {
+				document.body.removeChild(node);
+			}
+		};
+	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const ModalComponent = NeoBrModal as any;
 </script>
 
-{#if portalTarget && open}
-	<div use:portal={portalTarget}>
+{#if open}
+	<div {@attach portalToBody}>
 		<ModalComponent bind:open {title} {size} onClose={handleClose}>
 			{#if description}
 				<p class="text-muted-foreground mb-4 text-sm">{description}</p>

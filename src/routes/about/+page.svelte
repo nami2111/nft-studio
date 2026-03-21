@@ -121,7 +121,7 @@
 									: 'text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-[1.01]'}"
 								onclick={() => showSection(section.id)}
 							>
-								<svelte:component this={section.icon} class="h-4 w-4" />
+								<section.icon class="h-4 w-4" />
 								<span class="text-sm font-medium">{section.label}</span>
 							</button>
 						{/each}
@@ -215,7 +215,7 @@
 							: 'text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-[1.01]'}"
 						onclick={() => showSection(section.id)}
 					>
-						<svelte:component this={section.icon} class="h-4 w-4" />
+						<section.icon class="h-4 w-4" />
 						<span class="text-sm font-medium">{section.label}</span>
 					</button>
 				{/each}

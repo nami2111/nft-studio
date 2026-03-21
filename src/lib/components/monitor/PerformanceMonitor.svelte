@@ -25,7 +25,7 @@
 	} = usePerformanceMonitoring();
 
 	// Real-time metrics state
-	let realTimeMetrics = $state({
+	let realTimeMetrics = $state.raw({
 		activeWorkers: 0,
 		cacheHitRate: 0,
 		memoryUsage: 0,

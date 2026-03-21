@@ -19,7 +19,7 @@
 	const { trait, layer, allLayers, onRulesUpdate }: Props = $props();
 
 	let isDialogOpen = $state(false);
-	let rules = $derived(trait.rulerRules || []);
+	let rules = $state<RulerRule[]>([]);
 	let newRule = $state<RulerRule>({
 		layerId: '' as LayerId,
 		allowedTraitIds: [],
@@ -105,11 +105,9 @@
 		return rule;
 	}
 
-	// Clean up conflicts when rules are loaded
+	// Sync rules from trait and clean up conflicts
 	$effect(() => {
-		if (trait.rulerRules) {
-			rules = trait.rulerRules.map(cleanupConflicts);
-		}
+		rules = (trait.rulerRules || []).map(cleanupConflicts);
 	});
 </script>
 

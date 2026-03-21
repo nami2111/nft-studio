@@ -12,7 +12,7 @@
 	const { class: className = '' }: Props = $props();
 
 	// Get source NFTs for trait extraction (avoid filtering overhead)
-	const sourceNFTs = $derived(() => {
+	const sourceNFTs = $derived.by(() => {
 		if (galleryStore.selectedCollection) {
 			return galleryStore.selectedCollection.nfts;
 		} else {
@@ -21,8 +21,8 @@
 	});
 
 	// Derive available traits from source NFTs (more efficient)
-	const availableTraits = $derived(() => {
-		const nfts = sourceNFTs();
+	const availableTraits = $derived.by(() => {
+		const nfts = sourceNFTs;
 		const traitMap = new SvelteMap<string, Set<string>>();
 
 		for (const nft of nfts) {
@@ -46,10 +46,10 @@
 	});
 
 	// Selected traits state
-	const selectedTraits = $derived(() => galleryStore.filterOptions.selectedTraits || {});
+	const selectedTraits = $derived(galleryStore.filterOptions.selectedTraits || {});
 
 	function toggleTrait(layer: string, trait: string) {
-		const current = { ...selectedTraits() };
+		const current = { ...selectedTraits };
 		if (!current[layer]) {
 			current[layer] = [];
 		} else {
@@ -77,12 +77,12 @@
 	}
 
 	function isTraitSelected(layer: string, trait: string): boolean {
-		return selectedTraits()[layer]?.includes(trait) || false;
+		return selectedTraits[layer]?.includes(trait) || false;
 	}
 
 	function getTraitCount(layer: string, trait: string): number {
 		// Use source NFTs for trait counts (more efficient)
-		const nfts = sourceNFTs();
+		const nfts = sourceNFTs;
 		return nfts.filter((nft) =>
 			nft.metadata.traits.some((t) => {
 				const tLayer = t.layer || (t as Record<string, unknown>).trait_type;
@@ -97,7 +97,7 @@
 	<div class="space-y-4">
 		<div class="flex items-center justify-between">
 			<h3 class="text-foreground font-semibold">Filter by Traits</h3>
-			{#if Object.keys(selectedTraits()).length > 0}
+			{#if Object.keys(selectedTraits).length > 0}
 				<Button variant="ghost" size="sm" onclick={clearAllTraits}>Clear All</Button>
 			{/if}
 		</div>
@@ -108,7 +108,7 @@
 			</div>
 		{:else}
 			<div class="space-y-3">
-				{#each availableTraits() as traitGroup (traitGroup.layer)}
+				{#each availableTraits as traitGroup (traitGroup.layer)}
 					<div class="space-y-2">
 						<h4 class="text-foreground text-sm font-medium">{traitGroup.layer}</h4>
 						<div class="flex flex-wrap gap-1">
@@ -140,11 +140,11 @@
 			</div>
 
 			<!-- Active filters summary -->
-			{#if Object.keys(selectedTraits()).length > 0}
+			{#if Object.keys(selectedTraits).length > 0}
 				<div class="border-t pt-3">
 					<div class="text-muted-foreground mb-2 text-sm">Active Filters:</div>
 					<div class="flex flex-wrap gap-1">
-						{#each Object.entries(selectedTraits()) as [layer, traits] (layer)}
+						{#each Object.entries(selectedTraits) as [layer, traits] (layer)}
 							{#each traits as trait (trait)}
 								<Badge variant="secondary" class="text-xs">
 									{layer}: {trait}
