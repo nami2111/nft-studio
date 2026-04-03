@@ -46,7 +46,7 @@
 
 			<div class="mt-auto flex flex-col gap-4 pt-6 sm:flex-row sm:gap-6 sm:pt-8">
 				<Button
-					variant="primary"
+					variant="default"
 					size="lg"
 					class="h-14 w-full px-8 text-base font-bold tracking-wider sm:w-auto"
 					onclick={() => goto(resolve('/app'))}
