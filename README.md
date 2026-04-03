@@ -70,7 +70,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Frontend**: SvelteKit 2, Svelte 5 with runes, TypeScript
 - **Styling**: Tailwind CSS 4, NeoBr-UI design system (brutalist components), lucide-svelte icons
 - **State Management**: Svelte 5 runes ($state, $derived, $effect) with modular store architecture
-- **Build System**: Vite with static adapter, bundle visualization, and PWA support
+- **Build System**: Vite+ with static adapter, bundle visualization, and PWA support
 
 ### Performance & Processing
 
@@ -98,8 +98,8 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 
 ### Development & Testing
 
-- **Testing**: Vitest with @testing-library/svelte, jsdom environment
-- **Code Quality**: ESLint (flat config), Prettier, TypeScript ESLint
+- **Testing**: Vite+ test runner with @testing-library/svelte, jsdom environment
+- **Code Quality**: Oxlint + Oxfmt (via Vite+) for blazing-fast linting and formatting
 - **Validation**: Comprehensive type coverage with strict TypeScript configuration
 - **Documentation**: JSDoc for API documentation with automated formatting
 
@@ -135,7 +135,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 3. Start the development server:
 
    ```bash
-   pnpm dev
+   vp dev
    ```
 
 4. Open your browser to `http://localhost:5173`
@@ -144,10 +144,10 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 
 ```bash
 # Build the application
-pnpm build
+vp build
 
 # Preview the built application
-pnpm preview
+vp preview
 ```
 
 ## Development
@@ -183,19 +183,18 @@ src/
 
 | Script                      | Description                      |
 | --------------------------- | -------------------------------- |
-| `pnpm dev`                  | Start development server         |
-| `pnpm build`                | Build for production             |
-| `pnpm preview`              | Preview production build         |
-| `pnpm check`                | Run TypeScript and Svelte checks |
-| `pnpm check:watch`          | Watch mode for type checking     |
-| `pnpm lint`                 | Check code style                 |
-| `pnpm format`               | Format code                      |
-| `pnpm test`                 | Run tests                        |
-| `pnpm test:watch`           | Run tests in watch mode          |
-| `pnpm test:coverage`        | Run tests with coverage          |
+| `vp dev`                    | Start development server         |
+| `vp build`                  | Build for production             |
+| `vp preview`                | Preview production build         |
+| `vp check`                  | Run format + lint + type checks  |
+| `vp lint`                   | Lint with Oxlint                 |
+| `vp fmt`                    | Format with Oxfmt                |
+| `vp test`                   | Run tests                        |
+| `vp test watch`             | Run tests in watch mode          |
+| `vp test run --coverage`    | Run tests with coverage          |
 | `pnpm standardize-comments` | Standardize comment formatting   |
 | `pnpm verify-lockfile`      | Verify package lock integrity    |
-| `pnpm test:ci`              | Run tests with JUnit reporter    |
+| `vp test run --reporter=junit --outdir .svelte-kit/test-results` | Run tests with JUnit reporter |
 | `pnpm lint-ci`              | CI linting (same as lint)        |
 
 ### Code Quality
@@ -204,8 +203,8 @@ We maintain high code quality standards with a focus on maintainable architectur
 
 - **Single Responsibility Principle**: Each module has one clear purpose
 - **TypeScript**: Comprehensive type safety with branded types for compile-time safety
-- **Prettier**: Consistent code formatting with tab indentation
-- **ESLint**: Code quality and style enforcement
+- **Oxfmt**: Consistent code formatting with tab indentation
+- **Oxlint**: Code quality and style enforcement
 - **Modular Design**: Focused, reusable components and services
 - **Error Handling**: Centralized error management with typed errors
 - **Performance**: Memory management and Web Worker optimization
@@ -356,7 +355,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 - Unit tests for validation: `src/lib/domain/validation.test.ts`
 - Worker pool tests: `src/lib/workers/worker.pool.test.ts`
-- Run tests with `pnpm test`, `pnpm test:watch`, or `pnpm test:coverage`
+- Run tests with `vp test`, `vp test watch`, or `vp test run --coverage`
 
 ## Environment Variables
 
