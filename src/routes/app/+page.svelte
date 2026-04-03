@@ -84,6 +84,11 @@
 	});
 </script>
 
+<svelte:head>
+	<title>NFT Studio Workspace - Create & Generate</title>
+	<meta name="description" content="Design layers, configure traits, and generate your NFT collection with the NFT Studio workspace." />
+</svelte:head>
+
 <div class="w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
 	<!-- Project Management Section -->
 	<div class="mb-3 flex justify-start sm:mb-4">

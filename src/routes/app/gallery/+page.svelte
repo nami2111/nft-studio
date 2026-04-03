@@ -145,6 +145,11 @@
 	}
 </script>
 
+<svelte:head>
+	<title>NFT Studio Gallery - Browse Collections</title>
+	<meta name="description" content="Browse, filter, and explore your generated NFT collections in the NFT Studio gallery." />
+</svelte:head>
+
 <svelte:document onclick={handleClickOutside} />
 
 <div class="bg-background flex min-h-[100dvh] flex-col overflow-visible">
