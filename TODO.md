@@ -7,14 +7,14 @@
 
 ## Tech Stack Overview
 
-| Layer | Technology |
-|---|---|
-| Framework | SvelteKit 2 (SPA mode, static) |
-| UI | Svelte 5 + Tailwind CSS 4 + shadcn-svelte |
-| Build | Vite 8 + vite-plus |
-| Hosting | Internet Computer (ICP) via Juno |
-| PWA | @vite-pwa/sveltekit + Workbox |
-| Analytics | Juno Orbiter |
+| Layer     | Technology                                |
+| --------- | ----------------------------------------- |
+| Framework | SvelteKit 2 (SPA mode, static)            |
+| UI        | Svelte 5 + Tailwind CSS 4 + shadcn-svelte |
+| Build     | Vite 8 + vite-plus                        |
+| Hosting   | Internet Computer (ICP) via Juno          |
+| PWA       | @vite-pwa/sveltekit + Workbox             |
+| Analytics | Juno Orbiter                              |
 
 ---
 
@@ -131,18 +131,18 @@
 1. Add JSON-LD structured data to `app.html` or root layout:
    ```json
    {
-     "@context": "https://schema.org",
-     "@type": "SoftwareApplication",
-     "name": "NFT Studio",
-     "description": "Create stunning NFT collections with ease",
-     "url": "https://your-domain.com",
-     "applicationCategory": "DesignApplication",
-     "operatingSystem": "Web",
-     "offers": {
-       "@type": "Offer",
-       "price": "0",
-       "priceCurrency": "USD"
-     }
+   	"@context": "https://schema.org",
+   	"@type": "SoftwareApplication",
+   	"name": "NFT Studio",
+   	"description": "Create stunning NFT collections with ease",
+   	"url": "https://your-domain.com",
+   	"applicationCategory": "DesignApplication",
+   	"operatingSystem": "Web",
+   	"offers": {
+   		"@type": "Offer",
+   		"price": "0",
+   		"priceCurrency": "USD"
+   	}
    }
    ```
 2. Add BreadcrumbList schema to `/about` page
@@ -282,7 +282,7 @@
 1. Add environment check before logging:
    ```ts
    if (import.meta.env.DEV) {
-     console.error(error);
+   	console.error(error);
    }
    ```
 2. In production, log to a secure error tracking service instead
@@ -365,50 +365,50 @@
 
 ### Phase 1 — Quick Wins (1-2 hours)
 
-| # | Task | Effort |
-|---|---|---|
-| 5 | Add `/about` to `static/sitemap.xml` | 5 min |
-| 12 | Add `width`/`height` attributes to all `<img>` tags | 30 min |
-| 10 | Add `<link rel="preload">` for JetBrains Mono font | 5 min |
-| 17 | Add `og:image:width`/`height` to meta tags | 5 min |
-| 16 | Remove `console.error` from production hooks | 5 min |
+| #   | Task                                                | Effort |
+| --- | --------------------------------------------------- | ------ |
+| 5   | Add `/about` to `static/sitemap.xml`                | 5 min  |
+| 12  | Add `width`/`height` attributes to all `<img>` tags | 30 min |
+| 10  | Add `<link rel="preload">` for JetBrains Mono font  | 5 min  |
+| 17  | Add `og:image:width`/`height` to meta tags          | 5 min  |
+| 16  | Remove `console.error` from production hooks        | 5 min  |
 
 ### Phase 2 — Security Hardening (2-4 hours)
 
-| # | Task | Effort |
-|---|---|---|
-| 3 | Add CSP meta tag or configure headers | 1-2 hours |
-| 13 | Add `frame-ancestors 'none'` to Permissions-Policy | 5 min |
-| 15 | Remove `style` from DOMPurify allowed attributes | 15 min |
-| 14 | Add COOP/COEP headers (if hosting supports) | 30 min |
-| 2 | Investigate real HTTP headers for ICP hosting | 30 min |
+| #   | Task                                               | Effort    |
+| --- | -------------------------------------------------- | --------- |
+| 3   | Add CSP meta tag or configure headers              | 1-2 hours |
+| 13  | Add `frame-ancestors 'none'` to Permissions-Policy | 5 min     |
+| 15  | Remove `style` from DOMPurify allowed attributes   | 15 min    |
+| 14  | Add COOP/COEP headers (if hosting supports)        | 30 min    |
+| 2   | Investigate real HTTP headers for ICP hosting      | 30 min    |
 
 ### Phase 3 — SEO Improvements (2-4 hours)
 
-| # | Task | Effort |
-|---|---|---|
-| 7 | Add JSON-LD structured data | 30 min |
-| 4 | Update sitemap/robots.txt with correct domain | 15 min |
-| 8 | Add per-page `<title>` and meta descriptions | 30 min |
-| 18 | Add `twitter:site` handle | 5 min |
-| 6 | Configure custom domain (if possible) | 1-2 hours |
+| #   | Task                                          | Effort    |
+| --- | --------------------------------------------- | --------- |
+| 7   | Add JSON-LD structured data                   | 30 min    |
+| 4   | Update sitemap/robots.txt with correct domain | 15 min    |
+| 8   | Add per-page `<title>` and meta descriptions  | 30 min    |
+| 18  | Add `twitter:site` handle                     | 5 min     |
+| 6   | Configure custom domain (if possible)         | 1-2 hours |
 
 ### Phase 4 — Performance (4-8 hours)
 
-| # | Task | Effort |
-|---|---|---|
-| 1 | Enable SSR for public pages | 2-4 hours |
-| 9 | Use `enhancedImages()` with `<enhanced:img>` imports | 1-2 hours |
-| 11 | Add bundle size budgets to `vite.config.ts` | 30 min |
-| 21 | Set up Lighthouse CI | 1-2 hours |
+| #   | Task                                                 | Effort    |
+| --- | ---------------------------------------------------- | --------- |
+| 1   | Enable SSR for public pages                          | 2-4 hours |
+| 9   | Use `enhancedImages()` with `<enhanced:img>` imports | 1-2 hours |
+| 11  | Add bundle size budgets to `vite.config.ts`          | 30 min    |
+| 21  | Set up Lighthouse CI                                 | 1-2 hours |
 
 ### Phase 5 — Testing & Quality (4-8 hours)
 
-| # | Task | Effort |
-|---|---|---|
-| 19 | Set up Playwright E2E testing | 2-4 hours |
-| 20 | Add accessibility testing | 1-2 hours |
-| 21 | Configure Lighthouse CI budgets | 1 hour |
+| #   | Task                            | Effort    |
+| --- | ------------------------------- | --------- |
+| 19  | Set up Playwright E2E testing   | 2-4 hours |
+| 20  | Add accessibility testing       | 1-2 hours |
+| 21  | Configure Lighthouse CI budgets | 1 hour    |
 
 ---
 
@@ -433,19 +433,19 @@ After each fix:
 - [ ] #2 — Real HTTP security headers
 - [ ] #3 — Content-Security-Policy
 - [ ] #4 — Update sitemap domain
-- [ ] #5 — Add `/about` to sitemap
+- [x] #5 — Add `/about` to sitemap
 - [ ] #6 — Custom domain configuration
 - [ ] #7 — JSON-LD structured data
 - [ ] #8 — Per-page meta tags for `/app` and `/app/gallery`
 - [ ] #9 — Use `enhancedImages()` plugin
-- [ ] #10 — Font preloading
+- [x] #10 — Font preloading
 - [ ] #11 — Bundle size budgets
-- [ ] #12 — Image `width`/`height` attributes
+- [ ] #12 — Image `width`/`height` attributes (dynamic images use CSS aspect-ratio)
 - [ ] #13 — `frame-ancestors` protection
 - [ ] #14 — COOP/COEP headers
 - [ ] #15 — Remove `style` from DOMPurify
-- [ ] #16 — Remove production `console.error`
-- [ ] #17 — `og:image:width`/`height`
+- [x] #16 — Remove production `console.error`
+- [x] #17 — `og:image:width`/`height`
 - [ ] #18 — `twitter:site` / `twitter:creator`
 - [ ] #19 — E2E testing setup
 - [ ] #20 — Accessibility testing
