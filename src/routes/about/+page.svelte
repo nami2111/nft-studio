@@ -121,7 +121,7 @@
 									: 'text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-[1.01]'}"
 								onclick={() => showSection(section.id)}
 							>
-								<svelte:component this={section.icon} class="h-4 w-4" />
+								<section.icon class="h-4 w-4" />
 								<span class="text-sm font-medium">{section.label}</span>
 							</button>
 						{/each}
@@ -132,7 +132,7 @@
 						<div class="space-y-2">
 							<Button
 								variant="outline"
-								size="sm"
+								size="lg"
 								class="w-full"
 								onclick={() => (window.location.href = '/app')}
 							>
@@ -140,7 +140,7 @@
 							</Button>
 							<Button
 								variant="outline"
-								size="sm"
+								size="lg"
 								class="w-full"
 								onclick={() => (window.location.href = '/')}
 							>
@@ -215,7 +215,7 @@
 							: 'text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-[1.01]'}"
 						onclick={() => showSection(section.id)}
 					>
-						<svelte:component this={section.icon} class="h-4 w-4" />
+						<section.icon class="h-4 w-4" />
 						<span class="text-sm font-medium">{section.label}</span>
 					</button>
 				{/each}
@@ -227,7 +227,7 @@
 					<Button
 						variant="outline"
 						size="lg"
-						class="w-full transition-all hover:scale-105 hover:shadow-lg"
+						class="w-full"
 						onclick={() => (window.location.href = '/app')}
 					>
 						Launch Studio
@@ -235,7 +235,7 @@
 					<Button
 						variant="outline"
 						size="lg"
-						class="w-full transition-all hover:scale-105 hover:shadow-lg"
+						class="w-full"
 						onclick={() => (window.location.href = '/')}
 					>
 						Homepage
@@ -1048,8 +1048,8 @@
 											<div class="flex items-center space-x-3">
 												<span class="text-blue-500">📊</span>
 												<span class="text-muted-foreground text-sm">
-													<strong>Combination Counter:</strong> Shows total unique combinations that
-													will be tracked
+													<strong>Combination Counter:</strong> Shows total unique combinations that will
+													be tracked
 												</span>
 											</div>
 											<div class="flex items-center space-x-3">
@@ -1088,12 +1088,12 @@
 													</p>
 													<p><strong>Total Combinations:</strong> 5 × 4 = 20 unique combinations</p>
 													<p>
-														<strong>Result:</strong> Each character-accessory pair appears only once
-														in the collection
+														<strong>Result:</strong> Each character-accessory pair appears only once in
+														the collection
 													</p>
 													<p>
-														<strong>Use Case:</strong> Create 20 unique character outfits, each with
-														guaranteed uniqueness
+														<strong>Use Case:</strong> Create 20 unique character outfits, each with guaranteed
+														uniqueness
 													</p>
 												</div>
 											</div>
@@ -1134,8 +1134,8 @@
 												but allow other combinations to generate normally for natural rarity distribution
 											</li>
 											<li>
-												<strong>Document Logic:</strong> Keep track of your Strict Pair combinations
-												and their intended purpose
+												<strong>Document Logic:</strong> Keep track of your Strict Pair combinations and
+												their intended purpose
 											</li>
 											<li>
 												<strong>Monitor Generation:</strong> Watch the generation process to ensure the
@@ -1251,8 +1251,8 @@
 										</div>
 										<div class="border-border bg-muted rounded-lg border p-4">
 											<p class="text-foreground text-sm">
-												<strong>💡 Pro Tip:</strong> You can create multiple compatibility rules for
-												the same ruler trait, covering different trait categories. This gives you fine-grained
+												<strong>💡 Pro Tip:</strong> You can create multiple compatibility rules for the
+												same ruler trait, covering different trait categories. This gives you fine-grained
 												control over trait combinations.
 											</p>
 										</div>
@@ -1296,8 +1296,8 @@
 										<h3 class="text-foreground mb-4 font-semibold">Best Practices</h3>
 										<ul class="text-muted-foreground ml-6 list-disc space-y-2">
 											<li>
-												<strong>Plan Ahead:</strong> Design your ruler system before importing large
-												numbers of traits
+												<strong>Plan Ahead:</strong> Design your ruler system before importing large numbers
+												of traits
 											</li>
 											<li>
 												<strong>Test Combinations:</strong> Use the preview feature to verify compatibility

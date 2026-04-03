@@ -4,7 +4,7 @@
  * @module validation.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
 	sanitizeString,
 	validateProjectName,
@@ -67,7 +67,6 @@ describe('Zod Validation Module', () => {
 			expect(result2.data).toBe('Project - Name (2023)');
 			expect(result2.error).toBeUndefined();
 		});
-
 
 		it('sanitizes and accepts long project names', () => {
 			const result1 = validateProjectName('');

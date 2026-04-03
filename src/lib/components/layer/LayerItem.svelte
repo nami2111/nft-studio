@@ -27,75 +27,27 @@
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import NeedsReupload from '$lib/components/ui/NeedsReupload.svelte';
+	import {
+		showSuccess,
+		showError,
+		showWarning,
+		showInfo,
+		showBulkTraitDeleteSuccess,
+		showTraitRenameSuccess,
+		showValidationError,
+		showLayerRemoved,
+		showUploadPartialSuccess,
+		showUploadError,
+		showDeleteError
+	} from '$lib/utils/toast';
 
-	// Lazy toast imports to avoid loading svelte-sonner on component mount
-	let toastModule: typeof import('svelte-sonner') | null = null;
-	async function getToast() {
-		if (!toastModule) {
-			toastModule = await import('svelte-sonner');
-		}
-		return toastModule;
-	}
-
-	async function showSuccess(message: string, options?: { description?: string }) {
-		const { toast } = await getToast();
-		toast.success(message, { description: options?.description, duration: 4000 });
-	}
-
-	async function showError(message: string, options?: { description?: string }) {
-		const { toast } = await getToast();
-		toast.error(message, { description: options?.description, duration: 6000 });
-	}
-
-	async function showWarning(message: string, options?: { description?: string }) {
-		const { toast } = await getToast();
-		toast.warning(message, { description: options?.description, duration: 5000 });
-	}
-
-	async function showInfo(message: string, options?: { description?: string }) {
-		const { toast } = await getToast();
-		toast.info(message, { description: options?.description, duration: 4000 });
-	}
-
-	async function showBulkTraitDeleteSuccess(count: number) {
-		await showSuccess(`${count} trait(s) deleted successfully.`);
-	}
-
-	async function showTraitRenameSuccess(count: number) {
-		await showSuccess(`${count} trait(s) renamed.`);
-	}
-
-	async function showValidationError(message: string) {
-		await showError(message);
-	}
-
-	async function showLayerRemoved(layerName: string) {
-		await showInfo(`Layer "${layerName}" has been removed.`);
-	}
-
-	async function showUploadPartialSuccess(successCount: number, errorCount: number) {
-		if (errorCount === 0) {
-			await showSuccess(`${successCount} file(s) uploaded successfully.`);
-		} else {
-			await showWarning(`${successCount} file(s) uploaded, ${errorCount} failed.`);
-		}
-	}
-
-	async function showUploadError(message: string) {
-		await showError(`Upload failed: ${message}`);
-	}
-
-	async function showDeleteError() {
-		await showError('Failed to delete. Please try again.');
-	}
 	interface Props {
 		layer: Layer;
 	}
 
-	let { layer }: Props = $props();
+	const { layer }: Props = $props();
 
-	let isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
+	const isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
 
@@ -107,12 +59,12 @@
 	let searchTerm = $state(''); // For trait search/filter
 
 	// Filter traits based on search term
-	let filteredTraits = $derived(
+	const filteredTraits = $derived(
 		layer.traits.filter((trait) => trait.name.toLowerCase().includes(searchTerm.toLowerCase()))
 	);
 
 	// Bulk operation states
-	let selectedTraits = new SvelteSet<TraitId>();
+	const selectedTraits = new SvelteSet<TraitId>();
 	let bulkNewName = $state('');
 
 	// Toggle trait selection
@@ -147,11 +99,11 @@
 					removeTrait(layer.id, traitId);
 					deletedCount++;
 				});
-				await showBulkTraitDeleteSuccess(deletedCount);
+				showBulkTraitDeleteSuccess(deletedCount);
 				clearSelection();
 			} catch (error) {
 				console.error('Failed to delete traits:', error);
-				await showDeleteError();
+				showDeleteError();
 			}
 		}
 	}
@@ -161,7 +113,7 @@
 		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
 
 		if (bulkNewName.length > 100) {
-			await showValidationError('Base name for bulk rename cannot exceed 100 characters.');
+			showValidationError('Base name for bulk rename cannot exceed 100 characters.');
 			return;
 		}
 
@@ -180,20 +132,20 @@
 			count++;
 		});
 		if (successCount > 0) {
-			await showTraitRenameSuccess(successCount);
+			showTraitRenameSuccess(successCount);
 		}
 		bulkNewName = '';
 	}
 
 	async function handleNameChange() {
 		if (editedName.trim() === '') {
-			await showValidationError('Layer name cannot be empty.');
+			showValidationError('Layer name cannot be empty.');
 			isEditing = false;
 			return;
 		}
 
 		if (editedName.length > 100) {
-			await showValidationError('Layer name cannot exceed 100 characters.');
+			showValidationError('Layer name cannot exceed 100 characters.');
 			isEditing = false;
 			return;
 		}
@@ -212,7 +164,7 @@
 	}
 
 	async function handleDeleteLayer() {
-		await showLayerRemoved(layer.name);
+		showLayerRemoved(layer.name);
 		removeLayer(layer.id);
 	}
 
@@ -240,7 +192,7 @@
 			});
 
 			if (imageFiles.length === 0) {
-				await showWarning(
+				showWarning(
 					'No valid image files were selected. Please upload PNG, JPG, GIF, or WebP files.'
 				);
 				return;
@@ -249,12 +201,12 @@
 			// Validate file sizes first (quick synchronous check)
 			const oversizedFiles = imageFiles.filter((file) => file.size > 10 * 1024 * 1024);
 			if (oversizedFiles.length > 0) {
-				await showError(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
+				showError(`${oversizedFiles.length} file(s) exceed 10MB limit and will be skipped.`);
 			}
 
 			const validFiles = imageFiles.filter((file) => file.size <= 10 * 1024 * 1024);
 			if (validFiles.length === 0) {
-				await showError('No valid files to upload (all files exceed 10MB limit).');
+				showError('No valid files to upload (all files exceed 10MB limit).');
 				return;
 			}
 
@@ -280,7 +232,7 @@
 						Math.abs(width - projectData.outputSize.width) > 1 ||
 						Math.abs(height - projectData.outputSize.height) > 1
 					) {
-						await showError(
+						showError(
 							`First image dimensions (${width}x${height}) do not match project output size (${projectData.outputSize.width}x${projectData.outputSize.height}). All images must have the same dimensions.`
 						);
 						return;
@@ -328,15 +280,15 @@
 			}
 
 			if (errorCount === 0) {
-				await showUploadPartialSuccess(successCount, 0);
+				showUploadPartialSuccess(successCount, 0);
 			} else if (successCount > 0) {
-				await showUploadPartialSuccess(successCount, errorCount);
+				showUploadPartialSuccess(successCount, errorCount);
 			} else {
-				await showError('All files failed to upload. Please check the files and try again.');
+				showError('All files failed to upload. Please check the files and try again.');
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-			await showUploadError(message);
+			showUploadError(message);
 		} finally {
 			// Stop loading state
 			stopLoading(`layer-upload-${layer.id}`);
@@ -354,15 +306,12 @@
 	// Lazy loading for trait cards with improved memory management
 	let observer: IntersectionObserver | null = null;
 
-	function createSafeLazyTraitCard(
-		trait: (typeof layer.traits)[number],
-		layerId: string
-	): HTMLElement {
+	function createSafeLazyTraitCard(trait: (typeof layer.traits)[number]): HTMLElement {
 		const root = document.createElement('div');
 		root.className = 'lazy-trait-loaded';
 
 		const wrapper = document.createElement('div');
-		wrapper.className = 'overflow-hidden rounded-lg border border-border';
+		wrapper.className = 'overflow-hidden rounded-lg border-2 border-border';
 
 		const imgContainer = document.createElement('div');
 		imgContainer.className = 'flex aspect-square items-center justify-center bg-muted';
@@ -557,7 +506,7 @@
 					if (!placeholder) return;
 
 					// Build safe DOM instead of innerHTML
-					const traitCard = createSafeLazyTraitCard(trait, layer.id);
+					const traitCard = createSafeLazyTraitCard(trait);
 					container.replaceChild(traitCard, placeholder);
 
 					// Unobserve after loading to save memory
@@ -804,7 +753,7 @@
 						<div
 							class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4"
 						>
-							{#each layer.traits as trait, i (trait.id)}
+							{#each layer.traits as trait (trait.id)}
 								{#if trait.name.toLowerCase().includes(searchTerm.toLowerCase())}
 									<TraitCard
 										{trait}

@@ -17,15 +17,14 @@ import {
 } from './worker.pool';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { CSPSolver } from './csp-solver';
-import { type TaskId } from '$lib/types/ids';
 
 // Worker pool will be initialized on demand
 
 // Callback for handling messages from workers
 let messageHandler:
 	| ((
-		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	) => void)
+			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	  ) => void)
 	| null = null;
 
 // Set up message callback
@@ -62,25 +61,35 @@ export async function startGeneration(
 		const usedCombinations = new Map<string, Set<bigint>>();
 
 		// Ensure we have at least a global uniqueness rule
-		const activeStrictPairConfig = strictPairConfig ? { ...strictPairConfig } : { enabled: true, layerCombinations: [] };
-		if (!activeStrictPairConfig.layerCombinations || activeStrictPairConfig.layerCombinations.length === 0) {
+		const activeStrictPairConfig = strictPairConfig
+			? { ...strictPairConfig }
+			: { enabled: true, layerCombinations: [] };
+		if (
+			!activeStrictPairConfig.layerCombinations ||
+			activeStrictPairConfig.layerCombinations.length === 0
+		) {
 			activeStrictPairConfig.enabled = true;
-			activeStrictPairConfig.layerCombinations = [{
-				id: '__global__',
-				layerIds: layers.map(l => l.id),
-				active: true,
-				description: 'Global Uniqueness'
-			}];
+			activeStrictPairConfig.layerCombinations = [
+				{
+					id: '__global__',
+					layerIds: layers.map((l) => l.id),
+					active: true,
+					description: 'Global Uniqueness'
+				}
+			];
 		}
 
 		const solver = new CSPSolver(layers, usedCombinations, activeStrictPairConfig);
-		const solutions: { index: number; traits: any[] }[] = [];
+		const solutions: {
+			index: number;
+			traits: { layerId: string; trait: TransferrableTrait }[];
+		}[] = [];
 
 		console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
 		const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
 
 		for (let i = 0; i < collectionSize; i++) {
-			const solutionMap = await solver.solve();
+			const solutionMap = solver.solve();
 			if (!solutionMap) {
 				throw new Error(`Exhausted all possible valid unique combinations at item ${i + 1}.`);
 			}
@@ -118,7 +127,7 @@ export async function startGeneration(
 		// 2. Chunk the solutions into batches and send to the pool
 		const BATCH_SIZE = 50;
 		const totalBatches = Math.ceil(solutions.length / BATCH_SIZE);
-		const batchPromises: Promise<any>[] = [];
+		const batchPromises: Promise<unknown>[] = [];
 
 		console.log(`📦 Distributing ${totalBatches} batches to worker pool...`);
 
@@ -160,7 +169,6 @@ export async function startGeneration(
 		}
 
 		performanceMonitor.stopTimer(timerId);
-
 	} catch (error) {
 		performanceMonitor.stopTimer(timerId, { error: String(error) });
 		console.error('Generation failure:', error);

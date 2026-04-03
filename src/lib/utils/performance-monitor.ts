@@ -222,7 +222,6 @@ export class PerformanceMonitor {
 	 */
 	generateReport(): PerformanceReport {
 		const stats = this.getAllStats();
-		const allStats = Object.values(stats);
 
 		let totalOperations = 0;
 		let totalDuration = 0;
@@ -410,11 +409,13 @@ export const performanceMonitor = new PerformanceMonitor();
  * @param metadata - Optional metadata to include with the metric
  */
 export function timed(operationName?: string, metadata?: Record<string, unknown>) {
-	return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+	return function (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) {
 		const originalMethod = descriptor.value;
-		const operation = operationName || `${target.constructor.name}.${propertyKey}`;
+		const operation =
+			operationName ||
+			`${(target as Record<string, unknown>).constructor?.name || 'Unknown'}.${propertyKey}`;
 
-		descriptor.value = function (...args: any[]) {
+		descriptor.value = function (...args: unknown[]) {
 			const timerId = performanceMonitor.startTimer(operation);
 			try {
 				const result = originalMethod.apply(this, args);
@@ -445,7 +446,7 @@ export function timed(operationName?: string, metadata?: Record<string, unknown>
  * @param metadata - Optional metadata to include with metrics
  * @returns Wrapped function with performance monitoring
  */
-export function withTiming<T extends (...args: any[]) => any>(
+export function withTiming<T extends (...args: unknown[]) => unknown>(
 	fn: T,
 	operationName: string,
 	metadata?: Record<string, unknown>

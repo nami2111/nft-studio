@@ -1,7 +1,2 @@
-import Root from './skeleton.svelte';
-
-export {
-	Root,
-	//
-	Root as Skeleton
-};
+// Re-export from @neobr/svelte
+export { Skeleton } from '@neobr/svelte';

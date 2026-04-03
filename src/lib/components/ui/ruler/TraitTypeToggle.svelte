@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import Crown from '@lucide/svelte/icons/crown';
 	import type { Trait, TraitType } from '$lib/types/layer';
-	import type { LayerId, TraitId } from '$lib/types/ids';
+
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 
 	import { project } from '$lib/stores';
@@ -20,7 +20,7 @@
 	const traitIdTyped = $derived(createTraitId(trait.id));
 
 	// Get current layer
-	let currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
+	const currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
 
 	// Toggle trait type
 	function toggleTraitType() {

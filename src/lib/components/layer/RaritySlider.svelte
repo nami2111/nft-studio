@@ -10,7 +10,7 @@
 		layerId: string;
 	}
 
-	let { rarityWeight, traitId, layerId }: Props = $props();
+	const { rarityWeight, traitId, layerId }: Props = $props();
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(traitId));
 
@@ -18,30 +18,19 @@
 	const normalizeRarity = (val: number) => Math.max(1, Math.min(5, Math.round(val || 1)));
 
 	// Internal primitive state for the rarity value - THE single source of truth
-	let currentValue = $state(normalizeRarity(rarityWeight));
-
-	/**
-	 * Slider component from bits-ui/shadcn often flips between number and number[]
-	 * depending on 'type="single"' vs 'type="multiple"'.
-	 * We use a dedicated getter/setter to remain resilient.
-	 */
-	let sliderProxy = $state([currentValue]);
+	let currentValue = $state(untrack(() => normalizeRarity(rarityWeight)));
 
 	// Sync prop changes from outside (e.g. undo/redo, batch load)
 	$effect(() => {
 		const propVal = normalizeRarity(rarityWeight);
 		if (currentValue !== propVal) {
 			currentValue = propVal;
-			sliderProxy = [propVal];
 		}
 	});
 
-	// Sync local changes to store and proxy
-	$effect(() => {
-		// When sliderProxy changes, update currentValue
-		const val = Array.isArray(sliderProxy) ? sliderProxy[0] : sliderProxy;
-		const normalized = normalizeRarity(Number(val));
-
+	// Handle slider value change
+	function handleSliderChange(newValue: number) {
+		const normalized = normalizeRarity(newValue);
 		if (currentValue !== normalized) {
 			currentValue = normalized;
 			// Update store, but untrack rarityWeight to avoid feedback loops
@@ -50,7 +39,7 @@
 				untrack(() => updateTraitRarity(layerIdTyped, traitIdTyped, normalized));
 			}
 		}
-	});
+	}
 
 	const rarityLabels: Record<number, string> = {
 		1: 'Mythic',
@@ -81,7 +70,14 @@
 	</div>
 
 	<div class="px-1">
-		<Slider min={1} max={5} step={1} bind:value={sliderProxy} class="w-full" />
+		<Slider
+			min={1}
+			max={5}
+			step={1}
+			value={currentValue}
+			onchange={handleSliderChange}
+			class="w-full"
+		/>
 	</div>
 
 	<div class="flex justify-between px-0.5">

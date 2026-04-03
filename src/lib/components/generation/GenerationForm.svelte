@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { project } from '$lib/stores';
-	import {
-		startGeneration as startWorkerGeneration,
-		cancelGeneration as cancelWorkerGeneration
-	} from '$lib/domain/worker.service';
+	import { startGeneration as startWorkerGeneration } from '$lib/domain/worker.service';
 	import type {
 		ProgressMessage,
 		CompleteMessage,
@@ -11,16 +8,6 @@
 		CancelledMessage,
 		PreviewMessage
 	} from '$lib/types/worker-messages';
-	import {
-		isProgressMessage,
-		isCompleteMessage,
-		isErrorMessage,
-		isCancelledMessage,
-		isPreviewMessage,
-		isAnalysisMessage,
-		isPerformanceReportMessage
-	} from '$lib/types/worker-messages';
-	import type { Layer } from '$lib/types/layer';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
 	import {
 		generationState,
@@ -47,10 +34,10 @@
 	let isPackaging = $state(false);
 
 	// Derived state from persistent store
-	let isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
-	let isBackground = $derived(generationState.isBackground);
-	let isPaused = $derived(generationState.isPaused);
-	let previews = $derived(generationState.previews);
+	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
+	const isBackground = $derived(generationState.isBackground);
+	const isPaused = $derived(generationState.isPaused);
+	const previews = $derived(generationState.previews);
 
 	// Component lifecycle management
 	onDestroy(() => {
@@ -226,13 +213,7 @@
 
 			// Set up worker message handler that delegates to persistent store
 			const workerMessageHandler = async (
-				data:
-					| ProgressMessage
-					| CompleteMessage
-					| ErrorMessage
-					| CancelledMessage
-					| PreviewMessage
-					| { type: 'analysis' | 'performance-report'; payload: any }
+				data: ProgressMessage | CompleteMessage | ErrorMessage | CancelledMessage | PreviewMessage
 			) => {
 				const message = data;
 
@@ -260,11 +241,6 @@
 							break;
 						case 'cancelled':
 							completeGeneration(); // Mark as complete but cancelled
-							break;
-						case 'analysis':
-						case 'performance-report':
-							// Log analysis and performance reports in background
-							console.log(`📊 Background ${message.type}:`, message.payload);
 							break;
 					}
 					return;
@@ -327,18 +303,6 @@
 							title: 'Generation Error',
 							description: 'An error occurred during generation. Please try again.'
 						});
-						break;
-					case 'analysis':
-						// Handle collection analysis message
-						if ('payload' in message && message.payload?.complexity) {
-							console.log('📊 Collection analysis:', message.payload);
-						}
-						break;
-					case 'performance-report':
-						// Handle performance report message
-						if ('payload' in message && message.payload) {
-							console.log('📈 Performance report:', message.payload);
-						}
 						break;
 					default:
 						console.warn('Unknown message type from worker:', (message as { type: string }).type);

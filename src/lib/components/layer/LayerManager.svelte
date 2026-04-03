@@ -8,7 +8,7 @@
 	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import { showError, showSuccess } from '$lib/utils/error-handling';
 
-	let layers = $derived(project.layers);
+	const layers = $derived(project.layers);
 	let isAddingLayer = $state(false);
 
 	async function handleAddLayer() {
@@ -77,7 +77,7 @@
 			</p>
 		{:else}
 			<div class="space-y-3 sm:space-y-4">
-				{#each layers as layer, i (layer.id)}
+				{#each layers as layer (layer.id)}
 					<div class="group relative">
 						<LayerItem {layer} />
 						<div class="mt-2 flex justify-end gap-1">

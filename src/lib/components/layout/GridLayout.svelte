@@ -16,7 +16,7 @@
 		class?: string;
 	}
 
-	let {
+	const {
 		children,
 		mobileCols = 1,
 		tabletCols = 2,
@@ -26,7 +26,7 @@
 	}: Props = $props();
 
 	// Generate grid classes based on props
-	let gridClasses = $derived(`
+	const gridClasses = $derived(`
 		grid gap-${gap}
 		grid-cols-${mobileCols}
 		sm:grid-cols-${Math.min(mobileCols, tabletCols)}

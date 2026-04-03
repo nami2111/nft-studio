@@ -2,18 +2,39 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { globalResourceManager } from '$lib/stores/resource-manager';
 
+	import type { CacheMetrics } from '$lib/utils/advanced-cache';
+
+	const emptyCacheMetrics: CacheMetrics = {
+		hits: 0,
+		misses: 0,
+		currentEntries: 0,
+		maxEntries: 0,
+		currentSize: 0,
+		maxSize: 0,
+		hitRate: 0,
+		memoryUsage: 0,
+		sets: 0,
+		evictions: 0
+	};
+
 	// Reactive state
 	let metrics = $state<{
-		imageBitmap: any;
-		imageData: any;
-		arrayBuffer: any;
-		overall: any;
-		memorySummary: any;
+		imageBitmap: CacheMetrics;
+		imageData: CacheMetrics;
+		arrayBuffer: CacheMetrics;
+		overall: ReturnType<typeof globalResourceManager.getCacheMetrics>['overall'];
+		memorySummary: ReturnType<typeof globalResourceManager.getMemorySummary>;
 	}>({
-		imageBitmap: {},
-		imageData: {},
-		arrayBuffer: {},
-		overall: {},
+		imageBitmap: { ...emptyCacheMetrics },
+		imageData: { ...emptyCacheMetrics },
+		arrayBuffer: { ...emptyCacheMetrics },
+		overall: {
+			totalHits: 0,
+			totalMisses: 0,
+			totalMemoryUsage: 0,
+			totalEntries: 0,
+			overallHitRate: 0
+		},
 		memorySummary: {
 			totalUsage: '0 B',
 			byCache: {
@@ -61,7 +82,7 @@
 	}
 
 	function cleanupExpired() {
-		const cleaned = globalResourceManager.cleanupExpired();
+		globalResourceManager.cleanupExpired();
 
 		updateMetrics();
 	}
@@ -77,7 +98,7 @@
 	}
 </script>
 
-<div class="cache-monitor rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+<div class="cache-monitor rounded-lg border-2 border-gray-200 bg-white p-4 shadow-sm">
 	<div class="mb-4 flex items-center justify-between">
 		<h3 class="text-lg font-semibold text-gray-800">Cache Monitor</h3>
 		<div class="flex gap-2">

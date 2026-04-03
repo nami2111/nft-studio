@@ -3,7 +3,7 @@
  * Provides global test utilities and mocks.
  */
 
-import { vi } from 'vitest';
+import { vi } from 'vite-plus/test';
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/svelte';
 
@@ -217,6 +217,26 @@ vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
 	}
 	return originalCreateElement(tagName);
 });
+
+// Mock Web Animations API (element.animate)
+Element.prototype.animate = vi.fn().mockImplementation(() => ({
+	onfinish: null,
+	cancel: vi.fn(),
+	finish: vi.fn(),
+	pause: vi.fn(),
+	play: vi.fn(),
+	reverse: vi.fn(),
+	effect: null,
+	ready: Promise.resolve(),
+	finished: Promise.resolve(),
+	startTime: null,
+	currentTime: null,
+	playbackRate: 1,
+	playState: 'finished',
+	pending: false,
+	id: '',
+	timeline: null
+}));
 
 // Clean up after each test
 afterEach(() => {

@@ -9,20 +9,21 @@
 		children?: Snippet;
 	}
 
-	let { children }: Props = $props();
+	const { children }: Props = $props();
 
 	onMount(() => {
 		setupSessionCleanup();
 	});
 
-	let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
+	const webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
 </script>
 
 <svelte:head>
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html webManifestLink}
 </svelte:head>
 
-<div class="min-h-screen bg-white text-black">
+<div class="bg-background text-foreground min-h-screen">
 	<SecurityPolicies />
 	<main id="main-content" class="min-h-screen">
 		{@render children?.()}

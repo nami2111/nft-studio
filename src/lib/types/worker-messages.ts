@@ -1,7 +1,7 @@
 // src/lib/types/worker-messages.ts
 
 import type { LayerId, TraitId, TaskId } from './ids';
-import type { TraitType, RulerRule, StrictPairConfig } from './layer';
+import type { TraitType, RulerRule } from './layer';
 
 // Worker message interfaces for generation worker
 export interface TransferrableTrait {
@@ -33,8 +33,6 @@ interface BaseWorkerMessage {
 	type: string;
 	taskId?: TaskId;
 }
-
-
 
 // Progress update message
 export interface ProgressMessage extends BaseWorkerMessage {
@@ -102,7 +100,7 @@ export interface PreviewMessage extends BaseWorkerMessage {
 export interface BatchMessage extends BaseWorkerMessage {
 	type: 'batch';
 	payload: {
-		solutions: { index: number; traits: TransferrableTrait[] }[];
+		solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[];
 		layers: TransferrableLayer[];
 		collectionSize: number;
 		outputSize: { width: number; height: number };
@@ -121,32 +119,26 @@ export type OutgoingWorkerMessage =
 	| ErrorMessage
 	| CancelledMessage
 	| PreviewMessage
-	| { type: 'pingResponse'; pingResponse: string }
-	| {
-		type: 'analysis';
-		payload: {
-			complexity: any;
-			canUseFastGeneration: boolean;
-			estimatedSpeedup: number;
-			recommendations: string[];
-		};
-	}
-	| { type: 'performance-report'; payload: any };
+	| { type: 'pingResponse'; pingResponse: string };
 
 // Messages that can be sent to workers
 // Messages that can be sent to workers
-export type IncomingMessage = BatchMessage | { type: 'cancel' } | ReadyMessage | { type: 'preview'; payload: any } | { type: 'initialize' } | { type: 'ping'; pingId: string };
+export type IncomingMessage =
+	| BatchMessage
+	| { type: 'cancel' }
+	| ReadyMessage
+	| { type: 'preview'; payload: Record<string, unknown> }
+	| { type: 'initialize' }
+	| { type: 'ping'; pingId: string };
 
 // Worker pool message types
 export type GenerationWorkerMessage =
 	| BatchMessage
 	| {
-		type: 'cancel';
-	};
+			type: 'cancel';
+	  };
 
 // Type guards for discriminated unions
-
-
 
 /**
  * Type guard for ProgressMessage
@@ -182,15 +174,6 @@ export function isErrorMessage(message: unknown): message is ErrorMessage {
 }
 
 /**
- * Type guard for ReadyMessage
- */
-export function isReadyMessage(message: unknown): message is ReadyMessage {
-	return (
-		typeof message === 'object' && message !== null && 'type' in message && message.type === 'ready'
-	);
-}
-
-/**
  * Type guard for CancelledMessage
  */
 export function isCancelledMessage(message: unknown): message is CancelledMessage {
@@ -215,68 +198,18 @@ export function isPreviewMessage(message: unknown): message is PreviewMessage {
 }
 
 /**
- * Type guard for BatchMessage
- */
-export function isBatchMessage(message: unknown): message is BatchMessage {
-	return (
-		typeof message === 'object' &&
-		message !== null &&
-		'type' in message &&
-		message.type === 'batch'
-	);
-}
-
-/**
- * Type guard for analysis message
- */
-export function isAnalysisMessage(
-	message: unknown
-): message is {
-	type: 'analysis';
-	payload: {
-		complexity: any;
-		canUseFastGeneration: boolean;
-		estimatedSpeedup: number;
-		recommendations: string[];
-	};
-} {
-	return (
-		typeof message === 'object' &&
-		message !== null &&
-		'type' in message &&
-		message.type === 'analysis' &&
-		'payload' in message
-	);
-}
-
-/**
- * Type guard for performance report message
- */
-export function isPerformanceReportMessage(
-	message: unknown
-): message is { type: 'performance-report'; payload: any } {
-	return (
-		typeof message === 'object' &&
-		message !== null &&
-		'type' in message &&
-		message.type === 'performance-report' &&
-		'payload' in message
-	);
-}
-
-/**
  * Type guard for OutgoingWorkerMessage
  */
 export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWorkerMessage {
 	return (
-		isReadyMessage(message) ||
+		(typeof message === 'object' &&
+			message !== null &&
+			'type' in message &&
+			message.type === 'ready') ||
 		isProgressMessage(message) ||
 		isCompleteMessage(message) ||
 		isErrorMessage(message) ||
-		isCancelledMessage(message) ||
-		isPreviewMessage(message) ||
-		isAnalysisMessage(message) ||
-		isPerformanceReportMessage(message)
+		isPreviewMessage(message)
 	);
 }
 
@@ -285,11 +218,17 @@ export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWo
  */
 export function isIncomingMessage(message: unknown): message is IncomingMessage {
 	return (
-		isBatchMessage(message) ||
+		(typeof message === 'object' &&
+			message !== null &&
+			'type' in message &&
+			message.type === 'batch') ||
 		(typeof message === 'object' &&
 			message !== null &&
 			'type' in message &&
 			message.type === 'cancel') ||
-		isReadyMessage(message)
+		(typeof message === 'object' &&
+			message !== null &&
+			'type' in message &&
+			message.type === 'ready')
 	);
 }

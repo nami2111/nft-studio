@@ -6,7 +6,7 @@
 		title?: string;
 	}
 
-	let { class: className, title = 'NFT Studio' }: Props = $props();
+	const { class: className, title = 'NFT Studio' }: Props = $props();
 </script>
 
 <div class={className + ' flex items-center'}>

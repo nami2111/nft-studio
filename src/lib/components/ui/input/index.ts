@@ -1,1 +1,2 @@
-export { default as Input } from './input.svelte';
+// Re-export from @neobr/svelte
+export { Input } from '@neobr/svelte';

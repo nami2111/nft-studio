@@ -16,7 +16,7 @@
 		itemHeight?: number;
 	}
 
-	let {
+	const {
 		items,
 		children,
 		class: className,

@@ -1,19 +1,26 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
-	import type { GalleryCollection, GallerySortOption } from '$lib/types/gallery';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Card from '$lib/components/ui/card/card.svelte';
+	import type { GallerySortOption } from '$lib/types/gallery';
+	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
+	import { Card } from '$lib/components/ui/card';
 
 	interface Props {
 		class?: string;
 	}
 
-	let { class: className = '' }: Props = $props();
+	const { class: className = '' }: Props = $props();
 
 	let searchQuery = $state(galleryStore.filterOptions.search || '');
 	let selectedCollection = $state(galleryStore.selectedCollection?.id || '');
 	let sortOption = $state(galleryStore.sortOption);
+
+	// Sync local state from store when it changes externally
+	$effect(() => {
+		searchQuery = galleryStore.filterOptions.search || '';
+		selectedCollection = galleryStore.selectedCollection?.id || '';
+		sortOption = galleryStore.sortOption;
+	});
 
 	const collections = $derived(galleryStore.collections);
 	const sortOptions: { value: GallerySortOption; label: string }[] = [
@@ -61,11 +68,6 @@
 		galleryStore.setSelectedCollection(null);
 		galleryStore.setSortOption('newest');
 	}
-
-	function showAllCollections() {
-		selectedCollection = '';
-		galleryStore.setSelectedCollection(null);
-	}
 </script>
 
 <Card class="p-4 {className}">
@@ -91,7 +93,7 @@
 					class="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 				>
 					<option value="">All Collections</option>
-					{#each collections as collection}
+					{#each collections as collection (collection.id)}
 						<option value={collection.id}>
 							{collection.name} ({collection.totalSupply} NFTs)
 						</option>
@@ -106,7 +108,7 @@
 					onchange={handleSortChange}
 					class="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 				>
-					{#each sortOptions as option}
+					{#each sortOptions as option (option.value)}
 						<option value={option.value}>{option.label}</option>
 					{/each}
 				</select>

@@ -6,24 +6,26 @@
 	import { fade, slide, scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 
-	let { isBackground, isPaused, isGenerating } = $props<{
+	const { isBackground, isPaused, isGenerating } = $props<{
 		isBackground: boolean;
 		isPaused: boolean;
 		isGenerating: boolean;
 	}>();
 
-	let progress = $derived(generationState.progress);
-	let statusText = $derived(generationState.statusText);
-	let memoryUsage = $derived(generationState.memoryUsage);
-	let currentSessionId = $derived(generationState.sessionId);
-	let itemsPerSecond = $derived(generationState.itemsPerSecond);
-	let eta = $derived(generationState.eta);
+	const progress = $derived(generationState.progress);
+	const statusText = $derived(generationState.statusText);
+	const memoryUsage = $derived(generationState.memoryUsage);
+	const currentSessionId = $derived(generationState.sessionId);
+	const itemsPerSecond = $derived(generationState.itemsPerSecond);
+	const eta = $derived(generationState.eta);
 
 	function handleClearState() {
 		resetState();
 	}
 
-	let isCompleted = $derived(!isGenerating && !!generationState.completionTime && progress === 100);
+	const isCompleted = $derived(
+		!isGenerating && !!generationState.completionTime && progress === 100
+	);
 
 	function formatEta(seconds: number | null): string {
 		if (seconds === null || seconds < 0) return 'Estimating...';
@@ -37,7 +39,7 @@
 <div class="space-y-4 py-4">
 	<!-- Background Generation Status -->
 	{#if isBackground}
-		<div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+		<div class="mb-4 rounded-lg border-2 border-yellow-200 bg-yellow-50 p-4">
 			<div class="flex items-center gap-2">
 				<AlertCircle class="h-4 w-4 text-yellow-600" />
 				<div class="flex-1">

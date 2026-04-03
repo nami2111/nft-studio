@@ -9,7 +9,7 @@ import type {
 	ProgressMessage,
 	PreviewMessage
 } from '$lib/types/worker-messages';
-import { performanceMonitor, timed, withTiming } from '$lib/utils/performance-monitor';
+import { performanceMonitor } from '$lib/utils/performance-monitor';
 
 // Task complexity levels
 enum TaskComplexity {
@@ -81,8 +81,8 @@ let workerPool: WorkerPool | null = null;
 // Callback for forwarding messages to clients
 let messageCallback:
 	| ((
-		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	) => void)
+			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	  ) => void)
 	| null = null;
 
 /**
@@ -217,11 +217,7 @@ function calculateTaskComplexity(
 /**
  * Calculate optimal worker count based on device capabilities and current load
  */
-function calculateOptimalWorkerCount(
-	taskComplexity?: TaskComplexity,
-	queueLength = 0,
-	activeWorkers = 0
-): number {
+function calculateOptimalWorkerCount(taskComplexity?: TaskComplexity, queueLength = 0): number {
 	const { coreCount, memoryGB, isMobile } = getDeviceCapabilities();
 
 	// Base worker count on CPU cores
@@ -816,7 +812,7 @@ function removeWorker(workerIndex: number): void {
 
 	console.log(
 		`Worker ${workerIndex} removed successfully. ` +
-		`Cleaned up ${removedTasks.length} queued tasks and freed resources.`
+			`Cleaned up ${removedTasks.length} queued tasks and freed resources.`
 	);
 }
 
@@ -835,7 +831,7 @@ function removeIdleWorkers(count: number): void {
 			continue;
 		}
 
-		const worker = workerPool.workers[i];
+		// const worker = workerPool.workers[i];
 		const isHealthy = workerPool.workerHealth[i] === WorkerHealth.HEALTHY;
 		// const isActive = !workerPool.workerStatus[i]; // false means busy
 		const lastActivity = workerPool.workerStats[i].lastActivity;
@@ -1123,7 +1119,15 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 		let estimatedDuration = 500; // Default 500ms
 
 		// Cast to any to bypass strict union narrowing issues if the type definition is complex
-		const msg = message as any;
+		const msg = message as unknown as {
+			type: string;
+			payload?: {
+				layers: unknown[];
+				collectionSize: number;
+				outputSize: { width: number; height: number };
+				solutions: unknown[];
+			};
+		};
 
 		if (msg.type === 'start' && msg.payload) {
 			const { layers, collectionSize, outputSize } = msg.payload;

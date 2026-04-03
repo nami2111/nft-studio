@@ -2,17 +2,15 @@
  * Persistent Generation State Store
  * Manages generation state that survives component unmounts and preserves generation logic integrity
  * Including strict pair tracking, rarity distribution, and progress
+ *
+ * @note The `generationState` export is intentionally a module-level singleton.
+ * Generation must persist across route changes; context-scoped state would be lost on unmount.
  */
 
 import type { Layer, StrictPairConfig } from '$lib/types/layer';
-import type {
-	ProgressMessage,
-	CompleteMessage,
-	ErrorMessage,
-	CancelledMessage,
-	PreviewMessage
-} from '$lib/types/worker-messages';
+import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
 import { MetadataStandard } from '$lib/domain/metadata/strategies';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 // Generation state interface
 export interface GenerationState {
@@ -74,8 +72,8 @@ export interface GenerationState {
 	batchProgress: { current: number; total: number } | null;
 }
 
-// Default state
-const defaultState: GenerationState = {
+// Default state factory
+const createDefaultState = (): GenerationState => ({
 	isGenerating: false,
 	isPaused: false,
 	isBackground: false,
@@ -89,14 +87,14 @@ const defaultState: GenerationState = {
 	allImages: [],
 	allMetadata: [],
 	previews: [],
-	usedCombinations: new Map(),
+	usedCombinations: new SvelteMap(),
 	strictPairConfig: null,
 	projectConfig: null,
 	memoryUsage: null,
 	lastMemoryCheck: null,
 	error: null,
 	warnings: [],
-	lastWarningTimes: new Map(),
+	lastWarningTimes: new SvelteMap(),
 	sessionId: null,
 	saveTimestamp: null,
 	isBatchProcessing: false,
@@ -107,10 +105,10 @@ const defaultState: GenerationState = {
 	eta: null,
 	itemsPerSecond: null,
 	batchProgress: null
-};
+});
 
 // Persistent generation state using Svelte 5 runes
-export const generationState = $state<GenerationState>(structuredClone(defaultState));
+export const generationState = $state<GenerationState>(createDefaultState());
 
 // Store management functions
 class GenerationStateManager {
@@ -168,7 +166,7 @@ class GenerationStateManager {
 		}
 
 		// Reset state with new configuration
-		Object.assign(generationState, defaultState, {
+		Object.assign(generationState, createDefaultState(), {
 			isGenerating: true,
 			isPaused: false,
 			isBackground: false,
@@ -360,7 +358,7 @@ class GenerationStateManager {
 	 */
 	addUsedCombination(combinationId: string, traitIds: string[]): void {
 		if (!generationState.usedCombinations.has(combinationId)) {
-			generationState.usedCombinations.set(combinationId, new Set());
+			generationState.usedCombinations.set(combinationId, new SvelteSet());
 		}
 		const combination = generationState.usedCombinations.get(combinationId)!;
 		const key = traitIds.sort().join('|');
@@ -452,7 +450,7 @@ class GenerationStateManager {
 		this.cleanupResources();
 
 		// Reset to default state
-		Object.assign(generationState, structuredClone(defaultState));
+		Object.assign(generationState, createDefaultState());
 
 		// Clear saved state
 		if (typeof sessionStorage !== 'undefined') {
@@ -654,7 +652,7 @@ class GenerationStateManager {
 	/**
 	 * Serialize state for storage
 	 */
-	private serializeState(): any {
+	private serializeState(): Record<string, unknown> {
 		return {
 			...generationState,
 			usedCombinations: Array.from(generationState.usedCombinations.entries()),
@@ -666,19 +664,21 @@ class GenerationStateManager {
 	/**
 	 * Restore state from serialized data
 	 */
-	private restoreState(serializedState: any): void {
+	private restoreState(serializedState: Record<string, unknown>): void {
 		// Convert arrays back to Maps
-		if (serializedState.usedCombinations) {
-			serializedState.usedCombinations = new Map(
+		if (serializedState.usedCombinations && Array.isArray(serializedState.usedCombinations)) {
+			serializedState.usedCombinations = new SvelteMap(
 				serializedState.usedCombinations.map(([key, value]: [string, string[]]) => [
 					key,
-					new Set(value)
+					new SvelteSet(value)
 				])
 			);
 		}
 
-		if (serializedState.lastWarningTimes) {
-			serializedState.lastWarningTimes = new Map(serializedState.lastWarningTimes);
+		if (serializedState.lastWarningTimes && Array.isArray(serializedState.lastWarningTimes)) {
+			serializedState.lastWarningTimes = new SvelteMap(
+				serializedState.lastWarningTimes as [string, number][]
+			);
 		}
 
 		// Restore state

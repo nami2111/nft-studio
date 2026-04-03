@@ -6,15 +6,14 @@
 	import StrictPair from '$lib/components/layer/StrictPair.svelte';
 	import { projectStore } from '$lib/stores/project.store.svelte';
 	import type { StrictPairConfig } from '$lib/types/layer';
-	import { onMount } from 'svelte';
+	import { onMount, type Component } from 'svelte';
 
-	let currentProject = $derived(projectStore.currentProject);
+	const currentProject = $derived(projectStore.currentProject);
 
 	// Lazy-loaded components for code splitting
-	let LayerManager = $state<any>(null);
-	let PerformanceMonitor = $state<any>(null);
-	let CacheMonitor = $state<any>(null);
-	let ErrorBoundary = $state<any>(null);
+	let LayerManager = $state<Component | null>(null);
+	let PerformanceMonitor = $state<Component | null>(null);
+	let CacheMonitor = $state<Component | null>(null);
 
 	// Loading states for lazy components
 	let isLoadingLayerManager = $state(false);
@@ -34,7 +33,7 @@
 			isLoadingLayerManager = true;
 			try {
 				const module = await import('$lib/components/layer/LayerManager.svelte');
-				LayerManager = module.default;
+				LayerManager = module.default as unknown as Component;
 			} catch (error) {
 				console.error('Failed to load LayerManager:', error);
 			} finally {
@@ -49,7 +48,7 @@
 			isLoadingPerformanceMonitor = true;
 			try {
 				const module = await import('$lib/components/monitor/PerformanceMonitor.svelte');
-				PerformanceMonitor = module.default;
+				PerformanceMonitor = module.default as unknown as Component;
 			} catch (error) {
 				console.error('Failed to load PerformanceMonitor:', error);
 			} finally {
@@ -59,12 +58,13 @@
 	}
 
 	// Lazy load Cache Monitor
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async function loadCacheMonitor() {
 		if (!CacheMonitor && !isLoadingCacheMonitor) {
 			isLoadingCacheMonitor = true;
 			try {
 				const module = await import('$lib/components/monitor/CacheMonitor.svelte');
-				CacheMonitor = module.default;
+				CacheMonitor = module.default as unknown as Component;
 			} catch (error) {
 				console.error('Failed to load CacheMonitor:', error);
 			} finally {
@@ -95,8 +95,8 @@
 		<!-- Left Column: Project Settings and Layer Manager -->
 		<div class="space-y-3 sm:space-y-4 lg:col-span-8 xl:col-span-7">
 			<!-- Project Settings Card -->
-			<div class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
-				<div class="border-b px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+			<div class="bg-card/95 rounded-lg border-2 shadow-sm backdrop-blur-sm">
+				<div class="border-b-2 px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
 					<h2 class="text-base font-semibold sm:text-lg lg:text-xl">Project Settings</h2>
 				</div>
 				<div class="p-3 sm:p-4 lg:p-6">
@@ -109,8 +109,8 @@
 				{#if LayerManager}
 					<LayerManager />
 				{:else if isLoadingLayerManager}
-					<div class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
-						<div class="border-b px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+					<div class="bg-card/95 rounded-lg border-2 shadow-sm backdrop-blur-sm">
+						<div class="border-b-2 px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
 							<h2 class="text-base font-semibold sm:text-lg lg:text-xl">Layer Manager</h2>
 						</div>
 						<div class="p-3 sm:p-4 lg:p-6">
@@ -123,7 +123,7 @@
 				{:else}
 					<button
 						onclick={loadLayerManager}
-						class="bg-card/95 hover:bg-card w-full rounded-lg border p-4 shadow-sm backdrop-blur-sm transition-colors"
+						class="bg-card/95 hover:bg-card w-full rounded-lg border-2 p-4 shadow-sm backdrop-blur-sm transition-colors"
 					>
 						<div class="flex items-center justify-center py-4">
 							<span class="text-muted-foreground text-sm">Click to load Layer Manager</span>
@@ -146,8 +146,8 @@
 			{/if}
 
 			<!-- Generation Card -->
-			<div class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
-				<div class="border-b px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+			<div class="bg-card/95 rounded-lg border-2 shadow-sm backdrop-blur-sm">
+				<div class="border-b-2 px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
 					<h2 class="text-base font-semibold sm:text-lg lg:text-xl">Generate Collection</h2>
 				</div>
 				<div class="p-3 sm:p-4 lg:p-6">

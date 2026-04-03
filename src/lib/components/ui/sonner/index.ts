@@ -1,1 +1,2 @@
-export { default as Toaster } from './sonner.svelte';
+// Re-export Toaster from svelte-sonner with NeoBr-UI styling
+export { Toaster } from 'svelte-sonner';

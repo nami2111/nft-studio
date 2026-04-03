@@ -1,6 +1,11 @@
 /**
  * Reactive loading state store for Svelte components
  * Provides reactive state for loading operations using Svelte 5 runes
+ *
+ * @note This uses a hybrid bridge pattern: LoadingStateManager (legacy pub/sub) is bridged
+ * to Svelte 5 $state via Object.assign. This is intentional — LoadingStateManager handles
+ * async operations outside of Svelte's reactivity system, and the $state objects serve as
+ * the reactive read interface for components.
  */
 
 import { loadingStateManager } from './loading-state';

@@ -66,27 +66,3 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 }
 
 // Additional helpers for validation used by UI feedback
-export function hasMissingImageData(layers: Layer[]): boolean {
-	for (const layer of layers) {
-		for (const trait of layer.traits) {
-			if (!trait.imageData || trait.imageData.byteLength === 0) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-export function getLayersWithMissingImages(
-	layers: Layer[]
-): Array<{ layerName: string; traitName: string }> {
-	const missingImages: Array<{ layerName: string; traitName: string }> = [];
-	for (const layer of layers) {
-		for (const trait of layer.traits) {
-			if (!trait.imageData || trait.imageData.byteLength === 0) {
-				missingImages.push({ layerName: layer.name, traitName: trait.name });
-			}
-		}
-	}
-	return missingImages;
-}

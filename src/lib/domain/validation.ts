@@ -6,7 +6,6 @@
 import { z } from 'zod';
 import type { Project, Layer, Trait } from '$lib/types/project';
 import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
-import type { TraitType, RulerRule } from '$lib/types/layer';
 
 // Validation result interface
 export interface ValidationResult {

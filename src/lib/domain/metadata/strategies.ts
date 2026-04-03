@@ -43,7 +43,8 @@ export class SolanaStrategy implements MetadataStrategy {
 	): GeneratedMetadata {
 		const symbol = (extraData?.symbol as string) || '';
 		const sellerFeeBasisPoints = (extraData?.seller_fee_basis_points as number) || 0;
-		const creators = (extraData?.creators as any[]) || [];
+		const creators =
+			(extraData?.creators as Array<{ address?: string; share?: number } | string>) || [];
 		const collection = (extraData?.collection as Record<string, unknown>) || {};
 		const externalUrl = (extraData?.external_url as string) || '';
 
@@ -67,10 +68,15 @@ export class SolanaStrategy implements MetadataStrategy {
 						: [])
 				],
 				category: extraData?.animation_url ? 'video' : 'image',
-				creators: creators.map((c) => ({
-					address: c.address || c,
-					share: c.share !== undefined ? c.share : 100
-				}))
+				creators: creators.map((c) => {
+					if (typeof c === 'string') {
+						return { address: c, share: 100 };
+					}
+					return {
+						address: c.address || String(c),
+						share: c.share !== undefined ? c.share : 100
+					};
+				})
 			},
 			...extraData
 		};

@@ -6,6 +6,19 @@
 import { handleStorageError } from '$lib/utils/error-handler';
 import { arrayBufferToBase64, base64ToArrayBuffer } from '$lib/utils';
 
+interface StorageProject {
+	id?: string;
+	layers?: Array<{
+		traits?: Array<{
+			imageData?: unknown;
+			imageUrl?: unknown;
+			[key: string]: unknown;
+		}>;
+		[key: string]: unknown;
+	}>;
+	[key: string]: unknown;
+}
+
 export interface PersistenceStore<T> {
 	key: string;
 	save(value: T): Promise<void>;
@@ -24,13 +37,17 @@ const COMPACT_PROJECT_THRESHOLD = 100 * 1024; // 100KB threshold for compact mod
 function getStorageSize(data: unknown): number {
 	try {
 		// For Project objects, create a compact version for more accurate estimation
-		if (typeof data === 'object' && data !== null && 'layers' in (data as any)) {
-			const project = data as any;
+		if (
+			typeof data === 'object' &&
+			data !== null &&
+			'layers' in (data as Record<string, unknown>)
+		) {
+			const project = data as StorageProject;
 			const compactProject = {
 				...project,
-				layers: project.layers.map((layer: any) => ({
+				layers: project.layers?.map((layer) => ({
 					...layer,
-					traits: layer.traits.map((trait: any) => ({
+					traits: layer.traits?.map((trait) => ({
 						...trait,
 						// Remove image data and URLs for size estimation
 						imageData: undefined,
@@ -135,13 +152,17 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
  */
 function createCompactVersion<T>(value: T): T {
 	// Handle Project type specifically
-	if (typeof value === 'object' && value !== null && 'layers' in (value as any)) {
-		const project = value as any;
+	if (
+		typeof value === 'object' &&
+		value !== null &&
+		'layers' in (value as Record<string, unknown>)
+	) {
+		const project = value as StorageProject;
 		return {
 			...project,
-			layers: project.layers.map((layer: any) => ({
+			layers: project.layers?.map((layer) => ({
 				...layer,
-				traits: layer.traits.map((trait: any) => ({
+				traits: layer.traits?.map((trait) => ({
 					...trait,
 					// Remove image data and URLs to reduce size
 					imageData: undefined,
@@ -284,7 +305,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 	/**
 	 * Clean object for IndexedDB serialization
 	 */
-	private cleanForSerialization(obj: any): any {
+	private cleanForSerialization(obj: unknown): unknown {
 		if (obj === null || obj === undefined) {
 			return obj;
 		}
@@ -295,7 +316,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			}
 
 			// Create clean object without non-serializable properties
-			const result: Record<string, any> = {};
+			const result: Record<string, unknown> = {};
 			for (const [key, value] of Object.entries(obj)) {
 				try {
 					// Skip functions, symbols, and other problematic types
@@ -320,7 +341,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 	/**
 	 * Get estimated size of object
 	 */
-	private getEstimatedSize(obj: any): number {
+	private getEstimatedSize(obj: unknown): number {
 		try {
 			return new Blob([JSON.stringify(obj)]).size;
 		} catch {

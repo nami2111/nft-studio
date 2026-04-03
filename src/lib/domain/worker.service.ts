@@ -6,8 +6,7 @@ import type {
 	ErrorMessage,
 	CancelledMessage,
 	ProgressMessage,
-	PreviewMessage,
-	IncomingMessage
+	PreviewMessage
 } from '$lib/types/worker-messages';
 import type { StrictPairConfig } from '$lib/types/layer';
 import {
@@ -16,11 +15,7 @@ import {
 } from '$lib/workers/generation.worker.client';
 import { prepareLayersForWorker } from '$lib/domain/project.domain';
 import { recoverableWorkerOperation, recoverableFileOperation } from '$lib/utils/error-handler';
-import {
-	generationState,
-	addUsedCombination,
-	isCombinationUsed
-} from '$lib/stores/generation-progress.svelte';
+import { generationState } from '$lib/stores/generation-progress.svelte';
 
 /**
  * Domain service for worker-related operations with persistent state integration
@@ -37,8 +32,7 @@ export async function startGeneration(
 	extraData?: Record<string, unknown>,
 	onMessage?: (
 		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	) => void,
-	resumeFromIndex?: number // For resumed generations
+	) => void
 ): Promise<void> {
 	return recoverableWorkerOperation(
 		async () => {
@@ -80,7 +74,7 @@ export async function startGeneration(
 			};
 
 			// Start generation using the worker client with state awareness
-			return new Promise<void>(async (resolve, reject) => {
+			return new Promise<void>((resolve, reject) => {
 				const cleanup = () => {
 					// Cleanup function to cancel generation if promise is rejected
 					try {
@@ -90,22 +84,22 @@ export async function startGeneration(
 					}
 				};
 
-				try {
-					await startWorkerGeneration(
-						transferrableLayers,
-						collectionSize,
-						outputSize,
-						projectName,
-						projectDescription,
-						metadataStandard,
-						strictPairConfig,
-						extraData,
-						enhancedMessageHandler
-					);
-				} catch (error) {
-					cleanup();
-					reject(error);
-				}
+				startWorkerGeneration(
+					transferrableLayers,
+					collectionSize,
+					outputSize,
+					projectName,
+					projectDescription,
+					metadataStandard,
+					strictPairConfig,
+					extraData,
+					enhancedMessageHandler
+				)
+					.then(resolve)
+					.catch((error) => {
+						cleanup();
+						reject(error);
+					});
 			});
 		},
 		{

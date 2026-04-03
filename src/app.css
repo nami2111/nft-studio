@@ -2,6 +2,12 @@
 
 @import 'tw-animate-css';
 
+/* NeoBr-UI Design System - Import the brutalist preset */
+@import '@neobr/tailwind-preset/style';
+
+/* Ensure Tailwind scans the NeoBr-UI component library */
+@source '../node_modules/@neobr/svelte/dist';
+
 @custom-variant dark (&:is(.dark *));
 
 /* JetBrains Mono font faces */
@@ -21,7 +27,7 @@
 	font-display: swap;
 }
 
-/* Design System Tokens */
+/* Design System Tokens - Extended with project-specific values */
 :root {
 	/* Spacing Scale */
 	--space-xs: 0.25rem;
@@ -52,140 +58,30 @@
 	--line-height-normal: 1.5;
 	--line-height-loose: 1.6;
 
-	--radius: 0.625rem;
-	--background: 0 0% 100%;
-	--foreground: 0 0% 0%;
-	--card: 0 0% 100%;
-	--card-foreground: 0 0% 0%;
-	--popover: 0 0% 100%;
-	--popover-foreground: 0 0% 0%;
-	--primary: 0 0% 0%;
-	--primary-foreground: 0 0% 100%;
-	--secondary: 0 0% 96%;
-	--secondary-foreground: 0 0% 0%;
-	--muted: 0 0% 96%;
-	--muted-foreground: 0 0% 45%;
-	--accent: 0 0% 96%;
-	--accent-foreground: 0 0% 0%;
-	--destructive: 0 84% 60%;
-	--destructive-foreground: 0 0% 100%;
-	--border: 0 0% 90%;
-	--input: 0 0% 90%;
-	--ring: 0 0% 0%;
+	/* Chart colors - preserved for compatibility */
 	--chart-1: oklch(0.646 0.222 41.116);
 	--chart-2: oklch(0.6 0.118 184.704);
 	--chart-3: oklch(0.398 0.07 227.392);
 	--chart-4: oklch(0.828 0.189 84.429);
 	--chart-5: oklch(0.769 0.188 70.08);
-	--sidebar: oklch(0.984 0.003 247.858);
-	--sidebar-foreground: oklch(0.129 0.042 264.695);
-	--sidebar-primary: oklch(0.208 0.042 265.755);
-	--sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-	--sidebar-accent: oklch(0.968 0.007 247.896);
-	--sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-	--sidebar-border: oklch(0.929 0.013 255.508);
-	--sidebar-ring: oklch(0.704 0.04 256.788);
 }
 
+/* Dark mode overrides - NeoBr-UI brutalist dark theme */
 .dark {
-	/* Spacing and Typography remain the same in dark mode */
-	--space-xs: 0.25rem;
-	--space-sm: 0.5rem;
-	--space-md: 1rem;
-	--space-lg: 1.5rem;
-	--space-xl: 2rem;
-	--space-2xl: 3rem;
-
-	--font-sans: 'JetBrains Mono', monospace;
-	--font-mono: 'JetBrains Mono', monospace;
-	--font-size-xs: 0.75rem;
-	--font-size-sm: 0.875rem;
-	--font-size-base: 1rem;
-	--font-size-lg: 1.125rem;
-	--font-size-xl: 1.25rem;
-	--font-size-2xl: 1.5rem;
-	--font-size-3xl: 1.875rem;
-	--font-size-4xl: 2.25rem;
-	--font-size-5xl: 3rem;
-	--font-weight-light: 300;
-	--font-weight-normal: 400;
-	--font-weight-medium: 500;
-	--font-weight-semibold: 600;
-	--font-weight-bold: 700;
-	--line-height-tight: 1.2;
-	--line-height-normal: 1.5;
-	--line-height-loose: 1.6;
-
-	--background: 0 0% 0%;
-	--foreground: 0 0% 100%;
-	--card: 0 0% 0%;
-	--card-foreground: 0 0% 100%;
-	--popover: 0 0% 0%;
-	--popover-foreground: 0 0% 100%;
-	--primary: 0 0% 100%;
-	--primary-foreground: 0 0% 0%;
-	--secondary: 0 0% 10%;
-	--secondary-foreground: 0 0% 100%;
-	--muted: 0 0% 10%;
-	--muted-foreground: 0 0% 70%;
-	--accent: 0 0% 10%;
-	--accent-foreground: 0 0% 100%;
-	--destructive: 0 62% 30%;
-	--destructive-foreground: 0 0% 100%;
-	--border: 0 0% 10%;
-	--input: 0 0% 10%;
-	--ring: 0 0% 100%;
 	--chart-1: oklch(0.488 0.243 264.376);
 	--chart-2: oklch(0.696 0.17 162.48);
 	--chart-3: oklch(0.769 0.188 70.08);
 	--chart-4: oklch(0.627 0.265 303.9);
 	--chart-5: oklch(0.645 0.246 16.439);
-	--sidebar: oklch(0.208 0.042 265.755);
-	--sidebar-foreground: oklch(0.984 0.003 247.858);
-	--sidebar-primary: oklch(0.488 0.243 264.376);
-	--sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-	--sidebar-accent: oklch(0.279 0.041 260.031);
-	--sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* Map chart colors to Tailwind theme */
 @theme inline {
-	--radius-sm: calc(var(--radius) - 4px);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) + 4px);
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
-	--color-card: var(--card);
-	--color-card-foreground: var(--card-foreground);
-	--color-popover: var(--popover);
-	--color-popover-foreground: var(--popover-foreground);
-	--color-primary: var(--primary);
-	--color-primary-foreground: var(--primary-foreground);
-	--color-secondary: var(--secondary);
-	--color-secondary-foreground: var(--secondary-foreground);
-	--color-muted: var(--muted);
-	--color-muted-foreground: var(--muted-foreground);
-	--color-accent: var(--accent);
-	--color-accent-foreground: var(--accent-foreground);
-	--color-destructive: var(--destructive);
-	--color-border: var(--border);
-	--color-input: var(--input);
-	--color-ring: var(--ring);
 	--color-chart-1: var(--chart-1);
 	--color-chart-2: var(--chart-2);
 	--color-chart-3: var(--chart-3);
 	--color-chart-4: var(--chart-4);
 	--color-chart-5: var(--chart-5);
-	--color-sidebar: var(--sidebar);
-	--color-sidebar-foreground: var(--sidebar-foreground);
-	--color-sidebar-primary: var(--sidebar-primary);
-	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-	--color-sidebar-accent: var(--sidebar-accent);
-	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-	--color-sidebar-border: var(--sidebar-border);
-	--color-sidebar-ring: var(--sidebar-ring);
 }
 
 @layer base {
@@ -197,6 +93,7 @@
 		/* Performance optimization: Use transform for animations when possible */
 		will-change: scroll-position;
 	}
+
 	body {
 		@apply bg-background text-foreground;
 		padding: 0;
@@ -204,70 +101,85 @@
 		transition:
 			background-color,
 			color 0.3s ease;
-		/* Performance optimization: Enable hardware acceleration for smooth animations */
-		transform: translateZ(0);
+		/* Note: transform removed to avoid creating new stacking context for fixed elements like modals */
 	}
+
 	h1 {
 		font-size: var(--font-size-4xl);
 		font-weight: var(--font-weight-bold);
 		line-height: var(--line-height-tight);
 	}
+
 	h2 {
 		font-size: var(--font-size-3xl);
 		font-weight: var(--font-weight-semibold);
 		line-height: var(--line-height-normal);
 	}
+
 	h3 {
 		font-size: var(--font-size-2xl);
 		font-weight: var(--font-weight-semibold);
 		line-height: var(--line-height-normal);
 	}
+
 	p {
 		font-size: var(--font-size-base);
 		line-height: var(--line-height-loose);
 		margin-bottom: var(--space-sm);
 	}
+
 	/* Utility classes for spacing */
 	.p-xs {
 		padding: var(--space-xs);
 	}
+
 	.p-sm {
 		padding: var(--space-sm);
 	}
+
 	.p-md {
 		padding: var(--space-md);
 	}
+
 	.p-lg {
 		padding: var(--space-lg);
 	}
+
 	.p-xl {
 		padding: var(--space-xl);
 	}
+
 	.p-2xl {
 		padding: var(--space-2xl);
 	}
+
 	.m-xs {
 		margin: var(--space-xs);
 	}
+
 	.m-sm {
 		margin: var(--space-sm);
 	}
+
 	.m-md {
 		margin: var(--space-md);
 	}
+
 	.m-lg {
 		margin: var(--space-lg);
 	}
+
 	.m-xl {
 		margin: var(--space-xl);
 	}
+
 	.m-2xl {
 		margin: var(--space-2xl);
 	}
 
 	/* Focus visible styles for better accessibility */
 	*:focus-visible {
-		outline: 2px solid hsl(var(--ring));
+		outline: 2px solid oklch(78.5% 0.08 270);
 		outline-offset: 2px;
 	}
 
@@ -278,16 +190,16 @@
 	}
 
 	::-webkit-scrollbar-track {
-		background: hsl(var(--background));
+		background: var(--color-background);
 	}
 
 	::-webkit-scrollbar-thumb {
-		background: hsl(var(--border));
+		background: var(--color-border);
 		border-radius: 4px;
 	}
 
 	::-webkit-scrollbar-thumb:hover {
-		background: hsl(var(--accent));
+		background: var(--color-accent);
 	}
 
 	/* Performance optimization: Contain layout, style, and paint for complex components */
@@ -303,13 +215,15 @@
 
 	/* Toast notification text color fix */
 	[data-sonner-toaster] [data-sonner-toast] {
-		color: hsl(var(--foreground)) !important;
+		color: var(--color-foreground) !important;
 	}
+
 	[data-sonner-toaster] [data-sonner-toast] [data-title] {
-		color: hsl(var(--foreground)) !important;
+		color: var(--color-foreground) !important;
 	}
+
 	[data-sonner-toaster] [data-sonner-toast] [data-description] {
-		color: hsl(var(--foreground)) !important;
+		color: var(--color-foreground) !important;
 	}
 
 	/* Performance optimization: Reduce motion for users who prefer it */
@@ -335,6 +249,7 @@
 			font-size: 0.75rem;
 			line-height: 1.2;
 		}
+
 		.text-responsive-sm {
 			font-size: 0.875rem;
 			line-height: 1.3;
@@ -358,4 +273,30 @@
 			margin-right: auto;
 		}
 	}
+}
+
+/* Safe Area Insets for iOS */
+.pb-safe {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pt-safe {
+	padding-top: env(safe-area-inset-top);
+}
+
+.pl-safe {
+	padding-left: env(safe-area-inset-left);
+}
+
+.pr-safe {
+	padding-right: env(safe-area-inset-right);
+}
+
+/* Safe area margin */
+.mb-safe {
+	margin-bottom: env(safe-area-inset-bottom);
+}
+
+.mt-safe {
+	margin-top: env(safe-area-inset-top);
 }

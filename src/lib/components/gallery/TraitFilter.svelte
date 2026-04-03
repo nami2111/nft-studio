@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
-	import type { GalleryNFT } from '$lib/types/gallery';
-	import Badge from '$lib/components/ui/badge/badge.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Card from '$lib/components/ui/card/card.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Card } from '$lib/components/ui/card';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
 		class?: string;
 	}
 
-	let { class: className = '' }: Props = $props();
+	const { class: className = '' }: Props = $props();
 
 	// Get source NFTs for trait extraction (avoid filtering overhead)
-	const sourceNFTs = $derived(() => {
+	const sourceNFTs = $derived.by(() => {
 		if (galleryStore.selectedCollection) {
 			return galleryStore.selectedCollection.nfts;
 		} else {
@@ -21,14 +21,14 @@
 	});
 
 	// Derive available traits from source NFTs (more efficient)
-	const availableTraits = $derived(() => {
-		const nfts = sourceNFTs();
-		const traitMap = new Map<string, Set<string>>();
+	const availableTraits = $derived.by(() => {
+		const nfts = sourceNFTs;
+		const traitMap = new SvelteMap<string, Set<string>>();
 
 		for (const nft of nfts) {
 			for (const trait of nft.metadata.traits) {
-				const layer = trait.layer || (trait as any).trait_type;
-				const traitValue = trait.trait || (trait as any).value;
+				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
+				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 
 				if (!layer || !traitValue) continue;
 
@@ -46,36 +46,33 @@
 	});
 
 	// Selected traits state
-	let selectedTraits = $state<Record<string, string[]>>({});
-
-	// Initialize from store
-	$effect(() => {
-		selectedTraits = { ...(galleryStore.filterOptions.selectedTraits || {}) };
-	});
+	const selectedTraits = $derived(galleryStore.filterOptions.selectedTraits || {});
 
 	function toggleTrait(layer: string, trait: string) {
-		if (!selectedTraits[layer]) {
-			selectedTraits[layer] = [];
+		const current = { ...selectedTraits };
+		if (!current[layer]) {
+			current[layer] = [];
+		} else {
+			current[layer] = [...current[layer]];
 		}
 
-		const index = selectedTraits[layer].indexOf(trait);
+		const index = current[layer].indexOf(trait);
 		if (index === -1) {
-			selectedTraits[layer].push(trait);
+			current[layer].push(trait);
 		} else {
-			selectedTraits[layer].splice(index, 1);
-			if (selectedTraits[layer].length === 0) {
-				delete selectedTraits[layer];
+			current[layer].splice(index, 1);
+			if (current[layer].length === 0) {
+				delete current[layer];
 			}
 		}
 
 		// Update store filters
 		galleryStore.setFilterOptions({
-			selectedTraits: Object.keys(selectedTraits).length > 0 ? selectedTraits : undefined
+			selectedTraits: Object.keys(current).length > 0 ? current : undefined
 		});
 	}
 
 	function clearAllTraits() {
-		selectedTraits = {};
 		galleryStore.setFilterOptions({ selectedTraits: undefined });
 	}
 
@@ -85,11 +82,11 @@
 
 	function getTraitCount(layer: string, trait: string): number {
 		// Use source NFTs for trait counts (more efficient)
-		const nfts = sourceNFTs();
+		const nfts = sourceNFTs;
 		return nfts.filter((nft) =>
 			nft.metadata.traits.some((t) => {
-				const tLayer = t.layer || (t as any).trait_type;
-				const tValue = t.trait || (t as any).value;
+				const tLayer = t.layer || (t as Record<string, unknown>).trait_type;
+				const tValue = t.trait || (t as Record<string, unknown>).value;
 				return tLayer === layer && tValue === trait;
 			})
 		).length;
@@ -111,11 +108,11 @@
 			</div>
 		{:else}
 			<div class="space-y-3">
-				{#each availableTraits() as traitGroup}
+				{#each availableTraits as traitGroup (traitGroup.layer)}
 					<div class="space-y-2">
 						<h4 class="text-foreground text-sm font-medium">{traitGroup.layer}</h4>
 						<div class="flex flex-wrap gap-1">
-							{#each traitGroup.traits as trait}
+							{#each traitGroup.traits as trait (trait)}
 								{@const count = getTraitCount(traitGroup.layer, trait)}
 								{@const isSelected = isTraitSelected(traitGroup.layer, trait)}
 								<button
@@ -147,8 +144,8 @@
 				<div class="border-t pt-3">
 					<div class="text-muted-foreground mb-2 text-sm">Active Filters:</div>
 					<div class="flex flex-wrap gap-1">
-						{#each Object.entries(selectedTraits) as [layer, traits]}
-							{#each traits as trait}
+						{#each Object.entries(selectedTraits) as [layer, traits] (layer)}
+							{#each traits as trait (trait)}
 								<Badge variant="secondary" class="text-xs">
 									{layer}: {trait}
 								</Badge>

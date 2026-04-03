@@ -1,10 +1,14 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vite-plus';
 import tailwindcss from '@tailwindcss/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { enhancedImages } from '@sveltejs/enhanced-img';
+import juno from '@junobuild/vite-plugin';
 
 export default defineConfig({
 	plugins: [
+		enhancedImages(),
+		juno(),
 		sveltekit(),
 		tailwindcss(),
 		SvelteKitPWA({
@@ -87,18 +91,12 @@ export default defineConfig({
 		})
 	],
 	optimizeDeps: {
-		esbuildOptions: {
-			define: {
-				global: 'globalThis'
-			},
-			plugins: [
-				{
-					name: 'fix-node-globals-polyfill',
-					setup(build) {
-						build.onResolve({ filter: /_virtual-process-polyfill_\.js/ }, ({ path }) => ({ path }));
-					}
+		rolldownOptions: {
+			transform: {
+				define: {
+					global: 'globalThis'
 				}
-			]
+			}
 		}
 	},
 	worker: {
@@ -109,5 +107,85 @@ export default defineConfig({
 		fs: {
 			allow: ['..']
 		}
+	},
+	test: {
+		include: ['src/**/*.{test,spec}.{js,ts}'],
+		environment: 'jsdom',
+		setupFiles: ['./src/lib/components/test-setup.ts'],
+		globals: true,
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'json', 'html'],
+			thresholds: {
+				statements: 70,
+				branches: 70,
+				functions: 70,
+				lines: 70
+			},
+			exclude: [
+				'node_modules/',
+				'src/lib/components/test-setup.ts',
+				'src/lib/components/test-utils.ts',
+				'*.test.ts',
+				'*.config.*',
+				'dist/',
+				'build/'
+			]
+		}
+	},
+	lint: {
+		ignorePatterns: [
+			'build/**',
+			'.svelte-kit/**',
+			'dist/**',
+			'static/**',
+			'scripts/**',
+			'**/*.test.ts',
+			'**/*.spec.ts',
+			'src/lib/components/test-setup.ts',
+			'src/lib/components/test-utils.ts',
+			'*.config.ts',
+			'juno.config.ts',
+			'repro_validation.ts',
+			'src/app.d.ts'
+		],
+		options: {
+			typeAware: true,
+			typeCheck: true
+		},
+		rules: {
+			'@typescript-eslint/no-unused-vars': 'warn',
+			'@typescript-eslint/no-explicit-any': 'warn',
+			'@typescript-eslint/no-unused-expressions': 'warn',
+			'@typescript-eslint/no-floating-promises': 'off',
+			'@typescript-eslint/no-misused-promises': 'off',
+			'@typescript-eslint/no-redundant-type-constituents': 'off',
+			'@typescript-eslint/unbound-method': 'off',
+			'@typescript-eslint/no-base-to-string': 'off',
+			'@typescript-eslint/await-thenable': 'warn',
+			'@typescript-eslint/require-array-sort-compare': 'off',
+			'no-async-promise-executor': 'warn',
+			'no-control-regex': 'off',
+			'no-case-declarations': 'off',
+			'no-unassigned-vars': 'off',
+			'unicorn/no-useless-fallback-in-spread': 'off',
+			'prefer-const': 'warn'
+		},
+		overrides: [
+			{
+				files: ['*.svelte'],
+				rules: {
+					'prefer-const': 'off',
+					'no-unassigned-vars': 'off'
+				}
+			}
+		]
+	},
+	fmt: {
+		singleQuote: true,
+		semi: true,
+		useTabs: true,
+		trailingComma: 'none',
+		ignorePatterns: ['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'stats.html']
 	}
 });

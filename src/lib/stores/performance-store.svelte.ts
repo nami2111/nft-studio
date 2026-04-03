@@ -78,7 +78,10 @@ function startUpdateInterval(): void {
 		clearInterval(updateInterval);
 	}
 
-	updateInterval = setInterval(updateStats, PERF_CONFIG.monitoring.updateInterval) as unknown as number;
+	updateInterval = setInterval(
+		updateStats,
+		PERF_CONFIG.monitoring.updateInterval
+	) as unknown as number;
 }
 
 /**

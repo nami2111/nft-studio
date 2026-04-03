@@ -3,24 +3,21 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Modal } from '$lib/components/ui/modal';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
-	import Info from '@lucide/svelte/icons/info';
 	import type { StrictPairConfig, LayerCombination } from '$lib/types/layer';
 	import type { Layer } from '$lib/types/project';
-	import type { LayerId, TraitId } from '$lib/types/ids';
+	import type { LayerId } from '$lib/types/ids';
 
 	// Props
-	let {
+	const {
 		project,
 		onupdateStrictPairConfig
 	}: {
 		project: {
-			id: string;
-			name: string;
-			description: string;
-			outputSize: { width: number; height: number };
 			layers: Layer[];
 			strictPairConfig?: StrictPairConfig;
 		};
@@ -28,15 +25,17 @@
 	} = $props();
 
 	// State
-	let isOpen = $state(false);
 	let showLayerPairModal = $state(false);
 	let selectedLayerIds: LayerId[] = $state([]);
 	let newLayerPairDescription = $state('');
 
+	// Derived values
+	const isAddButtonDisabled = $derived(selectedLayerIds.length < 2);
+
 	// No event dispatcher needed - use callback prop directly
 
 	// Reactive strict pair config
-	let strictPairConfig = $derived.by(
+	const strictPairConfig = $derived.by(
 		() =>
 			project.strictPairConfig || {
 				enabled: false,
@@ -45,7 +44,7 @@
 	);
 
 	// Available layers for combinations
-	let availableLayers = $derived.by(() =>
+	const availableLayers = $derived.by(() =>
 		project.layers.filter((layer) => layer.traits.length > 0).sort((a, b) => a.order - b.order)
 	);
 
@@ -126,10 +125,8 @@
 
 	// Handle layer selection
 	function toggleLayerSelection(layerId: LayerId) {
-		const existingIndex = selectedLayerIds.indexOf(layerId);
-
-		if (existingIndex !== -1) {
-			selectedLayerIds = selectedLayerIds.filter((_, index) => index !== existingIndex);
+		if (selectedLayerIds.includes(layerId)) {
+			selectedLayerIds = selectedLayerIds.filter((id) => id !== layerId);
 		} else {
 			selectedLayerIds = [...selectedLayerIds, layerId];
 		}
@@ -138,18 +135,6 @@
 	// Check if a layer is selected
 	function isLayerSelected(layerId: LayerId): boolean {
 		return selectedLayerIds.includes(layerId);
-	}
-
-	// Get layer name by ID
-	function getLayerName(layerId: string): string {
-		const layer = availableLayers.find((l) => l.id === layerId);
-		return layer?.name || 'Unknown Layer';
-	}
-
-	// Get layer traits count
-	function getLayerTraitsCount(layerId: string): number {
-		const layer = availableLayers.find((l) => l.id === layerId);
-		return layer?.traits.length || 0;
 	}
 
 	// Calculate total unique combinations possible for a layer combination
@@ -200,44 +185,20 @@
 			blockingCombinations
 		};
 	}
-
-	// Get combination analytics
-	function getCombinationAnalytics(): {
-		totalPossibleCombinations: number;
-		activeCombinations: number;
-		averageCombinationsPerRule: number;
-	} {
-		let totalPossible = 0;
-		let activeCount = 0;
-
-		for (const combination of strictPairConfig.layerCombinations) {
-			if (!combination.active) continue;
-
-			const possible = calculateTotalCombinations(combination);
-			totalPossible += possible;
-			activeCount++;
-		}
-
-		return {
-			totalPossibleCombinations: totalPossible,
-			activeCombinations: activeCount,
-			averageCombinationsPerRule: activeCount > 0 ? totalPossible / activeCount : 0
-		};
-	}
 </script>
 
-<Card class="bg-card/95 rounded-lg border shadow-sm backdrop-blur-sm">
-	<div class="border-b px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+<Card class="rounded-lg shadow-none">
+	<CardHeader>
 		<div class="flex items-center justify-between">
-			<h2 class="flex items-center gap-2 text-base font-semibold sm:text-lg lg:text-xl">
+			<CardTitle class="flex items-center gap-2">
 				<Settings class="size-4" />
 				Strict Pair Mode
-			</h2>
+			</CardTitle>
 			<Badge variant={strictPairConfig.enabled ? 'default' : 'secondary'}>
 				{strictPairConfig.enabled ? 'Enabled' : 'Disabled'}
 			</Badge>
 		</div>
-	</div>
+	</CardHeader>
 
 	<CardContent class="pt-0 pb-4">
 		<div class="space-y-4">
@@ -260,7 +221,7 @@
 			</Button>
 
 			{#if strictPairConfig.enabled}
-				<div class="space-y-3 border-t pt-3">
+				<div class="space-y-3 border-t-2 pt-3">
 					<!-- Add Layer Combination Button -->
 					<Button
 						variant="outline"
@@ -278,8 +239,8 @@
 						<div class="space-y-3">
 							<h4 class="text-sm font-medium">Layer Combinations</h4>
 
-							{#each strictPairConfig.layerCombinations as layerCombination}
-								<div class="group bg-card hover:bg-muted/50 rounded-lg border p-3 transition-all">
+							{#each strictPairConfig.layerCombinations as layerCombination (layerCombination.id)}
+								<div class="group bg-card hover:bg-muted/50 rounded-lg border-2 p-3 transition-all">
 									<div class="space-y-2">
 										<!-- Top row: Description -->
 										<div class="text-sm leading-tight font-medium break-words">
@@ -420,7 +381,7 @@
 
 <!-- Add Layer Combination Modal -->
 <Modal
-	open={showLayerPairModal}
+	bind:open={showLayerPairModal}
 	onClose={() => {
 		showLayerPairModal = false;
 		selectedLayerIds = [];
@@ -439,37 +400,44 @@
 				role="group"
 				aria-labelledby="layer-selection-label"
 			>
-				{#each availableLayers as layer}
-					<div
-						role="button"
-						tabindex="0"
-						class="hover:bg-muted/50 flex cursor-pointer items-center space-x-3 rounded-lg border p-3 {isLayerSelected(
+				{#each availableLayers as layer (layer.id)}
+					<label
+						class="hover:bg-muted/50 flex w-full cursor-pointer items-center space-x-3 rounded-lg border-2 p-3 transition-colors {isLayerSelected(
 							layer.id
 						)
 							? 'bg-primary/10 border-primary'
 							: ''}"
-						onclick={() => toggleLayerSelection(layer.id)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								toggleLayerSelection(layer.id);
-							}
-						}}
-						aria-pressed={isLayerSelected(layer.id)}
-						aria-label={`Select ${layer.name} layer`}
 					>
 						<input
 							type="checkbox"
 							checked={isLayerSelected(layer.id)}
-							class="accent-primary focus:ring-primary h-4 w-4 rounded border-input focus:ring-2 focus:ring-offset-2 pointer-events-none"
-							tabindex="-1"
-							aria-hidden="true"
+							onchange={() => toggleLayerSelection(layer.id)}
+							class="sr-only"
 						/>
+						<div
+							class="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 {isLayerSelected(
+								layer.id
+							)
+								? 'border-primary bg-primary'
+								: 'border-foreground bg-background'}"
+						>
+							{#if isLayerSelected(layer.id)}
+								<svg
+									class="text-primary-foreground h-3.5 w-3.5"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									stroke-width="4"
+								>
+									<path stroke-linecap="square" stroke-linejoin="miter" d="M20 6L9 17L4 12" />
+								</svg>
+							{/if}
+						</div>
 						<div class="flex-1">
 							<div class="text-sm font-medium">{layer.name}</div>
 							<div class="text-muted-foreground text-xs">{layer.traits.length} traits</div>
 						</div>
-					</div>
+					</label>
 				{/each}
 			</div>
 			<div class="text-muted-foreground mt-3 text-xs">
@@ -499,16 +467,13 @@
 		</fieldset>
 
 		<!-- Description -->
-		<div>
-			<label for="layer-combination-description" class="text-sm font-medium"
-				>Description (optional)</label
-			>
-			<input
+		<div class="space-y-2">
+			<Label for="layer-combination-description">Description (optional)</Label>
+			<Input
 				id="layer-combination-description"
 				type="text"
 				placeholder={generateDefaultLayerCombinationDescription(selectedLayerIds)}
 				bind:value={newLayerPairDescription}
-				class="mt-2 w-full rounded-md border px-3 py-2 text-sm"
 			/>
 		</div>
 
@@ -526,10 +491,10 @@
 				Cancel
 			</Button>
 			<Button
-				variant="outline"
+				variant="default"
 				size="sm"
 				onclick={addLayerCombination}
-				disabled={selectedLayerIds.length < 2}
+				disabled={isAddButtonDisabled}
 			>
 				Add Layer Combination
 			</Button>

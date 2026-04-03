@@ -72,7 +72,6 @@
 		// Use untrack for selectedTraitIds to prevent reactivity loops
 		// This effect should only react to project.layers changes
 		const currentIds = untrack(() => selectedTraitIds);
-		const previousSelectedIds = new Set(currentIds.filter((id): id is TraitId => id !== ''));
 
 		const newSelectedTraits: (TraitId | '')[] = [];
 
@@ -101,13 +100,6 @@
 		if (hasChanged) {
 			selectedTraitIds = newSelectedTraits;
 		}
-	});
-
-	// Derived preview data for memoization
-	const previewData = $derived({
-		layers: project.layers,
-		outputSize: project.outputSize,
-		selectedTraitIds
 	});
 
 	// Image worker for lazy loading with proper cleanup
@@ -398,7 +390,7 @@
 						try {
 							const img = await loadImage(imageUrl);
 							return { img, layerIndex: i };
-						} catch (error) {
+						} catch {
 							// Try to recreate blob URL from imageData if imageUrl failed
 							if (hasValidImageData) {
 								try {
@@ -718,7 +710,7 @@
 	}
 </script>
 
-<Card class="sticky top-3 sm:top-4">
+<Card class="sticky top-3 shadow-none sm:top-4">
 	<CardContent class="p-3 sm:p-4">
 		<h2 class="mb-2 text-base font-bold sm:mb-3 sm:text-lg">Preview</h2>
 		<div

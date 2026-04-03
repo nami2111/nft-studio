@@ -10,8 +10,7 @@ import {
 	validateRarityWeight,
 	validateImportedProject
 } from './validation';
-import { recoverableFileOperation, recoverableStorageOperation } from '$lib/utils/error-handler';
-import { withTiming, measureOperation } from '$lib/utils/performance-monitor';
+import { recoverableFileOperation } from '$lib/utils/error-handler';
 import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 
 /**
@@ -293,16 +292,4 @@ export function calculateTotalCombinations(project: Project): number {
 	return project.layers.reduce((total, layer) => {
 		return total * Math.max(layer.traits.length, 1);
 	}, 1);
-}
-
-/**
- * Check if project can generate NFTs
- */
-export function canGenerateNFTs(project: Project): boolean {
-	return (
-		project.layers.length > 0 &&
-		project.outputSize.width > 0 &&
-		project.outputSize.height > 0 &&
-		project.layers.every((layer) => layer.traits.length > 0)
-	);
 }

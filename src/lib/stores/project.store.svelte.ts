@@ -1,6 +1,11 @@
 /**
  * Modern Svelte 5 runes-based project store for NFT Studio
  * Focused on core state management and business logic
+ *
+ * @note The `project` export is intentionally a module-level singleton.
+ * This app is a single-session SPA (no SSR, no multi-user), so a global
+ * singleton is appropriate. If multi-instance support is ever needed,
+ * migrate to Svelte context (setContext/getContext).
  */
 
 import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
@@ -14,11 +19,12 @@ import {
 	saveProjectToZip as saveProjectToZipImpl,
 	loadProjectFromZip as loadProjectFromZipImpl
 } from './file-operations';
-import { loadingStateManager, type LoadingState } from './loading-state';
+import { loadingStateManager } from './loading-state';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { calculateAdaptiveDelay } from '$lib/config/performance.config';
 import { persistenceService } from '../services/persistence.service';
 import { validationService } from '../services/validation.service';
+import { SvelteMap } from 'svelte/reactivity';
 
 // Initialize project with a fresh default project
 // Note: Auto-load disabled - users must manually load saved projects via "Load Project" button
@@ -331,8 +337,11 @@ export function reorderLayers(layerIds: LayerId[]): void {
 }
 
 // Batch loading state for traits
-const pendingTraitUpdates = new Map<string, { trait: Trait; layer: Layer; file: File }>();
-const pendingTraitPromises = new Map<TraitId, { resolve: () => void; reject: (error: Error) => void }>();
+const pendingTraitUpdates = new SvelteMap<string, { trait: Trait; layer: Layer; file: File }>();
+const pendingTraitPromises = new SvelteMap<
+	TraitId,
+	{ resolve: () => void; reject: (error: Error) => void }
+>();
 
 async function processPendingTraitUpdates(): Promise<void> {
 	if (pendingTraitUpdates.size === 0) return;
@@ -441,13 +450,27 @@ export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeig
 }
 
 // Loading state delegation
-export function startLoading(op: string) { loadingStateManager.startLoading(op); }
-export function stopLoading(op: string) { loadingStateManager.stopLoading(op); }
-export function getLoadingState(op: string) { return loadingStateManager.getLoadingState(op); }
-export function startDetailedLoading(op: string, total = 100) { loadingStateManager.startDetailedLoading(op, total); }
-export function updateDetailedLoading(op: string, p: number, m?: string) { loadingStateManager.updateDetailedLoading(op, p, m); }
-export function stopDetailedLoading(op: string, s = true) { loadingStateManager.stopDetailedLoading(op, s); }
-export function getDetailedLoadingState(op: string) { return loadingStateManager.getDetailedLoadingState(op); }
+export function startLoading(op: string) {
+	loadingStateManager.startLoading(op);
+}
+export function stopLoading(op: string) {
+	loadingStateManager.stopLoading(op);
+}
+export function getLoadingState(op: string) {
+	return loadingStateManager.getLoadingState(op);
+}
+export function startDetailedLoading(op: string, total = 100) {
+	loadingStateManager.startDetailedLoading(op, total);
+}
+export function updateDetailedLoading(op: string, p: number, m?: string) {
+	loadingStateManager.updateDetailedLoading(op, p, m);
+}
+export function stopDetailedLoading(op: string, s = true) {
+	loadingStateManager.stopDetailedLoading(op, s);
+}
+export function getDetailedLoadingState(op: string) {
+	return loadingStateManager.getDetailedLoadingState(op);
+}
 
 // Project persistence
 export async function saveProjectToZip(): Promise<ArrayBuffer> {
@@ -512,10 +535,18 @@ export function updateStrictPairConfig(projectId: ProjectId, config: StrictPairC
 	project.strictPairConfig = { ...config };
 	persistenceService.schedulePersist(project);
 }
-export function getStrictPairConfig() { return project.strictPairConfig ? { ...project.strictPairConfig } : undefined; }
-export function isStrictPairEnabled() { return project.strictPairConfig?.enabled ?? false; }
+export function getStrictPairConfig() {
+	return project.strictPairConfig ? { ...project.strictPairConfig } : undefined;
+}
+export function isStrictPairEnabled() {
+	return project.strictPairConfig?.enabled ?? false;
+}
 export function getActiveLayerCombinations(): string[] {
-	return project.strictPairConfig?.layerCombinations.filter((lc: any) => lc.active).map((lc: any) => lc.id) ?? [];
+	return (
+		project.strictPairConfig?.layerCombinations
+			.filter((lc: { active: boolean; id: string }) => lc.active)
+			.map((lc: { active: boolean; id: string }) => lc.id) ?? []
+	);
 }
 
 export function resetProject(): void {

@@ -3,8 +3,6 @@
  * Extends existing project types with gallery-specific functionality
  */
 
-import type { ProjectId } from './ids';
-
 /**
  * Gallery NFT interface representing a generated NFT in the gallery
  */

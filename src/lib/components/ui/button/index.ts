@@ -1,3 +1,2 @@
-import Root from './button.svelte';
-export { default as Button } from './button.svelte';
-export default Root;
+// Re-export from @neobr/svelte
+export { Button } from '@neobr/svelte';

@@ -5,7 +5,7 @@
 
 import { showError, AppError } from './error-handling';
 import type { ErrorOptions, ErrorContext } from './error-handling';
-import { logError as logAppError, logWarning } from './error-logger';
+
 import {
 	ValidationError,
 	StorageError,
@@ -20,7 +20,7 @@ import {
 	getErrorInfo,
 	isRecoverableError
 } from './typed-errors';
-import { retry, retryWithErrorHandling, RetryConfigs, type RetryConfig } from './retry';
+import { retryWithErrorHandling, RetryConfigs, type RetryConfig } from './retry';
 
 export interface ErrorHandlerOptions extends ErrorOptions {
 	context?: ErrorContext;
@@ -83,9 +83,9 @@ export async function handleError<T>(
 	// Log error if requested
 	if (logError) {
 		if (appError.recoverable) {
-			logWarning(appError.message, appError.context);
+			console.warn(`[WARNING] ${appError.message}`, appError.context);
 		} else {
-			logAppError(appError, appError.context);
+			console.error(`[ERROR] ${appError.message}`, appError.context);
 		}
 	}
 
@@ -328,9 +328,10 @@ export async function recoverableOperation<T>(
 				operation: handlerOptions.operation,
 				additionalData: {
 					enableRetry: true,
-					...(handlerOptions.context as any)?.additionalData
+					...((handlerOptions.context as unknown as Record<string, unknown>)
+						?.additionalData as Record<string, unknown>)
 				}
-			} as any, // Type assertion needed due to ErrorContext type mismatch
+			} as unknown as ErrorContext, // Type assertion needed due to ErrorContext type mismatch
 			`Operation "${handlerOptions.operation || 'unknown'}" failed after multiple attempts`
 		);
 	} catch (error) {

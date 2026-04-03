@@ -82,9 +82,7 @@ export class SpritePacker {
 		const packedSheets = await Promise.all(packPromises);
 		sheets.push(...packedSheets);
 
-		console.log(
-			`✅ Layer '${layer.name}' packed: ${traits.length} traits in ${numSheets} sheets`
-		);
+		console.log(`✅ Layer '${layer.name}' packed: ${traits.length} traits in ${numSheets} sheets`);
 
 		return {
 			layerId: layer.id,

@@ -19,7 +19,7 @@
 	const { trait, layer, allLayers, onRulesUpdate }: Props = $props();
 
 	let isDialogOpen = $state(false);
-	let rules = $derived(trait.rulerRules || []);
+	let rules = $state<RulerRule[]>([]);
 	let newRule = $state<RulerRule>({
 		layerId: '' as LayerId,
 		allowedTraitIds: [],
@@ -27,7 +27,7 @@
 	});
 
 	// Get available layers (excluding current layer)
-	let availableLayers = $derived(allLayers.filter((l) => l.id !== layer.id));
+	const availableLayers = $derived(allLayers.filter((l) => l.id !== layer.id));
 
 	// Get traits for a specific layer
 	function getTraitsForLayer(layerId: LayerId): Trait[] {
@@ -105,11 +105,9 @@
 		return rule;
 	}
 
-	// Clean up conflicts when rules are loaded
+	// Sync rules from trait and clean up conflicts
 	$effect(() => {
-		if (trait.rulerRules) {
-			rules = trait.rulerRules.map(cleanupConflicts);
-		}
+		rules = (trait.rulerRules || []).map(cleanupConflicts);
 	});
 </script>
 
@@ -128,9 +126,9 @@
 		bind:open={isDialogOpen}
 		title="Manage Ruler Rules for '{trait.name}'"
 		onClose={() => (isDialogOpen = false)}
-		maxWidth="max-w-4xl"
+		size="full"
 	>
-		<div class="space-y-4">
+		<div class="space-y-4 overflow-y-auto pr-2">
 			{#if availableLayers.length === 0}
 				<p class="text-muted-foreground text-sm">No other layers available to create rules for.</p>
 			{:else}
@@ -157,43 +155,25 @@
 						{#if newRule.layerId}
 							{@const targetTraits = getTraitsForLayer(newRule.layerId)}
 							{#if targetTraits.length > 0}
-								<div class="rounded-lg bg-green-50 p-3 dark:bg-green-950/20">
-									<div class="mb-2 flex items-center gap-2">
-										<div class="h-2 w-2 rounded-full bg-green-200 dark:bg-green-400"></div>
-										<h4 class="text-sm font-medium text-green-800 dark:text-green-200">
-											Allowed Traits
-										</h4>
-										<span class="text-muted-foreground text-xs">(leave empty for all)</span>
-										{#if newRule.allowedTraitIds.some( (id) => newRule.forbiddenTraitIds.includes(id) )}
-											<span class="ml-auto text-xs text-amber-600 dark:text-amber-400">
-												⚠️ Auto-resolving conflicts
-											</span>
-										{/if}
-									</div>
-									<div class="flex flex-wrap gap-1">
-										{#each targetTraits as targetTrait (targetTrait.id)}
-											{@const isInAllowed = newRule.allowedTraitIds.includes(targetTrait.id)}
-											{@const isInForbidden = newRule.forbiddenTraitIds.includes(targetTrait.id)}
-											<button
-												type="button"
-												class="cursor-pointer border-none bg-transparent p-0"
-												onclick={() => {
-													if (isInAllowed) {
-														// Remove from allowed list
-														newRule.allowedTraitIds = newRule.allowedTraitIds.filter(
-															(id) => id !== targetTrait.id
-														);
-													} else {
-														// Add to allowed list and remove from forbidden list (prevent conflicts)
-														newRule.allowedTraitIds = [...newRule.allowedTraitIds, targetTrait.id];
-														newRule.forbiddenTraitIds = newRule.forbiddenTraitIds.filter(
-															(id) => id !== targetTrait.id
-														);
-													}
-												}}
-												onkeydown={(e) => {
-													if (e.key === 'Enter' || e.key === ' ') {
-														e.preventDefault();
+								<!-- Side by side layout for Allowed and Forbidden traits -->
+								<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+									<!-- Allowed Traits -->
+									<div class="rounded-lg bg-green-50 p-3 dark:bg-green-950/20">
+										<div class="mb-2 flex items-center gap-2">
+											<div class="h-2 w-2 rounded-full bg-green-200 dark:bg-green-400"></div>
+											<h4 class="text-sm font-medium text-green-800 dark:text-green-200">
+												Allowed Traits
+											</h4>
+											<span class="text-muted-foreground text-xs">(leave empty for all)</span>
+										</div>
+										<div class="flex flex-wrap gap-1">
+											{#each targetTraits as targetTrait (targetTrait.id)}
+												{@const isInAllowed = newRule.allowedTraitIds.includes(targetTrait.id)}
+												{@const isInForbidden = newRule.forbiddenTraitIds.includes(targetTrait.id)}
+												<button
+													type="button"
+													class="cursor-pointer border-none bg-transparent p-0"
+													onclick={() => {
 														if (isInAllowed) {
 															// Remove from allowed list
 															newRule.allowedTraitIds = newRule.allowedTraitIds.filter(
@@ -209,83 +189,79 @@
 																(id) => id !== targetTrait.id
 															);
 														}
-													}
-												}}
-												aria-pressed={isInAllowed}
-												aria-label={`Toggle ${targetTrait.name} from allowed traits`}
-											>
-												{#if isInAllowed}
-													<Badge
-														class="border-green-600 bg-green-600 text-white hover:bg-green-700 dark:border-green-500 dark:bg-green-500 dark:hover:bg-green-600"
-													>
-														<svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-															<path
-																fill-rule="evenodd"
-																d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-																clip-rule="evenodd"
-															/>
-														</svg>
-														{targetTrait.name}
-													</Badge>
-												{:else if isInForbidden}
-													<Badge
-														variant="outline"
-														class="border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:border-amber-500 dark:hover:bg-amber-950/50"
-													>
-														{targetTrait.name}
-													</Badge>
-												{:else}
-													<Badge
-														variant="outline"
-														class="border-green-200 bg-white text-green-700 hover:border-green-400 hover:bg-green-50 dark:border-green-700 dark:bg-gray-800 dark:text-green-300 dark:hover:border-green-500 dark:hover:bg-green-900/20"
-													>
-														{targetTrait.name}
-													</Badge>
-												{/if}
-											</button>
-										{/each}
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															e.preventDefault();
+															if (isInAllowed) {
+																// Remove from allowed list
+																newRule.allowedTraitIds = newRule.allowedTraitIds.filter(
+																	(id) => id !== targetTrait.id
+																);
+															} else {
+																// Add to allowed list and remove from forbidden list (prevent conflicts)
+																newRule.allowedTraitIds = [
+																	...newRule.allowedTraitIds,
+																	targetTrait.id
+																];
+																newRule.forbiddenTraitIds = newRule.forbiddenTraitIds.filter(
+																	(id) => id !== targetTrait.id
+																);
+															}
+														}
+													}}
+													aria-pressed={isInAllowed}
+													aria-label={`Toggle ${targetTrait.name} from allowed traits`}
+												>
+													{#if isInAllowed}
+														<Badge
+															class="border-green-600 bg-green-600 text-white hover:bg-green-700 dark:border-green-500 dark:bg-green-500 dark:hover:bg-green-600"
+														>
+															<svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+																<path
+																	fill-rule="evenodd"
+																	d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+																	clip-rule="evenodd"
+																/>
+															</svg>
+															{targetTrait.name}
+														</Badge>
+													{:else if isInForbidden}
+														<Badge
+															variant="outline"
+															class="border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:border-amber-500 dark:hover:bg-amber-950/50"
+														>
+															{targetTrait.name}
+														</Badge>
+													{:else}
+														<Badge
+															variant="outline"
+															class="border-green-200 bg-white text-green-700 hover:border-green-400 hover:bg-green-50 dark:border-green-700 dark:bg-gray-800 dark:text-green-300 dark:hover:border-green-500 dark:hover:bg-green-900/20"
+														>
+															{targetTrait.name}
+														</Badge>
+													{/if}
+												</button>
+											{/each}
+										</div>
 									</div>
-								</div>
 
-								<div class="rounded-lg bg-red-50 p-3 dark:bg-red-950/20">
-									<div class="mb-2 flex items-center gap-2">
-										<div class="h-2 w-2 rounded-full bg-red-200 dark:bg-red-400"></div>
-										<h4 class="text-sm font-medium text-red-800 dark:text-red-200">
-											Forbidden Traits
-										</h4>
-										{#if newRule.forbiddenTraitIds.some( (id) => newRule.allowedTraitIds.includes(id) )}
-											<span class="ml-auto text-xs text-amber-600 dark:text-amber-400">
-												⚠️ Auto-resolving conflicts
-											</span>
-										{/if}
-									</div>
-									<div class="flex flex-wrap gap-1">
-										{#each targetTraits as targetTrait (targetTrait.id)}
-											{@const isInAllowed = newRule.allowedTraitIds.includes(targetTrait.id)}
-											{@const isInForbidden = newRule.forbiddenTraitIds.includes(targetTrait.id)}
-											<button
-												type="button"
-												class="cursor-pointer border-none bg-transparent p-0"
-												onclick={() => {
-													if (isInForbidden) {
-														// Remove from forbidden list
-														newRule.forbiddenTraitIds = newRule.forbiddenTraitIds.filter(
-															(id) => id !== targetTrait.id
-														);
-													} else {
-														// Add to forbidden list and remove from allowed list (prevent conflicts)
-														newRule.forbiddenTraitIds = [
-															...newRule.forbiddenTraitIds,
-															targetTrait.id
-														];
-														newRule.allowedTraitIds = newRule.allowedTraitIds.filter(
-															(id) => id !== targetTrait.id
-														);
-													}
-												}}
-												onkeydown={(e) => {
-													if (e.key === 'Enter' || e.key === ' ') {
-														e.preventDefault();
+									<!-- Forbidden Traits -->
+									<div class="rounded-lg bg-red-50 p-3 dark:bg-red-950/20">
+										<div class="mb-2 flex items-center gap-2">
+											<div class="h-2 w-2 rounded-full bg-red-200 dark:bg-red-400"></div>
+											<h4 class="text-sm font-medium text-red-800 dark:text-red-200">
+												Forbidden Traits
+											</h4>
+										</div>
+										<div class="flex flex-wrap gap-1">
+											{#each targetTraits as targetTrait (targetTrait.id)}
+												{@const isInAllowed = newRule.allowedTraitIds.includes(targetTrait.id)}
+												{@const isInForbidden = newRule.forbiddenTraitIds.includes(targetTrait.id)}
+												<button
+													type="button"
+													class="cursor-pointer border-none bg-transparent p-0"
+													onclick={() => {
 														if (isInForbidden) {
 															// Remove from forbidden list
 															newRule.forbiddenTraitIds = newRule.forbiddenTraitIds.filter(
@@ -301,52 +277,81 @@
 																(id) => id !== targetTrait.id
 															);
 														}
-													}
-												}}
-												aria-pressed={isInForbidden}
-												aria-label={`Toggle ${targetTrait.name} from forbidden traits`}
-											>
-												{#if isInForbidden}
-													<Badge
-														class="border-red-600 bg-red-600 text-white hover:bg-red-700 dark:border-red-500 dark:bg-red-500 dark:hover:bg-red-600"
-													>
-														<svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-															<path
-																fill-rule="evenodd"
-																d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-																clip-rule="evenodd"
-															/>
-														</svg>
-														{targetTrait.name}
-													</Badge>
-												{:else if isInAllowed}
-													<Badge
-														variant="outline"
-														class="border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:border-amber-500 dark:hover:bg-amber-950/50"
-													>
-														{targetTrait.name}
-													</Badge>
-												{:else}
-													<Badge
-														variant="outline"
-														class="border-red-200 bg-white text-red-700 hover:border-red-400 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-300 dark:hover:border-red-500 dark:hover:bg-red-900/20"
-													>
-														{targetTrait.name}
-													</Badge>
-												{/if}
-											</button>
-										{/each}
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															e.preventDefault();
+															if (isInForbidden) {
+																// Remove from forbidden list
+																newRule.forbiddenTraitIds = newRule.forbiddenTraitIds.filter(
+																	(id) => id !== targetTrait.id
+																);
+															} else {
+																// Add to forbidden list and remove from allowed list (prevent conflicts)
+																newRule.forbiddenTraitIds = [
+																	...newRule.forbiddenTraitIds,
+																	targetTrait.id
+																];
+																newRule.allowedTraitIds = newRule.allowedTraitIds.filter(
+																	(id) => id !== targetTrait.id
+																);
+															}
+														}
+													}}
+													aria-pressed={isInForbidden}
+													aria-label={`Toggle ${targetTrait.name} from forbidden traits`}
+												>
+													{#if isInForbidden}
+														<Badge
+															class="border-red-600 bg-red-600 text-white hover:bg-red-700 dark:border-red-500 dark:bg-red-500 dark:hover:bg-red-600"
+														>
+															<svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+																<path
+																	fill-rule="evenodd"
+																	d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+																	clip-rule="evenodd"
+																/>
+															</svg>
+															{targetTrait.name}
+														</Badge>
+													{:else if isInAllowed}
+														<Badge
+															variant="outline"
+															class="border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:border-amber-500 dark:hover:bg-amber-950/50"
+														>
+															{targetTrait.name}
+														</Badge>
+													{:else}
+														<Badge
+															variant="outline"
+															class="border-red-200 bg-white text-red-700 hover:border-red-400 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-300 dark:hover:border-red-500 dark:hover:bg-red-900/20"
+														>
+															{targetTrait.name}
+														</Badge>
+													{/if}
+												</button>
+											{/each}
+										</div>
 									</div>
 								</div>
 
-								{@const hasCurrentConflicts = hasConflicts(newRule)}
-								{@const buttonClass = hasCurrentConflicts
-									? 'w-full border-amber-300 bg-amber-50 text-amber-700'
-									: 'w-full'}
-								<Button variant="outline" onclick={addRule} size="sm" class={buttonClass}>
+								<!-- Conflict warning and Add button -->
+								{#if hasConflicts(newRule)}
+									<div class="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+										<span>⚠️ Auto-resolving conflicts</span>
+									</div>
+								{/if}
+								<Button
+									variant="outline"
+									onclick={addRule}
+									size="sm"
+									class={hasConflicts(newRule)
+										? 'w-full border-amber-300 bg-amber-50 text-amber-700'
+										: 'w-full'}
+								>
 									<Plus class="mr-1 h-3 w-3" />
 									Add Rule
-									{#if hasCurrentConflicts}
+									{#if hasConflicts(newRule)}
 										<span class="ml-auto text-xs">🔧 Auto-fix conflicts</span>
 									{/if}
 								</Button>
@@ -361,15 +366,25 @@
 				{#if rules.length > 0}
 					<div class="space-y-3">
 						<h3 class="text-sm font-medium">Existing Rules</h3>
-						{#each rules as rule (rule.layerId)}
-							<Card>
-								<CardContent class="p-3">
-									<div class="flex items-start justify-between">
-										<div class="flex-1 space-y-3">
-											<div class="text-sm font-medium">{getLayerName(rule.layerId)}</div>
+						<div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+							{#each rules as rule (rule.layerId)}
+								<Card class="flex flex-col">
+									<CardContent class="flex-1 p-3">
+										<div class="flex h-full flex-col">
+											<div class="mb-2 flex items-center justify-between">
+												<div class="text-sm font-medium">{getLayerName(rule.layerId)}</div>
+												<Button
+													variant="ghost"
+													size="icon"
+													onclick={() => removeRule(rule.layerId)}
+													class="h-6 w-6"
+												>
+													<X class="h-3 w-3" />
+												</Button>
+											</div>
 
 											{#if rule.allowedTraitIds.length > 0}
-												<div class="rounded-md bg-green-50 p-2 dark:bg-green-950/20">
+												<div class="mb-2 rounded-md bg-green-50 p-2 dark:bg-green-950/20">
 													<div class="mb-1 flex items-center gap-2">
 														<div
 															class="h-1.5 w-1.5 rounded-full bg-green-200 dark:bg-green-400"
@@ -389,7 +404,7 @@
 													</div>
 												</div>
 											{:else}
-												<div class="rounded-md bg-green-50 p-2 dark:bg-green-950/20">
+												<div class="mb-2 rounded-md bg-green-50 p-2 dark:bg-green-950/20">
 													<div class="flex items-center gap-2">
 														<div
 															class="h-1.5 w-1.5 rounded-full bg-green-200 dark:bg-green-400"
@@ -430,18 +445,10 @@
 												</div>
 											{/if}
 										</div>
-										<Button
-											variant="ghost"
-											size="icon"
-											onclick={() => removeRule(rule.layerId)}
-											class="h-6 w-6"
-										>
-											<X class="h-3 w-3" />
-										</Button>
-									</div>
-								</CardContent>
-							</Card>
-						{/each}
+									</CardContent>
+								</Card>
+							{/each}
+						</div>
 					</div>
 				{:else}
 					<p class="text-muted-foreground text-sm">

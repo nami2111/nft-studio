@@ -4,7 +4,7 @@
  * @module LayerManager.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { writable } from 'svelte/store';
 import LayerManager from './LayerManager.svelte';
@@ -26,14 +26,28 @@ vi.mock('$lib/stores', async () => {
 	};
 
 	const projectProxy = {
-		get id() { return internalState.id; },
-		get name() { return internalState.name; },
-		get description() { return internalState.description; },
-		get layers() { return internalState.layers; },
-		get outputSize() { return internalState.outputSize; },
-		get strictPairConfig() { return internalState.strictPairConfig; },
+		get id() {
+			return internalState.id;
+		},
+		get name() {
+			return internalState.name;
+		},
+		get description() {
+			return internalState.description;
+		},
+		get layers() {
+			return internalState.layers;
+		},
+		get outputSize() {
+			return internalState.outputSize;
+		},
+		get strictPairConfig() {
+			return internalState.strictPairConfig;
+		},
 		// Setter to allow tests to update the state
-		set: (newState: any) => { internalState = newState; }
+		set: (newState: any) => {
+			internalState = newState;
+		}
 	};
 
 	return {
@@ -153,7 +167,7 @@ describe('LayerManager', () => {
 		it('adds a new layer when add button is clicked', async () => {
 			// Explicitly set empty project to avoid state leakage from previous tests
 			(project as any).set({ ...mockProject, layers: [] });
-			(addLayer as any).mockImplementation(() => { });
+			(addLayer as any).mockImplementation(() => {});
 
 			render(LayerManager);
 
@@ -240,7 +254,9 @@ describe('LayerManager', () => {
 		it('handles add layer errors gracefully', async () => {
 			const testError = new Error('Failed to create layer');
 			// addLayer is synchronous in store, so we must throw synchronously, not return rejected promise
-			(addLayer as any).mockImplementation(() => { throw testError; });
+			(addLayer as any).mockImplementation(() => {
+				throw testError;
+			});
 
 			render(LayerManager);
 
@@ -449,7 +465,7 @@ describe('LayerManager', () => {
 
 	describe('Error Scenarios', () => {
 		it.skip('handles project store errors gracefully', async () => {
-			// Skipped: Setting project to null violates contract. 
+			// Skipped: Setting project to null violates contract.
 			// If we want to test invalid state, we should define what valid invalid state is.
 			// (project as any).set(null);
 			// expect(() => render(LayerManager)).not.toThrow();

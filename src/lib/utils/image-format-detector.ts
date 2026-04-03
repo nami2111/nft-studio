@@ -39,8 +39,10 @@ export function detectImageFormat(buffer: ArrayBuffer): string {
 	}
 
 	// Check for TIFF (II* or MM*)
-	if ((view[0] === 0x49 && view[1] === 0x49 && view[2] === 0x2a) ||
-	    (view[0] === 0x4d && view[1] === 0x4d && view[2] === 0x2a)) {
+	if (
+		(view[0] === 0x49 && view[1] === 0x49 && view[2] === 0x2a) ||
+		(view[0] === 0x4d && view[1] === 0x4d && view[2] === 0x2a)
+	) {
 		return 'tiff';
 	}
 
@@ -59,16 +61,16 @@ export function detectImageFormat(buffer: ArrayBuffer): string {
  */
 export function getMimeType(format: string): string {
 	const formatMap: Record<string, string> = {
-		'jpg': 'image/jpeg',
-		'jpeg': 'image/jpeg',
-		'png': 'image/png',
-		'gif': 'image/gif',
-		'webp': 'image/webp',
-		'bmp': 'image/bmp',
-		'tiff': 'image/tiff',
-		'tif': 'image/tiff',
-		'ico': 'image/x-icon',
-		'svg': 'image/svg+xml'
+		jpg: 'image/jpeg',
+		jpeg: 'image/jpeg',
+		png: 'image/png',
+		gif: 'image/gif',
+		webp: 'image/webp',
+		bmp: 'image/bmp',
+		tiff: 'image/tiff',
+		tif: 'image/tiff',
+		ico: 'image/x-icon',
+		svg: 'image/svg+xml'
 	};
 
 	return formatMap[format.toLowerCase()] || 'image/png';

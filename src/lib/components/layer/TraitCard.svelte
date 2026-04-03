@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Card, CardContent } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import type { Trait } from '$lib/types/layer';
 	import RaritySlider from '$lib/components/layer/RaritySlider.svelte';
 	import { removeTrait, updateTraitName } from '$lib/stores';
@@ -10,7 +12,6 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
-	import Crown from '@lucide/svelte/icons/crown';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
 	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
@@ -24,7 +25,7 @@
 		showSelection?: boolean;
 	}
 
-	let {
+	const {
 		trait,
 		layerId,
 		selected = false,
@@ -41,8 +42,8 @@
 	let observer: IntersectionObserver | null = $state(null);
 
 	// Get current layer and all layers for ruler rules manager
-	let currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
-	let allLayers = $derived(project.layers);
+	const currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
+	const allLayers = $derived(project.layers);
 
 	function handleRemoveTrait() {
 		// Simple confirmation dialog
@@ -143,23 +144,21 @@
 </script>
 
 <Card
-	class="relative overflow-hidden border-2 {selected ? 'ring-primary ring-2' : ''}"
+	class="relative overflow-hidden {selected ? 'ring-primary ring-2' : ''}"
 	data-testid="trait-card"
 >
 	<div class="bg-muted flex aspect-square items-center justify-center" bind:this={imageContainer}>
 		{#if showSelection}
-			<div class="absolute top-2 left-2 z-10">
-				<input
-					type="checkbox"
+			<div class="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center">
+				<Checkbox
 					checked={selected}
-					onchange={onToggleSelection}
-					class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300 focus:ring-offset-0"
+					onCheckedChange={onToggleSelection}
 					aria-label="Select trait"
 					data-testid="trait-select-checkbox"
 				/>
 			</div>
 		{/if}
-		<div class="absolute top-2 right-2 z-10 flex gap-1">
+		<div class="absolute top-2 right-2 z-10 flex h-8 items-center justify-center gap-1">
 			<TraitTypeToggle {trait} {layerId} />
 			{#if trait.type === 'ruler' && currentLayer && allLayers}
 				<RulerRulesManager
@@ -257,9 +256,9 @@
 	<CardContent class="p-3" data-testid="card-content">
 		<div class="flex items-center justify-between">
 			{#if isEditing}
-				<input
+				<Input
 					bind:value={editedName}
-					class="border-foreground w-full border-b-2 bg-transparent text-sm font-medium focus:outline-none"
+					class="h-8 border-b-2 bg-transparent text-sm font-medium focus:outline-none"
 					onkeydown={(e) => e.key === 'Enter' && handleUpdateName()}
 					data-testid="trait-name-input"
 				/>

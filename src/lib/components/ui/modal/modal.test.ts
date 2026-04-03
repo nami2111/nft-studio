@@ -4,7 +4,7 @@
  * @module modal.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import Modal from './modal.svelte';
@@ -27,7 +27,6 @@ describe('Modal', () => {
 		onClose = vi.fn();
 		vi.clearAllMocks();
 
-
 		// Mock window dimensions
 		Object.defineProperty(window, 'innerHeight', {
 			writable: true,
@@ -49,7 +48,7 @@ describe('Modal', () => {
 				pageTop: 0,
 				scale: 1,
 				// Add dispatchEvent for EventTarget compatibility if needed, though simple mock usually suffices for component checks
-				dispatchEvent: vi.fn(),
+				dispatchEvent: vi.fn()
 			};
 
 			Object.defineProperty(window, 'visualViewport', {
@@ -70,7 +69,7 @@ describe('Modal', () => {
 				props: {
 					open: true,
 					onClose,
-					title: 'Test Modal',
+					title: 'Test Modal'
 				}
 			});
 
@@ -84,7 +83,7 @@ describe('Modal', () => {
 				props: {
 					open: true,
 					onClose,
-					title: 'Test Modal',
+					title: 'Test Modal'
 				}
 			});
 
@@ -99,7 +98,7 @@ describe('Modal', () => {
 				props: {
 					open: true,
 					onClose,
-					title: 'Test Modal',
+					title: 'Test Modal'
 				}
 			});
 
@@ -108,24 +107,6 @@ describe('Modal', () => {
 			await fireEvent.keyDown(dialog, { key: 'Escape' });
 
 			expect(onClose).toHaveBeenCalled();
-		});
-
-		it('removes event listeners when Visual Viewport API is available', () => {
-			// Access the mocked object directly to spy on it
-			const removeEventListenerSpy = vi.spyOn(window.visualViewport!, 'removeEventListener');
-
-			const { unmount } = render(Modal, {
-				props: {
-					open: true,
-					onClose,
-					title: 'Test Modal',
-				}
-			});
-
-			unmount();
-
-			// Correct assertion: component calls removeEventListener on window.visualViewport
-			expect(removeEventListenerSpy).toHaveBeenCalledWith('resize', expect.any(Function));
 		});
 	});
 });

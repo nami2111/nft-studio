@@ -22,6 +22,7 @@ export interface BaseComponentProps {
 	/** Test identifier for testing library */
 	'data-testid'?: string;
 	/** Allow for any other arbitrary data attributes or standard HTML attributes */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	[key: string]: any;
 }
 
@@ -103,11 +104,12 @@ export interface KeyboardProps {
  * Standardized props for interactive components.
  */
 export interface InteractiveProps
-	extends BaseComponentProps,
-	KeyboardNavigableProps,
-	FocusableProps,
-	ClickableProps,
-	KeyboardProps { }
+	extends
+		BaseComponentProps,
+		KeyboardNavigableProps,
+		FocusableProps,
+		ClickableProps,
+		KeyboardProps {}
 
 /**
  * Standardized props for all HTML elements.

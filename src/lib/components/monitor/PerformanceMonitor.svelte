@@ -1,9 +1,5 @@
 <script lang="ts">
-	import {
-		usePerformanceMonitoring,
-		getSlowestOperations,
-		getMostFrequentOperations
-	} from '$lib/stores/performance-store.svelte';
+	import { usePerformanceMonitoring } from '$lib/stores/performance-store.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -19,7 +15,6 @@
 	const {
 		isEnabled,
 		stats,
-		report,
 		summary,
 		slowestOps,
 		frequentOps,
@@ -30,7 +25,7 @@
 	} = usePerformanceMonitoring();
 
 	// Real-time metrics state
-	let realTimeMetrics = $state({
+	let realTimeMetrics = $state.raw({
 		activeWorkers: 0,
 		cacheHitRate: 0,
 		memoryUsage: 0,
@@ -46,7 +41,7 @@
 	let updateInterval: ReturnType<typeof setInterval> | null = null;
 
 	// Computed values
-	let hasData = $derived(Object.keys(stats).length > 0);
+	const hasData = $derived(Object.keys(stats).length > 0);
 	let showDetails = $state(false);
 	let showRealTime = $state(true); // Show real-time metrics by default
 
@@ -335,7 +330,7 @@
 					<CardContent>
 						{#if slowestOps.length > 0}
 							<div class="space-y-2">
-								{#each slowestOps as op, index}
+								{#each slowestOps as op (op.operation)}
 									<div class="flex items-center justify-between rounded border p-2">
 										<span class="text-sm font-medium">{op.operation}</span>
 										<span class="text-muted-foreground font-mono text-sm"
@@ -361,7 +356,7 @@
 					<CardContent>
 						{#if frequentOps.length > 0}
 							<div class="space-y-2">
-								{#each frequentOps as op, index}
+								{#each frequentOps as op (op.operation)}
 									<div class="flex items-center justify-between rounded border p-2">
 										<span class="text-sm font-medium">{op.operation}</span>
 										<span class="text-muted-foreground font-mono text-sm">{op.count} calls</span>
@@ -384,7 +379,7 @@
 					</CardHeader>
 					<CardContent>
 						<div class="space-y-3">
-							{#each Object.values(stats) as stat}
+							{#each Object.values(stats) as stat (stat.operation)}
 								<div class="rounded-lg border p-3">
 									<div class="mb-2 flex items-center justify-between">
 										<h4 class="font-semibold">{stat.operation}</h4>

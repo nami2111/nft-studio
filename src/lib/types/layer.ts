@@ -67,44 +67,6 @@ export interface LayerUpdateOptions {
 }
 
 /**
- * Layer validation result interface
- */
-export interface LayerValidationResult {
-	success: boolean;
-	error?: string;
-	layer?: Layer;
-}
-
-/**
- * Layer statistics interface
- */
-export interface LayerStats {
-	traitCount: number;
-	optional: boolean;
-	order: number;
-	totalRarityWeight: number;
-	averageRarityWeight: number;
-}
-
-/**
- * Layer reorder operation interface
- */
-export interface LayerReorderOperation {
-	layerId: LayerId;
-	fromIndex: number;
-	toIndex: number;
-}
-
-/**
- * Layer import options interface
- */
-export interface LayerImportOptions {
-	preserveOrder: boolean;
-	validateImages: boolean;
-	skipDuplicates: boolean;
-}
-
-/**
  * Strict Pair configuration interface
  */
 export interface StrictPairConfig {

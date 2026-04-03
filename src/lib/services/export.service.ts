@@ -1,4 +1,3 @@
-import { trackGenerationCompleted } from '$lib/utils/analytics';
 import { MemoryMonitor } from '$lib/utils/memory-monitor';
 import type { Project } from '$lib/types/project';
 
@@ -15,7 +14,7 @@ export class ExportService {
 	 * Package files into a ZIP with memory-efficient batch processing
 	 */
 	static async packageZip(options: ExportOptions): Promise<void> {
-		const { project, images, metadata, startTime, onProgress } = options;
+		const { project, images, metadata, onProgress } = options;
 
 		try {
 			// Start memory monitoring for large exports
@@ -25,15 +24,19 @@ export class ExportService {
 
 			// Use optimized approach for large collections
 			if (images.length > 1000) {
-				await this.packageZipOptimized({ project, images, metadata, onProgress });
+				await this.packageZipOptimized({
+					project,
+					images,
+					metadata,
+					onProgress
+				});
 			} else {
-				await this.packageZipStandard({ project, images, metadata, onProgress });
-			}
-
-			// Track generation completion analytics
-			if (startTime) {
-				const durationSeconds = Math.round((Date.now() - startTime) / 1000);
-				trackGenerationCompleted(images.length, durationSeconds);
+				await this.packageZipStandard({
+					project,
+					images,
+					metadata,
+					onProgress
+				});
 			}
 		} catch (error) {
 			console.error('Export failed:', error);
@@ -162,7 +165,9 @@ export class ExportService {
 		// Calculate number of ZIP files needed based on size
 		const estimatedZipCount = Math.ceil(estimatedTotalSize / MAX_ZIP_SIZE);
 
-		console.log(`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`);
+		console.log(
+			`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`
+		);
 		console.log(`Will create approximately ${estimatedZipCount} ZIP files`);
 
 		let currentZip = new JSZip();
@@ -237,7 +242,10 @@ export class ExportService {
 	/**
 	 * Estimate the average size per NFT (image + metadata)
 	 */
-	private static estimateSizePerNFT(images: { imageData: ArrayBuffer }[], metadata: { data: Record<string, unknown> }[]): number {
+	private static estimateSizePerNFT(
+		images: { imageData: ArrayBuffer }[],
+		metadata: { data: Record<string, unknown> }[]
+	): number {
 		// Sample the first 10 items to estimate average size
 		const sampleSize = Math.min(10, images.length);
 		let totalSize = 0;
@@ -255,7 +263,12 @@ export class ExportService {
 	/**
 	 * Download ZIP file with index in filename
 	 */
-	private static async downloadZipWithIndex(content: Blob, project: Project, index: number, total: number): Promise<void> {
+	private static async downloadZipWithIndex(
+		content: Blob,
+		project: Project,
+		index: number,
+		total: number
+	): Promise<void> {
 		const url = URL.createObjectURL(content);
 		const a = document.createElement('a');
 		a.href = url;

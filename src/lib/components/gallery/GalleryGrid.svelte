@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { GalleryNFT } from '$lib/types/gallery';
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
-	import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import VirtualNFTGrid from './VirtualNFTGrid.svelte';
 
 	interface Props {
@@ -11,11 +11,11 @@
 		class?: string;
 	}
 
-	let { selectedNFT = null, onselect, class: className = '' }: Props = $props();
+	const { selectedNFT = null, onselect, class: className = '' }: Props = $props();
 
-	let nfts = $derived(galleryStore.filteredAndSortedNFTs);
-	let isLoading = $derived(galleryStore.isLoading);
-	let error = $derived(galleryStore.error);
+	const nfts = $derived(galleryStore.filteredAndSortedNFTs);
+	const isLoading = $derived(galleryStore.isLoading);
+	const error = $derived(galleryStore.error);
 
 	function handleNFTClick(nft: GalleryNFT) {
 		onselect?.(nft);
@@ -33,7 +33,7 @@
 	<!-- Loading State -->
 	{#if isLoading}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-			{#each Array(12) as _}
+			{#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as i (i)}
 				<div class="space-y-3">
 					<Skeleton class="aspect-[4/5] w-full rounded-lg" />
 					<Skeleton class="h-4 w-3/4" />

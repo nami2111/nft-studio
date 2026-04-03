@@ -7,6 +7,14 @@ export interface CacheMetrics {
 	memoryUsage: number;
 }
 
+interface PerformanceWithMemory extends Performance {
+	memory?: {
+		usedJSHeapSize: number;
+		totalJSHeapSize: number;
+		jsHeapSizeLimit: number;
+	};
+}
+
 export interface DatabaseMetrics {
 	queryCount: number;
 	slowQueries: Array<{
@@ -248,7 +256,7 @@ export class ProductionMonitor {
 	private captureMemoryMetrics(): void {
 		if (typeof window === 'undefined' || !('performance' in window)) return;
 
-		const memory = (performance as any).memory;
+		const memory = (performance as PerformanceWithMemory).memory;
 		if (!memory) return;
 
 		const metrics: MemoryMetrics = {
@@ -349,7 +357,8 @@ export class ProductionMonitor {
 			timestamp: Date.now(),
 			cache: Object.fromEntries(this.cacheMetrics),
 			database: { ...this.dbMetrics },
-			memory: this.memoryHistory.length > 0 ? this.memoryHistory[this.memoryHistory.length - 1] : null,
+			memory:
+				this.memoryHistory.length > 0 ? this.memoryHistory[this.memoryHistory.length - 1] : null,
 			alerts: this.getAlerts()
 		};
 	}
@@ -365,11 +374,15 @@ export class ProductionMonitor {
 		// Cache metrics
 		for (const [cacheName, metrics] of Object.entries(snapshot.cache)) {
 			const hitRate = this.getCacheHitRate(cacheName);
-			console.log(`Cache ${cacheName}: ${hitRate.toFixed(1)}% hit rate, ${metrics.evictions} evictions`);
+			console.log(
+				`Cache ${cacheName}: ${hitRate.toFixed(1)}% hit rate, ${metrics.evictions} evictions`
+			);
 		}
 
 		// Database metrics
-		console.log(`Database: ${snapshot.database.queryCount} queries, avg ${snapshot.database.averageQueryTime.toFixed(1)}ms`);
+		console.log(
+			`Database: ${snapshot.database.queryCount} queries, avg ${snapshot.database.averageQueryTime.toFixed(1)}ms`
+		);
 
 		// Memory metrics
 		if (snapshot.memory) {
@@ -406,14 +419,19 @@ export class ProductionMonitor {
 	/**
 	 * Check if metrics exceed performance budgets
 	 */
-	checkPerformanceBudgets(): Array<{ metric: string; value: number; budget: number; passed: boolean }> {
+	checkPerformanceBudgets(): Array<{
+		metric: string;
+		value: number;
+		budget: number;
+		passed: boolean;
+	}> {
 		const results = [];
 
 		// Check bundle size (requires build-time check)
 		// This is checked in CI/CD pipeline
 
 		// Check memory usage percentage
-		const memory = (performance as any).memory;
+		const memory = (performance as PerformanceWithMemory).memory;
 		const currentMemoryMB = this.getAverageMemoryUsage();
 		const memoryLimitMB = memory ? memory.jsHeapSizeLimit / (1024 * 1024) : 4096; // Default 4GB
 		const memoryUsagePercent = (currentMemoryMB / memoryLimitMB) * 100;
