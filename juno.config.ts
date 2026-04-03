@@ -7,7 +7,7 @@ export default defineConfig({
 			production: 'dpl4s-kqaaa-aaaal-asg3a-cai'
 		},
 		source: 'build',
-		predeploy: ['pnpm build']
+		predeploy: ['vp run build']
 	},
 	orbiter: {
 		id: 'p2pi7-hiaaa-aaaal-asaia-cai'
