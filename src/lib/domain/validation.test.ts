@@ -4,7 +4,7 @@
  * @module validation.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
 	sanitizeString,
 	validateProjectName,

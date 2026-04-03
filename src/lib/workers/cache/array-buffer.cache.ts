@@ -28,7 +28,6 @@ export class WorkerArrayBufferCache {
 		memoryPressure: 0
 	};
 
-
 	constructor() {
 		// Intelligent cache sizing based on device capabilities
 		this.deviceMemoryGB = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
@@ -39,7 +38,6 @@ export class WorkerArrayBufferCache {
 			`🧠 Enhanced Cache initialized: ${this.maxEntries} entries, ${(this.maxMemoryBytes / 1024 / 1024).toFixed(1)}MB max`
 		);
 	}
-
 
 	private calculateOptimalEntries(): number {
 		// Base calculation on device memory and CPU cores

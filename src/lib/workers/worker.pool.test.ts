@@ -1,5 +1,5 @@
 // Enhanced worker pool integration tests
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import { initializeWorkerPool, terminateWorkerPool, getWorkerPoolStatus } from './worker.pool';
 
 describe('Enhanced Worker Pool Integration', () => {

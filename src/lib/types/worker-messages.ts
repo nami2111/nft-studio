@@ -135,8 +135,8 @@ export type IncomingMessage =
 export type GenerationWorkerMessage =
 	| BatchMessage
 	| {
-		type: 'cancel';
-	};
+			type: 'cancel';
+	  };
 
 // Type guards for discriminated unions
 
@@ -173,7 +173,6 @@ export function isErrorMessage(message: unknown): message is ErrorMessage {
 	);
 }
 
-
 /**
  * Type guard for CancelledMessage
  */
@@ -198,13 +197,15 @@ export function isPreviewMessage(message: unknown): message is PreviewMessage {
 	);
 }
 
-
 /**
  * Type guard for OutgoingWorkerMessage
  */
 export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWorkerMessage {
 	return (
-		(typeof message === 'object' && message !== null && 'type' in message && message.type === 'ready') ||
+		(typeof message === 'object' &&
+			message !== null &&
+			'type' in message &&
+			message.type === 'ready') ||
 		isProgressMessage(message) ||
 		isCompleteMessage(message) ||
 		isErrorMessage(message) ||
@@ -217,11 +218,17 @@ export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWo
  */
 export function isIncomingMessage(message: unknown): message is IncomingMessage {
 	return (
-		(typeof message === 'object' && message !== null && 'type' in message && message.type === 'batch') ||
+		(typeof message === 'object' &&
+			message !== null &&
+			'type' in message &&
+			message.type === 'batch') ||
 		(typeof message === 'object' &&
 			message !== null &&
 			'type' in message &&
 			message.type === 'cancel') ||
-		(typeof message === 'object' && message !== null && 'type' in message && message.type === 'ready')
+		(typeof message === 'object' &&
+			message !== null &&
+			'type' in message &&
+			message.type === 'ready')
 	);
 }

@@ -1,4 +1,3 @@
-
 import { MemoryMonitor } from '$lib/utils/memory-monitor';
 import type { Project } from '$lib/types/project';
 
@@ -15,7 +14,7 @@ export class ExportService {
 	 * Package files into a ZIP with memory-efficient batch processing
 	 */
 	static async packageZip(options: ExportOptions): Promise<void> {
-		const { project, images, metadata, startTime, onProgress } = options;
+		const { project, images, metadata, onProgress } = options;
 
 		try {
 			// Start memory monitoring for large exports
@@ -25,12 +24,20 @@ export class ExportService {
 
 			// Use optimized approach for large collections
 			if (images.length > 1000) {
-				await this.packageZipOptimized({ project, images, metadata, onProgress });
+				await this.packageZipOptimized({
+					project,
+					images,
+					metadata,
+					onProgress
+				});
 			} else {
-				await this.packageZipStandard({ project, images, metadata, onProgress });
+				await this.packageZipStandard({
+					project,
+					images,
+					metadata,
+					onProgress
+				});
 			}
-
-
 		} catch (error) {
 			console.error('Export failed:', error);
 			throw error;

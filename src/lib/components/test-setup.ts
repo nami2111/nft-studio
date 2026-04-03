@@ -3,7 +3,7 @@
  * Provides global test utilities and mocks.
  */
 
-import { vi } from 'vitest';
+import { vi } from 'vite-plus/test';
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/svelte';
 

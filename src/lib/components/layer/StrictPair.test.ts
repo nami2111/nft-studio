@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import StrictPair from './StrictPair.svelte';
 import { createMockProject, mockLayer } from '../test-utils';

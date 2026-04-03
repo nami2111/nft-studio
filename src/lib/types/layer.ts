@@ -66,7 +66,6 @@ export interface LayerUpdateOptions {
 	isOptional?: boolean;
 }
 
-
 /**
  * Strict Pair configuration interface
  */

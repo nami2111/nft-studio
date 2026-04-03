@@ -147,9 +147,9 @@ export async function handleStorageError<T>(
 		error instanceof StorageError
 			? error
 			: new StorageError(error instanceof Error ? error.message : String(error), {
-				...options.context,
-				operation: options.operation
-			});
+					...options.context,
+					operation: options.operation
+				});
 
 	return handleError<T>(storageError, {
 		title: 'Storage Error',
@@ -169,9 +169,9 @@ export async function handleFileError<T>(
 		error instanceof FileError
 			? error
 			: new FileError(error instanceof Error ? error.message : String(error), {
-				...options.context,
-				operation: options.operation
-			});
+					...options.context,
+					operation: options.operation
+				});
 
 	return handleError<T>(fileError, {
 		title: 'File Error',
@@ -191,9 +191,9 @@ export async function handleValidationError<T>(
 		error instanceof ValidationError
 			? error
 			: new ValidationError(error instanceof Error ? error.message : String(error), {
-				...options.context,
-				operation: options.operation
-			});
+					...options.context,
+					operation: options.operation
+				});
 
 	return handleError<T>(validationError, {
 		title: 'Validation Error',
@@ -213,9 +213,9 @@ export async function handleWorkerError<T>(
 		error instanceof WorkerError
 			? error
 			: new WorkerError(error instanceof Error ? error.message : String(error), {
-				...options.context,
-				operation: options.operation
-			});
+					...options.context,
+					operation: options.operation
+				});
 
 	return handleError<T>(workerError, {
 		title: 'Generation Error',
@@ -235,9 +235,9 @@ export async function handleGenerationError<T>(
 		error instanceof GenerationError
 			? error
 			: new GenerationError(error instanceof Error ? error.message : String(error), {
-				...options.context,
-				operation: options.operation
-			});
+					...options.context,
+					operation: options.operation
+				});
 
 	return handleError<T>(generationError, {
 		title: 'Generation Error',
@@ -257,9 +257,9 @@ export async function handleNetworkError<T>(
 		error instanceof NetworkError
 			? error
 			: new NetworkError(error instanceof Error ? error.message : String(error), {
-				...options.context,
-				operation: options.operation
-			});
+					...options.context,
+					operation: options.operation
+				});
 
 	return handleError<T>(networkError, {
 		title: 'Network Error',
@@ -328,8 +328,8 @@ export async function recoverableOperation<T>(
 				operation: handlerOptions.operation,
 				additionalData: {
 					enableRetry: true,
-					...(((handlerOptions.context as unknown as Record<string, unknown>)
-						?.additionalData as Record<string, unknown>) || {})
+					...((handlerOptions.context as unknown as Record<string, unknown>)
+						?.additionalData as Record<string, unknown>)
 				}
 			} as unknown as ErrorContext, // Type assertion needed due to ErrorContext type mismatch
 			`Operation "${handlerOptions.operation || 'unknown'}" failed after multiple attempts`

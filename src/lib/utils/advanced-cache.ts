@@ -51,7 +51,7 @@ export class AdvancedCache<T = unknown> {
 			maxEntries: options.maxEntries || 1000,
 			defaultTtl: options.defaultTtl || 30 * 60 * 1000, // 30 minutes default
 			evictionPolicy: options.evictionPolicy || 'lru',
-			sizeEstimator: options.sizeEstimator || this.defaultSizeEstimator,
+			sizeEstimator: options.sizeEstimator || ((data: unknown) => this.defaultSizeEstimator(data)),
 			onEvict: options.onEvict || (() => {})
 		};
 

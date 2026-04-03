@@ -199,7 +199,9 @@ export async function withErrorHandling<T>(
 export function wrapWithErrorHandling<T extends (...args: unknown[]) => unknown>(
 	fn: T,
 	context?: ErrorContext,
-	options?: ErrorOptions & { fallback?: (...args: Parameters<T>) => ReturnType<T> }
+	options?: ErrorOptions & {
+		fallback?: (...args: Parameters<T>) => ReturnType<T>;
+	}
 ): T {
 	return ((...args: Parameters<T>) => {
 		try {
@@ -261,7 +263,7 @@ export function createRetry<T>(
 	context?: ErrorContext
 ): () => Promise<T> {
 	return async (): Promise<T> => {
-		let lastError: Error | unknown;
+		let lastError: unknown;
 		let currentDelay = delayMs;
 
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {

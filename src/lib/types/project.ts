@@ -68,4 +68,3 @@ export interface GenerationSettings {
 	projectName: string;
 	projectDescription: string;
 }
-

@@ -80,14 +80,16 @@ export async function startGeneration(
 		}
 
 		const solver = new CSPSolver(layers, usedCombinations, activeStrictPairConfig);
-		const solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[] =
-			[];
+		const solutions: {
+			index: number;
+			traits: { layerId: string; trait: TransferrableTrait }[];
+		}[] = [];
 
 		console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
 		const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
 
 		for (let i = 0; i < collectionSize; i++) {
-			const solutionMap = await solver.solve();
+			const solutionMap = solver.solve();
 			if (!solutionMap) {
 				throw new Error(`Exhausted all possible valid unique combinations at item ${i + 1}.`);
 			}

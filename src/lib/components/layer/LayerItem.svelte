@@ -53,7 +53,7 @@
 
 	let isEditing = $state(false);
 	let editedName = $state(''); // Only used during editing
-	const fileInputElement: HTMLInputElement | null = $state(null); // Reference to file input element
+	let fileInputElement: HTMLInputElement | null = $state(null); // Reference to file input element
 	let isDragover = $state(false);
 	let isExpanded = $state(true);
 	let searchTerm = $state(''); // For trait search/filter

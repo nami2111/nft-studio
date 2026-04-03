@@ -1,5 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import '@testing-library/jest-dom/vite-plus/test';
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import ProjectManagement from './ProjectManagement.svelte';
 import { createMockProject } from '../test-utils';

@@ -90,7 +90,7 @@
 	// LAZY image URL creation - only create when actually needed
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const imageLoadQueue = new Set<string>(); // Use native Set for internal queue, doesn't need to be reactive
-	const imageUrls = $state<Record<string, string>>({});
+	let imageUrls = $state<Record<string, string>>({});
 
 	// Request image URL creation (async, non-blocking)
 	function requestImageUrl(nft: GalleryNFT): string {
