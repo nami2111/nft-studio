@@ -430,20 +430,20 @@ After each fix:
 ## Fix Status
 
 - [ ] #1 — Enable SSR for public pages
-- [ ] #2 — Real HTTP security headers
-- [ ] #3 — Content-Security-Policy
+- [ ] #2 — Real HTTP security headers (frame-ancestors, X-Frame-Options require HTTP headers, not meta)
+- [x] #3 — Content-Security-Policy (meta-based, with 'unsafe-inline' for SvelteKit SPA bootstrap)
 - [ ] #4 — Update sitemap domain
 - [x] #5 — Add `/about` to sitemap
 - [ ] #6 — Custom domain configuration
 - [ ] #7 — JSON-LD structured data
 - [ ] #8 — Per-page meta tags for `/app` and `/app/gallery`
 - [ ] #9 — Use `enhancedImages()` plugin
-- [x] #10 — Font preloading
+- [ ] #10 — Font preloading (removed — fonts not in critical render path)
 - [ ] #11 — Bundle size budgets
 - [ ] #12 — Image `width`/`height` attributes (dynamic images use CSS aspect-ratio)
-- [ ] #13 — `frame-ancestors` protection
-- [ ] #14 — COOP/COEP headers
-- [ ] #15 — Remove `style` from DOMPurify
+- [ ] #13 — `frame-ancestors` protection (requires real HTTP headers, not possible via meta)
+- [ ] #14 — COOP/COEP headers (requires real HTTP headers)
+- [x] #15 — Remove `style` from DOMPurify
 - [x] #16 — Remove production `console.error`
 - [x] #17 — `og:image:width`/`height`
 - [ ] #18 — `twitter:site` / `twitter:creator`
