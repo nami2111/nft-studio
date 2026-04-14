@@ -166,17 +166,6 @@
 		{ resolve: (value: HTMLImageElement) => void; reject: (reason: unknown) => void }
 	>();
 
-	// Helper function to validate blob URL before using it
-	async function validateBlobUrl(blobUrl: string): Promise<boolean> {
-		try {
-			// Create a test fetch to check if blob URL is accessible
-			const response = await fetch(blobUrl);
-			return response.ok;
-		} catch {
-			return false;
-		}
-	}
-
 	// Load image with caching using worker
 	async function loadImage(src: string): Promise<HTMLImageElement> {
 		// Check if image is already in cache
@@ -187,14 +176,7 @@
 
 		// Check if this is a blob URL (starts with blob:)
 		if (src.startsWith('blob:')) {
-			// First validate the blob URL to prevent browser errors
-			const isValid = await validateBlobUrl(src);
-			if (!isValid) {
-				// Skip trying to load invalid blob URLs
-				return Promise.reject(new Error('Blob URL no longer accessible'));
-			}
-
-			// Blob URL is valid, proceed with loading
+			// Blob URLs don't need fetch validation - just use the Image element's onerror
 			return new Promise((resolve, reject) => {
 				const loadId = `${src}-${Date.now()}`;
 				activeImageLoads.set(loadId, { resolve, reject });
