@@ -26,9 +26,7 @@ export default defineConfig({
 				},
 				{
 					source: '**/*.wasm',
-					headers: [
-						['Content-Type', 'application/wasm']
-					]
+					headers: [['Content-Type', 'application/wasm']]
 				},
 				{
 					source: '**/*',
