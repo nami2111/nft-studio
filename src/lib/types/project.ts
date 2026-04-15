@@ -3,7 +3,8 @@
  * Uses branded types for compile-time safety
  */
 
-import type { ProjectId, LayerId, TraitId } from './ids';
+import type { ProjectId } from './ids';
+import type { Layer, Trait } from './layer';
 
 /**
  * Project dimensions interface
@@ -11,32 +12,6 @@ import type { ProjectId, LayerId, TraitId } from './ids';
 export interface ProjectDimensions {
 	width: number;
 	height: number;
-}
-
-/**
- * Trait interface representing an individual image/attribute
- */
-export interface Trait {
-	id: TraitId;
-	name: string;
-	imageData: ArrayBuffer;
-	imageUrl?: string;
-	rarityWeight: number;
-	/** Type of trait - normal or ruler */
-	type?: import('./layer').TraitType;
-	/** Compatibility rules for ruler traits */
-	rulerRules?: import('./layer').RulerRule[];
-}
-
-/**
- * Layer interface representing a collection of traits
- */
-export interface Layer {
-	id: LayerId;
-	name: string;
-	order: number;
-	isOptional?: boolean;
-	traits: Trait[];
 }
 
 /**
@@ -68,3 +43,6 @@ export interface GenerationSettings {
 	projectName: string;
 	projectDescription: string;
 }
+
+export type { Layer, Trait };
+export type { StrictPairConfig, LayerCombination } from './layer';
