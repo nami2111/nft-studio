@@ -1,452 +1,229 @@
-# Website Performance, SEO & Security Audit — Issues & Fix Plan
+# NFT Studio — Improvement Plan
 
-> Generated from deep analysis of NFT Studio web app
-> Last updated: 2026-04-04
-
----
-
-## Tech Stack Overview
-
-| Layer     | Technology                                |
-| --------- | ----------------------------------------- |
-| Framework | SvelteKit 2 (SPA mode, static)            |
-| UI        | Svelte 5 + Tailwind CSS 4 + shadcn-svelte |
-| Build     | Vite 8 + vite-plus                        |
-| Hosting   | Internet Computer (ICP) via Juno          |
-| PWA       | @vite-pwa/sveltekit + Workbox             |
-| Analytics | Juno Orbiter                              |
+Last updated: 2026-04-28
+Source: Deep codebase analysis across 5 dimensions (structure, types, state, UI, data layer)
 
 ---
 
-## 🔴 HIGH Severity
+## Critical (Fix Immediately)
 
-### 1. No Server-Side Rendering (`ssr = false`)
+### 1. Fix Broken Component Test Suite
 
-**File:** `src/routes/+layout.ts:1`
+**Problem**: 53 of 114 tests (0% component pass rate) fail with `lifecycle_function_unavailable: mount()`.
+`@testing-library/svelte` 5.3.1 + Svelte 5.54.0 loads the server-side module in jsdom, where `mount()` doesn't exist.
+Two test files (`GenerationForm.test.ts`, `ProjectManagement.test.ts`) can't even load due to a broken import
+(`@testing-library/jest-dom/vite-plus/test` — this path doesn't exist).
 
-**Issue:** Search engines must execute JavaScript to see any content. Poor First Contentful Paint, no content visible until full JS bundle downloads and executes.
+**Action**:
 
-**Plan:**
+- [ ] Upgrade `@testing-library/svelte` to latest (check for Svelte 5 fix)
+- [ ] If no fix available, switch to `@sveltejs/vite-plugin-svelte` testing mode or `svelte/testing` helpers
+- [ ] Fix broken import in `GenerationForm.test.ts` and `ProjectManagement.test.ts` — use `@testing-library/jest-dom` (without `/vite-plus/test`)
+- [ ] Remove dead test files: `StrictPair.test.ts` (1 test, 0 assertions), `crypto.test.ts` (console.log check)
 
-1. Enable SSR for public pages (`/`, `/about`) by removing `ssr = false` or setting `ssr = true` for those routes
-2. Keep `ssr = false` only for `/app` and `/app/gallery` if they require client-side-only features
-3. Verify public pages render correctly with SSR enabled
-4. Test that client hydration works without errors
+**Success criteria**: `vp test` passes 100%.
 
----
+### 2. Set Up CI/CD Pipeline
 
-### 2. Fake Security Headers via `<meta http-equiv>`
+**Problem**: `.github/` contains only an empty `inventory.md`. No automated testing, linting, or build verification
+on push/PR.
 
-**File:** `src/app.html`
+**Action**:
 
-**Issue:** HSTS via `<meta>` is **ignored by browsers**. The strict-transport-security header in `app.html` does nothing. Meta-based security headers are not real HTTP response headers.
+- [ ] Create `.github/workflows/ci.yml` with jobs: lint, typecheck, test, build
+- [ ] Wire `test:ci` and `lint-ci` scripts from package.json
+- [ ] Add branch protection rules on `main` (require passing CI)
 
-**Plan:**
+**Success criteria**: PRs are blocked if CI fails.
 
-1. Investigate ICP/Juno hosting capabilities for setting real HTTP response headers
-2. If ICP supports header configuration, add proper headers:
-   - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
-   - `X-Content-Type-Options: nosniff`
-   - `Referrer-Policy: strict-origin-when-cross-origin`
-3. If ICP does not support custom headers, document this limitation and consider a CDN proxy
-4. Remove ineffective `<meta http-equiv>` tags for headers that don't work via meta
+### 3. Decide: NFT Tool or Collection Builder?
 
----
+**Problem**: The app name implies blockchain integration, but there is **zero on-chain functionality** — no wallet connect,
+no minting, no IPFS, no smart contracts. No `ethers`/`viem`/`wagmi` deps. Metadata `image` field hardcoded to `'cid:image'`.
 
-### 3. No Content-Security-Policy
+**Action**:
 
-**File:** `src/app.html`
+- [ ] Decide product direction: (A) rename/reposition as "generative collection builder" or (B) add real NFT minting
+- [ ] If (A): update README, OG tags, PWA name, and landing page copy to remove NFT branding
+- [ ] If (B): add wallet connect (wagmi), IPFS upload, smart contract deployment tools
+- [ ] Either way: remove the `'cid:image'` placeholder and show a clear "upload your images to IPFS" step in export flow
 
-**Issue:** XSS protection relies solely on DOMPurify + Trusted Types — no defense-in-depth layer. Missing CSP leaves the app vulnerable to injection attacks if sanitization fails.
-
-**Plan:**
-
-1. Add a CSP meta tag or HTTP header with strict directives:
-   - `default-src 'self'`
-   - `script-src 'self' 'wasm-unsafe-eval'` (needed for Web Workers/WASM)
-   - `style-src 'self' 'unsafe-inline'` (required for Tailwind)
-   - `img-src 'self' data: blob:`
-   - `font-src 'self'`
-   - `connect-src 'self'` (for API calls and analytics)
-   - `frame-ancestors 'none'`
-   - `base-uri 'self'`
-   - `form-action 'self'`
-2. Test that all functionality works with CSP enabled (workers, fonts, images)
-3. Adjust directives as needed based on console CSP violations
+**Success criteria**: Name/description accurately reflects what the tool does.
 
 ---
 
-## 🟡 MEDIUM Severity
+## High Priority (Fix Soon)
 
-### SEO Issues
+### 4. Split the Project Store God Object
 
-#### 4. Sitemap Uses Raw ICP Domain
+**Problem**: `project.store.svelte.ts` is 559 lines with ~40 exported mutator functions. Handles validation,
+persistence, loading state, batch updates, strict pair config, and ZIP import/export. Will resist refactoring as features grow.
 
-**File:** `static/sitemap.xml`, `static/robots.txt`
+**Action**:
 
-**Issue:** Sitemap and robots.txt reference `dpl4s-kqaaa-aaaal-asg3a-cai.icp0.io` — unprofessional and may confuse search engines.
+- [ ] Extract `load/save` orchestration into `project.persistence.ts`
+- [ ] Extract domain mutations into `project.mutations.ts`
+- [ ] Move commented-out disabled feature blocks to commit history or docs (lines 30-58)
+- [ ] Keep `project.store.svelte.ts` as a thin re-export barrel
 
-**Plan:**
+**Success criteria**: File < 200 lines, each concern in its own module.
 
-1. If a custom domain is configured, update all URLs to use it
-2. If no custom domain, consider adding one via ICP custom domain setup
-3. Update `static/robots.txt` sitemap URL
-4. Update `static/sitemap.xml` URLs
+### 5. Fix Runtime Branded Type Enforcement
 
----
+**Problem**: Branded types (`ProjectId`, `LayerId`, `TraitId`) are compile-time only. `isProjectId()` just checks
+`typeof val === 'string'`. Zod schemas strip brands. No runtime guard.
 
-#### 5. Sitemap Missing `/about` Page
+**Action**:
 
-**File:** `static/sitemap.xml`
+- [ ] Add actual runtime discriminant (e.g., `Branded<T, B>` → `{ __brand: B, __value: T }` wrapper class) or use branded string functions that validate format
+- [ ] Remove unused `Brand.value` field from the type signature
+- [ ] Integrate brand validation into Zod schemas (`.refine()` or `.transform()`) so `safeParse` output retains brands
 
-**Issue:** Only `/` and `/app` are listed. The `/about` page won't be discovered via sitemap.
+**Success criteria**: Passing a plain `string` where a `ProjectId` is expected fails at runtime.
 
-**Plan:**
+### 6. Consistent Store Access Patterns
 
-1. Add `<url><loc>https://.../about</loc></url>` entry to `static/sitemap.xml`
-2. Update `<lastmod>` date to current date
-3. Consider generating sitemap dynamically at build time
+**Problem**: Components import stores 4 different ways: barrel (`$lib/stores`), direct path, `getGalleryStore()`,
+`usePerformanceMonitoring()`. Gallery and generation stores aren't in the barrel. Unclear what comes from where.
 
----
+**Action**:
 
-#### 6. No Custom Domain Configured
+- [ ] Decide on one pattern: module-level `$state` singleton with barrel re-export (matches current majority)
+- [ ] Add `galleryStore` and `generationState` to `src/lib/stores/index.ts` barrel
+- [ ] Remove `getGalleryStore()` indirection — direct import the singleton
+- [ ] Document the pattern in AGENTS.md
 
-**Issue:** All SEO/social sharing URLs are raw ICP satellite IDs. Unprofessional for branding and search engine trust.
-
-**Plan:**
-
-1. Register a custom domain
-2. Configure ICP custom domain via Juno or boundary node
-3. Update all meta tags, sitemap, robots.txt to use custom domain
-4. Set up redirects from ICP domain to custom domain if possible
-
----
-
-#### 7. No Structured Data (JSON-LD)
-
-**Issue:** Missing rich snippets in search results. No SoftwareApplication or WebApplication schema markup.
-
-**Plan:**
-
-1. Add JSON-LD structured data to `app.html` or root layout:
-   ```json
-   {
-   	"@context": "https://schema.org",
-   	"@type": "SoftwareApplication",
-   	"name": "NFT Studio",
-   	"description": "Create stunning NFT collections with ease",
-   	"url": "https://your-domain.com",
-   	"applicationCategory": "DesignApplication",
-   	"operatingSystem": "Web",
-   	"offers": {
-   		"@type": "Offer",
-   		"price": "0",
-   		"priceCurrency": "USD"
-   	}
-   }
-   ```
-2. Add BreadcrumbList schema to `/about` page
-3. Validate with Google Rich Results Test
+**Success criteria**: Every store import comes from `$lib/stores`.
 
 ---
 
-#### 8. Missing Per-Page Meta Tags
+## Medium Priority (Fix When Possible)
 
-**Files:** `src/routes/app/+page.svelte`, `src/routes/app/gallery/+page.svelte`
+### 7. Gallery Image Persistence
 
-**Issue:** No custom `<title>` or meta descriptions for `/app` and `/app/gallery` — they inherit defaults from `app.html`.
+**Problem**: `gallery-db.ts` stores `imageData: new ArrayBuffer(0)` — gallery images are lost if in-memory cache
+is evicted (tab close, memory pressure). No recovery.
 
-**Plan:**
+**Action**:
 
-1. Add `<svelte:head>` with unique title and description to `/app/+page.svelte`
-2. Add `<svelte:head>` with unique title and description to `/app/gallery/+page.svelte`
-3. Ensure each page has a unique, descriptive title
+- [ ] Store generated images in IndexedDB (per-collection image stores) with lazy load
+- [ ] Or: add a clear "gallery images are session-only" warning to the UI
+- [ ] Consider using `CacheStorage` API for image blob persistence
 
----
+**Success criteria**: Gallery images survive page refresh.
 
-### Performance Issues
+### 8. Remove Dead Speculative Abstractions
 
-#### 9. `enhancedImages()` Plugin Configured But Unused
+**Problem**: `DomainValidationResult`, `IDomainProjectLike`, `IDomainRepository`, `IDomainService`, domain event types
+(`ProjectCreatedEvent`, etc.) are defined but never consumed. These were designed for a multi-implementation pattern
+that never materialized.
 
-**File:** `vite.config.ts`
+**Action**:
 
-**Issue:** The `@sveltejs/enhanced-img` plugin is loaded but no `<enhanced:img>` imports exist. Missed automatic WebP/AVIF conversion and responsive image generation.
+- [ ] Remove unused exports from `src/lib/domain/models.ts`
+- [ ] Remove `_needsProperLoad: boolean` from the public `Project` interface — move to store-level state
+- [ ] Remove commented-out auto-load/background-load blocks in `project.store.svelte.ts` (lines 30-58)
 
-**Plan:**
+**Success criteria**: No dead exports remain. `Project` interface has only user-facing fields.
 
-1. Audit all `<img>` tags in the codebase
-2. Replace critical images with `<enhanced:img src="..." />` imports
-3. Keep `loading="lazy"` for below-the-fold images
-4. Verify image optimization is working in production build
+### 9. Lock In CI-Ready Test Infrastructure
 
----
+**Problem**: Tests pass locally but format/lint config is scattered across `vite.config.ts` only. No pre-commit hooks.
 
-#### 10. No Font Preloading
+**Action**:
 
-**File:** `src/app.html`
+- [ ] Add `simple-git-hooks` or `husky` pre-commit hook running `vp check`
+- [ ] Add `simple-git-hooks` pre-push hook running `vp test`
+- [ ] Move lint/fmt config from `vite.config.ts` to dedicated config files if oxlint/oxfmt support them
 
-**Issue:** JetBrains Mono font is not preloaded, causing potential font loading delay on first visit.
+**Success criteria**: Can't commit without formatting, can't push without passing tests.
 
-**Plan:**
+### 10. Fix sanitizeString() Truncation-for-Validation Issue
 
-1. Add `<link rel="preload" href="/fonts/JetBrainsMono.woff2" as="font" type="font/woff2" crossorigin>` to `app.html`
-2. Ensure `font-display: swap` is set (already configured in `app.css`)
-3. Verify font loads without blocking render
+**Problem**: `sanitizeString()` truncates to 100 chars before Zod `max(100)` validation. A 500-char name silently
+passes as a 100-char truncated string instead of failing. Tests at `validation.test.ts:78-80` confirm this.
 
----
+**Action**:
 
-#### 11. No Bundle Size Budgets
+- [ ] Separate truncation from validation: validate first, truncate only for display
+- [ ] Or: validate raw input before sanitization
 
-**File:** `vite.config.ts`
-
-**Issue:** Bundle bloat can go unnoticed without automated size limits.
-
-**Plan:**
-
-1. Add bundle size budgets to `vite.config.ts`:
-   ```ts
-   build: {
-     chunkSizeWarningLimit: 500, // KB
-   }
-   ```
-2. Consider adding `rollup-plugin-visualizer` for bundle analysis
-3. Set up CI check to fail if bundle exceeds threshold
+**Success criteria**: `validateProjectName('a'.repeat(500))` should fail, not silently pass as 100 chars.
 
 ---
 
-#### 12. Images Missing `width`/`height` Attributes
+## Low Priority (Polish)
 
-**Issue:** Most `<img>` tags lack explicit dimensions, causing Cumulative Layout Shift (CLS) issues.
+### 11. Fix Dark Mode in Gallery Sort Dropdown
 
-**Plan:**
+- File: `src/routes/app/gallery/+page.svelte`
+- Hardcoded `background: rgba(255, 255, 255, 0.95)` — add dark variant with `dark:bg-card/95`
 
-1. Add `width` and `height` attributes to all static images
-2. For dynamic images, use CSS `aspect-ratio` to reserve space
-3. Verify CLS score improves with Lighthouse
+### 12. Use SvelteKit goto() Instead of window.location.href in ModeSwitcher
 
----
+- File: `src/lib/components/shared/ModeSwitcher.svelte`
+- Causes full page reloads between generate/gallery modes
+- Import and use `goto()` from `$app/navigation`
 
-### Security Issues
+### 13. Remove @ts-ignore / as any on NeoBrModal
 
-#### 13. No `X-Frame-Options` / `frame-ancestors`
+- Files: `ui/modal/modal.svelte`, layer components using `RulerRulesManager`
+- Fix the actual type issue or add proper type declarations
 
-**File:** `src/app.html`
+### 14. Remove Unused TransferrableTrait Width/Height Fields
 
-**Issue:** The app can be embedded in iframes on other sites, enabling clickjacking attacks.
+- File: `src/lib/types/worker-messages.ts`
+- Fields declared for "better memory management" but never populated
+- Either populate from `imageData` metadata or remove
 
-**Plan:**
+### 15. Fix Gallery Page Component Size
 
-1. Add `frame-ancestors 'none'` to CSP header/meta
-2. Or add `<meta http-equiv="X-Frame-Options" content="DENY">`
-3. Verify the app cannot be embedded in external iframes
+- File: `src/routes/app/gallery/+page.svelte` is 617 lines — extract sort dropdown, filter UI, and responsive
+  layout blocks into sub-components
 
----
+### 16. Fix About Page Component Size
 
-#### 14. No COOP/COEP Headers
+- File: `src/routes/about/+page.svelte` is ~1500 lines — extract tab content sections into separate components
+  or move documentation to markdown
 
-**Issue:** Missing Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy headers, leaving the app vulnerable to Spectre-style side-channel attacks.
+### 17. Move NeedsReupload.svelte to shared/
 
-**Plan:**
+- File: `src/lib/components/ui/NeedsReupload.svelte`
+- It's a display-state component, not a UI primitive — doesn't belong in `ui/`
 
-1. Add headers if hosting supports them:
-   - `Cross-Origin-Opener-Policy: same-origin`
-   - `Cross-Origin-Embedder-Policy: require-corp`
-2. Test that Web Workers and cross-origin resources still work
-3. Note: COEP may break some third-party resources without proper CORS headers
+### 18. Fix GenerationProgress Direct State Mutation
 
----
+- File: `src/lib/domain/worker.service.ts` line 129
+- Mutates `generationState` directly instead of calling `GenerationStateManager.cancelGeneration()`
 
-#### 15. `style` Attribute Allowed in DOMPurify
+### 19. Add E2E Testing
 
-**File:** `src/lib/utils/sanitization.ts`
+- Add Playwright for browser-level tests: gallery navigation, generation flow, project save/load
 
-**Issue:** The `style` attribute is in DOMPurify's allowed attributes list, which could be a vector for CSS-based attacks (e.g., `expression()` in older browsers, CSS injection).
+### 20. Add Accessibility Testing
 
-**Plan:**
+- Integrate `axe-core` with Playwright E2E tests
 
-1. Review if `style` attribute is actually needed for any user input
-2. If not needed, remove `style` from `ALLOWED_ATTR` in DOMPurify config
-3. If needed, consider using a CSS sanitizer or restricting allowed CSS properties
-4. Test that UI still renders correctly without inline styles
+### 21. Add Lighthouse CI
 
----
-
-#### 16. `console.error` in Production Hooks
-
-**File:** `src/hooks.client.ts`
-
-**Issue:** Error details could be leaked to the browser console in production, exposing internal implementation details.
-
-**Plan:**
-
-1. Add environment check before logging:
-   ```ts
-   if (import.meta.env.DEV) {
-   	console.error(error);
-   }
-   ```
-2. In production, log to a secure error tracking service instead
-3. Return a generic error message to the user
+- Performance budget enforcement, no unintended regressions on build
 
 ---
 
-## 🟢 LOW Severity
+## Priority Summary
 
-### 17. No `og:image:width`/`og:image:height`
-
-**File:** `src/app.html`
-
-**Issue:** Social sharing may have suboptimal image rendering without explicit dimensions.
-
-**Plan:**
-
-1. Add `<meta property="og:image:width" content="1200">`
-2. Add `<meta property="og:image:height" content="630">`
-3. Ensure `nft-studio-preview.webp` matches these dimensions
-
----
-
-### 18. No `twitter:site` / `twitter:creator`
-
-**File:** `src/app.html`
-
-**Issue:** Missing Twitter attribution on shared cards.
-
-**Plan:**
-
-1. Add `<meta name="twitter:site" content="@yourhandle">`
-2. Add `<meta name="twitter:creator" content="@yourhandle">`
-3. Replace with actual Twitter handle or remove if not applicable
-
----
-
-### 19. No E2E Testing
-
-**Issue:** UX quality gaps may go undetected without end-to-end tests.
-
-**Plan:**
-
-1. Set up Playwright for E2E testing
-2. Write tests for critical user flows:
-   - Create project
-   - Add layers and traits
-   - Generate collection
-   - Export NFTs
-3. Integrate E2E tests into CI pipeline
-
----
-
-### 20. No Accessibility Testing
-
-**Issue:** A11y issues may go unnoticed without automated testing.
-
-**Plan:**
-
-1. Add `@axe-core/playwright` or `jest-axe` for accessibility testing
-2. Run accessibility audits on key pages
-3. Fix any critical A11y violations (contrast, ARIA labels, keyboard navigation)
-
----
-
-### 21. No Lighthouse CI
-
-**Issue:** No automated performance regression tracking.
-
-**Plan:**
-
-1. Add `@lhci/cli` to dev dependencies
-2. Configure Lighthouse CI in CI pipeline
-3. Set performance budgets (FCP, LCP, CLS, TTI)
-4. Fail CI if scores drop below thresholds
-
----
-
-## Implementation Plan
-
-### Phase 1 — Quick Wins (1-2 hours)
-
-| #   | Task                                                | Effort |
-| --- | --------------------------------------------------- | ------ |
-| 5   | Add `/about` to `static/sitemap.xml`                | 5 min  |
-| 12  | Add `width`/`height` attributes to all `<img>` tags | 30 min |
-| 10  | Add `<link rel="preload">` for JetBrains Mono font  | 5 min  |
-| 17  | Add `og:image:width`/`height` to meta tags          | 5 min  |
-| 16  | Remove `console.error` from production hooks        | 5 min  |
-
-### Phase 2 — Security Hardening (2-4 hours)
-
-| #   | Task                                               | Effort    |
-| --- | -------------------------------------------------- | --------- |
-| 3   | Add CSP meta tag or configure headers              | 1-2 hours |
-| 13  | Add `frame-ancestors 'none'` to Permissions-Policy | 5 min     |
-| 15  | Remove `style` from DOMPurify allowed attributes   | 15 min    |
-| 14  | Add COOP/COEP headers (if hosting supports)        | 30 min    |
-| 2   | Investigate real HTTP headers for ICP hosting      | 30 min    |
-
-### Phase 3 — SEO Improvements (2-4 hours)
-
-| #   | Task                                          | Effort    |
-| --- | --------------------------------------------- | --------- |
-| 7   | Add JSON-LD structured data                   | 30 min    |
-| 4   | Update sitemap/robots.txt with correct domain | 15 min    |
-| 8   | Add per-page `<title>` and meta descriptions  | 30 min    |
-| 18  | Add `twitter:site` handle                     | 5 min     |
-| 6   | Configure custom domain (if possible)         | 1-2 hours |
-
-### Phase 4 — Performance (4-8 hours)
-
-| #   | Task                                                 | Effort    |
-| --- | ---------------------------------------------------- | --------- |
-| 1   | Enable SSR for public pages                          | 2-4 hours |
-| 9   | Use `enhancedImages()` with `<enhanced:img>` imports | 1-2 hours |
-| 11  | Add bundle size budgets to `vite.config.ts`          | 30 min    |
-| 21  | Set up Lighthouse CI                                 | 1-2 hours |
-
-### Phase 5 — Testing & Quality (4-8 hours)
-
-| #   | Task                            | Effort    |
-| --- | ------------------------------- | --------- |
-| 19  | Set up Playwright E2E testing   | 2-4 hours |
-| 20  | Add accessibility testing       | 1-2 hours |
-| 21  | Configure Lighthouse CI budgets | 1 hour    |
-
----
-
-## Verification Checklist
-
-After each fix:
-
-- [ ] `vp check` — Format + lint + type check passes
-- [ ] `vp build` — Production build succeeds
-- [ ] Lighthouse audit — Performance score maintained or improved
-- [ ] Lighthouse audit — SEO score maintained or improved
-- [ ] Lighthouse audit — Best Practices score maintained or improved
-- [ ] Browser console — No CSP violations or errors
-- [ ] Social sharing — Open Graph and Twitter cards render correctly
-- [ ] Search console — Sitemap validates without errors
-
----
-
-## Fix Status
-
-- [ ] #1 — Enable SSR for public pages
-- [ ] #2 — Real HTTP security headers (frame-ancestors, X-Frame-Options require HTTP headers, not meta)
-- [x] #3 — Content-Security-Policy (meta-based, with 'unsafe-inline' for SvelteKit SPA bootstrap)
-- [ ] #4 — Update sitemap domain
-- [x] #5 — Add `/about` to sitemap
-- [ ] #6 — Custom domain configuration
-- [ ] #7 — JSON-LD structured data
-- [ ] #8 — Per-page meta tags for `/app` and `/app/gallery`
-- [ ] #9 — Use `enhancedImages()` plugin
-- [ ] #10 — Font preloading (removed — fonts not in critical render path)
-- [ ] #11 — Bundle size budgets
-- [ ] #12 — Image `width`/`height` attributes (dynamic images use CSS aspect-ratio)
-- [ ] #13 — `frame-ancestors` protection (requires real HTTP headers, not possible via meta)
-- [ ] #14 — COOP/COEP headers (requires real HTTP headers)
-- [x] #15 — Remove `style` from DOMPurify
-- [x] #16 — Remove production `console.error`
-- [x] #17 — `og:image:width`/`height`
-- [ ] #18 — `twitter:site` / `twitter:creator`
-- [ ] #19 — E2E testing setup
-- [ ] #20 — Accessibility testing
-- [ ] #21 — Lighthouse CI
+| Priority | Item                                       | Effort     |
+| -------- | ------------------------------------------ | ---------- |
+| Critical | Fix component test suite                   | Medium     |
+| Critical | Set up CI/CD                               | Small      |
+| Critical | Clarify product direction (NFT vs builder) | Discussion |
+| High     | Split project store                        | Large      |
+| High     | Runtime branded types                      | Medium     |
+| High     | Consistent store access                    | Small      |
+| Medium   | Gallery image persistence                  | Medium     |
+| Medium   | Remove dead code                           | Small      |
+| Medium   | Pre-commit hooks                           | Small      |
+| Medium   | Fix sanitizeString validation              | Small      |
+| Low      | Dark mode, goto(), ts-ignore, dead fields  | Trivial    |
+| Low      | Component refactoring (gallery, about)     | Medium     |
+| Low      | E2E, a11y, Lighthouse CI                   | Large      |
