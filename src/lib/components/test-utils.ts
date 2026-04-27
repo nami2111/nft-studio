@@ -3,6 +3,7 @@
  * Provides helper functions and mock data.
  */
 
+import { vi } from 'vite-plus/test';
 import { render, RenderResult } from '@testing-library/svelte';
 import type { Project, Layer, Trait } from '$lib/types';
 import type { SvelteComponent } from 'svelte';

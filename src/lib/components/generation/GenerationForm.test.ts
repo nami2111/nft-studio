@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom/vite-plus/test';
+import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import GenerationForm from './GenerationForm.svelte';

@@ -6,6 +6,9 @@ import { enhancedImages } from '@sveltejs/enhanced-img';
 import juno from '@junobuild/vite-plugin';
 
 export default defineConfig({
+	resolve: {
+		conditions: ['browser']
+	},
 	plugins: [
 		enhancedImages(),
 		juno(),
