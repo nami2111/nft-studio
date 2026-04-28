@@ -8,9 +8,12 @@
 		<meta name="theme-color" content="#3b82f6" />
 
 		<!-- Security Headers -->
+		<!-- Note: CSP via <meta> has limitations. frame-ancestors and X-Frame-Options require real HTTP headers.
+		     SvelteKit SPA mode requires 'unsafe-inline' for the bootstrap script.
+		     For full security, configure real HTTP headers at the ICP hosting level. -->
 		<meta
-			http-equiv="Strict-Transport-Security"
-			content="max-age=63072000; includeSubDomains; preload"
+			http-equiv="Content-Security-Policy"
+			content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://icp0.io https://*.icp0.io; base-uri 'self'; form-action 'self';"
 		/>
 		<meta http-equiv="X-Content-Type-Options" content="nosniff" />
 		<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
@@ -43,6 +46,8 @@
 			content="https://dpl4s-kqaaa-aaaal-asg3a-cai.icp0.io/nft-studio-preview.webp"
 		/>
 		<meta property="og:image:alt" content="NFT Studio - Create Stunning NFT Collections" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
 		<meta property="og:site_name" content="NFT Studio" />
 
 		<!-- Twitter -->
@@ -61,6 +66,24 @@
 
 		<!-- Additional SEO -->
 		<link rel="canonical" href="https://dpl4s-kqaaa-aaaal-asg3a-cai.icp0.io/" />
+
+		<!-- Structured Data -->
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "SoftwareApplication",
+				"name": "NFT Studio",
+				"description": "Design, generate, and manage your NFT collections with our powerful studio tools.",
+				"url": "https://dpl4s-kqaaa-aaaal-asg3a-cai.icp0.io/",
+				"applicationCategory": "DesignApplication",
+				"operatingSystem": "Web",
+				"offers": {
+					"@type": "Offer",
+					"price": "0",
+					"priceCurrency": "USD"
+				}
+			}
+		</script>
 
 		%sveltekit.head%
 	</head>

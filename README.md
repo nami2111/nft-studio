@@ -181,21 +181,21 @@ src/
 
 ### Available Scripts
 
-| Script                      | Description                      |
-| --------------------------- | -------------------------------- |
-| `vp dev`                    | Start development server         |
-| `vp build`                  | Build for production             |
-| `vp preview`                | Preview production build         |
-| `vp check`                  | Run format + lint + type checks  |
-| `vp lint`                   | Lint with Oxlint                 |
-| `vp fmt`                    | Format with Oxfmt                |
-| `vp test`                   | Run tests                        |
-| `vp test watch`             | Run tests in watch mode          |
-| `vp test run --coverage`    | Run tests with coverage          |
-| `pnpm standardize-comments` | Standardize comment formatting   |
-| `pnpm verify-lockfile`      | Verify package lock integrity    |
-| `vp test run --reporter=junit --outdir .svelte-kit/test-results` | Run tests with JUnit reporter |
-| `pnpm lint-ci`              | CI linting (same as lint)        |
+| Script                                                           | Description                     |
+| ---------------------------------------------------------------- | ------------------------------- |
+| `vp dev`                                                         | Start development server        |
+| `vp build`                                                       | Build for production            |
+| `vp preview`                                                     | Preview production build        |
+| `vp check`                                                       | Run format + lint + type checks |
+| `vp lint`                                                        | Lint with Oxlint                |
+| `vp fmt`                                                         | Format with Oxfmt               |
+| `vp test`                                                        | Run tests                       |
+| `vp test watch`                                                  | Run tests in watch mode         |
+| `vp test run --coverage`                                         | Run tests with coverage         |
+| `pnpm standardize-comments`                                      | Standardize comment formatting  |
+| `pnpm verify-lockfile`                                           | Verify package lock integrity   |
+| `vp test run --reporter=junit --outdir .svelte-kit/test-results` | Run tests with JUnit reporter   |
+| `pnpm lint-ci`                                                   | CI linting (same as lint)       |
 
 ### Code Quality
 

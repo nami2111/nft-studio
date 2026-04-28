@@ -14,18 +14,17 @@
 	const { children }: Props = $props();
 
 	onMount(async () => {
-		// Warm up worker pool in background for faster first generation
-		// This initializes workers early so they're ready when needed
-		import('$lib/workers/worker.pool').then(({ warmUpWorkers }) => {
-			warmUpWorkers({
-				minWorkers: 1, // PHASE 1: Force single worker
-				maxWorkers: 1, // PHASE 1: Force single worker
-				taskComplexityBasedScaling: false, // PHASE 1: Disable scaling
+		try {
+			const { warmUpWorkers } = await import('$lib/workers/worker.pool');
+			await warmUpWorkers({
+				minWorkers: 1,
+				maxWorkers: 1,
+				taskComplexityBasedScaling: false,
 				healthCheckInterval: 30000
-			}).catch((error) => {
-				console.warn('Worker warm-up failed (non-critical):', error);
 			});
-		});
+		} catch (error) {
+			console.warn('Worker warm-up failed (non-critical):', error);
+		}
 
 		// Temporarily disabled Juno initialization due to dependency conflicts
 		/*

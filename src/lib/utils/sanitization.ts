@@ -34,7 +34,6 @@ export function sanitizeHTML(html: string): string {
 		ALLOWED_ATTR: [
 			'class',
 			'id',
-			'style',
 			'href',
 			'type',
 			'value',
@@ -76,7 +75,6 @@ export function sanitizeSVG(svgString: string): string {
 		ALLOWED_ATTR: [
 			'class',
 			'id',
-			'style',
 			'd',
 			'fill',
 			'stroke',

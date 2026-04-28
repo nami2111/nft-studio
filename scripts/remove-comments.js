@@ -83,17 +83,35 @@ function removeEmptyChunks(buildDir) {
 			for (const { basename } of emptyFileNames) {
 				const nameWithoutExt = basename.replace('.js', '');
 				// Match import statements like: import"./BTN-ohlh.js";
-				const importPattern = new RegExp(`import\\s*["']\\.\\/[^"']*${nameWithoutExt}[^"']*\\.js["']\\s*;?`, 'g');
+				const importPattern = new RegExp(
+					`import\\s*["']\\.\\/[^"']*${nameWithoutExt}[^"']*\\.js["']\\s*;?`,
+					'g'
+				);
 				// Match import statements like: import"./chunks/BTN-ohlh.js";
-				const importPattern2 = new RegExp(`import\\s*["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*;?`, 'g');
+				const importPattern2 = new RegExp(
+					`import\\s*["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*;?`,
+					'g'
+				);
 				// Match dynamic imports
-				const dynamicImportPattern = new RegExp(`import\\s*\\(\\s*["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*\\)\\s*,?`, 'g');
+				const dynamicImportPattern = new RegExp(
+					`import\\s*\\(\\s*["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*\\)\\s*,?`,
+					'g'
+				);
 				// Match in arrays (like PWA precache lists)
 				const arrayPattern = new RegExp(`["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*,?`, 'g');
 				// Match modulepreload links
-				const preloadPattern = new RegExp(`<link[^>]*href=["'][^"']*${nameWithoutExt}[^"']*\\.js["'][^>]*>\\s*`, 'g');
+				const preloadPattern = new RegExp(
+					`<link[^>]*href=["'][^"']*${nameWithoutExt}[^"']*\\.js["'][^>]*>\\s*`,
+					'g'
+				);
 
-				const patterns = [importPattern, importPattern2, dynamicImportPattern, arrayPattern, preloadPattern];
+				const patterns = [
+					importPattern,
+					importPattern2,
+					dynamicImportPattern,
+					arrayPattern,
+					preloadPattern
+				];
 
 				for (const pattern of patterns) {
 					const newContent = content.replace(pattern, '');
