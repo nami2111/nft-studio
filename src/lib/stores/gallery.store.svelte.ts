@@ -612,7 +612,7 @@ class GalleryStore {
 			imageFormat?: string;
 		}>,
 		collectionName: string,
-		collectionDescription: string = 'Imported NFT collection'
+		collectionDescription: string = 'Imported collection'
 	) {
 		// Check for duplicate collection names
 		let finalName = collectionName;
@@ -718,33 +718,33 @@ class GalleryStore {
 		const names = nfts.map((n) => n.name.toLowerCase());
 		const uniqueNames = new Set(names);
 		if (names.length !== uniqueNames.size) {
-			errors.push('Duplicate NFT names found');
+			errors.push('Duplicate item names found');
 		}
 
-		// Validate each NFT
+		// Validate each item
 		nfts.forEach((nft, index) => {
 			if (!nft.name || nft.name.trim() === '') {
-				errors.push(`NFT ${index + 1} has no name`);
+				errors.push(`Item ${index + 1} has no name`);
 			}
 
 			if (!nft.imageData) {
-				errors.push(`NFT ${index + 1} has no image data`);
+				errors.push(`Item ${index + 1} has no image data`);
 			} else if (typeof nft.imageData === 'string') {
 				// Blob URL validation
 				if (!nft.imageData.startsWith('blob:')) {
-					errors.push(`NFT ${index + 1} has invalid blob URL`);
+					errors.push(`Item ${index + 1} has invalid blob URL`);
 				}
 			} else if (nft.imageData instanceof ArrayBuffer) {
 				// ArrayBuffer validation
 				if (nft.imageData.byteLength === 0) {
-					errors.push(`NFT ${index + 1} has no image data`);
+					errors.push(`Item ${index + 1} has no image data`);
 				}
 				// Check for reasonable image size (between 1KB and 10MB)
 				if (nft.imageData.byteLength < 1024) {
-					errors.push(`NFT ${index + 1} image is too small`);
+					errors.push(`Item ${index + 1} image is too small`);
 				}
 				if (nft.imageData.byteLength > 10 * 1024 * 1024) {
-					errors.push(`NFT ${index + 1} image is too large`);
+					errors.push(`Item ${index + 1} image is too large`);
 				}
 			}
 		});

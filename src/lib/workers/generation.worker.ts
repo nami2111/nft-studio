@@ -174,7 +174,7 @@ async function generateIsolatedItem(
 		const metadata = metadataStrategy.format(
 			`${projectName} #${index + 1}`,
 			projectDescription,
-			`cid:image`,
+			`images/${index + 1}.png`,
 			attributes,
 			extraData
 		);

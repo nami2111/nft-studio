@@ -156,7 +156,7 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		if (!projectFile) {
 			throw new Error(
 				`Invalid project file: "project.json" not found in ${file.name}. ` +
-					`This file may be corrupted or is not a valid NFT Studio project file.`
+					`This file may be corrupted or is not a valid GNStudio project file.`
 			);
 		}
 

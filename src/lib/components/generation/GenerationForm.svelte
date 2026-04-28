@@ -112,7 +112,7 @@
 			generationState.statusText = 'Download started.';
 
 			showSuccess('Generation complete', {
-				description: `Your download has started (${images.length} NFTs). ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
+				description: `Your download has started (${images.length} items). ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
 			});
 
 			// Complete the generation in persistent store

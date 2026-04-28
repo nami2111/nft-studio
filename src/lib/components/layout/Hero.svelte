@@ -22,13 +22,13 @@
 				class="mb-4 flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase opacity-60"
 			>
 				<span class="inline-block h-2 w-2 bg-black"></span>
-				<span class="hidden sm:inline">Project: NFT_STUDIO_V0.5.5 //</span> DRAWING NO: BLP-WEB-001
+				<span class="hidden sm:inline">Project: GNSTUDIO_V0.5.5 //</span> DRAWING NO: BLP-WEB-001
 			</div>
 
 			<h1
 				class="mb-6 text-4xl leading-[0.85] font-extrabold tracking-tighter break-words uppercase selection:bg-purple-500 selection:text-white sm:text-5xl md:mb-8 lg:text-8xl"
 			>
-				Create<br class="hidden sm:block" /> Stunning<br class="hidden sm:block" /> NFT<br
+				Create<br class="hidden sm:block" /> Stunning<br class="hidden sm:block" /> Generative<br
 					class="hidden sm:block"
 				/> Collections
 			</h1>
@@ -37,10 +37,10 @@
 				<p
 					class="hidden text-xs leading-relaxed font-bold uppercase opacity-80 md:block md:text-base"
 				>
-					Technical Specifications: ERC-721/1155 Compliant // Instant Pipeline // Multi-Chain Ready.
+					Layers + Traits + Rarity // Browser-Based // Instant Pipeline.
 				</p>
 				<p class="text-xs leading-relaxed font-bold uppercase opacity-80 md:hidden">
-					ERC-721/1155 // Instant // Multi-Chain
+					Layers // Traits // Rarity
 				</p>
 			</div>
 
@@ -78,7 +78,7 @@
 			</div>
 
 			<div class="relative flex-1 overflow-hidden p-6">
-				<!-- Mock NFT Grid Preview -->
+				<!-- Mock Grid Preview -->
 				<div class="grid grid-cols-2 gap-4 opacity-40 grayscale filter lg:grid-cols-2">
 					{#each Array(4) as _}
 						<div

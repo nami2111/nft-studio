@@ -114,7 +114,7 @@ export async function startGeneration(
 			},
 			title: 'Generation Failed',
 			description:
-				'Failed to start NFT generation. This may be due to memory limitations or worker initialization issues.'
+				'Failed to start generation. This may be due to memory limitations or worker initialization issues.'
 		}
 	);
 }

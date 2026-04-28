@@ -41,8 +41,8 @@ export class ValidationService {
 	createDefaultProject(): Project {
 		return {
 			id: createProjectId(crypto.randomUUID()),
-			name: 'My NFT Collection',
-			description: 'A collection of unique NFTs',
+			name: 'My Collection',
+			description: 'A collection of unique items',
 			outputSize: { width: 0, height: 0 },
 			layers: [],
 			_needsProperLoad: true

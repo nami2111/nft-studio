@@ -264,7 +264,7 @@
 								columns}px); height: {itemHeight}px;"
 							onclick={() => handleNFTClick(nft)}
 						>
-							<!-- NFT Image -->
+							<!-- Item Image -->
 							<div class="bg-muted h-full w-full overflow-hidden">
 								{#if nft.imageData && (typeof nft.imageData === 'string' || nft.imageData.byteLength > 0)}
 									{@const imageUrl = requestImageUrl(nft)}

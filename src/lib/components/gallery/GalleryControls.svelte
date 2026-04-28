@@ -76,7 +76,7 @@
 		<div>
 			<Input
 				type="text"
-				placeholder="Search NFTs by name or description..."
+				placeholder="Search items by name or description..."
 				value={searchQuery}
 				oninput={handleSearch}
 				class="w-full"

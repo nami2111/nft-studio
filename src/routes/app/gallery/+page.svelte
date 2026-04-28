@@ -7,7 +7,7 @@
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
 	import CollectionStats from '$lib/components/gallery/CollectionStats.svelte';
-	import NFTDetail from '$lib/components/gallery/NFTDetail.svelte';
+	import ItemDetail from '$lib/components/gallery/ItemDetail.svelte';
 	import { Button } from '$components/ui/button/index.js';
 
 	const isLoading = $derived(galleryStore.isLoading);
@@ -146,8 +146,8 @@
 </script>
 
 <svelte:head>
-	<title>NFT Studio Gallery - Browse Collections</title>
-	<meta name="description" content="Browse, filter, and explore your generated NFT collections in the NFT Studio gallery." />
+	<title>GNStudio Gallery</title>
+	<meta name="description" content="Browse, filter, and explore your generated collections in the GNStudio gallery." />
 </svelte:head>
 
 <svelte:document onclick={handleClickOutside} />
@@ -169,9 +169,9 @@
 			<div class="mx-auto max-w-screen-2xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
 				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
-						<h1 class="text-foreground text-2xl font-bold sm:text-3xl">NFT Gallery</h1>
+						<h1 class="text-foreground text-2xl font-bold sm:text-3xl">Gallery</h1>
 						<p class="text-muted-foreground mt-1 text-sm">
-							View and manage your generated NFT collections
+							View and manage your generated collections
 						</p>
 					</div>
 
@@ -180,7 +180,7 @@
 						class="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm"
 					>
 						<div>
-							<span class="text-foreground font-medium">{totalNFTs}</span> Total NFTs
+							<span class="text-foreground font-medium">{totalNFTs}</span> Total Items
 						</div>
 						<div>
 							<span class="text-foreground font-medium">{collections.length}</span> Collections
@@ -216,7 +216,7 @@
 						</svg>
 						<h2 class="mb-2 text-xl font-semibold">No collections yet</h2>
 						<p class="text-muted-foreground mb-6">
-							Generate NFTs in Generate Mode or import existing collections to get started.
+								Generate in Generate Mode or import existing collections to get started.
 						</p>
 						<GalleryImport />
 					</div>
@@ -229,7 +229,7 @@
 						<div class="bg-background/95 shrink-0 border-b p-4 backdrop-blur">
 							<h2 class="text-lg font-bold">{selectedCollection.name}</h2>
 							<div class="text-muted-foreground mt-1 text-xs">
-								{selectedCollection.totalSupply} NFTs • {new Date(
+								{selectedCollection.totalSupply} items • {new Date(
 									selectedCollection.generatedAt
 								).toLocaleDateString()}
 							</div>
@@ -267,7 +267,7 @@
 							</div>
 						</div>
 
-						<!-- NFT Grid -->
+						<!-- Item Grid -->
 						<div class="relative min-h-0 flex-1 pb-32">
 							<SimpleVirtualGrid
 								nfts={filteredNFTs}
@@ -286,7 +286,7 @@
 								class="bg-background/95 pb-safe fixed inset-x-0 bottom-0 z-50 max-h-[60vh] overflow-y-auto border-t p-4 shadow-2xl backdrop-blur-xl"
 							>
 								<div class="mb-4 flex items-center justify-between">
-									<h3 class="font-bold">NFT Details</h3>
+										<h3 class="font-bold">Item Details</h3>
 									<button
 										type="button"
 										onclick={() => galleryStore.setSelectedNFT(null)}
@@ -366,7 +366,7 @@
 									<div class="flex gap-2">
 										<input
 											type="text"
-											placeholder="Search NFTs..."
+									placeholder="Search items..."
 											bind:value={searchQuery}
 											class="focus:ring-primary/20 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 										/>
@@ -388,20 +388,20 @@
 						</div>
 						<aside class="bg-card/50 w-80 overflow-y-auto border-l backdrop-blur">
 							<CollectionStats collection={selectedCollection} class="bg-transparent" />
-							<NFTDetail
-								{selectedNFT}
-								hideCard
-								class="p-5"
-								{selectedTraits}
-								ontraitclick={toggleTraitFilter}
-							/>
+						<ItemDetail
+							{selectedNFT}
+							hideCard
+							class="p-5"
+							{selectedTraits}
+							ontraitclick={toggleTraitFilter}
+						/>
 						</aside>
 					{/if}
 				</div>
 
 				<!-- Desktop Layout (1024px and above) -->
 				<div class="hidden h-full lg:flex">
-					<!-- Left: NFT Grid -->
+					<!-- Left: Item Grid -->
 					<div class="flex flex-1 flex-col overflow-hidden">
 						{#if selectedCollection}
 							<!-- Collection Header with Stats -->
@@ -418,7 +418,7 @@
 											<div
 												class="text-muted-foreground text-[10px] font-bold tracking-wider uppercase"
 											>
-												NFTs
+												Items
 											</div>
 											<div class="text-xl font-black">{selectedCollection.totalSupply}</div>
 										</div>
@@ -481,7 +481,7 @@
 								</div>
 							</div>
 
-							<!-- NFT Grid with Virtual Scrolling -->
+							<!-- Grid with Virtual Scrolling -->
 							<div class="scrollbar-gutter-stable bg-muted/5 relative min-h-0 flex-1">
 								<SimpleVirtualGrid
 									nfts={filteredNFTs}
@@ -529,7 +529,7 @@
 							{#if selectedCollection}
 								<CollectionStats collection={selectedCollection} class="bg-transparent" />
 							{/if}
-							<NFTDetail
+							<ItemDetail
 								{selectedNFT}
 								hideCard
 								class="p-6"

@@ -219,7 +219,7 @@ export class ExportService {
 			onProgress?.({
 				processed: i + 1,
 				total: images.length,
-				message: `Processing NFT ${i + 1}/${images.length}...`
+				message: `Processing item ${i + 1}/${images.length}...`
 			});
 		}
 

@@ -219,7 +219,7 @@ export async function handleWorkerError<T>(
 
 	return handleError<T>(workerError, {
 		title: 'Generation Error',
-		description: 'Failed to generate NFTs. Please try again.',
+		description: 'Failed to generate items. Please try again.',
 		...options
 	});
 }
@@ -241,7 +241,7 @@ export async function handleGenerationError<T>(
 
 	return handleError<T>(generationError, {
 		title: 'Generation Error',
-		description: 'Failed to generate NFTs. Please check your project configuration.',
+		description: 'Failed to generate items. Please check your project configuration.',
 		...options
 	});
 }
@@ -505,7 +505,7 @@ export async function recoverableGenerationOperation<T>(
 			...options.retryConfig
 		},
 		title: 'Generation Failed',
-		description: 'Failed to generate NFTs. Retrying...'
+		description: 'Failed to generate items. Retrying...'
 	});
 }
 

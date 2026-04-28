@@ -344,8 +344,8 @@ describe('Zod Validation Module', () => {
 		it('creates a valid project with defaults', () => {
 			const project = createValidatedProject();
 			expect(validateProject(project).success).toBe(true);
-			expect(project.name).toBe('My NFT Collection');
-			expect(project.description).toBe('A collection of unique NFTs');
+			expect(project.name).toBe('My Collection');
+			expect(project.description).toBe('A collection of unique items');
 			expect(project.outputSize).toEqual({ width: 100, height: 100 });
 			expect(project.layers).toEqual([]);
 		});

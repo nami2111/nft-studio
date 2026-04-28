@@ -86,7 +86,7 @@
 		const zipFiles = files.filter((file) => file.name.endsWith('.zip'));
 		if (zipFiles.length === 0) {
 			showWarning('No valid ZIP files', {
-				description: 'Please select at least one ZIP file containing NFT collections.'
+				description: 'Please select at least one ZIP file containing collections.'
 			});
 			return;
 		}
@@ -155,7 +155,7 @@
 			// Check if collection size exceeds maximum limit
 			if (allImages.length > MAX_COLLECTION_SIZE) {
 				showWarning('Collection too large', {
-					description: `This collection contains ${allImages.length} NFTs, which exceeds the maximum limit of ${MAX_COLLECTION_SIZE}. Please split your collection into smaller parts.`
+					description: `This collection contains ${allImages.length} items, which exceeds the maximum limit of ${MAX_COLLECTION_SIZE}. Please split your collection into smaller parts.`
 				});
 				return;
 			}
@@ -163,7 +163,7 @@
 			// Early warning for large collections (at 80% of limit)
 			if (allImages.length > MAX_COLLECTION_SIZE * 0.8) {
 				showWarning('Large collection approaching limit', {
-					description: `This collection contains ${allImages.length} NFTs, approaching the limit of ${MAX_COLLECTION_SIZE}. Consider splitting into smaller collections for better performance.`
+					description: `This collection contains ${allImages.length} items, approaching the limit of ${MAX_COLLECTION_SIZE}. Consider splitting into smaller collections for better performance.`
 				});
 			}
 
@@ -181,7 +181,7 @@
 					metadata: {
 						traits: (matchingMetadata?.data.attributes as Record<string, unknown>[]) || [],
 						description:
-							(matchingMetadata?.data.description as string) || `${image.name} - Generated NFT`
+							(matchingMetadata?.data.description as string) || `${image.name} - Generated Item`
 					},
 					index,
 					isBlobUrl: image.isBlobUrl
@@ -223,14 +223,14 @@
 			galleryStore.updateCollection(collection.id, updatedCollection);
 
 			showSuccess('Import successful', {
-				description: `Imported ${galleryNFTs.length} NFTs from ${totalProcessedFiles} ZIP files to "${collection.name}".`
+				description: `Imported ${galleryNFTs.length} items from ${totalProcessedFiles} ZIP files to "${collection.name}".`
 			});
 		} catch (error) {
 			console.error('Import failed:', error);
 			showError(error, {
 				title: 'Import Failed',
 				description:
-					'Failed to process the ZIP files. Please ensure they are valid NFT collection exports.'
+					'Failed to process the ZIP files. Please ensure they are valid collection exports.'
 			});
 		} finally {
 			isImporting = false;
@@ -429,7 +429,7 @@
 		<h3 class="text-foreground font-semibold">Import Collection</h3>
 
 		<div class="text-muted-foreground text-sm">
-			Import previously generated NFT collections from ZIP files.
+			Import previously generated collections from ZIP files.
 		</div>
 
 		<!-- Drag and Drop Area -->
@@ -468,12 +468,12 @@
 				<div class="text-foreground text-sm font-medium">
 					{isImporting ? 'Importing...' : 'Drop ZIP file here or click to browse'}
 				</div>
-				<div class="text-muted-foreground text-xs">Supports ZIP files exported from NFT Studio</div>
+				<div class="text-muted-foreground text-xs">Supports ZIP files exported from GNStudio</div>
 				<div class="text-muted-foreground mt-1 text-xs">
 					Tip: You can select multiple ZIP files at once (Ctrl+Click or Cmd+Click)
 				</div>
 				<div class="mt-1 text-xs font-medium text-orange-600">
-					⚠️ Limitations: Max 10,000 NFTs per collection, 2GB total size across all files
+					⚠️ Limitations: Max 10,000 items per collection, 2GB total size across all files
 				</div>
 				{#if isImporting && importMessage}
 					<div class="text-muted-foreground mt-2 text-xs">{importMessage}</div>
@@ -509,11 +509,11 @@
 				<strong>Important:</strong> Both folders must be at the root level inside the ZIP file
 			</div>
 			<div class="mt-1 text-center text-xs">
-				• images/ folder contains NFT images<br />
+				• images/ folder contains item images<br />
 				• metadata/ folder contains JSON files<br />
 				• Do not put folders inside other folders<br />
 				• You can select multiple ZIP files at once<br />
-				• Max 10,000 NFTs and 2GB total per import
+				• Max 10,000 items and 2GB total per import
 			</div>
 		</div>
 	</div>

@@ -50,9 +50,10 @@ export default defineConfig({
 				]
 			},
 			manifest: {
-				name: 'NFT Studio',
-				short_name: 'NFT Studio',
-				description: 'Create and generate NFT collections with ease',
+				name: 'GNStudio',
+				short_name: 'GNStudio',
+				description:
+					'Design and generate generative art collections with layers, traits, and rarity',
 				theme_color: '#3b82f6',
 				background_color: '#ffffff',
 				display: 'standalone',

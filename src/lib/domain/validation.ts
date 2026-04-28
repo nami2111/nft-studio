@@ -332,8 +332,8 @@ export function validateImportedProject(project: unknown): ValidationResult {
 export function createValidatedProject(overrides: Partial<Project> = {}): Project {
 	const defaultProject: Project = {
 		id: crypto.randomUUID() as ProjectId,
-		name: 'My NFT Collection',
-		description: 'A collection of unique NFTs',
+		name: 'My Collection',
+		description: 'A collection of unique items',
 		outputSize: { width: 100, height: 100 },
 		layers: []
 	};
