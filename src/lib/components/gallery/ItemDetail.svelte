@@ -66,7 +66,7 @@
 {#snippet content()}
 	{#if selectedNFT}
 		<div class="space-y-6">
-			<!-- NFT Image -->
+			<!-- Item Image -->
 			<div class="bg-muted/30 ring-border relative aspect-square overflow-hidden rounded-xl ring-1">
 				{#if imageUrl}
 					<img
@@ -79,7 +79,7 @@
 				{/if}
 			</div>
 
-			<!-- NFT Name and Rarity -->
+			<!-- Item Name and Rarity -->
 			<div>
 				<div class="flex items-start justify-between gap-4">
 					<h2 class="text-foreground text-xl font-bold tracking-tight">
@@ -178,8 +178,8 @@
 	{:else}
 		{@render emptyState(
 			nftImageIcon,
-			'No NFT Selected',
-			'Select an NFT from the gallery to view its details, traits, and rarity.'
+			'No Item Selected',
+			'Select an item from the gallery to view its details, traits, and rarity.'
 		)}
 	{/if}
 </div>

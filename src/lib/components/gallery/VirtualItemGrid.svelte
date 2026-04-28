@@ -100,7 +100,7 @@
 							: ''}"
 						onclick={() => handleNFTClick(nft)}
 					>
-						<!-- NFT Image -->
+						<!-- Item Image -->
 						<div class="bg-muted h-full w-full overflow-hidden">
 							<img
 								src={getImageUrl(nft)}
