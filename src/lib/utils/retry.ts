@@ -2,7 +2,7 @@
  * Retry mechanisms and utilities for failed operations
  */
 
-import { showError } from './error-handling';
+import { showError } from "./error-handling";
 export interface ErrorContext {
 	component?: string;
 	action?: string;
@@ -37,7 +37,7 @@ export class RetryOperation<T> {
 	constructor(
 		operation: () => Promise<T>,
 		config: Partial<RetryConfig> = {},
-		context?: ErrorContext
+		context?: ErrorContext,
 	) {
 		this.operation = operation;
 		this.context = context;
@@ -47,15 +47,17 @@ export class RetryOperation<T> {
 			maxDelayMs: 30000,
 			backoffFactor: 2,
 			jitter: true,
-			...config
+			...config,
 		};
 	}
 
 	async execute(): Promise<RetryResult<T>> {
 		const startTime = Date.now();
 		let lastError: unknown;
+		let actualAttempts = 0;
 
 		for (let attempt = 1; attempt <= this.config.maxAttempts; attempt++) {
+			actualAttempts = attempt;
 			try {
 				const data = await this.operation();
 
@@ -63,15 +65,15 @@ export class RetryOperation<T> {
 					...this.context,
 					additionalData: {
 						attempts: attempt,
-						durationMs: Date.now() - startTime
-					}
+						durationMs: Date.now() - startTime,
+					},
 				});
 
 				return {
 					success: true,
 					data,
 					attempts: attempt,
-					totalDurationMs: Date.now() - startTime
+					totalDurationMs: Date.now() - startTime,
 				};
 			} catch (error) {
 				lastError = error;
@@ -84,9 +86,9 @@ export class RetryOperation<T> {
 							...this.context,
 							additionalData: {
 								attempt,
-								reason: 'retry_condition_failed'
-							}
-						}
+								reason: "retry_condition_failed",
+							},
+						},
 					);
 					break;
 				}
@@ -99,15 +101,18 @@ export class RetryOperation<T> {
 				// Calculate delay with exponential backoff
 				const delayMs = this.calculateDelay(attempt);
 
-				console.warn(`Operation failed on attempt ${attempt}, retrying in ${delayMs}ms`, {
-					...this.context,
-					additionalData: {
-						attempt,
-						nextAttempt: attempt + 1,
-						delayMs,
-						error: error instanceof Error ? error.message : String(error)
-					}
-				});
+				console.warn(
+					`Operation failed on attempt ${attempt}, retrying in ${delayMs}ms`,
+					{
+						...this.context,
+						additionalData: {
+							attempt,
+							nextAttempt: attempt + 1,
+							delayMs,
+							error: error instanceof Error ? error.message : String(error),
+						},
+					},
+				);
 
 				// Call retry callback if provided
 				if (this.config.onRetry) {
@@ -121,15 +126,17 @@ export class RetryOperation<T> {
 
 		// Handle final failure
 		const finalError =
-			lastError instanceof Error ? lastError : new Error('Unknown error after retries');
+			lastError instanceof Error
+				? lastError
+				: new Error("Unknown error after retries");
 
 		console.error(`Final failure: ${finalError.message}`, {
 			...this.context,
 			additionalData: {
 				totalAttempts: this.config.maxAttempts,
 				totalDurationMs: Date.now() - startTime,
-				operation: 'retry_operation'
-			}
+				operation: "retry_operation",
+			},
 		});
 
 		if (this.config.onFinalFailure) {
@@ -139,13 +146,14 @@ export class RetryOperation<T> {
 		return {
 			success: false,
 			error: finalError,
-			attempts: this.config.maxAttempts,
-			totalDurationMs: Date.now() - startTime
+			attempts: actualAttempts,
+			totalDurationMs: Date.now() - startTime,
 		};
 	}
 
 	private calculateDelay(attempt: number): number {
-		let delayMs = this.config.initialDelayMs * Math.pow(this.config.backoffFactor, attempt - 1);
+		let delayMs =
+			this.config.initialDelayMs * this.config.backoffFactor ** (attempt - 1);
 		delayMs = Math.min(delayMs, this.config.maxDelayMs);
 
 		// Add jitter to prevent thundering herd
@@ -169,11 +177,11 @@ export const RetryConditions = {
 	isNetworkError: (error: unknown): boolean => {
 		if (error instanceof Error) {
 			return (
-				error.name === 'NetworkError' ||
-				(error.name === 'TypeError' && error.message.includes('fetch')) ||
-				error.message.includes('network') ||
-				error.message.includes('ECONNREFUSED') ||
-				error.message.includes('ETIMEDOUT')
+				error.name === "NetworkError" ||
+				(error.name === "TypeError" && error.message.includes("fetch")) ||
+				error.message.includes("network") ||
+				error.message.includes("ECONNREFUSED") ||
+				error.message.includes("ETIMEDOUT")
 			);
 		}
 		return false;
@@ -181,18 +189,18 @@ export const RetryConditions = {
 
 	// Retry on server errors (5xx status codes)
 	isServerError: (error: unknown): boolean => {
-		if (error && typeof error === 'object' && 'status' in error) {
+		if (error && typeof error === "object" && "status" in error) {
 			const status = (error as { status?: number }).status;
-			return typeof status === 'number' && status >= 500 && status < 600;
+			return typeof status === "number" && status >= 500 && status < 600;
 		}
 		return false;
 	},
 
 	// Retry on rate limiting errors (429 status code)
 	isRateLimitError: (error: unknown): boolean => {
-		if (error && typeof error === 'object' && 'status' in error) {
+		if (error && typeof error === "object" && "status" in error) {
 			const status = (error as { status?: number }).status;
-			return typeof status === 'number' && status === 429;
+			return typeof status === "number" && status === 429;
 		}
 		return false;
 	},
@@ -201,9 +209,9 @@ export const RetryConditions = {
 	isTimeoutError: (error: unknown): boolean => {
 		if (error instanceof Error) {
 			return (
-				error.name === 'TimeoutError' ||
-				error.message.includes('timeout') ||
-				error.message.includes('TIMEDOUT')
+				error.name === "TimeoutError" ||
+				error.message.includes("timeout") ||
+				error.message.includes("TIMEDOUT")
 			);
 		}
 		return false;
@@ -213,9 +221,9 @@ export const RetryConditions = {
 	isResourceUnavailable: (error: unknown): boolean => {
 		if (error instanceof Error) {
 			return (
-				error.message.includes('unavailable') ||
-				error.message.includes('busy') ||
-				error.message.includes('overloaded')
+				error.message.includes("unavailable") ||
+				error.message.includes("busy") ||
+				error.message.includes("overloaded")
 			);
 		}
 		return false;
@@ -230,7 +238,7 @@ export const RetryConditions = {
 			RetryConditions.isTimeoutError(error) ||
 			RetryConditions.isResourceUnavailable(error)
 		);
-	}
+	},
 };
 
 /**
@@ -244,7 +252,7 @@ export const RetryConfigs = {
 		maxDelayMs: 10000,
 		backoffFactor: 2,
 		jitter: true,
-		retryCondition: RetryConditions.isNetworkError
+		retryCondition: RetryConditions.isNetworkError,
 	},
 
 	// Longer retries for server operations
@@ -254,7 +262,7 @@ export const RetryConfigs = {
 		maxDelayMs: 30000,
 		backoffFactor: 2,
 		jitter: true,
-		retryCondition: RetryConditions.isServerError
+		retryCondition: RetryConditions.isServerError,
 	},
 
 	// Aggressive retries for rate limiting
@@ -264,7 +272,7 @@ export const RetryConfigs = {
 		maxDelayMs: 60000,
 		backoffFactor: 1.5,
 		jitter: true,
-		retryCondition: RetryConditions.isRateLimitError
+		retryCondition: RetryConditions.isRateLimitError,
 	},
 
 	// Conservative retries for file operations
@@ -274,7 +282,7 @@ export const RetryConfigs = {
 		maxDelayMs: 5000,
 		backoffFactor: 2,
 		jitter: false,
-		retryCondition: RetryConditions.isResourceUnavailable
+		retryCondition: RetryConditions.isResourceUnavailable,
 	},
 
 	// Default configuration
@@ -284,8 +292,8 @@ export const RetryConfigs = {
 		maxDelayMs: 10000,
 		backoffFactor: 2,
 		jitter: true,
-		retryCondition: RetryConditions.isRecoverable
-	}
+		retryCondition: RetryConditions.isRecoverable,
+	},
 };
 
 /**
@@ -294,7 +302,7 @@ export const RetryConfigs = {
 export async function retry<T>(
 	operation: () => Promise<T>,
 	config?: Partial<RetryConfig>,
-	context?: ErrorContext
+	context?: ErrorContext,
 ): Promise<RetryResult<T>> {
 	const retryOp = new RetryOperation(operation, config, context);
 	return await retryOp.execute();
@@ -307,24 +315,26 @@ export async function retryWithErrorHandling<T>(
 	operation: () => Promise<T>,
 	config?: Partial<RetryConfig>,
 	context?: ErrorContext,
-	errorMessage: string = 'Operation failed after multiple attempts'
+	errorMessage: string = "Operation failed after multiple attempts",
 ): Promise<T> {
 	const result = await retry(operation, config, {
 		...context,
 		additionalData: {
 			...context?.additionalData,
-			operation: 'retry_with_error_handling'
-		}
+			operation: "retry_with_error_handling",
+		},
 	});
 
 	if (!result.success) {
-		const error = result.error instanceof Error ? result.error : new Error(errorMessage);
+		const error =
+			result.error instanceof Error ? result.error : new Error(errorMessage);
 		showError(error, {
 			description: `Failed after ${result.attempts} attempts`,
 			action: {
-				label: 'Retry',
-				onClick: () => retryWithErrorHandling(operation, config, context, errorMessage)
-			}
+				label: "Retry",
+				onClick: () =>
+					retryWithErrorHandling(operation, config, context, errorMessage),
+			},
 		});
 		throw error;
 	}
@@ -335,19 +345,19 @@ export async function retryWithErrorHandling<T>(
 /**
  * Create a wrapped function with automatic retry
  */
-export function withRetry<T extends (...args: Parameters<T>) => Promise<ReturnType<T>>>(
+export function withRetry<T extends (...args: any[]) => any>(
 	fn: T,
 	config?: Partial<RetryConfig>,
-	context?: ErrorContext
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
-	return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
-		const operation = () => fn(...args);
+	context?: ErrorContext,
+): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
+	return async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
+		const operation = () => Promise.resolve(fn(...args));
 		const result = await retry(operation, config, {
 			...context,
 			additionalData: {
 				...context?.additionalData,
-				function: fn.name || 'anonymous'
-			}
+				function: fn.name || "anonymous",
+			},
 		});
 
 		if (!result.success) {
@@ -365,7 +375,7 @@ export function createDebouncedRetry<T>(
 	operation: () => Promise<T>,
 	config?: Partial<RetryConfig>,
 	debounceMs: number = 1000,
-	context?: ErrorContext
+	context?: ErrorContext,
 ) {
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 	let pendingPromise: Promise<T> | null = null;
@@ -383,8 +393,8 @@ export function createDebouncedRetry<T>(
 							...context,
 							additionalData: {
 								...context?.additionalData,
-								operation: 'debounced_retry'
-							}
+								operation: "debounced_retry",
+							},
 						})
 							.execute()
 							.then((result) => {

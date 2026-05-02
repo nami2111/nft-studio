@@ -105,9 +105,7 @@ describe("RetryOperation", () => {
 		const result = await promise;
 
 		expect(result.success).toBe(false);
-		// NOTE: attempts field reflects this.config.maxAttempts (5) not actual
-		// attempts (1) due to how RetryOperation constructs RetryResult
-		expect(result.attempts).toBe(5);
+		expect(result.attempts).toBe(1); // retryCondition false → stops after 1st attempt
 		expect(retryCondition).toHaveBeenCalledWith(nonRetryableError);
 		expect(op).toHaveBeenCalledTimes(1); // only first attempt
 	});
@@ -219,15 +217,14 @@ describe("retry() convenience function", () => {
 describe("withRetry() wrapper", () => {
 	it("retries the wrapped function", async () => {
 		let calls = 0;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const fn = (withRetry as any)(
+		const fn = withRetry(
 			async (x: number) => {
 				calls++;
 				if (calls < 2) throw new Error("fail");
 				return x * 2;
 			},
 			{ maxAttempts: 3, initialDelayMs: 10, jitter: false },
-		) as (x: number) => Promise<number>;
+		);
 
 		const result = await fn(5);
 		expect(result).toBe(10);
