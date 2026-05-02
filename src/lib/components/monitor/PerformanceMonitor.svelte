@@ -194,7 +194,7 @@
 						<div class="text-xl font-bold text-orange-600">
 							{realTimeMetrics.generationSpeed}
 						</div>
-						<div class="text-muted-foreground text-xs">NFTs/sec</div>
+						<div class="text-muted-foreground text-xs">items/sec</div>
 					</CardContent>
 				</Card>
 

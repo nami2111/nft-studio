@@ -1,6 +1,6 @@
 # API Documentation
 
-This document provides comprehensive API documentation for NFT Studio's core modules, including stores, domain services, and utilities.
+This document provides comprehensive API documentation for GNStudio's core modules, including stores, domain services, and utilities.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ This document provides comprehensive API documentation for NFT Studio's core mod
 
 ### Project Store (`src/lib/stores/project.store.svelte.ts`)
 
-The project store manages the reactive state of the current NFT project using Svelte 5 runes.
+The project store manages the reactive state of the current item project using Svelte 5 runes.
 
 #### Core State
 
@@ -351,17 +351,17 @@ export function getLayersWithMissingImages(
 
 ### Generation Worker (`src/lib/workers/generation.worker.ts`)
 
-The generation worker handles intensive image processing and NFT generation operations in background threads.
+The generation worker handles intensive image processing and item generation operations in background threads.
 
 #### Core Functions
 
 ```typescript
 /**
- * Generates the complete NFT collection with optimized chunked processing.
+ * Generates the complete item collection with optimized chunked processing.
  * Uses adaptive chunk sizing, Canvas API optimization for all collections,
  * and memory-efficient processing with real-time monitoring.
  * @param {TransferrableLayer[]} layers - The layers with traits to generate from
- * @param {number} collectionSize - Total number of NFTs to generate (1-10,000)
+ * @param {number} collectionSize - Total number of items to generate (1-10,000)
  * @param {Object} outputSize - Output dimensions for generated images
  * @param {string} projectName - Name of the project for metadata
  * @param {string} projectDescription - Description for metadata
@@ -383,7 +383,7 @@ async function generateCollection(
  * Uses memory-based and core-based calculations with adaptive bounds.
  * Automatically adjusts based on real-time memory usage during Canvas generation.
  * @param {Object} deviceCapabilities - Device capabilities
- * @param {number} collectionSize - Total number of NFTs to generate
+ * @param {number} collectionSize - Total number of items to generate
  * @returns {number} Optimal chunk size for processing (10-200 items)
  */
 function calculateOptimalChunkSize(

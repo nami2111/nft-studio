@@ -31,7 +31,7 @@
 		Collection Stats
 	</h3>
 	<div class="grid grid-cols-2 gap-4">
-		{@render statCell('Total NFTs', collection.totalSupply)}
+		{@render statCell('Total Items', collection.totalSupply)}
 		{@render statCell('Rarest Rank', '#' + rarestRank)}
 		{@render statCell('Avg Rarity Score', avgScore.toFixed(2))}
 		{@render statCell(

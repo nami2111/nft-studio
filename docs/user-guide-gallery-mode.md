@@ -1,12 +1,12 @@
 # User Guide: Gallery Mode
 
-Gallery Mode provides a powerful interface for viewing, filtering, and managing your generated NFT collections. This guide covers all features available in Gallery Mode.
+Gallery Mode provides a powerful interface for viewing, filtering, and managing your generated item collections. This guide covers all features available in Gallery Mode.
 
 ## Overview
 
 Gallery Mode allows you to:
 
-- Import existing NFT collections from ZIP files
+- Import existing item collections from ZIP files
 - View collections with advanced filtering and search
 - Use interactive trait filtering for precise exploration
 - Analyze rarity scores and rankings
@@ -36,7 +36,7 @@ Expected structure:
 3. **Automatic Processing**: The system will:
    - Extract images and metadata
    - Calculate rarity scores automatically
-   - Organize NFTs by collection
+   - Organize items by collection
    - Provide real-time progress updates
 
 ### Import Requirements
@@ -44,33 +44,33 @@ Expected structure:
 - **Required**: `images/` folder containing PNG/JPG image files
 - **Optional**: `metadata/` folder containing JSON metadata files with traits
 - **File Limit**: No strict size limit, but very large files may take longer to process
-- **Format**: ZIP files exported from NFT Studio or compatible tools
+- **Format**: ZIP files exported from GNStudio or compatible tools
 
 ## Collection Management
 
 ### Viewing Collections
 
 - **Collection Selector**: Switch between multiple imported collections
-- **Collection Stats**: View total NFT count and collection information
+- **Collection Stats**: View total item count and collection information
 - **Responsive Grid**: Optimized layouts for mobile, tablet, and desktop
 
 ### Collection Statistics
 
 For each collection, you can see:
 
-- **Total NFTs**: Number of NFTs in the collection
-- **Rarest NFT**: The NFT with the highest rarity score
-- **Average Score**: Mean rarity score across all NFTs
+- **Total items**: Number of items in the collection
+- **Rarest Item**: The item with the highest rarity score
+- **Average Score**: Mean rarity score across all items
 - **Creation Date**: When the collection was imported
 
-## NFT Details and Analysis
+## Item Details and Analysis
 
-### Viewing NFT Details
+### Viewing Item Details
 
-1. Click any NFT in the grid to view detailed information
+1. Click any item in the grid to view detailed information
 2. The right panel (desktop) or bottom panel (mobile) shows:
-   - Full-size NFT image
-   - NFT name and description
+   - Full-size item image
+   - item name and description
    - Rarity score and global rank
    - Complete trait list with individual rarity percentages
 
@@ -78,12 +78,12 @@ For each collection, you can see:
 
 Understanding how rarity is calculated:
 
-- **Trait Rarity**: `(Number of NFTs with trait ÷ Total NFTs) × 100`
+- **Trait Rarity**: `(Number of items with trait ÷ Total items) × 100`
 - **Trait Score**: `100 ÷ Trait Percentage` (rarer = higher score)
-- **NFT Score**: Sum of all trait scores (higher = rarer)
-- **Ranking**: Rank #1 = most rare NFT (highest score)
+- **Item Score**: Sum of all trait scores (higher = rarer)
+- **Ranking**: Rank #1 = most rare item (highest score)
 
-**Example**: A trait appearing in 50 out of 1000 NFTs has 5% rarity and a score of 20 points.
+**Example**: A trait appearing in 50 out of 1000 items has 5% rarity and a score of 20 points.
 
 ## Interactive Trait Filtering
 
@@ -91,21 +91,21 @@ Understanding how rarity is calculated:
 
 Gallery Mode features revolutionary interactive trait filtering:
 
-1. **View NFT Details**: Click any NFT to see its traits
+1. **View Item Details**: Click any item to see its traits
 2. **Click Traits**: Click individual traits to instantly filter the entire collection
 3. **Build Filters**: Select multiple traits from different layers for precise filtering
 4. **Visual Feedback**: Selected traits are highlighted with primary color styling
 
 ### Filter Examples
 
-- **Single Trait**: Click "Golden Crown" to see all NFTs with that trait
-- **Multiple Traits**: Click "Red Background" + "Wizard Hat" for NFTs with both traits
+- **Single Trait**: Click "Golden Crown" to see all items with that trait
+- **Multiple Traits**: Click "Red Background" + "Wizard Hat" for items with both traits
 - **Cross-Layer**: Combine traits from different layers (e.g., "Blue Eyes" + "Black Armor")
 - **Clear Filters**: Use "Clear All" button or click selected traits again to remove
 
 ### Filter Controls
 
-- **Search Bar**: Find NFTs by name or description
+- **Search Bar**: Find items by name or description
 - **Sort Options**:
   - Rarity (Low to High = common to rare)
   - Rarity (High to Low = rare to common)
@@ -117,7 +117,7 @@ Gallery Mode features revolutionary interactive trait filtering:
 ### Search Functionality
 
 - **Real-time Search**: Instant results as you type
-- **Global Search**: Searches NFT names, descriptions, and trait values
+- **Global Search**: Searches item names, descriptions, and trait values
 - **Case Insensitive**: "dragon" matches "Dragon" and "dragon"
 
 ### Sorting Options
@@ -131,14 +131,14 @@ Gallery Mode features revolutionary interactive trait filtering:
 ### Mobile Layout
 
 - **Full-width Grid**: Optimized for touch interactions
-- **Bottom Details Panel**: NFT details slide up from bottom
+- **Bottom Details Panel**: item details slide up from bottom
 - **Horizontal Traits**: Swipeable trait pills for compact display
 - **Custom Dropdowns**: Mobile-friendly sorting without native pickers
 
 ### Desktop Layout
 
 - **70/30 Split**: Grid view (70%) and details panel (30%)
-- **Fixed Details Panel**: Persistent NFT information panel
+- **Fixed Details Panel**: Persistent item information panel
 - **Advanced Filtering**: Comprehensive trait filtering interface
 - **Keyboard Support**: Full keyboard navigation and shortcuts
 
@@ -170,11 +170,11 @@ Gallery Mode features revolutionary interactive trait filtering:
 
 - Check if metadata folder exists in ZIP file
 - Ensure JSON files follow standard format with attributes array
-- Metadata is optional - NFTs will import without it
+- Metadata is optional - items will import without it
 
 **Slow Performance**:
 
-- Large collections (>5000 NFTs) may take longer to process
+- Large collections (>5000 items) may take longer to process
 - Consider importing in smaller batches
 - Close other browser tabs to free memory
 
@@ -214,7 +214,7 @@ Gallery Mode features revolutionary interactive trait filtering:
 
 ### Collection Analysis
 
-- **Identify Patterns**: Look for common trait combinations in rare NFTs
+- **Identify Patterns**: Look for common trait combinations in rare items
 - **Rarity Discovery**: Use filtering to discover unexpected trait relationships
 - **Quality Assessment**: Review trait distribution for collection balance
 
@@ -224,7 +224,7 @@ Gallery Mode features revolutionary interactive trait filtering:
 
 Gallery Mode automatically calculates and displays:
 
-- **Individual Trait Rarity**: Percentage of NFTs with each specific trait
+- **Individual Trait Rarity**: Percentage of items with each specific trait
 - **Trait Rankings**: Most and least common traits in the collection
 - **Rarity Distribution**: Overall rarity score distribution across collection
 
@@ -248,10 +248,10 @@ While Gallery Mode focuses on viewing and analysis, you can:
 
 Gallery Mode works seamlessly with Generate Mode:
 
-1. **Generate Collection**: Create NFTs in Generate Mode
+1. **Generate Collection**: Create items in Generate Mode
 2. **Export Collection**: Download as ZIP with images and metadata
 3. **Import to Gallery**: Upload ZIP to Gallery Mode for analysis
 4. **Analyze and Filter**: Use Gallery Mode tools to explore your collection
 5. **Iterate**: Return to Generate Mode with insights for improvements
 
-This workflow enables continuous refinement of your NFT collections based on data-driven analysis.
+This workflow enables continuous refinement of your item collections based on data-driven analysis.

@@ -2,7 +2,7 @@
 
 ## Summary
 
-We've successfully improved the consistency of inline comments and formatting in the NFT Studio codebase. Here's what was accomplished:
+We've successfully improved the consistency of inline comments and formatting in the GNStudio codebase. Here's what was accomplished:
 
 ## Changes Made
 

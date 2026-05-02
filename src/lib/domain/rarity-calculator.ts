@@ -1,9 +1,9 @@
 /**
- * Rarity Calculator - Calculate trait rarity and NFT rarity scores
+ * Rarity Calculator - Calculate trait rarity and item rarity scores
  * Implements multiple rarity calculation methods with enhanced features
  */
 
-import type { GalleryNFT, GalleryCollection } from '$lib/types/gallery';
+import type { GalleryItem, GalleryCollection } from '$lib/types/gallery';
 
 export interface TraitRarity {
 	layer: string;
@@ -40,8 +40,8 @@ export interface StrategicCombination {
 	filler: number; // Low-value combinations
 }
 
-export interface NFTRarityResult {
-	nft: GalleryNFT;
+export interface ItemRarityResult {
+	item: GalleryItem;
 	rarityScore: number;
 	rarityRank?: number;
 	traitRarities: TraitRarity[] | EnhancedTraitRarity[];
@@ -83,11 +83,11 @@ export const DEFAULT_LAYER_IMPORTANCE: LayerImportance[] = [];
  */
 export function calculateTraitRarities(collection: GalleryCollection): Map<string, TraitRarity> {
 	const traitMap = new Map<string, { count: number; layer: string; trait: string }>();
-	const totalNFTs = collection.nfts.length;
+	const totalItems = collection.items.length;
 
 	// Count occurrences of each trait
-	for (const nft of collection.nfts) {
-		for (const trait of nft.metadata.traits) {
+	for (const item of collection.items) {
+		for (const trait of item.metadata.traits) {
 			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 			const key = `${layer}:${traitValue}`;
@@ -107,7 +107,7 @@ export function calculateTraitRarities(collection: GalleryCollection): Map<strin
 	// Calculate percentages and rarity scores
 	const rarityMap = new Map<string, TraitRarity>();
 	for (const [key, data] of traitMap) {
-		const percentage = (data.count / totalNFTs) * 100;
+		const percentage = (data.count / totalItems) * 100;
 		const rarityScore = 100 / percentage; // Higher score for rarer traits
 
 		rarityMap.set(key, {
@@ -132,11 +132,11 @@ export function calculateEnhancedTraitRarities(
 	tiers: RarityTier[] = DEFAULT_RARITY_TIERS
 ): Map<string, EnhancedTraitRarity> {
 	const traitMap = new Map<string, { count: number; layer: string; trait: string }>();
-	const totalNFTs = collection.nfts.length;
+	const totalItems = collection.items.length;
 
 	// Count occurrences of each trait
-	for (const nft of collection.nfts) {
-		for (const trait of nft.metadata.traits) {
+	for (const item of collection.items) {
+		for (const trait of item.metadata.traits) {
 			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 			const key = `${layer}:${traitValue}`;
@@ -156,7 +156,7 @@ export function calculateEnhancedTraitRarities(
 	// Calculate enhanced rarity data
 	const enhancedRarityMap = new Map<string, EnhancedTraitRarity>();
 	for (const [key, data] of traitMap) {
-		const percentage = (data.count / totalNFTs) * 100;
+		const percentage = (data.count / totalItems) * 100;
 		const baseRarityScore = 100 / percentage;
 
 		// Get layer importance weight
@@ -191,38 +191,38 @@ export function calculateEnhancedTraitRarities(
 }
 
 /**
- * Calculate rarity scores for all NFTs in a collection
+ * Calculate rarity scores for all items in a collection
  */
-export function calculateNFTRarities(
+export function calculateItemRarities(
 	collection: GalleryCollection,
 	method: RarityMethod = RarityMethod.TRAIT_RARITY
 ): {
 	traitRarities: Map<string, TraitRarity>;
-	nftRarities: NFTRarityResult[];
-	rarestNFT?: GalleryNFT;
-	mostCommonNFT?: GalleryNFT;
+	itemRarities: ItemRarityResult[];
+	rarestItem?: GalleryItem;
+	mostCommonItem?: GalleryItem;
 } {
 	// Use enhanced calculation for new methods
 	if (method === RarityMethod.ENHANCED_WEIGHTED) {
-		return calculateEnhancedNFTRarities(collection);
+		return calculateEnhancedItemRarities(collection);
 	}
 	if (method === RarityMethod.EMERGENT_RARITY) {
-		return calculateEmergentNFTRarities(collection);
+		return calculateEmergentItemRarities(collection);
 	}
 
 	// Original calculation for backward compatibility
 	const traitRarities = calculateTraitRarities(collection);
-	const nftRarities: Array<{
-		nft: GalleryNFT;
+	const itemRarities: Array<{
+		item: GalleryItem;
 		rarityScore: number;
 		traitRarities: TraitRarity[];
 	}> = [];
 
-	for (const nft of collection.nfts) {
+	for (const item of collection.items) {
 		const traitRarityData: TraitRarity[] = [];
 		let totalScore = 0;
 
-		for (const trait of nft.metadata.traits) {
+		for (const trait of item.metadata.traits) {
 			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 			const key = `${layer}:${traitValue}`;
@@ -257,48 +257,48 @@ export function calculateNFTRarities(
 				break;
 		}
 
-		nftRarities.push({
-			nft,
+		itemRarities.push({
+			item,
 			rarityScore: finalScore,
 			traitRarities: traitRarityData
 		});
 	}
 
 	// Sort by rarity score (descending)
-	nftRarities.sort((a, b) => b.rarityScore - a.rarityScore);
+	itemRarities.sort((a, b) => b.rarityScore - a.rarityScore);
 
-	// Update NFTs with rarity data
-	const updatedNFTs = nftRarities.map((data, index) => ({
-		...data.nft,
+	// Update items with rarity data
+	const updatedItems = itemRarities.map((data, index) => ({
+		...data.item,
 		rarityScore: data.rarityScore,
 		rarityRank: index + 1
 	}));
 
 	// Find rarest and most common
-	const rarestNFT = updatedNFTs[0];
-	const mostCommonNFT = updatedNFTs[updatedNFTs.length - 1];
+	const rarestItem = updatedItems[0];
+	const mostCommonItem = updatedItems[updatedItems.length - 1];
 
 	return {
 		traitRarities,
-		nftRarities,
-		rarestNFT,
-		mostCommonNFT
+		itemRarities,
+		rarestItem,
+		mostCommonItem
 	};
 }
 
 /**
- * Calculate enhanced NFT rarities using custom weights and tiers
+ * Calculate enhanced item rarities using custom weights and tiers
  */
-export function calculateEnhancedNFTRarities(
+export function calculateEnhancedItemRarities(
 	collection: GalleryCollection,
 	layerImportance: LayerImportance[] = DEFAULT_LAYER_IMPORTANCE,
 	customWeights: Map<string, number> = new Map(),
 	tiers: RarityTier[] = DEFAULT_RARITY_TIERS
 ): {
 	traitRarities: Map<string, EnhancedTraitRarity>;
-	nftRarities: NFTRarityResult[];
-	rarestNFT?: GalleryNFT;
-	mostCommonNFT?: GalleryNFT;
+	itemRarities: ItemRarityResult[];
+	rarestItem?: GalleryItem;
+	mostCommonItem?: GalleryItem;
 } {
 	const enhancedTraitRarities = calculateEnhancedTraitRarities(
 		collection,
@@ -306,16 +306,16 @@ export function calculateEnhancedNFTRarities(
 		customWeights,
 		tiers
 	);
-	const nftRarities: NFTRarityResult[] = [];
+	const itemRarities: ItemRarityResult[] = [];
 
-	for (const nft of collection.nfts) {
+	for (const item of collection.items) {
 		const traitRarityData: EnhancedTraitRarity[] = [];
 		let totalScore = 0;
 		let strategicCount = 0;
 		let balancedCount = 0;
 		let fillerCount = 0;
 
-		for (const trait of nft.metadata.traits) {
+		for (const trait of item.metadata.traits) {
 			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 			const key = `${layer}:${traitValue}`;
@@ -339,8 +339,8 @@ export function calculateEnhancedNFTRarities(
 			}
 		}
 
-		nftRarities.push({
-			nft,
+		itemRarities.push({
+			item,
 			rarityScore: totalScore,
 			traitRarities: traitRarityData,
 			strategicBreakdown: {
@@ -352,30 +352,30 @@ export function calculateEnhancedNFTRarities(
 	}
 
 	// Sort by rarity score (descending)
-	nftRarities.sort((a, b) => b.rarityScore - a.rarityScore);
+	itemRarities.sort((a, b) => b.rarityScore - a.rarityScore);
 
 	return {
 		traitRarities: enhancedTraitRarities,
-		nftRarities,
-		rarestNFT: nftRarities[0]?.nft,
-		mostCommonNFT: nftRarities[nftRarities.length - 1]?.nft
+		itemRarities,
+		rarestItem: itemRarities[0]?.item,
+		mostCommonItem: itemRarities[itemRarities.length - 1]?.item
 	};
 }
 
 /**
  * Calculate emergent rarity based on trait combinations
  */
-export function calculateEmergentNFTRarities(collection: GalleryCollection): {
+export function calculateEmergentItemRarities(collection: GalleryCollection): {
 	traitRarities: Map<string, TraitRarity>;
-	nftRarities: NFTRarityResult[];
-	rarestNFT?: GalleryNFT;
-	mostCommonNFT?: GalleryNFT;
+	itemRarities: ItemRarityResult[];
+	rarestItem?: GalleryItem;
+	mostCommonItem?: GalleryItem;
 } {
-	// Group NFTs by trait combinations
-	const combinationMap = new Map<string, GalleryNFT[]>();
+	// Group items by trait combinations
+	const combinationMap = new Map<string, GalleryItem[]>();
 
-	for (const nft of collection.nfts) {
-		const sortedTraits = nft.metadata.traits
+	for (const item of collection.items) {
+		const sortedTraits = item.metadata.traits
 			.map((trait) => {
 				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
@@ -387,15 +387,15 @@ export function calculateEmergentNFTRarities(collection: GalleryCollection): {
 		if (!combinationMap.has(sortedTraits)) {
 			combinationMap.set(sortedTraits, []);
 		}
-		combinationMap.get(sortedTraits)!.push(nft);
+		combinationMap.get(sortedTraits)!.push(item);
 	}
 
 	// Calculate emergent rarity scores
-	const nftRarities: NFTRarityResult[] = [];
-	const totalNFTs = collection.nfts.length;
+	const itemRarities: ItemRarityResult[] = [];
+	const totalItems = collection.items.length;
 
-	for (const nft of collection.nfts) {
-		const sortedTraits = nft.metadata.traits
+	for (const item of collection.items) {
+		const sortedTraits = item.metadata.traits
 			.map((trait) => {
 				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
@@ -405,11 +405,11 @@ export function calculateEmergentNFTRarities(collection: GalleryCollection): {
 			.join('|');
 
 		const combinationCount = combinationMap.get(sortedTraits)!.length;
-		const combinationPercentage = (combinationCount / totalNFTs) * 100;
+		const combinationPercentage = (combinationCount / totalItems) * 100;
 		const emergentRarityScore = 100 / combinationPercentage;
 
-		nftRarities.push({
-			nft,
+		itemRarities.push({
+			item,
 			rarityScore: emergentRarityScore,
 			traitRarities: [],
 			emergentRarity: true,
@@ -425,13 +425,13 @@ export function calculateEmergentNFTRarities(collection: GalleryCollection): {
 	}
 
 	// Sort by rarity score (descending)
-	nftRarities.sort((a, b) => b.rarityScore - a.rarityScore);
+	itemRarities.sort((a, b) => b.rarityScore - a.rarityScore);
 
 	return {
 		traitRarities: new Map(),
-		nftRarities,
-		rarestNFT: nftRarities[0]?.nft,
-		mostCommonNFT: nftRarities[nftRarities.length - 1]?.nft
+		itemRarities,
+		rarestItem: itemRarities[0]?.item,
+		mostCommonItem: itemRarities[itemRarities.length - 1]?.item
 	};
 }
 
@@ -478,8 +478,8 @@ export function calculateStrategicCombinations(
 	const layerTraits = new Map<string, number>();
 
 	// Count traits in target layer
-	for (const nft of collection.nfts) {
-		for (const trait of nft.metadata.traits) {
+	for (const item of collection.items) {
+		for (const trait of item.metadata.traits) {
 			const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 			const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 
@@ -489,13 +489,13 @@ export function calculateStrategicCombinations(
 		}
 	}
 
-	const totalNFTs = collection.nfts.length;
+	const totalItems = collection.items.length;
 	let strategic = 0;
 	let balanced = 0;
 	let filler = 0;
 
 	for (const [, count] of layerTraits) {
-		const percentage = (count / totalNFTs) * 100;
+		const percentage = (count / totalItems) * 100;
 		const score = 100 / percentage;
 		const classification = classifyStrategicValue(score, percentage);
 
@@ -522,16 +522,16 @@ export function updateCollectionWithRarity(
 	collection: GalleryCollection,
 	method: RarityMethod = RarityMethod.TRAIT_RARITY
 ): GalleryCollection {
-	const stats = calculateNFTRarities(collection, method);
-	const updatedNFTs = stats.nftRarities.map((data, index) => ({
-		...data.nft,
+	const stats = calculateItemRarities(collection, method);
+	const updatedItems = stats.itemRarities.map((data, index) => ({
+		...data.item,
 		rarityScore: data.rarityScore,
 		rarityRank: index + 1
 	}));
 
 	return {
 		...collection,
-		nfts: updatedNFTs as GalleryNFT[]
+		items: updatedItems as GalleryItem[]
 	};
 }
 
@@ -552,15 +552,15 @@ export function getTraitStatistics(collection: GalleryCollection): Array<{
 }
 
 /**
- * Find NFTs with specific trait combinations
+ * Find items with specific trait combinations
  */
-export function findNFTsWithTraits(
+export function findItemsWithTraits(
 	collection: GalleryCollection,
 	requiredTraits: Array<{ layer: string; trait: string }>
-): GalleryNFT[] {
-	return collection.nfts.filter((nft) => {
+): GalleryItem[] {
+	return collection.items.filter((item) => {
 		return requiredTraits.every((required) => {
-			return nft.metadata.traits.some((trait) => {
+			return item.metadata.traits.some((trait) => {
 				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 				return layer === required.layer && traitValue === required.trait;
@@ -570,18 +570,18 @@ export function findNFTsWithTraits(
 }
 
 /**
- * Calculate similarity between two NFTs based on traits
+ * Calculate similarity between two items based on traits
  */
-export function calculateNFTSimilarity(nft1: GalleryNFT, nft2: GalleryNFT): number {
+export function calculateItemSimilarity(item1: GalleryItem, item2: GalleryItem): number {
 	const traits1 = new Set(
-		nft1.metadata.traits.map((t) => {
+		item1.metadata.traits.map((t) => {
 			const layer = t.layer || ((t as Record<string, unknown>).trait_type as string);
 			const traitValue = t.trait || ((t as Record<string, unknown>).value as string);
 			return `${layer}:${traitValue}`;
 		})
 	);
 	const traits2 = new Set(
-		nft2.metadata.traits.map((t) => {
+		item2.metadata.traits.map((t) => {
 			const layer = t.layer || ((t as Record<string, unknown>).trait_type as string);
 			const traitValue = t.trait || ((t as Record<string, unknown>).value as string);
 			return `${layer}:${traitValue}`;
@@ -595,18 +595,18 @@ export function calculateNFTSimilarity(nft1: GalleryNFT, nft2: GalleryNFT): numb
 }
 
 /**
- * Find similar NFTs to a given NFT
+ * Find similar items
  */
-export function findSimilarNFTs(
+export function findSimilarItems(
 	collection: GalleryCollection,
-	targetNFT: GalleryNFT,
+	targetItem: GalleryItem,
 	limit: number = 5
-): Array<{ nft: GalleryNFT; similarity: number }> {
-	const similarities = collection.nfts
-		.filter((nft) => nft.id !== targetNFT.id)
-		.map((nft) => ({
-			nft,
-			similarity: calculateNFTSimilarity(targetNFT, nft)
+): Array<{ item: GalleryItem; similarity: number }> {
+	const similarities = collection.items
+		.filter((item) => item.id !== targetItem.id)
+		.map((item) => ({
+			item,
+			similarity: calculateItemSimilarity(targetItem, item)
 		}))
 		.sort((a, b) => b.similarity - a.similarity)
 		.slice(0, limit);
@@ -622,7 +622,7 @@ export function exportRarityData(collection: GalleryCollection): {
 	method: string;
 	generatedAt: string;
 	traits: Array<Record<string, unknown>>;
-	nfts: Array<{
+	items: Array<{
 		id: string;
 		name: string;
 		rarityScore: number;
@@ -630,7 +630,7 @@ export function exportRarityData(collection: GalleryCollection): {
 		traits: Array<{ layer: string; trait: string; rarityScore: number }>;
 	}>;
 } {
-	const stats = calculateNFTRarities(collection);
+	const stats = calculateItemRarities(collection);
 
 	return {
 		collection: collection.name,
@@ -643,9 +643,9 @@ export function exportRarityData(collection: GalleryCollection): {
 			percentage: trait.percentage,
 			rarityScore: trait.rarityScore
 		})),
-		nfts: stats.nftRarities.map((data, index) => ({
-			id: data.nft.id,
-			name: data.nft.name,
+		items: stats.itemRarities.map((data, index) => ({
+			id: data.item.id,
+			name: data.item.name,
 			rarityScore: data.rarityScore,
 			rarityRank: index + 1,
 			traits: data.traitRarities.map((trait: TraitRarity | EnhancedTraitRarity) => ({

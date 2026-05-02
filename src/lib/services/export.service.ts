@@ -158,9 +158,9 @@ export class ExportService {
 		const { default: JSZip } = await import('jszip');
 		const MAX_ZIP_SIZE = 1 * 1024 * 1024 * 1024; // 1GB in bytes
 
-		// Calculate approximate size for each NFT (image + metadata)
-		const estimatedSizePerNFT = this.estimateSizePerNFT(images, metadata);
-		const estimatedTotalSize = images.length * estimatedSizePerNFT;
+		// Calculate approximate size for each item (image + metadata)
+		const estimatedSizePerItem = this.estimateSizePerItem(images, metadata);
+		const estimatedTotalSize = images.length * estimatedSizePerItem;
 
 		// Calculate number of ZIP files needed based on size
 		const estimatedZipCount = Math.ceil(estimatedTotalSize / MAX_ZIP_SIZE);
@@ -240,9 +240,9 @@ export class ExportService {
 	}
 
 	/**
-	 * Estimate the average size per NFT (image + metadata)
+	 * Estimate the average size per item (image + metadata)
 	 */
-	private static estimateSizePerNFT(
+	private static estimateSizePerItem(
 		images: { imageData: ArrayBuffer }[],
 		metadata: { data: Record<string, unknown> }[]
 	): number {
@@ -256,7 +256,7 @@ export class ExportService {
 			totalSize += imageSize + metadataSize;
 		}
 
-		// Return average size per NFT
+		// Return average size per item
 		return totalSize / sampleSize || 1; // Default to 1 byte if no data
 	}
 

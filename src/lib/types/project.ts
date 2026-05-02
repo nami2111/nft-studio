@@ -1,5 +1,5 @@
 /**
- * Project-related type definitions for NFT Studio
+ * Project-related type definitions
  * Uses branded types for compile-time safety
  */
 
@@ -15,7 +15,7 @@ export interface ProjectDimensions {
 }
 
 /**
- * Project interface representing the complete NFT collection configuration
+ * Project interface representing the complete collection configuration
  */
 export interface Project {
 	id: ProjectId;

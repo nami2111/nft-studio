@@ -22,7 +22,7 @@
 	let selectedFiles = $state<File[]>([]);
 
 	// Collection size limits - Conservative values to prevent browser freezing
-	const MAX_COLLECTION_SIZE = 10000; // Maximum recommended NFTs per collection
+	const MAX_COLLECTION_SIZE = 10000; // Maximum recommended items per collection
 	const MAX_TOTAL_SIZE = 2 * 1024 * 1024 * 1024; // 2GB total across all files
 
 	// File size thresholds (in bytes)
@@ -172,7 +172,7 @@
 			importMessage = 'Creating collection...';
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
-			const galleryNFTs = allImages.map((image, index) => {
+			const galleryItems = allImages.map((image, index) => {
 				const matchingMetadata = allMetadata.find((meta) => meta.name === image.name);
 
 				return {
@@ -213,7 +213,7 @@
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			const collection = galleryStore.importCollection(
-				galleryNFTs,
+				galleryItems,
 				collectionName,
 				`Imported collection from ${validFiles.length} ZIP files`
 			);
@@ -223,7 +223,7 @@
 			galleryStore.updateCollection(collection.id, updatedCollection);
 
 			showSuccess('Import successful', {
-				description: `Imported ${galleryNFTs.length} items from ${totalProcessedFiles} ZIP files to "${collection.name}".`
+				description: `Imported ${galleryItems.length} items from ${totalProcessedFiles} ZIP files to "${collection.name}".`
 			});
 		} catch (error) {
 			console.error('Import failed:', error);

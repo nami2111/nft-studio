@@ -1,5 +1,5 @@
 /**
- * Persistence layer abstractions for NFT Studio.
+ * Persistence layer abstractions.
  * Provides smart storage management with quota monitoring and fallback strategies.
  */
 
@@ -207,7 +207,7 @@ export class LocalStorageStore<T> implements PersistenceStore<T> {
 export class IndexedDbStore<T> implements PersistenceStore<T> {
 	constructor(
 		public key: string,
-		private dbName: string = 'nft-studio',
+		private dbName: string = 'gnstudio',
 		private storeName: string = 'store'
 	) {}
 

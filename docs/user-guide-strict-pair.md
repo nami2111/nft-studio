@@ -2,7 +2,7 @@
 
 ## Overview
 
-Strict Pair Mode is an advanced feature that gives you precise control over the uniqueness of specific trait combinations in your NFT collection. This feature prevents specific trait combinations from appearing more than once, allowing you to create ultra-rare and strategically designed collections.
+Strict Pair Mode is an advanced feature that gives you precise control over the uniqueness of specific trait combinations in your item collection. This feature prevents specific trait combinations from appearing more than once, allowing you to create ultra-rare and strategically designed collections.
 
 ## Key Concepts
 
@@ -85,7 +85,7 @@ Use Case: Create collector's items with extreme rarity and value
 
 - **Goal**: Create legendary combinations that appear only once
 - **Strategy**: Use 2-3 layers with small trait counts
-- **Result**: Extremely valuable NFTs sought after by collectors
+- **Result**: Extremely valuable items sought after by collectors
 
 ### Thematic Consistency
 
@@ -111,7 +111,7 @@ Use Case: Create collector's items with extreme rarity and value
 
 1. **Design Your Strategy**: Decide which combinations should be rare before creating large collections
 2. **Calculate Impact**: Understand how many combinations will be tracked (traits_in_layer1 × traits_in_layer2 × ...)
-3. **Test Small**: Run small test generations (10-50 NFTs) to verify behavior
+3. **Test Small**: Run small test generations (10-50 items) to verify behavior
 
 ### Configuration Phase
 
@@ -164,7 +164,7 @@ When duplicates are detected:
 
 - Used combinations are tracked efficiently
 - Automatic cleanup prevents memory issues
-- Supports large collections (10,000+ NFTs)
+- Supports large collections (10,000+ items)
 
 ### Persistent Configuration
 
@@ -237,7 +237,7 @@ Start simple and add complexity:
 Always test with small collections first:
 
 1. Create test project with 2-3 traits per layer
-2. Generate 10-20 NFTs
+2. Generate 10-20 items
 3. Verify uniqueness constraints work
 4. Scale up to full project size
 
@@ -251,7 +251,7 @@ Always test with small collections first:
 
 ### Gallery Mode Viewing
 
-- Generated collections show all NFTs with unique combinations
+- Generated collections show all items with unique combinations
 - Interactive filtering works with Strict Pair combinations
 - Rarity calculations include Strict Pair constraints
 
@@ -266,8 +266,8 @@ Always test with small collections first:
 **Q: Can I use Strict Pair Mode with Ruler Traits?**
 A: Yes! Both features can work together. Ruler Traits control allowed combinations, while Strict Pair ensures uniqueness.
 
-**Q: What happens to already generated NFTs if I change Strict Pair settings?**
-A: Existing NFTs are not affected. Changes only apply to new generation runs.
+**Q: What happens to already generated items if I change Strict Pair settings?**
+A: Existing items are not affected. Changes only apply to new generation runs.
 
 **Q: Can I track the same layers in multiple combinations?**
 A: Yes! You can create multiple combinations with overlapping layers (e.g., BASE+HEAD and BASE+ACCESSORY).
@@ -306,6 +306,6 @@ Purpose: Create extremely valuable collector's items
 
 ## Conclusion
 
-Strict Pair Mode is a powerful tool for creating unique and strategically designed NFT collections. By understanding how multi-layer combinations work and following best practices, you can create collections with precise control over trait uniqueness and rarity distribution.
+Strict Pair Mode is a powerful tool for creating unique and strategically designed item collections. By understanding how multi-layer combinations work and following best practices, you can create collections with precise control over trait uniqueness and rarity distribution.
 
 Start simple, test thoroughly, and gradually build complexity as you become more familiar with the feature. The flexibility of unlimited layer combinations makes it suitable for everything from simple character collections to complex, multi-layered artistic visions.

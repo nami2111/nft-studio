@@ -1,5 +1,5 @@
 /**
- * Typed error classes for NFT Studio application
+ * Typed error classes
  * Provides specific error types for different error scenarios
  */
 

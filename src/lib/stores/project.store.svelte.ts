@@ -1,5 +1,5 @@
 /**
- * Modern Svelte 5 runes-based project store for NFT Studio
+ * Modern Svelte 5 runes-based project store
  * Focused on core state management and business logic
  *
  * @note The `project` export is intentionally a module-level singleton.

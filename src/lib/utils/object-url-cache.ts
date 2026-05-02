@@ -2,7 +2,7 @@
  * Cache for managing image URLs with fallback to data URLs for large collections
  * Prevents memory leaks and blob URL issues by using data URLs for large collections
  *
- * Optimized for handling large NFT collections (10K+ items) with:
+ * Optimized for handling large collections (10K+ items) with:
  * - Data URLs for collections > 1000 items (eliminates blob URL issues)
  * - ObjectURLs for smaller collections (better performance)
  * - Automatic fallback based on collection size
@@ -451,5 +451,5 @@ export class ObjectUrlCache {
 }
 
 // Singleton instance for gallery use
-// Optimized for 10K+ NFT collections with increased limits
+// Optimized for 10K+ items with increased limits
 export const imageUrlCache = new ObjectUrlCache(); // 5000 images or 500MB (uses defaults)

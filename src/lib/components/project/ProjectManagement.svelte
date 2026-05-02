@@ -70,7 +70,7 @@
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a');
 			a.href = url;
-			a.download = `${project.name || 'nft-project'}.zip`;
+			a.download = `${project.name || 'gnstudio-project'}.zip`;
 			document.body.appendChild(a);
 			try {
 				a.click();

@@ -1,5 +1,5 @@
 /**
- * Centralized error handling utilities for the NFT Studio application
+ * Centralized error handling utilities
  */
 
 import { toast } from 'svelte-sonner';

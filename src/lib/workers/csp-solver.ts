@@ -1,4 +1,4 @@
-// CSP Solver for NFT Generation - Ultra Optimized
+// CSP Solver for Collection Generation - Ultra Optimized
 // Enhanced with constraint ordering, early termination, and predictive caching
 // Delivers 40-60% performance improvement over standard AC-3
 

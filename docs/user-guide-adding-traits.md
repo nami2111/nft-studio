@@ -1,10 +1,10 @@
-# User Guide: Adding Traits to Your NFT Collection
+# User Guide: Adding Traits to Your Item Collection
 
-This guide will walk you through the process of adding traits to your NFT collection in NFT Studio.
+This guide will walk you through the process of adding traits to your item collection in GNStudio.
 
 ## Overview
 
-Traits are the individual images that make up your NFT layers. Each trait belongs to a specific layer (e.g., Background, Character, Accessories) and can have different rarity weights to control how often they appear in your generated collection.
+Traits are the individual images that make up your item layers. Each trait belongs to a specific layer (e.g., Background, Character, Accessories) and can have different rarity weights to control how often they appear in your generated collection.
 
 ## Step-by-Step Guide
 
@@ -29,7 +29,7 @@ If your project doesn't have layers yet:
 2. **Configure the layer**:
    - **Name**: Descriptive name (e.g., "Background", "Character", "Accessories")
    - **Order**: Layer stacking order (lower numbers render first)
-   - **Optional**: Check if this layer can be skipped in some NFTs
+   - **Optional**: Check if this layer can be skipped in some items
 
 3. **Repeat** for all layers in your collection
 
@@ -74,7 +74,7 @@ Before generating your full collection:
 
 1. **Check the preview panel** to see how traits combine
 2. **Verify layer order** - traits render from bottom to top
-3. **Test individual NFTs** by clicking "Generate Preview"
+3. **Test individual items** by clicking "Generate Preview"
 
 ## Best Practices
 
@@ -90,7 +90,7 @@ Before generating your full collection:
 - **Balance your collection** with a mix of common and rare traits
 - **Consider trait combinations** - some traits might not work well together
 - **Test small batches** to verify your rarity distribution
-- **Use optional layers** for traits that shouldn't appear in every NFT
+- **Use optional layers** for traits that shouldn't appear in every item
 
 ### Organization
 
@@ -162,7 +162,7 @@ For each ruler trait, you can:
 
 ### Optional Layers
 
-Mark a layer as optional to allow some NFTs to skip it entirely. This creates more variety in your collection.
+Mark a layer as optional to allow some items to skip it entirely. This creates more variety in your collection.
 
 ### Custom Rarity Weights
 
@@ -176,7 +176,7 @@ All uploaded images undergo security validation to prevent malicious content and
 
 After adding all your traits:
 
-1. [Generate your NFT collection](./user-guide-generating-collections.md)
+1. [Generate your item collection](./user-guide-generating-collections.md)
 2. [Export your project](../README.md#export-options)
 3. [Manage your project settings](../README.md#project-management)
 

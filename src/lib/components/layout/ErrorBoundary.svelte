@@ -249,7 +249,7 @@
 
 			case 'clear-storage':
 				// Clear storage but preserve user data
-				localStorage.removeItem('nft-studio-project');
+				localStorage.removeItem('gnstudio-project');
 				break;
 
 			case 'reduce-quality':

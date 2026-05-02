@@ -1,5 +1,5 @@
 /**
- * Common formatting utilities for the NFT Studio.
+ * Common formatting utilities.
  * Provides consistent formatting for dates, file sizes, and durations.
  *
  * @module formatters

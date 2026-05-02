@@ -1,4 +1,4 @@
-# NFT Studio Coding Standards
+# GNStudio Coding Standards
 
 ## Commenting Guidelines
 

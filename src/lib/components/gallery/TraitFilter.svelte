@@ -11,22 +11,22 @@
 
 	const { class: className = '' }: Props = $props();
 
-	// Get source NFTs for trait extraction (avoid filtering overhead)
-	const sourceNFTs = $derived.by(() => {
+	// Get source items for trait extraction (avoid filtering overhead)
+	const sourceItems = $derived.by(() => {
 		if (galleryStore.selectedCollection) {
-			return galleryStore.selectedCollection.nfts;
+			return galleryStore.selectedCollection.items;
 		} else {
-			return galleryStore.collections.flatMap((collection) => collection.nfts);
+			return galleryStore.collections.flatMap((collection) => collection.items);
 		}
 	});
 
-	// Derive available traits from source NFTs (more efficient)
+	// Derive available traits from source items (more efficient)
 	const availableTraits = $derived.by(() => {
-		const nfts = sourceNFTs;
+		const items = sourceItems;
 		const traitMap = new SvelteMap<string, Set<string>>();
 
-		for (const nft of nfts) {
-			for (const trait of nft.metadata.traits) {
+		for (const item of items) {
+			for (const trait of item.metadata.traits) {
 				const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
 				const traitValue = trait.trait || ((trait as Record<string, unknown>).value as string);
 
@@ -81,10 +81,10 @@
 	}
 
 	function getTraitCount(layer: string, trait: string): number {
-		// Use source NFTs for trait counts (more efficient)
-		const nfts = sourceNFTs;
-		return nfts.filter((nft) =>
-			nft.metadata.traits.some((t) => {
+		// Use source items for trait counts (more efficient)
+		const items = sourceItems;
+		return items.filter((item) =>
+			item.metadata.traits.some((t) => {
 				const tLayer = t.layer || (t as Record<string, unknown>).trait_type;
 				const tValue = t.trait || (t as Record<string, unknown>).value;
 				return tLayer === layer && tValue === trait;
@@ -104,7 +104,7 @@
 
 		{#if availableTraits.length === 0}
 			<div class="text-muted-foreground text-sm">
-				No traits available. Generate some NFTs first.
+				No traits available. Generate some items first.
 			</div>
 		{:else}
 			<div class="space-y-3">

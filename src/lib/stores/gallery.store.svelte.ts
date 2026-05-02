@@ -1,10 +1,10 @@
 /**
- * Gallery Store - State management for NFT gallery functionality
+ * Gallery Store - State management for gallery functionality
  * Uses Svelte 5 runes and IndexedDB for persistence
  */
 
 import type {
-	GalleryNFT,
+	GalleryItem,
 	GalleryCollection,
 	GalleryState,
 	GalleryFilterOptions,
@@ -29,7 +29,7 @@ import { productionMonitor } from '$lib/monitoring/performance-monitor';
 // Gallery store with Svelte 5 runes
 class GalleryStore {
 	// LRU cache for filtered results - tracks access for efficient eviction
-	private filteredCache = new Map<string, GalleryNFT[]>();
+	private filteredCache = new Map<string, GalleryItem[]>();
 	private lastFilterKey = '';
 	private readonly MAX_CACHE_ENTRIES = PERF_CONFIG.cache.galleryFilter.maxEntries;
 
@@ -74,10 +74,10 @@ class GalleryStore {
 
 	/**
 	 * Build a trait index for efficient O(1) filtering
-	 * The index maps "layer:trait" identifying strings to a Set of NFT IDs that possess them
+	 * The index maps "layer:trait" identifying strings to a Set of item IDs that possess them
 	 * This allows for near-instant set intersection filtering instead of O(N) scanning
 	 */
-	private buildTraitIndex(nfts: GalleryNFT[]): {
+	private buildTraitIndex(items: GalleryItem[]): {
 		index: SvelteMap<string, SvelteSet<string>>;
 		categories: SvelteMap<string, string[]>;
 	} {
@@ -87,9 +87,9 @@ class GalleryStore {
 
 		// Use untrack and avoid reactive overhead - this is critical for loop performance in Svelte 5
 		untrack(() => {
-			for (let i = 0; i < nfts.length; i++) {
-				const nft = nfts[i];
-				const traits = nft.metadata?.traits || [];
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i];
+				const traits = item.metadata?.traits || [];
 				for (let j = 0; j < traits.length; j++) {
 					const trait = traits[j];
 					const layer = trait.layer || ((trait as Record<string, unknown>).trait_type as string);
@@ -102,7 +102,7 @@ class GalleryStore {
 						if (!index.has(key)) {
 							index.set(key, new SvelteSet());
 						}
-						index.get(key)!.add(nft.id);
+						index.get(key)!.add(item.id);
 
 						// Update categories for UI
 						if (!traitStats.has(layer)) {
@@ -128,7 +128,7 @@ class GalleryStore {
 	// Track last logged storage usage to reduce log frequency
 	private _lastLoggedUsage: number | null = null;
 
-	// Trait index cache for efficient filtering - maps "layer:trait" to a Set of NFT IDs
+	// Trait index cache for efficient filtering - maps "layer:trait" to a Set of item IDs
 	private _traitIndex = new SvelteMap<string, SvelteSet<string>>();
 	private _traitCategories = new SvelteMap<string, string[]>();
 	private _traitIndexCollectionId: string | null = null;
@@ -136,7 +136,7 @@ class GalleryStore {
 	// Main state
 	private _state = $state<GalleryState>({
 		collections: [],
-		selectedNFT: null,
+		selectedItem: null,
 		selectedCollection: null,
 		filterOptions: {},
 		sortOption: 'newest',
@@ -149,8 +149,8 @@ class GalleryStore {
 		return this._state.collections;
 	}
 
-	get selectedNFT() {
-		return this._state.selectedNFT;
+	get selectedItem() {
+		return this._state.selectedItem;
 	}
 
 	get selectedCollection() {
@@ -177,18 +177,18 @@ class GalleryStore {
 		return Object.fromEntries(this._traitCategories.entries());
 	}
 
-	// Fast filtered and sorted NFTs with simple caching
-	get filteredAndSortedNFTs(): GalleryNFT[] {
+	// Fast filtered and sorted items with simple caching
+	get filteredAndSortedItems(): GalleryItem[] {
 		const endTiming = debugTime('Gallery Filter Process');
 
-		// Get source NFTs
-		let sourceNFTs: GalleryNFT[] = [];
+		// Get source items
+		let sourceItems: GalleryItem[] = [];
 		if (this._state.selectedCollection) {
-			sourceNFTs = this._state.selectedCollection.nfts;
+			sourceItems = this._state.selectedCollection.items;
 		} else {
-			sourceNFTs = this._state.collections.flatMap((collection) => collection.nfts);
+			sourceItems = this._state.collections.flatMap((collection) => collection.items);
 		}
-		debugCount('Source NFTs', sourceNFTs.length);
+		debugCount('Source Items', sourceItems.length);
 
 		// Create cache key
 		const filterKey = this.createFilterKey();
@@ -211,16 +211,16 @@ class GalleryStore {
 		productionMonitor.recordCacheMiss('galleryFilter');
 
 		// Perform filtering
-		let filtered = [...sourceNFTs];
+		let filtered = [...sourceItems];
 
 		// Apply search filter
 		if (this._state.filterOptions.search) {
 			debugLog('🔍 Applying search filter');
 			const searchLower = this._state.filterOptions.search.toLowerCase();
 			filtered = filtered.filter(
-				(nft) =>
-					nft.name.toLowerCase().includes(searchLower) ||
-					nft.description?.toLowerCase().includes(searchLower)
+				(item) =>
+					item.name.toLowerCase().includes(searchLower) ||
+					item.description?.toLowerCase().includes(searchLower)
 			);
 			debugCount('After search filter', filtered.length);
 		}
@@ -232,7 +232,7 @@ class GalleryStore {
 			// Build trait index once per collection
 			const currentCollectionId = this._state.selectedCollection?.id || 'all';
 			if (this._traitIndexCollectionId !== currentCollectionId || this._traitIndex.size === 0) {
-				const { index, categories } = this.buildTraitIndex(sourceNFTs);
+				const { index, categories } = this.buildTraitIndex(sourceItems);
 				this._traitIndex = index;
 				this._traitCategories = categories;
 				this._traitIndexCollectionId = currentCollectionId;
@@ -247,7 +247,7 @@ class GalleryStore {
 				let candidateIds: SvelteSet<string> | null = null;
 
 				for (const [layer, values] of selectedTraitOptions) {
-					// Collect all NFT IDs that match ANY of the selected traits in this layer (OR logic)
+					// Collect all item IDs that match ANY of the selected traits in this layer (OR logic)
 					const layerMatchIds = new SvelteSet<string>();
 					for (const value of values) {
 						const matches = this._traitIndex.get(`${layer}:${value}`);
@@ -280,7 +280,7 @@ class GalleryStore {
 				}
 
 				const finalIds = candidateIds || new SvelteSet<string>();
-				filtered = filtered.filter((nft) => finalIds.has(nft.id));
+				filtered = filtered.filter((item) => finalIds.has(item.id));
 			}
 			debugCount('After trait filters', filtered.length);
 		}
@@ -289,7 +289,7 @@ class GalleryStore {
 		if (this._state.filterOptions.rarityRange) {
 			debugLog('⭐ Applying rarity filter');
 			const [min, max] = this._state.filterOptions.rarityRange;
-			filtered = filtered.filter((nft) => nft.rarityScore >= min && nft.rarityScore <= max);
+			filtered = filtered.filter((item) => item.rarityScore >= min && item.rarityScore <= max);
 			debugCount('After rarity filter', filtered.length);
 		}
 
@@ -359,14 +359,14 @@ class GalleryStore {
 	}
 
 	// Actions
-	setSelectedNFT(nft: GalleryNFT | null) {
-		this._state.selectedNFT = nft;
+	setSelectedItem(item: GalleryItem | null) {
+		this._state.selectedItem = item;
 	}
 
 	setSelectedCollection(collection: GalleryCollection | null) {
 		untrack(() => {
 			this._state.selectedCollection = collection;
-			this._state.selectedNFT = null; // Clear selected NFT when changing collection
+			this._state.selectedItem = null; // Clear selected item when changing collection
 			// Clear trait index when switching collections
 			this._traitIndex.clear();
 			this._traitIndexCollectionId = null;
@@ -416,7 +416,7 @@ class GalleryStore {
 		this._state.collections = this._state.collections.filter((c) => c.id !== id);
 		if (this._state.selectedCollection?.id === id) {
 			this._state.selectedCollection = null;
-			this._state.selectedNFT = null;
+			this._state.selectedItem = null;
 		}
 		// Clear cache entries for removed collection
 		this.clearCollectionCache(id);
@@ -443,23 +443,23 @@ class GalleryStore {
 		}
 	}
 
-	// NFT management
-	addNFTToCollection(collectionId: string, nft: GalleryNFT) {
+	// Item management
+	addItemToCollection(collectionId: string, item: GalleryItem) {
 		const collection = this._state.collections.find((c) => c.id === collectionId);
 		if (collection) {
-			collection.nfts.push(nft);
-			collection.totalSupply = collection.nfts.length;
+			collection.items.push(item);
+			collection.totalSupply = collection.items.length;
 			this.debouncedSaveToIndexedDB();
 		}
 	}
 
-	removeNFTFromCollection(collectionId: string, nftId: string) {
+	removeItemFromCollection(collectionId: string, nftId: string) {
 		const collection = this._state.collections.find((c) => c.id === collectionId);
 		if (collection) {
-			collection.nfts = collection.nfts.filter((n) => n.id !== nftId);
-			collection.totalSupply = collection.nfts.length;
-			if (this._state.selectedNFT?.id === nftId) {
-				this._state.selectedNFT = null;
+			collection.items = collection.items.filter((n) => n.id !== nftId);
+			collection.totalSupply = collection.items.length;
+			if (this._state.selectedItem?.id === nftId) {
+				this._state.selectedItem = null;
 			}
 			this.debouncedSaveToIndexedDB();
 		}
@@ -496,11 +496,11 @@ class GalleryStore {
 			// Save selected collection ID to localStorage (small, safe)
 			if (this._state.selectedCollection) {
 				localStorage.setItem(
-					'nft-studio-gallery-selected-collection',
+					'gnstudio-gallery-selected-collection',
 					this._state.selectedCollection.id
 				);
 			} else {
-				localStorage.removeItem('nft-studio-gallery-selected-collection');
+				localStorage.removeItem('gnstudio-gallery-selected-collection');
 			}
 
 			// Log storage usage for monitoring
@@ -528,12 +528,12 @@ class GalleryStore {
 			const collections = await getAllCollections();
 			this._state.collections = collections;
 
-			// Set cache strategy based on total NFT count
-			const totalNFTs = collections.reduce((sum, collection) => sum + collection.nfts.length, 0);
-			imageUrlCache.setCollectionSize(totalNFTs);
+			// Set cache strategy based on total item count
+			const totalItems = collections.reduce((sum, collection) => sum + collection.items.length, 0);
+			imageUrlCache.setCollectionSize(totalItems);
 
 			// Restore selected collection if it exists (stored in localStorage)
-			const selectedCollectionId = localStorage.getItem('nft-studio-gallery-selected-collection');
+			const selectedCollectionId = localStorage.getItem('gnstudio-gallery-selected-collection');
 			if (selectedCollectionId) {
 				const selectedCollection = collections.find((c) => c.id === selectedCollectionId);
 				if (selectedCollection) {
@@ -560,9 +560,9 @@ class GalleryStore {
 		}
 	}
 
-	// Import generated NFTs from generation system
-	importGeneratedNFTs(
-		nfts: Array<{
+	// Import generated items from generation system
+	importGeneratedItems(
+		items: Array<{
 			name: string;
 			imageData: ArrayBuffer;
 			metadata: Record<string, unknown>;
@@ -578,22 +578,22 @@ class GalleryStore {
 			name: `${projectName} Collection`,
 			description: projectDescription,
 			projectName,
-			nfts: nfts.map((nft, index) => ({
-				id: `nft-${collectionId}-${index}`,
-				name: nft.name,
-				imageData: nft.imageData,
-				metadata: nft.metadata as GalleryNFT['metadata'],
+			items: items.map((item, index) => ({
+				id: `item-${collectionId}-${index}`,
+				name: item.name,
+				imageData: item.imageData,
+				metadata: item.metadata as GalleryItem['metadata'],
 				rarityScore: 0, // Will be calculated
 				rarityRank: 0, // Will be calculated
 				collectionId: collectionId,
 				generatedAt: new Date()
 			})),
 			generatedAt: new Date(),
-			totalSupply: nfts.length
+			totalSupply: items.length
 		};
 
 		// Set cache strategy based on collection size
-		imageUrlCache.setCollectionSize(nfts.length);
+		imageUrlCache.setCollectionSize(items.length);
 
 		// Calculate rarity using proper algorithm
 		const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
@@ -603,7 +603,7 @@ class GalleryStore {
 
 	// Import collection from external data (ZIP file, etc.)
 	importCollection(
-		nfts: Array<{
+		items: Array<{
 			name: string;
 			imageData: ArrayBuffer | string;
 			metadata: Record<string, unknown>;
@@ -629,23 +629,23 @@ class GalleryStore {
 			name: finalName,
 			description: collectionDescription,
 			projectName: finalName,
-			nfts: nfts.map((nft, index) => ({
-				id: `nft-${collectionId}-${index}`,
-				name: nft.name,
-				imageData: nft.imageData,
-				imageFormat: nft.imageFormat || 'png', // Default to png if not provided
-				metadata: nft.metadata as GalleryNFT['metadata'],
+			items: items.map((item, index) => ({
+				id: `item-${collectionId}-${index}`,
+				name: item.name,
+				imageData: item.imageData,
+				imageFormat: item.imageFormat || 'png', // Default to png if not provided
+				metadata: item.metadata as GalleryItem['metadata'],
 				rarityScore: 0, // Will be calculated
 				rarityRank: 0, // Will be calculated
 				collectionId: collectionId,
 				generatedAt: new Date()
 			})),
 			generatedAt: new Date(),
-			totalSupply: nfts.length
+			totalSupply: items.length
 		};
 
 		// Set cache strategy based on collection size
-		imageUrlCache.setCollectionSize(nfts.length);
+		imageUrlCache.setCollectionSize(items.length);
 
 		// Calculate rarity using proper algorithm
 		const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
@@ -653,10 +653,10 @@ class GalleryStore {
 		return updatedCollection;
 	}
 
-	// Merge NFTs into existing collection
+	// Merge items into existing collection
 	mergeIntoCollection(
 		collectionId: string,
-		nfts: Array<{
+		items: Array<{
 			name: string;
 			imageData: ArrayBuffer | string;
 			metadata: Record<string, unknown>;
@@ -670,23 +670,23 @@ class GalleryStore {
 			throw new Error('Collection not found');
 		}
 
-		const newNFTs = nfts.map((nft, index) => ({
-			id: `nft-${collectionId}-${collection.nfts.length + index}`,
-			name: nft.name,
-			imageData: nft.imageData,
-			imageFormat: nft.imageFormat || 'png', // Default to png if not provided
-			metadata: nft.metadata as GalleryNFT['metadata'],
+		const newItems = items.map((item, index) => ({
+			id: `item-${collectionId}-${collection.items.length + index}`,
+			name: item.name,
+			imageData: item.imageData,
+			imageFormat: item.imageFormat || 'png', // Default to png if not provided
+			metadata: item.metadata as GalleryItem['metadata'],
 			rarityScore: Math.random() * 100, // Placeholder - will be calculated properly
-			rarityRank: collection.nfts.length + index + 1, // Placeholder - will be calculated properly
+			rarityRank: collection.items.length + index + 1, // Placeholder - will be calculated properly
 			collectionId: collectionId,
 			generatedAt: new Date()
 		}));
 
-		collection.nfts.push(...newNFTs);
-		collection.totalSupply = collection.nfts.length;
+		collection.items.push(...newItems);
+		collection.totalSupply = collection.items.length;
 
 		// Update cache strategy based on new collection size
-		imageUrlCache.setCollectionSize(collection.nfts.length);
+		imageUrlCache.setCollectionSize(collection.items.length);
 
 		this.debouncedSaveToIndexedDB();
 
@@ -695,7 +695,7 @@ class GalleryStore {
 
 	// Validate imported data
 	validateImportData(
-		nfts: Array<{
+		items: Array<{
 			name: string;
 			imageData: ArrayBuffer | string;
 			metadata?: Record<string, unknown>;
@@ -706,44 +706,44 @@ class GalleryStore {
 	} {
 		const errors: string[] = [];
 
-		if (nfts.length === 0) {
-			errors.push('No NFTs found in import data');
+		if (items.length === 0) {
+			errors.push('No items found in import data');
 		}
 
-		if (nfts.length > 10000) {
-			errors.push('Too many NFTs (max 10,000 per collection)');
+		if (items.length > 10000) {
+			errors.push('Too many items (max 10,000 per collection)');
 		}
 
 		// Check for duplicate names
-		const names = nfts.map((n) => n.name.toLowerCase());
+		const names = items.map((n) => n.name.toLowerCase());
 		const uniqueNames = new Set(names);
 		if (names.length !== uniqueNames.size) {
 			errors.push('Duplicate item names found');
 		}
 
 		// Validate each item
-		nfts.forEach((nft, index) => {
-			if (!nft.name || nft.name.trim() === '') {
+		items.forEach((item, index) => {
+			if (!item.name || item.name.trim() === '') {
 				errors.push(`Item ${index + 1} has no name`);
 			}
 
-			if (!nft.imageData) {
+			if (!item.imageData) {
 				errors.push(`Item ${index + 1} has no image data`);
-			} else if (typeof nft.imageData === 'string') {
+			} else if (typeof item.imageData === 'string') {
 				// Blob URL validation
-				if (!nft.imageData.startsWith('blob:')) {
+				if (!item.imageData.startsWith('blob:')) {
 					errors.push(`Item ${index + 1} has invalid blob URL`);
 				}
-			} else if (nft.imageData instanceof ArrayBuffer) {
+			} else if (item.imageData instanceof ArrayBuffer) {
 				// ArrayBuffer validation
-				if (nft.imageData.byteLength === 0) {
+				if (item.imageData.byteLength === 0) {
 					errors.push(`Item ${index + 1} has no image data`);
 				}
 				// Check for reasonable image size (between 1KB and 10MB)
-				if (nft.imageData.byteLength < 1024) {
+				if (item.imageData.byteLength < 1024) {
 					errors.push(`Item ${index + 1} image is too small`);
 				}
-				if (nft.imageData.byteLength > 10 * 1024 * 1024) {
+				if (item.imageData.byteLength > 10 * 1024 * 1024) {
 					errors.push(`Item ${index + 1} image is too large`);
 				}
 			}
@@ -758,11 +758,11 @@ class GalleryStore {
 	// Utility methods
 	async clearGallery() {
 		this._state.collections = [];
-		this._state.selectedNFT = null;
+		this._state.selectedItem = null;
 		this._state.selectedCollection = null;
 		// Clear IndexedDB and localStorage
 		await clearAllCollections();
-		localStorage.removeItem('nft-studio-gallery-selected-collection');
+		localStorage.removeItem('gnstudio-gallery-selected-collection');
 	}
 
 	exportCollection(collectionId: string) {

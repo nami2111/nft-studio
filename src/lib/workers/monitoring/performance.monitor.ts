@@ -14,7 +14,7 @@ export class SequentialPerformanceMonitor {
 		this.lastReportTime = this.startTime;
 		this.averageProcessingTime = 0;
 		this.totalCount = totalCount;
-		console.log(`🚀 Sequential Generation Started: Target ${totalCount} NFTs`);
+		console.log(`🚀 Sequential Generation Started: Target ${totalCount} items`);
 	}
 
 	recordProcessing(timePerItem: number): void {
@@ -33,8 +33,8 @@ export class SequentialPerformanceMonitor {
 			const eta = (this.averageProcessingTime * remaining) / 1000 / 60;
 
 			console.log(
-				`⚡ Sequential Performance: ${this.processedCount}/${this.totalCount} NFTs | ` +
-					`${rate.toFixed(1)} NFTs/sec | ETA: ${eta.toFixed(1)}min | ` +
+				`⚡ Sequential Performance: ${this.processedCount}/${this.totalCount} items | ` +
+					`${rate.toFixed(1)} items/sec | ETA: ${eta.toFixed(1)}min | ` +
 					`Avg: ${this.averageProcessingTime.toFixed(1)}ms/item`
 			);
 			this.lastReportTime = now;
@@ -45,8 +45,8 @@ export class SequentialPerformanceMonitor {
 		const totalTime = Date.now() - this.startTime;
 		const finalRate = this.processedCount / (totalTime / 1000);
 		console.log(
-			`🎯 Sequential Generation Complete: ${this.processedCount} NFTs in ${(totalTime / 1000).toFixed(1)}s | ` +
-				`Average: ${finalRate.toFixed(1)} NFTs/sec`
+			`🎯 Sequential Generation Complete: ${this.processedCount} items in ${(totalTime / 1000).toFixed(1)}s | ` +
+				`Average: ${finalRate.toFixed(1)} items/sec`
 		);
 	}
 }

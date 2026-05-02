@@ -1,16 +1,16 @@
 <script lang="ts">
-	import type { GalleryNFT } from '$lib/types/gallery';
+	import type { GalleryItem } from '$lib/types/gallery';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import { onMount } from 'svelte';
 
 	interface Props {
-		nfts: GalleryNFT[];
-		selectedNFT?: GalleryNFT | null;
-		onselect?: (nft: GalleryNFT) => void;
+		items: GalleryItem[];
+		selectedItem?: GalleryItem | null;
+		onselect?: (item: GalleryItem) => void;
 		class?: string;
 	}
 
-	const { nfts, selectedNFT = null, onselect, class: className = '' }: Props = $props();
+	const { items, selectedItem = null, onselect, class: className = '' }: Props = $props();
 
 	// Virtual scrolling state
 	let scrollElement: HTMLDivElement;
@@ -29,23 +29,23 @@
 
 		scrollTop = scrollElement.scrollTop;
 		const start = Math.floor(scrollTop / itemHeight);
-		const end = Math.min(nfts.length, Math.ceil((scrollTop + containerHeight) / itemHeight));
+		const end = Math.min(items.length, Math.ceil((scrollTop + containerHeight) / itemHeight));
 
 		// Adaptive overscan based on collection size
-		const baseOverscan = nfts.length > 10000 ? 5 : nfts.length > 5000 ? 8 : 15;
+		const baseOverscan = items.length > 10000 ? 5 : items.length > 5000 ? 8 : 15;
 		adaptiveOverscan = baseOverscan;
 
 		visibleStart = Math.max(0, start - adaptiveOverscan);
-		visibleEnd = Math.min(nfts.length, end + adaptiveOverscan);
+		visibleEnd = Math.min(items.length, end + adaptiveOverscan);
 	}
 
 	// Get image URL with caching
-	function getImageUrl(nft: GalleryNFT): string {
-		return imageUrlCache.get(nft.id, nft.imageData);
+	function getImageUrl(item: GalleryItem): string {
+		return imageUrlCache.get(item.id, item.imageData);
 	}
 
-	function handleNFTClick(nft: GalleryNFT) {
-		onselect?.(nft);
+	function handleItemClick(item: GalleryItem) {
+		onselect?.(item);
 	}
 
 	function getRarityColor(rank: number, total: number): string {
@@ -61,7 +61,7 @@
 
 	onMount(() => {
 		// Initial preload of first page of images
-		const preloadCount = Math.min(50, nfts.length);
+		const preloadCount = Math.min(50, items.length);
 		for (let i = 0; i < preloadCount; i++) {
 			if (nfts[i]) {
 				imageUrlCache.preload(nfts[i].id, nfts[i].imageData);
@@ -73,7 +73,7 @@
 	});
 
 	// Calculate total height
-	const totalHeight = $derived(nfts.length * itemHeight);
+	const totalHeight = $derived(items.length * itemHeight);
 </script>
 
 <div class={className}>
@@ -86,7 +86,7 @@
 		<!-- Spacer for total height -->
 		<div style="height: {totalHeight}px; position: relative;">
 			<!-- Visible items -->
-			{#each nfts.slice(visibleStart, visibleEnd) as nft, i (nft.id)}
+			{#each items.slice(visibleStart, visibleEnd) as item, i (item.id)}
 				{@const actualIndex = visibleStart + i}
 				<div
 					class="absolute right-0 left-0 p-4"
@@ -94,17 +94,17 @@
 				>
 					<button
 						type="button"
-						class="group bg-muted/50 hover:border-primary relative aspect-[4/5] w-full cursor-pointer overflow-hidden rounded-lg border transition-all hover:scale-105 {selectedNFT?.id ===
-						nft.id
+						class="group bg-muted/50 hover:border-primary relative aspect-[4/5] w-full cursor-pointer overflow-hidden rounded-lg border transition-all hover:scale-105 {selectedItem?.id ===
+						item.id
 							? 'ring-primary ring-2'
 							: ''}"
-						onclick={() => handleNFTClick(nft)}
+						onclick={() => handleItemClick(item)}
 					>
 						<!-- Item Image -->
 						<div class="bg-muted h-full w-full overflow-hidden">
 							<img
-								src={getImageUrl(nft)}
-								alt={nft.name}
+								src={getImageUrl(item)}
+								alt={item.name}
 								class="h-full w-full object-cover transition-transform group-hover:scale-110"
 								loading="lazy"
 								onerror={(e) => {
@@ -129,11 +129,11 @@
 						<div class="absolute top-2 right-2">
 							<span
 								class="rounded px-2 py-1 text-xs font-semibold {getRarityColor(
-									nft.rarityRank,
-									nfts.length
+									item.rarityRank,
+									items.length
 								)}"
 							>
-								#{nft.rarityRank}
+								#{item.rarityRank}
 							</span>
 						</div>
 
@@ -142,13 +142,13 @@
 							class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
 						>
 							<div class="absolute right-0 bottom-0 left-0 p-2 text-white">
-								<div class="truncate text-sm font-medium">{nft.name}</div>
-								<div class="text-xs opacity-80">Score: {nft.rarityScore.toFixed(1)}</div>
-								{#if nft.metadata.traits?.length > 0}
+								<div class="truncate text-sm font-medium">{item.name}</div>
+								<div class="text-xs opacity-80">Score: {item.rarityScore.toFixed(1)}</div>
+								{#if item.metadata.traits?.length > 0}
 									<div class="mt-1 text-xs opacity-75">
 										{Array.from(
 											new Set(
-												nft.metadata.traits.map(
+												item.metadata.traits.map(
 													(t) => t.layer || (t as Record<string, unknown>).trait_type
 												)
 											)
@@ -167,7 +167,7 @@
 	{#if import.meta.env.DEV}
 		<div class="fixed right-4 bottom-4 rounded bg-black/80 px-3 py-2 text-xs text-white">
 			<div class="space-y-1">
-				<div>Visible: {visibleStart}-{visibleEnd}/{nfts.length}</div>
+				<div>Visible: {visibleStart}-{visibleEnd}/{items.length}</div>
 				<div>Cached: {imageUrlCache.getStats().size}/{imageUrlCache.getStats().maxSize}</div>
 				<div>Memory: {(imageUrlCache.getStats().memory / (1024 * 1024)).toFixed(1)}MB</div>
 			</div>

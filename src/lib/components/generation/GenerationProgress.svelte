@@ -80,7 +80,7 @@
 					<CheckCircle2 class="h-5 w-5" />
 					<div class="flex-1">
 						<p class="text-sm font-bold">Generation Complete!</p>
-						<p class="text-xs opacity-80">{generationState.totalItems} NFTs ready for preview.</p>
+						<p class="text-xs opacity-80">{generationState.totalItems} items ready for preview.</p>
 					</div>
 				</div>
 			{:else}

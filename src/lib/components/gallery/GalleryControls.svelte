@@ -95,7 +95,7 @@
 					<option value="">All Collections</option>
 					{#each collections as collection (collection.id)}
 						<option value={collection.id}>
-							{collection.name} ({collection.totalSupply} NFTs)
+							{collection.name} ({collection.totalSupply} items)
 						</option>
 					{/each}
 				</select>

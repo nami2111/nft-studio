@@ -1,12 +1,12 @@
 /**
- * Gallery-related type definitions for NFT Studio
+ * Gallery-related type definitions
  * Extends existing project types with gallery-specific functionality
  */
 
 /**
- * Gallery NFT interface representing a generated NFT in the gallery
+ * Gallery item interface representing a generated item in the gallery
  */
-export interface GalleryNFT {
+export interface GalleryItem {
 	id: string;
 	name: string;
 	description?: string;
@@ -28,14 +28,14 @@ export interface GalleryNFT {
 }
 
 /**
- * Gallery collection interface for organizing NFTs
+ * Gallery collection interface for organizing items
  */
 export interface GalleryCollection {
 	id: string;
 	name: string;
 	description: string;
 	projectName: string;
-	nfts: GalleryNFT[];
+	items: GalleryItem[];
 	generatedAt: Date;
 	totalSupply: number;
 }
@@ -66,7 +66,7 @@ export type GallerySortOption =
  */
 export interface GalleryState {
 	collections: GalleryCollection[];
-	selectedNFT: GalleryNFT | null;
+	selectedItem: GalleryItem | null;
 	selectedCollection: GalleryCollection | null;
 	filterOptions: GalleryFilterOptions;
 	sortOption: GallerySortOption;
@@ -78,9 +78,9 @@ export interface GalleryState {
  * Gallery statistics interface
  */
 export interface GalleryStats {
-	totalNFTs: number;
+	totalItems: number;
 	totalCollections: number;
-	rarestNFTs: GalleryNFT[];
+	rarestItems: GalleryItem[];
 	mostCommonTraits: Array<{
 		layer: string;
 		trait: string;

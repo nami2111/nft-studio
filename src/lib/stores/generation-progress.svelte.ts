@@ -112,7 +112,7 @@ export const generationState = $state<GenerationState>(createDefaultState());
 
 // Store management functions
 class GenerationStateManager {
-	private readonly STORAGE_KEY = 'nft-studio-generation-state';
+	private readonly STORAGE_KEY = 'gnstudio-generation-state';
 	private readonly STATE_VERSION = '1.0.0';
 	private saveTimeout: NodeJS.Timeout | null = null;
 	private autoSaveEnabled = true;
@@ -291,7 +291,7 @@ class GenerationStateManager {
 				if (percent < 5) {
 					generationState.statusText = 'Starting engine and preparing layers...';
 				} else if (percent < 20) {
-					generationState.statusText = `Generating first batch of NFTs (${generatedCount}/${totalCount})...`;
+					generationState.statusText = `Generating first batch of items (${generatedCount}/${totalCount})...`;
 				} else if (percent < 50) {
 					generationState.statusText = `Compositing layers for #${generatedCount + 1}...`;
 				} else if (percent < 80) {

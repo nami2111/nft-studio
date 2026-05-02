@@ -1,10 +1,10 @@
-# User Guide: Generating NFT Collections
+# User Guide: Generating Item Collections
 
-This guide covers the process of generating complete NFT collections from your configured layers and traits.
+This guide covers the process of generating complete item collections from your configured layers and traits.
 
 ## Overview
 
-NFT Studio uses advanced generation algorithms to create unique NFT combinations based on your layer configuration and rarity settings. The system supports both small collections and large-scale generation with performance optimizations.
+GNStudio uses advanced generation algorithms to create unique item combinations based on your layer configuration and rarity settings. The system supports both small collections and large-scale generation with performance optimizations.
 
 ## Generation Process
 
@@ -23,9 +23,9 @@ Access the custom generation modal to configure your collection:
 
 #### Collection Size
 
-- **Small collections**: 1-100 NFTs
-- **Medium collections**: 101-1,000 NFTs
-- **Large collections**: 1,001-10,000 NFTs (maximum supported)
+- **Small collections**: 1-100 items
+- **Medium collections**: 101-1,000 items
+- **Large collections**: 1,001-10,000 items (maximum supported)
 
 > **Note**: The generation process automatically optimizes performance based on your device capabilities. All settings like chunk size, memory usage, and preview frequency are handled automatically.
 
@@ -48,7 +48,7 @@ The system automatically selects the optimal generation method based on your col
 
 ### Canvas Optimization
 
-NFT Studio uses the Canvas API optimized for all collection sizes:
+GNStudio uses the Canvas API optimized for all collection sizes:
 
 - **Automatic optimization**: Adaptive chunking and ImageBitmap for memory efficiency
 - **Performance benefits**: Smooth generation for collections up to 10,000 items
@@ -68,7 +68,7 @@ During generation, you can monitor:
 
 ### Real-time Previews
 
-- **Individual NFT previews** every 100 items (for large collections)
+- **Individual item previews** every 100 items (for large collections)
 - **Quality verification** during generation
 - **Distribution sampling** to check rarity balance
 
@@ -99,12 +99,12 @@ collection_export/
 
 ### Metadata Format
 
-Each NFT includes standard metadata:
+Each item includes standard metadata:
 
 ```json
 {
 	"name": "My Collection #1",
-	"description": "A unique NFT from My Collection",
+	"description": "A unique item from My Collection",
 	"image": "1.png",
 	"attributes": [
 		{
@@ -222,9 +222,9 @@ For large collections:
 After successful generation:
 
 1. **Download as ZIP** - Complete collection packaged as a ZIP file containing:
-   - `images/` folder with all generated NFT images (PNG format)
+   - `images/` folder with all generated item images (PNG format)
    - `metadata/` folder with JSON metadata files
-   - Standard NFT metadata format compatible with most marketplaces
+   - Standard item metadata format compatible with most marketplaces
 
 > **Note**: Currently, only ZIP export is supported. The system automatically packages your complete collection with proper folder structure and metadata.
 

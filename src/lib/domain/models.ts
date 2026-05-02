@@ -1,5 +1,5 @@
 /**
- * Central domain models for NFT Studio
+ * Central domain models
  * Provides type definitions and domain model abstractions
  */
 

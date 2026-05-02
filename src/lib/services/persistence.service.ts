@@ -8,9 +8,9 @@ import type { Project } from '$lib/types/project';
 import { SmartStorageStore, IndexedDbStore } from '$lib/persistence/storage';
 import { logger } from '$lib/utils/logger';
 
-const METADATA_KEY = 'nft-studio-project-metadata';
-const LAYER_ASSETS_PREFIX = 'nft-studio-layer-assets-';
-const LEGACY_STORAGE_KEY = 'nft-studio-project';
+const METADATA_KEY = 'gnstudio-project-metadata';
+const LAYER_ASSETS_PREFIX = 'gnstudio-layer-assets-';
+const LEGACY_STORAGE_KEY = 'gnstudio-project';
 
 export class PersistenceService {
 	private metaStorage = new SmartStorageStore<Record<string, unknown>>(METADATA_KEY);

@@ -1,8 +1,8 @@
 # Architecture Documentation
 
-## Overview of NFT Studio Architecture
+## Overview of GNStudio Architecture
 
-NFT Studio follows a sophisticated, performance-first architecture with clear separation of concerns and modern web development patterns. The system is designed to handle large-scale NFT generation while maintaining optimal user experience.
+GNStudio follows a sophisticated, performance-first architecture with clear separation of concerns and modern web development patterns. The system is designed to handle large-scale item generation while maintaining optimal user experience.
 
 ### Core Architecture Layers
 
@@ -23,9 +23,9 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
   - `TraitUpload.svelte`: Drag-and-drop file handling with progress tracking
 
 - **Gallery Components** (`gallery/`):
-  - `SimpleVirtualGrid.svelte`: High-performance virtual scrolling for NFT collections
+  - `SimpleVirtualGrid.svelte`: High-performance virtual scrolling for item collections
   - `GalleryImport.svelte`: ZIP import with automatic metadata parsing
-  - `NFTDetail.svelte`: Interactive NFT information panel with trait filtering
+  - `ItemDetail.svelte`: Interactive item information panel with trait filtering
   - `TraitFilter.svelte`: Multi-layer trait filtering system
 
 - **Preview & Generation System** (`generation/`):
@@ -82,7 +82,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
   - Integration with worker orchestration
 
 - **`rarity-calculator.ts`**: Advanced rarity calculation algorithms
-  - Natural numeric sorting for NFT names
+  - Natural numeric sorting for item names
   - Rarity score calculation and ranking systems
   - Statistical analysis of trait distributions
 
@@ -218,7 +218,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 **Multi-Dimensional Trait Filtering**:
 
-- Click any trait in NFT details to instantly filter collections
+- Click any trait in item details to instantly filter collections
 - Build complex filters by selecting multiple traits
 - Visual feedback with selected trait highlighting
 - Natural sorting with numeric pattern recognition
@@ -255,4 +255,4 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 - **Lazy Loading**: Progressive content loading with intersection observers
 - **Memory Monitoring**: Real-time memory usage tracking and optimization
 
-This architecture provides a robust foundation for large-scale NFT generation while maintaining excellent user experience and developer productivity.
+This architecture provides a robust foundation for large-scale item generation while maintaining excellent user experience and developer productivity.

@@ -32,7 +32,7 @@ export class ERC721Strategy implements MetadataStrategy {
 export class SolanaStrategy implements MetadataStrategy {
 	name = MetadataStandard.SOLANA;
 	description =
-		'Metaplex standard for Solana NFTs, including symbol, seller_fee_basis_points, and properties.';
+		'Metaplex standard for Solana, including symbol, seller_fee_basis_points, and properties.';
 
 	format(
 		name: string,

@@ -1,5 +1,5 @@
 /**
- * Consolidated error handling utility for the NFT Studio application
+ * Consolidated error handling utility
  * This module provides a unified approach to error handling across the application
  */
 

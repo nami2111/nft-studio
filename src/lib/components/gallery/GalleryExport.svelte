@@ -51,28 +51,28 @@
 
 			// Add images folder
 			const imagesFolder = zip.folder('images');
-			for (const nft of collection.nfts) {
+			for (const item of collection.items) {
 				// Use the original image format if available
-				const imageFormat = nft.imageFormat || 'png';
+				const imageFormat = item.imageFormat || 'png';
 				const mimeType = getMimeType(imageFormat);
 				const extension = getFileExtension(imageFormat);
 
-				const blob = new Blob([nft.imageData], { type: mimeType });
-				imagesFolder?.file(`${nft.name}${extension}`, blob);
+				const blob = new Blob([item.imageData], { type: mimeType });
+				imagesFolder?.file(`${item.name}${extension}`, blob);
 			}
 
 			// Add metadata folder
 			const metadataFolder = zip.folder('metadata');
-			for (const nft of collection.nfts) {
+			for (const item of collection.items) {
 				const metadata = {
-					name: nft.name,
-					description: nft.description,
-					traits: nft.metadata.traits,
-					rarityScore: nft.rarityScore,
-					rarityRank: nft.rarityRank,
-					generatedAt: nft.generatedAt
+					name: item.name,
+					description: item.description,
+					traits: item.metadata.traits,
+					rarityScore: item.rarityScore,
+					rarityRank: item.rarityRank,
+					generatedAt: item.generatedAt
 				};
-				metadataFolder?.file(`${nft.name}.json`, JSON.stringify(metadata, null, 2));
+				metadataFolder?.file(`${item.name}.json`, JSON.stringify(metadata, null, 2));
 			}
 
 			// Add rarity data
@@ -105,7 +105,7 @@
 			<div class="space-y-3">
 				<div class="text-muted-foreground text-sm">
 					Exporting: <span class="text-foreground font-medium">{selectedCollection.name}</span>
-					({selectedCollection.totalSupply} NFTs)
+					({selectedCollection.totalSupply} items)
 				</div>
 
 				<div class="flex flex-col gap-2">

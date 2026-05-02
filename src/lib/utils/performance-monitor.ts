@@ -1,5 +1,5 @@
 /**
- * Performance monitoring utility for NFT Studio
+ * Performance monitoring utility
  * Provides comprehensive metrics collection and analysis for application performance
  */
 

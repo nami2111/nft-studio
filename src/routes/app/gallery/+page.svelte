@@ -2,7 +2,7 @@
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
-	import type { GalleryNFT, GalleryCollection, GallerySortOption } from '$lib/types/gallery';
+	import type { GalleryItem, GalleryCollection, GallerySortOption } from '$lib/types/gallery';
 
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
@@ -12,8 +12,8 @@
 
 	const isLoading = $derived(galleryStore.isLoading);
 	const collections = $derived(galleryStore.collections);
-	const totalNFTs = $derived(collections.reduce((sum, col) => sum + col.totalSupply, 0));
-	const selectedNFT = $derived(galleryStore.selectedNFT);
+	const totalItems = $derived(collections.reduce((sum, col) => sum + col.totalSupply, 0));
+	const selectedItem = $derived(galleryStore.selectedItem);
 
 	// The active collection from the store, with a safe fallback in the template
 	const selectedCollection = $derived(galleryStore.selectedCollection);
@@ -51,7 +51,7 @@
 	let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
 
 	// Use store's optimized filtering and sorting
-	const filteredNFTs = $derived(galleryStore.filteredAndSortedNFTs);
+	const filteredItems = $derived(galleryStore.filteredAndSortedItems);
 
 	// No longer syncing selectedCollection back to store via $effect to avoid loops.
 	// We handle initial selection in an effect that only runs when collections load.
@@ -59,9 +59,9 @@
 		if (collections.length > 0 && !galleryStore.selectedCollection) {
 			untrack(() => {
 				galleryStore.setSelectedCollection(collections[0]);
-				// Auto-select first NFT to trigger proper layout calculation
-				if (collections[0].nfts.length > 0) {
-					galleryStore.setSelectedNFT(collections[0].nfts[0]);
+				// Auto-select first item to trigger proper layout calculation
+				if (collections[0].items.length > 0) {
+					galleryStore.setSelectedItem(collections[0].items[0]);
 				}
 			});
 		}
@@ -84,15 +84,15 @@
 		window.location.reload();
 	}
 
-	function selectNFT(nft: GalleryNFT) {
-		galleryStore.setSelectedNFT(nft);
+	function selectItem(item: GalleryItem) {
+		galleryStore.setSelectedItem(item);
 	}
 
 	function selectCollection(collection: GalleryCollection) {
 		galleryStore.setSelectedCollection(collection);
 	}
 
-	// Toggle trait filter when clicking on traits in NFT details
+	// Toggle trait filter when clicking on traits in item details
 	function toggleTraitFilter(layer: string, value: string) {
 		const current = selectedTraits[layer] || [];
 		const index = current.indexOf(value);
@@ -180,7 +180,7 @@
 						class="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm"
 					>
 						<div>
-							<span class="text-foreground font-medium">{totalNFTs}</span> Total Items
+							<span class="text-foreground font-medium">{totalItems}</span> Total Items
 						</div>
 						<div>
 							<span class="text-foreground font-medium">{collections.length}</span> Collections
@@ -240,7 +240,7 @@
 							<div class="flex flex-col gap-3">
 								<input
 									type="text"
-									placeholder="Search NFTs..."
+									placeholder="Search items..."
 									bind:value={searchQuery}
 									class="focus:ring-primary/20 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 								/>
@@ -270,9 +270,9 @@
 						<!-- Item Grid -->
 						<div class="relative min-h-0 flex-1 pb-32">
 							<SimpleVirtualGrid
-								nfts={filteredNFTs}
-								{selectedNFT}
-								onselect={selectNFT}
+								nfts={filteredItems}
+								{selectedItem}
+								onselect={selectItem}
 								columns={3}
 								itemHeight={120}
 								gap={8}
@@ -281,7 +281,7 @@
 						</div>
 
 						<!-- Mobile Details Sheet -->
-						{#if selectedNFT}
+						{#if selectedItem}
 							<div
 								class="bg-background/95 pb-safe fixed inset-x-0 bottom-0 z-50 max-h-[60vh] overflow-y-auto border-t p-4 shadow-2xl backdrop-blur-xl"
 							>
@@ -289,7 +289,7 @@
 										<h3 class="font-bold">Item Details</h3>
 									<button
 										type="button"
-										onclick={() => galleryStore.setSelectedNFT(null)}
+										onclick={() => galleryStore.setSelectedItem(null)}
 										class="bg-muted hover:bg-muted/80 rounded-full p-1"
 										aria-label="Close"
 									>
@@ -302,8 +302,8 @@
 										>
 									</button>
 								</div>
-								<NFTDetail
-									{selectedNFT}
+								<ItemDetail
+									{selectedItem}
 									hideCard
 									{selectedTraits}
 									ontraitclick={toggleTraitFilter}
@@ -333,9 +333,9 @@
 							</div>
 							<div class="relative min-h-0 flex-1">
 								<SimpleVirtualGrid
-									nfts={filteredNFTs}
-									{selectedNFT}
-									onselect={selectNFT}
+									nfts={filteredItems}
+									{selectedItem}
+									onselect={selectItem}
 									columns={4}
 									itemHeight={160}
 									gap={10}
@@ -345,8 +345,8 @@
 						</div>
 						<aside class="bg-card/50 w-72 overflow-y-auto border-l backdrop-blur">
 							<CollectionStats collection={selectedCollection} class="bg-transparent" />
-							<NFTDetail
-								{selectedNFT}
+							<ItemDetail
+								{selectedItem}
 								hideCard
 								class="p-4"
 								{selectedTraits}
@@ -376,9 +376,9 @@
 							</div>
 							<div class="relative min-h-0 flex-1">
 								<SimpleVirtualGrid
-									nfts={filteredNFTs}
-									{selectedNFT}
-									onselect={selectNFT}
+									nfts={filteredItems}
+									{selectedItem}
+									onselect={selectItem}
 									columns={5}
 									itemHeight={180}
 									gap={12}
@@ -389,7 +389,7 @@
 						<aside class="bg-card/50 w-80 overflow-y-auto border-l backdrop-blur">
 							<CollectionStats collection={selectedCollection} class="bg-transparent" />
 						<ItemDetail
-							{selectedNFT}
+							{selectedItem}
 							hideCard
 							class="p-5"
 							{selectedTraits}
@@ -484,9 +484,9 @@
 							<!-- Grid with Virtual Scrolling -->
 							<div class="scrollbar-gutter-stable bg-muted/5 relative min-h-0 flex-1">
 								<SimpleVirtualGrid
-									nfts={filteredNFTs}
-									{selectedNFT}
-									onselect={selectNFT}
+									nfts={filteredItems}
+									{selectedItem}
+									onselect={selectItem}
 									columns={6}
 									itemHeight={220}
 									gap={16}
@@ -530,7 +530,7 @@
 								<CollectionStats collection={selectedCollection} class="bg-transparent" />
 							{/if}
 							<ItemDetail
-								{selectedNFT}
+								{selectedItem}
 								hideCard
 								class="p-6"
 								{selectedTraits}

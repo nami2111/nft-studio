@@ -1,5 +1,5 @@
 /**
- * Validation utilities for NFT Studio using Zod schemas
+ * Validation utilities using Zod schemas
  * Provides comprehensive validation for project data, layers, traits, and files
  */
 
