@@ -75,7 +75,7 @@ GNStudio is a browser-based tool for designing and generating generative art col
 ### Performance & Processing
 
 - **Image Processing**: Canvas API with Web Workers for background processing
-- **Worker Architecture**: Simplified single-worker architecture with sequential processing
+- **Worker Architecture**: Intelligent multi-worker pool with dynamic scaling, health checks, and work-stealing scheduling
 - **Three-Phase Optimization**: Bit-packed indexing, sprite sheet atlases, AC-3 CSP with sequential rendering
 - **Memory Management**: Three-tier caching (ImageBitmap/ImageData/ArrayBuffer) with LRU eviction
 - **Performance Monitoring**: Decorator-based timing with automatic metric collection
@@ -239,7 +239,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 **Single-threaded processing with optimized performance**:
 
-- **Sequential Processing**: Simplified single-worker architecture for easier debugging and maintenance
+- **Multi-Worker Pool**: Dynamic scaling based on device capabilities, load, and task complexity
 - **Task Complexity Classification**: LOW to VERY_HIGH based on collection size and layer complexity
 - **Memory Optimization**: Sprite sheet packing and three-tier caching for efficient memory usage
 - **Health Monitoring**: Basic health checks for worker reliability
@@ -340,7 +340,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 **Sequential Processing:**
 
-- Simplified single-worker architecture for easier maintenance
+- Intelligent multi-worker pool with dynamic scaling and health checks
 - Sequential image processing with optimized performance
 - Sprite sheet optimization maintained for memory efficiency
 
@@ -349,7 +349,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 - Message types defined in `src/lib/types/worker-messages.ts`
 - Worker client: `src/lib/workers/generation.worker.client.ts`
 - Worker implementation: `src/lib/workers/generation.worker.ts`
-- Sequential processing with single worker for simplified architecture
+- Sequential item processing distributed across a dynamic multi-worker pool
 
 ### Testing
 
