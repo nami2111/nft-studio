@@ -1,26 +1,31 @@
 /**
  * Domain payload abstractions used for worker communication.
  */
-import type { Layer } from '$lib/types/layer';
-import type { TransferrableLayer, TransferrableTrait } from '$lib/types/worker-messages';
+import type { Layer } from "$lib/types/layer";
+import type {
+	TransferrableLayer,
+	TransferrableTrait,
+} from "$lib/types/worker-messages";
 
 /**
  * Prepare layers for worker with validation.
  * Validates input layers and traits, ensuring at least one trait per layer and valid image data, and converts to a transferable payload for workers.
  */
-export async function prepareLayersForWorker(layers: Layer[]): Promise<TransferrableLayer[]> {
+export async function prepareLayersForWorker(
+	layers: Layer[],
+): Promise<TransferrableLayer[]> {
 	// Validate that all layers have valid image data
 	for (const layer of layers) {
 		if (layer.traits.length === 0) {
 			throw new Error(
-				`Layer "${layer.name}" has no traits. Please add at least one trait to each layer.`
+				`Layer "${layer.name}" has no traits. Please add at least one trait to each layer.`,
 			);
 		}
 
 		for (const trait of layer.traits) {
 			if (!trait.imageData || trait.imageData.byteLength === 0) {
 				throw new Error(
-					`Trait "${trait.name}" in layer "${layer.name}" has missing or invalid image data. Please re-upload the images.`
+					`Trait "${trait.name}" in layer "${layer.name}" has missing or invalid image data. Please re-upload the images.`,
 				);
 			}
 		}
@@ -29,7 +34,7 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 	const transferrableLayers = await Promise.all(
 		layers.map(async (layer) => {
 			const transferrableTraits = await Promise.all(
-				layer.traits.map(async (trait) => {
+				layer.traits.map((trait) => {
 					// Create a clean ArrayBuffer to ensure it's properly serializable
 					const cleanArrayBuffer = new ArrayBuffer(trait.imageData.byteLength);
 					const sourceView = new Uint8Array(trait.imageData);
@@ -43,11 +48,11 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 						imageData: cleanArrayBuffer,
 						rarityWeight: trait.rarityWeight,
 						type: trait.type,
-						rulerRules: trait.rulerRules
+						rulerRules: trait.rulerRules,
 					};
 
 					return transferrableTrait;
-				})
+				}),
 			);
 
 			// Create a clean layer object with only the properties defined in TransferrableLayer
@@ -56,11 +61,11 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 				name: layer.name,
 				order: layer.order,
 				isOptional: layer.isOptional,
-				traits: transferrableTraits
+				traits: transferrableTraits,
 			};
 
 			return transferrableLayer;
-		})
+		}),
 	);
 	return transferrableLayers;
 }

@@ -1,12 +1,16 @@
-import { MemoryMonitor } from '$lib/utils/memory-monitor';
-import type { Project } from '$lib/types/project';
+import type { Project } from "$lib/types/project";
+import { MemoryMonitor } from "$lib/utils/memory-monitor";
 
 export interface ExportOptions {
 	project: Project;
 	images: { name: string; imageData: ArrayBuffer }[];
 	metadata: { name: string; data: Record<string, unknown> }[];
 	startTime?: number;
-	onProgress?: (progress: { processed: number; total: number; message: string }) => void;
+	onProgress?: (progress: {
+		processed: number;
+		total: number;
+		message: string;
+	}) => void;
 }
 
 export class ExportService {
@@ -24,22 +28,22 @@ export class ExportService {
 
 			// Use optimized approach for large collections
 			if (images.length > 1000) {
-				await this.packageZipOptimized({
+				await ExportService.packageZipOptimized({
 					project,
 					images,
 					metadata,
-					onProgress
+					onProgress,
 				});
 			} else {
-				await this.packageZipStandard({
+				await ExportService.packageZipStandard({
 					project,
 					images,
 					metadata,
-					onProgress
+					onProgress,
 				});
 			}
 		} catch (error) {
-			console.error('Export failed:', error);
+			console.error("Export failed:", error);
 			throw error;
 		} finally {
 			// Stop memory monitoring
@@ -50,14 +54,16 @@ export class ExportService {
 	/**
 	 * Standard ZIP creation for smaller collections (≤1000 files)
 	 */
-	private static async packageZipStandard(options: ExportOptions): Promise<void> {
+	private static async packageZipStandard(
+		options: ExportOptions,
+	): Promise<void> {
 		const { project, images, metadata, onProgress } = options;
 
 		// Dynamically import JSZip to reduce initial bundle size
-		const { default: JSZip } = await import('jszip');
+		const { default: JSZip } = await import("jszip");
 		const zip = new JSZip();
-		const imagesFolder = zip.folder('images');
-		const metadataFolder = zip.folder('metadata');
+		const imagesFolder = zip.folder("images");
+		const metadataFolder = zip.folder("metadata");
 
 		// Add files with progress tracking
 		for (let i = 0; i < images.length; i++) {
@@ -65,39 +71,47 @@ export class ExportService {
 			onProgress?.({
 				processed: i + 2,
 				total: images.length + metadata.length + 1,
-				message: `Adding images to ZIP (${i + 1}/${images.length})...`
+				message: `Adding images to ZIP (${i + 1}/${images.length})...`,
 			});
 		}
 
 		for (let i = 0; i < metadata.length; i++) {
-			metadataFolder?.file(metadata[i].name, JSON.stringify(metadata[i].data, null, 2));
+			metadataFolder?.file(
+				metadata[i].name,
+				JSON.stringify(metadata[i].data, null, 2),
+			);
 			onProgress?.({
 				processed: images.length + i + 2,
 				total: images.length + metadata.length + 1,
-				message: `Adding metadata to ZIP (${i + 1}/${metadata.length})...`
+				message: `Adding metadata to ZIP (${i + 1}/${metadata.length})...`,
 			});
 		}
 
-		const content = await zip.generateAsync({ type: 'blob' });
-		await this.downloadZip(content, project);
+		const content = await zip.generateAsync({ type: "blob" });
+		ExportService.downloadZip(content, project);
 	}
 
 	/**
 	 * Optimized ZIP creation for larger collections with better memory management
 	 */
-	private static async packageZipOptimized(options: ExportOptions): Promise<void> {
+	private static async packageZipOptimized(
+		options: ExportOptions,
+	): Promise<void> {
 		const { project, images, metadata, onProgress } = options;
 
 		// For very large collections or collections with large files, create multiple ZIPs
-		if (images.length > 3000 || (images.length > 0 && images[0].imageData.byteLength > 500000)) {
-			await this.createMultipleZips(options);
+		if (
+			images.length > 3000 ||
+			(images.length > 0 && images[0].imageData.byteLength > 500000)
+		) {
+			await ExportService.createMultipleZips(options);
 			return;
 		}
 
-		const { default: JSZip } = await import('jszip');
+		const { default: JSZip } = await import("jszip");
 		const zip = new JSZip();
-		const imagesFolder = zip.folder('images');
-		const metadataFolder = zip.folder('metadata');
+		const imagesFolder = zip.folder("images");
+		const metadataFolder = zip.folder("metadata");
 
 		// Process in smaller chunks to manage memory
 		const chunkSize = 100; // Reduced from 250 for better memory management
@@ -117,7 +131,7 @@ export class ExportService {
 			onProgress?.({
 				processed: i + chunk.length,
 				total: images.length + metadata.length + 1,
-				message: `Processing images (${i + chunk.length}/${images.length})...`
+				message: `Processing images (${i + chunk.length}/${images.length})...`,
 			});
 		}
 
@@ -136,43 +150,48 @@ export class ExportService {
 			onProgress?.({
 				processed: images.length + i + chunk.length,
 				total: images.length + metadata.length + 1,
-				message: `Processing metadata (${i + chunk.length}/${metadata.length})...`
+				message: `Processing metadata (${i + chunk.length}/${metadata.length})...`,
 			});
 		}
 
 		// Generate ZIP with optimized settings
 		const content = await zip.generateAsync({
-			type: 'blob',
-			compression: 'DEFLATE',
-			compressionOptions: { level: 6 }
+			type: "blob",
+			compression: "DEFLATE",
+			compressionOptions: { level: 6 },
 		});
-		await this.downloadZip(content, project);
+		ExportService.downloadZip(content, project);
 	}
 
 	/**
 	 * Create multiple smaller ZIP files for very large collections based on size (2GB max per ZIP)
 	 */
-	private static async createMultipleZips(options: ExportOptions): Promise<void> {
+	private static async createMultipleZips(
+		options: ExportOptions,
+	): Promise<void> {
 		const { project, images, metadata, onProgress } = options;
 
-		const { default: JSZip } = await import('jszip');
+		const { default: JSZip } = await import("jszip");
 		const MAX_ZIP_SIZE = 1 * 1024 * 1024 * 1024; // 1GB in bytes
 
 		// Calculate approximate size for each item (image + metadata)
-		const estimatedSizePerItem = this.estimateSizePerItem(images, metadata);
+		const estimatedSizePerItem = ExportService.estimateSizePerItem(
+			images,
+			metadata,
+		);
 		const estimatedTotalSize = images.length * estimatedSizePerItem;
 
 		// Calculate number of ZIP files needed based on size
 		const estimatedZipCount = Math.ceil(estimatedTotalSize / MAX_ZIP_SIZE);
 
 		console.log(
-			`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`
+			`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`,
 		);
 		console.log(`Will create approximately ${estimatedZipCount} ZIP files`);
 
 		let currentZip = new JSZip();
-		let currentZipImages = currentZip.folder('images');
-		let currentZipMetadata = currentZip.folder('metadata');
+		let currentZipImages = currentZip.folder("images");
+		let currentZipMetadata = currentZip.folder("metadata");
 		let currentZipSize = 0;
 		let currentZipIndex = 0;
 		let processedItems = 0;
@@ -191,20 +210,26 @@ export class ExportService {
 			if (currentZipSize + itemTotalSize > MAX_ZIP_SIZE && currentZipSize > 0) {
 				// Finish current ZIP and start a new one
 				const content = await currentZip.generateAsync({
-					type: 'blob',
-					compression: 'DEFLATE',
-					compressionOptions: { level: 6 }
+					type: "blob",
+					compression: "DEFLATE",
+					compressionOptions: { level: 6 },
 				});
 
 				// Download current ZIP
 				const zipIndex = currentZipIndex + 1;
-				const totalZips = Math.ceil(images.length / Math.max(1, processedItems)) || 1;
-				await this.downloadZipWithIndex(content, project, zipIndex, totalZips);
+				const totalZips =
+					Math.ceil(images.length / Math.max(1, processedItems)) || 1;
+				ExportService.downloadZipWithIndex(
+					content,
+					project,
+					zipIndex,
+					totalZips,
+				);
 
 				// Reset for next ZIP
 				currentZip = new JSZip();
-				currentZipImages = currentZip.folder('images');
-				currentZipMetadata = currentZip.folder('metadata');
+				currentZipImages = currentZip.folder("images");
+				currentZipMetadata = currentZip.folder("metadata");
 				currentZipSize = 0;
 				currentZipIndex++;
 				processedItems = 0;
@@ -219,24 +244,26 @@ export class ExportService {
 			onProgress?.({
 				processed: i + 1,
 				total: images.length,
-				message: `Processing item ${i + 1}/${images.length}...`
+				message: `Processing item ${i + 1}/${images.length}...`,
 			});
 		}
 
 		// Don't forget the last ZIP file
 		if (currentZipSize > 0) {
 			const content = await currentZip.generateAsync({
-				type: 'blob',
-				compression: 'DEFLATE',
-				compressionOptions: { level: 6 }
+				type: "blob",
+				compression: "DEFLATE",
+				compressionOptions: { level: 6 },
 			});
 
 			const zipIndex = currentZipIndex + 1;
-			await this.downloadZipWithIndex(content, project, zipIndex, zipIndex);
+			ExportService.downloadZipWithIndex(content, project, zipIndex, zipIndex);
 		}
 
 		// Show summary message
-		console.log(`Created ${currentZipIndex + 1} ZIP files for large collection`);
+		console.log(
+			`Created ${currentZipIndex + 1} ZIP files for large collection`,
+		);
 	}
 
 	/**
@@ -244,7 +271,7 @@ export class ExportService {
 	 */
 	private static estimateSizePerItem(
 		images: { imageData: ArrayBuffer }[],
-		metadata: { data: Record<string, unknown> }[]
+		metadata: { data: Record<string, unknown> }[],
 	): number {
 		// Sample the first 10 items to estimate average size
 		const sampleSize = Math.min(10, images.length);
@@ -252,7 +279,9 @@ export class ExportService {
 
 		for (let i = 0; i < sampleSize; i++) {
 			const imageSize = images[i]?.imageData?.byteLength || 0;
-			const metadataSize = new Blob([JSON.stringify(metadata[i]?.data || {}, null, 2)]).size;
+			const metadataSize = new Blob([
+				JSON.stringify(metadata[i]?.data || {}, null, 2),
+			]).size;
 			totalSize += imageSize + metadataSize;
 		}
 
@@ -263,16 +292,16 @@ export class ExportService {
 	/**
 	 * Download ZIP file with index in filename
 	 */
-	private static async downloadZipWithIndex(
+	private static downloadZipWithIndex(
 		content: Blob,
 		project: Project,
 		index: number,
-		total: number
-	): Promise<void> {
+		total: number,
+	): void {
 		const url = URL.createObjectURL(content);
-		const a = document.createElement('a');
+		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${project.name || 'collection'}_part_${index}_of_${total}.zip`;
+		a.download = `${project.name || "collection"}_part_${index}_of_${total}.zip`;
 
 		document.body.appendChild(a);
 		try {
@@ -290,19 +319,19 @@ export class ExportService {
 	/**
 	 * Handle ZIP download with error handling
 	 */
-	private static async downloadZip(content: Blob, project: Project): Promise<void> {
+	private static downloadZip(content: Blob, project: Project): void {
 		const url = URL.createObjectURL(content);
-		const a = document.createElement('a');
+		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${project.name || 'collection'}.zip`;
+		a.download = `${project.name || "collection"}.zip`;
 
 		// Try programmatic download
 		document.body.appendChild(a);
 		try {
 			a.click();
-			console.log('Download initiated for:', a.download);
+			console.log("Download initiated for:", a.download);
 		} catch (error) {
-			console.error('Download failed:', error);
+			console.error("Download failed:", error);
 			throw error;
 		} finally {
 			document.body.removeChild(a);

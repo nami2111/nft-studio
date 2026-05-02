@@ -78,7 +78,7 @@ async function createImageBitmapFromBuffer(
 /**
  * Cleanup ImageBitmap cache
  */
-async function clearImageBitmapCache() {
+function clearImageBitmapCache() {
 	for (const bitmap of imageBitmapCache.values()) {
 		bitmap.close();
 	}
@@ -286,7 +286,7 @@ async function handleBatchGeneration(
 		);
 
 		perfMonitor.finishBatch();
-		await clearImageBitmapCache();
+		clearImageBitmapCache();
 
 		const message: CompleteMessage = {
 			type: "complete",

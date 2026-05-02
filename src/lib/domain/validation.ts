@@ -7,6 +7,12 @@ import { z } from "zod";
 import type { LayerId, ProjectId, TraitId } from "$lib/types/ids";
 import type { Layer, Project, Trait } from "$lib/types/project";
 
+const UNKNOWN_VALIDATION_ERROR = "Unknown validation error";
+
+function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : UNKNOWN_VALIDATION_ERROR;
+}
+
 // Validation result interface
 export interface ValidationResult {
 	success: boolean;
@@ -134,8 +140,7 @@ export function validateProjectName(name: string): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -153,8 +158,7 @@ export function validateLayerName(name: string): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -172,8 +176,7 @@ export function validateTraitName(name: string): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -194,8 +197,7 @@ export function validateDimensions(
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -213,8 +215,7 @@ export function validateFilename(filename: string): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -235,8 +236,7 @@ export function validateFileSize(
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -259,8 +259,7 @@ export function validateFileType(
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -278,8 +277,7 @@ export function validateRarityWeight(weight: number): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -295,8 +293,7 @@ export function validateProject(project: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -312,8 +309,7 @@ export function validateLayer(layer: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -329,8 +325,7 @@ export function validateTrait(trait: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -346,8 +341,7 @@ export function validateImportedProject(project: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -540,8 +534,7 @@ export function validateRulerRule(rule: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
@@ -562,8 +555,7 @@ export function safeValidate<T>(
 	} catch (error) {
 		return {
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Unknown validation error",
+			error: getErrorMessage(error),
 		};
 	}
 }
