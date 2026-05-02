@@ -3,10 +3,10 @@
  * All cache, database, memory, and alert metrics are available through performanceMonitor.
  */
 
-import { performanceMonitor } from "$lib/utils/performance-monitor";
+import { performanceMonitor } from '$lib/utils/performance-monitor';
 
 // Backward-compatible export
 export const productionMonitor = performanceMonitor;
 
 // Re-export types for backward compatibility
-export type { CacheMetrics } from "$lib/utils/performance-monitor";
+export type { CacheMetrics } from '$lib/utils/performance-monitor';

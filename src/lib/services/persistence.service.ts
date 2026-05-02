@@ -4,18 +4,16 @@
  * Implements differential persistence to optimize saving large projects
  */
 
-import { IndexedDbStore, SmartStorageStore } from "$lib/persistence/storage";
-import type { Project } from "$lib/types/project";
-import { logger } from "$lib/utils/logger";
+import { IndexedDbStore, SmartStorageStore } from '$lib/persistence/storage';
+import type { Project } from '$lib/types/project';
+import { logger } from '$lib/utils/logger';
 
-const METADATA_KEY = "gnstudio-project-metadata";
-const LAYER_ASSETS_PREFIX = "gnstudio-layer-assets-";
-const LEGACY_STORAGE_KEY = "gnstudio-project";
+const METADATA_KEY = 'gnstudio-project-metadata';
+const LAYER_ASSETS_PREFIX = 'gnstudio-layer-assets-';
+const LEGACY_STORAGE_KEY = 'gnstudio-project';
 
 export class PersistenceService {
-	private metaStorage = new SmartStorageStore<Record<string, unknown>>(
-		METADATA_KEY,
-	);
+	private metaStorage = new SmartStorageStore<Record<string, unknown>>(METADATA_KEY);
 	private assetStorages = new Map<
 		string,
 		IndexedDbStore<{
@@ -75,15 +73,15 @@ export class PersistenceService {
 					layerId: layer.id,
 					traits: layer.traits.map((t) => ({
 						id: t.id,
-						imageData: t.imageData,
-					})),
+						imageData: t.imageData
+					}))
 				};
 				await this.getAssetStorage(layer.id).save(assets);
 			});
 
 			await Promise.all(assetPromises);
 		} catch (error) {
-			logger.error("Failed to persist project:", error);
+			logger.error('Failed to persist project:', error);
 		}
 	}
 
@@ -97,11 +95,9 @@ export class PersistenceService {
 
 			// Migration path for legacy data
 			if (!skeleton) {
-				const legacyData = await new SmartStorageStore<Project>(
-					LEGACY_STORAGE_KEY,
-				).load();
+				const legacyData = await new SmartStorageStore<Project>(LEGACY_STORAGE_KEY).load();
 				if (legacyData) {
-					logger.info("Migrating legacy project data to differential storage");
+					logger.info('Migrating legacy project data to differential storage');
 					await this.saveProject(legacyData);
 					// Optionally clear legacy data after successful save
 					// await new SmartStorageStore(LEGACY_STORAGE_KEY).clear();
@@ -117,21 +113,19 @@ export class PersistenceService {
 			const assetPromises = project.layers.map(async (layer) => {
 				const assets = await this.getAssetStorage(layer.id).load();
 				if (assets && assets.traits) {
-					assets.traits.forEach(
-						(assetTrait: { id: string; imageData: ArrayBuffer }) => {
-							const trait = layer.traits.find((t) => t.id === assetTrait.id);
-							if (trait) {
-								trait.imageData = assetTrait.imageData;
-							}
-						},
-					);
+					assets.traits.forEach((assetTrait: { id: string; imageData: ArrayBuffer }) => {
+						const trait = layer.traits.find((t) => t.id === assetTrait.id);
+						if (trait) {
+							trait.imageData = assetTrait.imageData;
+						}
+					});
 				}
 			});
 
 			await Promise.all(assetPromises);
 			return project;
 		} catch (error) {
-			logger.error("Failed to load project:", error);
+			logger.error('Failed to load project:', error);
 			return null;
 		}
 	}
@@ -152,7 +146,7 @@ export class PersistenceService {
 			localStorage.removeItem(METADATA_KEY);
 			this.lastSavedMetadata = null;
 		} catch (error) {
-			logger.error("Failed to clear persisted project:", error);
+			logger.error('Failed to clear persisted project:', error);
 		}
 	}
 
@@ -215,9 +209,9 @@ export class PersistenceService {
 				traits: layer.traits.map((trait) => ({
 					...trait,
 					imageData: new ArrayBuffer(0), // Strip heavy data
-					imageUrl: undefined, // URLs shouldn't be persisted
-				})),
-			})),
+					imageUrl: undefined // URLs shouldn't be persisted
+				}))
+			}))
 		};
 	}
 }

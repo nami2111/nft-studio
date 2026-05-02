@@ -12,9 +12,9 @@ import type {
 	ErrorMessage,
 	PreviewMessage,
 	ProgressMessage,
-	TransferrableLayer,
-} from "$lib/types/worker-messages";
-import { postMessageToPool } from "./worker.pool";
+	TransferrableLayer
+} from '$lib/types/worker-messages';
+import { postMessageToPool } from './worker.pool';
 
 export interface BatchConfig {
 	layers: TransferrableLayer[];
@@ -22,15 +22,10 @@ export interface BatchConfig {
 	outputSize: { width: number; height: number };
 	projectName: string;
 	projectDescription: string;
-	metadataStandard?: import("$lib/domain/metadata/metadata.strategy").MetadataStandard;
+	metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
 	extraData?: Record<string, unknown>;
 	onMessage?: (
-		data:
-			| CompleteMessage
-			| ErrorMessage
-			| CancelledMessage
-			| ProgressMessage
-			| PreviewMessage,
+		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
 	) => void;
 }
 
@@ -38,7 +33,7 @@ export interface Solution {
 	index: number;
 	traits: {
 		layerId: string;
-		trait: import("$lib/types/worker-messages").TransferrableTrait;
+		trait: import('$lib/types/worker-messages').TransferrableTrait;
 	}[];
 }
 
@@ -64,7 +59,7 @@ export class TraitBatchScheduler {
 			projectName,
 			projectDescription,
 			metadataStandard,
-			extraData,
+			extraData
 		} = this.config;
 
 		const totalBatches = Math.ceil(solutions.length / batchSize);
@@ -73,13 +68,10 @@ export class TraitBatchScheduler {
 		console.log(`📦 Distributing ${totalBatches} batches to worker pool...`);
 
 		for (let b = 0; b < totalBatches; b++) {
-			const batchSolutions = solutions.slice(
-				b * batchSize,
-				(b + 1) * batchSize,
-			);
+			const batchSolutions = solutions.slice(b * batchSize, (b + 1) * batchSize);
 
 			const message: BatchMessage = {
-				type: "batch",
+				type: 'batch',
 				payload: {
 					solutions: batchSolutions,
 					layers,
@@ -88,8 +80,8 @@ export class TraitBatchScheduler {
 					projectName,
 					projectDescription,
 					metadataStandard,
-					extraData,
-				},
+					extraData
+				}
 			};
 
 			batchPromises.push(postMessageToPool(message));
@@ -100,13 +92,13 @@ export class TraitBatchScheduler {
 		// Send completion message to the UI
 		if (this.config.onMessage) {
 			this.config.onMessage({
-				type: "complete",
+				type: 'complete',
 				payload: {
 					images: [],
 					metadata: [],
 					generatedCount: collectionSize,
-					totalCount: collectionSize,
-				},
+					totalCount: collectionSize
+				}
 			} as CompleteMessage);
 		}
 	}

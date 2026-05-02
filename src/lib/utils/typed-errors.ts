@@ -3,7 +3,7 @@
  * Provides specific error types for different error scenarios
  */
 
-import type { LayerId, ProjectId, TaskId, TraitId } from "$lib/types/ids";
+import type { LayerId, ProjectId, TaskId, TraitId } from '$lib/types/ids';
 
 // Base error class for all application errors
 export class AppError extends Error {
@@ -16,7 +16,7 @@ export class AppError extends Error {
 		message: string,
 		code: string,
 		context?: Record<string, unknown>,
-		recoverable: boolean = false,
+		recoverable: boolean = false
 	) {
 		super(message);
 		this.name = this.constructor.name;
@@ -39,7 +39,7 @@ export class AppError extends Error {
 			context: this.context,
 			timestamp: this.timestamp.toISOString(),
 			recoverable: this.recoverable,
-			stack: this.stack,
+			stack: this.stack
 		};
 	}
 }
@@ -47,7 +47,7 @@ export class AppError extends Error {
 // Validation errors
 export class ValidationError extends AppError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, "VALIDATION_ERROR", context, true);
+		super(message, 'VALIDATION_ERROR', context, true);
 	}
 }
 
@@ -72,112 +72,100 @@ export class TraitValidationError extends ValidationError {
 // Storage errors
 export class StorageError extends AppError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, "STORAGE_ERROR", context, true);
+		super(message, 'STORAGE_ERROR', context, true);
 	}
 }
 
 export class LocalStorageError extends StorageError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, { ...context, storageType: "localStorage" });
+		super(message, { ...context, storageType: 'localStorage' });
 	}
 }
 
 export class FileStorageError extends StorageError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, { ...context, storageType: "file" });
+		super(message, { ...context, storageType: 'file' });
 	}
 }
 
 // File processing errors
 export class FileError extends AppError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, "FILE_ERROR", context, true);
+		super(message, 'FILE_ERROR', context, true);
 	}
 }
 
 export class FileReadError extends FileError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, { ...context, operation: "read" });
+		super(message, { ...context, operation: 'read' });
 	}
 }
 
 export class FileWriteError extends FileError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, { ...context, operation: "write" });
+		super(message, { ...context, operation: 'write' });
 	}
 }
 
 export class ImageProcessingError extends FileError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, { ...context, operation: "image_processing" });
+		super(message, { ...context, operation: 'image_processing' });
 	}
 }
 
 // Worker errors
 export class WorkerError extends AppError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, "WORKER_ERROR", context, true);
+		super(message, 'WORKER_ERROR', context, true);
 	}
 }
 
 export class WorkerInitializationError extends WorkerError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, { ...context, phase: "initialization" });
+		super(message, { ...context, phase: 'initialization' });
 	}
 }
 
 export class WorkerExecutionError extends WorkerError {
-	constructor(
-		message: string,
-		taskId?: TaskId,
-		context?: Record<string, unknown>,
-	) {
-		super(message, { ...context, taskId, phase: "execution" });
+	constructor(message: string, taskId?: TaskId, context?: Record<string, unknown>) {
+		super(message, { ...context, taskId, phase: 'execution' });
 	}
 }
 
 export class WorkerTimeoutError extends WorkerError {
-	constructor(
-		message: string,
-		taskId?: TaskId,
-		context?: Record<string, unknown>,
-	) {
-		super(message, { ...context, taskId, phase: "timeout" });
+	constructor(message: string, taskId?: TaskId, context?: Record<string, unknown>) {
+		super(message, { ...context, taskId, phase: 'timeout' });
 	}
 }
 
 // Generation errors
 export class GenerationError extends AppError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, "GENERATION_ERROR", context, true);
+		super(message, 'GENERATION_ERROR', context, true);
 	}
 }
 
 export class GenerationValidationError extends GenerationError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, { ...context, type: "validation" });
+		super(message, { ...context, type: 'validation' });
 	}
 }
 
 export class GenerationExecutionError extends GenerationError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, { ...context, type: "execution" });
+		super(message, { ...context, type: 'execution' });
 	}
 }
 
 // Network errors
 export class NetworkError extends AppError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, "NETWORK_ERROR", context, true);
+		super(message, 'NETWORK_ERROR', context, true);
 	}
 }
 
 export class ApiError extends NetworkError {
-	constructor(
-		message: string,
-		statusCode?: number,
-		context?: Record<string, unknown>,
-	) {
+	constructor(message: string, statusCode?: number, context?: Record<string, unknown>) {
 		super(message, { ...context, statusCode });
 	}
 }
@@ -185,7 +173,7 @@ export class ApiError extends NetworkError {
 // Configuration errors
 export class ConfigurationError extends AppError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, "CONFIGURATION_ERROR", context, false);
+		super(message, 'CONFIGURATION_ERROR', context, false);
 	}
 }
 
@@ -214,9 +202,7 @@ export function isNetworkError(error: unknown): error is NetworkError {
 	return error instanceof NetworkError;
 }
 
-export function isConfigurationError(
-	error: unknown,
-): error is ConfigurationError {
+export function isConfigurationError(error: unknown): error is ConfigurationError {
 	return error instanceof ConfigurationError;
 }
 
@@ -238,7 +224,7 @@ export function getErrorInfo(error: unknown): {
 			code: error.code,
 			stack: error.stack,
 			context: error.context,
-			recoverable: error.recoverable,
+			recoverable: error.recoverable
 		};
 	}
 
@@ -246,13 +232,13 @@ export function getErrorInfo(error: unknown): {
 		return {
 			name: error.name,
 			message: error.message,
-			stack: error.stack,
+			stack: error.stack
 		};
 	}
 
 	return {
-		name: "UnknownError",
-		message: String(error),
+		name: 'UnknownError',
+		message: String(error)
 	};
 }
 

@@ -4,24 +4,21 @@
  * @module csp-solver.test
  */
 
-import { describe, expect, it } from "vite-plus/test";
-import type {
-	TransferrableLayer,
-	TransferrableTrait,
-} from "$lib/types/worker-messages";
-import { CSPSolver } from "./csp-solver";
+import { describe, expect, it } from 'vite-plus/test';
+import type { TransferrableLayer, TransferrableTrait } from '$lib/types/worker-messages';
+import { CSPSolver } from './csp-solver';
 
 function makeTrait(
 	id: string,
 	name: string,
-	overrides?: Partial<TransferrableTrait>,
+	overrides?: Partial<TransferrableTrait>
 ): TransferrableTrait {
 	return {
 		id: id as never,
 		name,
 		imageData: new ArrayBuffer(8),
 		rarityWeight: 1,
-		...overrides,
+		...overrides
 	};
 }
 
@@ -30,101 +27,79 @@ function makeLayer(
 	name: string,
 	traits: TransferrableTrait[],
 	order = 0,
-	isOptional = false,
+	isOptional = false
 ): TransferrableLayer {
 	return {
 		id: id as never,
 		name,
 		order,
 		isOptional,
-		traits,
+		traits
 	};
 }
 
 function makeStrictPairConfig(
-	layerIds: string[],
+	layerIds: string[]
 ): NonNullable<ConstructorParameters<typeof CSPSolver>[2]> {
 	return {
 		enabled: true,
 		layerCombinations: [
 			{
-				id: "__global__",
+				id: '__global__',
 				layerIds,
-				active: true,
-			},
-		],
+				active: true
+			}
+		]
 	};
 }
 
-describe("CSPSolver", () => {
-	it("solves a single layer with one trait", () => {
-		const layers = [makeLayer("L1", "Background", [makeTrait("T1", "Blue")])];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1"]),
-		);
+describe('CSPSolver', () => {
+	it('solves a single layer with one trait', () => {
+		const layers = [makeLayer('L1', 'Background', [makeTrait('T1', 'Blue')])];
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1']));
 		const result = solver.solve();
 
 		expect(result).not.toBeNull();
 		expect(result!.size).toBe(1);
-		expect(result!.get("L1")!.name).toBe("Blue");
+		expect(result!.get('L1')!.name).toBe('Blue');
 	});
 
-	it("solves a single layer with multiple traits", () => {
+	it('solves a single layer with multiple traits', () => {
 		const layers = [
-			makeLayer("L1", "Background", [
-				makeTrait("T1", "Blue"),
-				makeTrait("T2", "Red"),
-				makeTrait("T3", "Green"),
-			]),
+			makeLayer('L1', 'Background', [
+				makeTrait('T1', 'Blue'),
+				makeTrait('T2', 'Red'),
+				makeTrait('T3', 'Green')
+			])
 		];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1"]),
-		);
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1']));
 		const result = solver.solve();
 
 		expect(result).not.toBeNull();
-		expect(result!.get("L1")).toBeDefined();
+		expect(result!.get('L1')).toBeDefined();
 	});
 
-	it("solves two layers with no constraints", () => {
+	it('solves two layers with no constraints', () => {
 		const layers = [
-			makeLayer("L1", "Background", [
-				makeTrait("T1", "Blue"),
-				makeTrait("T2", "Red"),
-			]),
-			makeLayer("L2", "Eyes", [
-				makeTrait("T3", "Green"),
-				makeTrait("T4", "Brown"),
-			]),
+			makeLayer('L1', 'Background', [makeTrait('T1', 'Blue'), makeTrait('T2', 'Red')]),
+			makeLayer('L2', 'Eyes', [makeTrait('T3', 'Green'), makeTrait('T4', 'Brown')])
 		];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1", "L2"]),
-		);
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1', 'L2']));
 		const result = solver.solve();
 
 		expect(result).not.toBeNull();
 		expect(result!.size).toBe(2);
-		expect(result!.get("L1")).toBeDefined();
-		expect(result!.get("L2")).toBeDefined();
+		expect(result!.get('L1')).toBeDefined();
+		expect(result!.get('L2')).toBeDefined();
 	});
 
-	it("returns null when there is no valid combination", () => {
+	it('returns null when there is no valid combination', () => {
 		// Single trait for each layer, but usedCombinations already has it
-		const layers = [makeLayer("L1", "BG", [makeTrait("T1", "Blue")])];
+		const layers = [makeLayer('L1', 'BG', [makeTrait('T1', 'Blue')])];
 		const usedCombinations = new Map<string, Set<bigint>>();
-		usedCombinations.set("__global__", new Set<bigint>());
+		usedCombinations.set('__global__', new Set<bigint>());
 
-		const solver = new CSPSolver(
-			layers,
-			usedCombinations,
-			makeStrictPairConfig(["L1"]),
-		);
+		const solver = new CSPSolver(layers, usedCombinations, makeStrictPairConfig(['L1']));
 
 		// First solve should work
 		const r1 = solver.solve();
@@ -136,16 +111,12 @@ describe("CSPSolver", () => {
 		expect(r2).toBeNull();
 	});
 
-	it("populates performance stats after solving", () => {
+	it('populates performance stats after solving', () => {
 		const layers = [
-			makeLayer("L1", "BG", [makeTrait("T1", "Blue"), makeTrait("T2", "Red")]),
-			makeLayer("L2", "Eyes", [makeTrait("T3", "Green")]),
+			makeLayer('L1', 'BG', [makeTrait('T1', 'Blue'), makeTrait('T2', 'Red')]),
+			makeLayer('L2', 'Eyes', [makeTrait('T3', 'Green')])
 		];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1", "L2"]),
-		);
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1', 'L2']));
 
 		// Before solving, stats should be zero
 		const initialStats = solver.getPerformanceStats();
@@ -156,13 +127,11 @@ describe("CSPSolver", () => {
 		const finalStats = solver.getPerformanceStats();
 		// After solving, some stats should be populated
 		expect(
-			finalStats.constraintChecks +
-				finalStats.backtracks +
-				finalStats.ac3Iterations,
+			finalStats.constraintChecks + finalStats.backtracks + finalStats.ac3Iterations
 		).toBeGreaterThan(0);
 	});
 
-	it("handles empty layers gracefully", () => {
+	it('handles empty layers gracefully', () => {
 		const solver = new CSPSolver([], new Map());
 		const result = solver.solve();
 		// No layers means no traits to assign — solution is empty
@@ -170,41 +139,34 @@ describe("CSPSolver", () => {
 		expect(result!.size).toBe(0);
 	});
 
-	it("respects ruler forbidden constraints", () => {
+	it('respects ruler forbidden constraints', () => {
 		const layers = [
-			makeLayer("L1", "Background", [
+			makeLayer('L1', 'Background', [
 				{
-					...makeTrait("T1", "Blue"),
-					type: "ruler" as never,
+					...makeTrait('T1', 'Blue'),
+					type: 'ruler' as never,
 					rulerRules: [
 						{
-							layerId: "L2" as never,
-							forbiddenTraitIds: ["T3" as never],
-							allowedTraitIds: [],
-						},
-					],
+							layerId: 'L2' as never,
+							forbiddenTraitIds: ['T3' as never],
+							allowedTraitIds: []
+						}
+					]
 				},
-				makeTrait("T2", "Red"),
+				makeTrait('T2', 'Red')
 			]),
-			makeLayer("L2", "Eyes", [
-				makeTrait("T3", "Green"),
-				makeTrait("T4", "Brown"),
-			]),
+			makeLayer('L2', 'Eyes', [makeTrait('T3', 'Green'), makeTrait('T4', 'Brown')])
 		];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1", "L2"]),
-		);
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1', 'L2']));
 
 		// Run multiple times to see if Blue+Green combo is ever produced
 		let blueWithGreen = false;
 		for (let i = 0; i < 50; i++) {
 			const result = solver.solve();
 			if (!result) break;
-			const bg = result.get("L1")!;
-			const eyes = result.get("L2")!;
-			if (bg.name === "Blue" && eyes.name === "Green") {
+			const bg = result.get('L1')!;
+			const eyes = result.get('L2')!;
+			if (bg.name === 'Blue' && eyes.name === 'Green') {
 				blueWithGreen = true;
 				break;
 			}
@@ -214,40 +176,33 @@ describe("CSPSolver", () => {
 		expect(blueWithGreen).toBe(false);
 	});
 
-	it("respects ruler allowed constraints", () => {
+	it('respects ruler allowed constraints', () => {
 		const layers = [
-			makeLayer("L1", "Background", [
+			makeLayer('L1', 'Background', [
 				{
-					...makeTrait("T1", "Blue"),
-					type: "ruler" as never,
+					...makeTrait('T1', 'Blue'),
+					type: 'ruler' as never,
 					rulerRules: [
 						{
-							layerId: "L2" as never,
+							layerId: 'L2' as never,
 							forbiddenTraitIds: [],
-							allowedTraitIds: ["T4" as never],
-						},
-					],
-				},
+							allowedTraitIds: ['T4' as never]
+						}
+					]
+				}
 			]),
-			makeLayer("L2", "Eyes", [
-				makeTrait("T3", "Green"),
-				makeTrait("T4", "Brown"),
-			]),
+			makeLayer('L2', 'Eyes', [makeTrait('T3', 'Green'), makeTrait('T4', 'Brown')])
 		];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1", "L2"]),
-		);
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1', 'L2']));
 
 		// Every Blue assignment should only pair with Brown (T4)
 		let blueWithGreen = false;
 		for (let i = 0; i < 20; i++) {
 			const result = solver.solve();
 			if (!result) break;
-			const bg = result.get("L1")!;
-			const eyes = result.get("L2")!;
-			if (bg.name === "Blue" && eyes.name === "Green") {
+			const bg = result.get('L1')!;
+			const eyes = result.get('L2')!;
+			if (bg.name === 'Blue' && eyes.name === 'Green') {
 				blueWithGreen = true;
 				break;
 			}
@@ -257,25 +212,18 @@ describe("CSPSolver", () => {
 		expect(blueWithGreen).toBe(false);
 	});
 
-	it("generates unique combinations across solve calls", () => {
+	it('generates unique combinations across solve calls', () => {
 		const layers = [
-			makeLayer("L1", "BG", [makeTrait("T1", "Blue"), makeTrait("T2", "Red")]),
-			makeLayer("L2", "Eyes", [
-				makeTrait("T3", "Green"),
-				makeTrait("T4", "Brown"),
-			]),
+			makeLayer('L1', 'BG', [makeTrait('T1', 'Blue'), makeTrait('T2', 'Red')]),
+			makeLayer('L2', 'Eyes', [makeTrait('T3', 'Green'), makeTrait('T4', 'Brown')])
 		];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1", "L2"]),
-		);
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1', 'L2']));
 
 		const seen = new Set<string>();
 		for (let i = 0; i < 4; i++) {
 			const result = solver.solve();
 			if (!result) break;
-			const key = `${result.get("L1")!.name}:${result.get("L2")!.name}`;
+			const key = `${result.get('L1')!.name}:${result.get('L2')!.name}`;
 			expect(seen.has(key)).toBe(false);
 			seen.add(key);
 			solver.markCombinationAsUsed();
@@ -285,31 +233,23 @@ describe("CSPSolver", () => {
 		expect(seen.size).toBeGreaterThanOrEqual(2);
 	});
 
-	it("handles optional layers", () => {
+	it('handles optional layers', () => {
 		const layers = [
-			makeLayer("L1", "BG", [makeTrait("T1", "Blue")]),
-			makeLayer("L2", "Accessory", [makeTrait("T2", "Hat")], 1, true),
+			makeLayer('L1', 'BG', [makeTrait('T1', 'Blue')]),
+			makeLayer('L2', 'Accessory', [makeTrait('T2', 'Hat')], 1, true)
 		];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1", "L2"]),
-		);
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1', 'L2']));
 		const result = solver.solve();
 
 		// Required layer always present
 		expect(result).not.toBeNull();
-		expect(result!.get("L1")).toBeDefined();
+		expect(result!.get('L1')).toBeDefined();
 		// Optional layer may or may not be present — both are valid
 	});
 
-	it("clearCaches does not throw", () => {
-		const layers = [makeLayer("L1", "BG", [makeTrait("T1", "Blue")])];
-		const solver = new CSPSolver(
-			layers,
-			new Map(),
-			makeStrictPairConfig(["L1"]),
-		);
+	it('clearCaches does not throw', () => {
+		const layers = [makeLayer('L1', 'BG', [makeTrait('T1', 'Blue')])];
+		const solver = new CSPSolver(layers, new Map(), makeStrictPairConfig(['L1']));
 		solver.solve();
 		expect(() => solver.clearCaches()).not.toThrow();
 	});

@@ -111,7 +111,7 @@ export class PerformanceMonitor {
 		this.timers.delete(timerId);
 
 		// Extract operation name from timer ID
-		const operation = timerId.includes("_") ? timerId.split("_")[0] : timerId;
+		const operation = timerId.includes('_') ? timerId.split('_')[0] : timerId;
 
 		this.recordMetric(operation, duration, metadata);
 		return duration;
@@ -123,11 +123,7 @@ export class PerformanceMonitor {
 	 * @param duration - Duration in milliseconds
 	 * @param metadata - Optional metadata to store with the metric
 	 */
-	recordMetric(
-		operation: string,
-		duration: number,
-		metadata?: Record<string, unknown>,
-	): void {
+	recordMetric(operation: string, duration: number, metadata?: Record<string, unknown>): void {
 		if (!this.enabled) {
 			return;
 		}
@@ -136,7 +132,7 @@ export class PerformanceMonitor {
 			operation,
 			duration,
 			timestamp: Date.now(),
-			metadata,
+			metadata
 		};
 
 		if (!this.metrics.has(operation)) {
@@ -153,10 +149,7 @@ export class PerformanceMonitor {
 
 		// Log slow operations (> 5 seconds)
 		if (duration > 5000) {
-			console.warn(
-				`Slow operation detected: ${operation} took ${duration.toFixed(2)}ms`,
-				metadata,
-			);
+			console.warn(`Slow operation detected: ${operation} took ${duration.toFixed(2)}ms`, metadata);
 		}
 	}
 
@@ -172,10 +165,7 @@ export class PerformanceMonitor {
 		}
 
 		const durations = metrics.map((m) => m.duration);
-		const totalDuration = durations.reduce(
-			(sum, duration) => sum + duration,
-			0,
-		);
+		const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
 
 		return {
 			operation,
@@ -185,7 +175,7 @@ export class PerformanceMonitor {
 			minDuration: Math.min(...durations),
 			maxDuration: Math.max(...durations),
 			lastDuration: durations[durations.length - 1],
-			metrics: [...metrics],
+			metrics: [...metrics]
 		};
 	}
 
@@ -235,8 +225,8 @@ export class PerformanceMonitor {
 
 		let totalOperations = 0;
 		let totalDuration = 0;
-		let slowestOperation = "";
-		let fastestOperation = "";
+		let slowestOperation = '';
+		let fastestOperation = '';
 		let maxDuration = 0;
 		let minDuration = Infinity;
 
@@ -263,9 +253,8 @@ export class PerformanceMonitor {
 				totalDuration,
 				slowestOperation,
 				fastestOperation,
-				averageOperationTime:
-					totalOperations > 0 ? totalDuration / totalOperations : 0,
-			},
+				averageOperationTime: totalOperations > 0 ? totalDuration / totalOperations : 0
+			}
 		};
 	}
 
@@ -275,8 +264,8 @@ export class PerformanceMonitor {
 	 * @param metrics - Cache performance metrics
 	 */
 	addCacheMetrics(
-		cacheType: "imageBitmap" | "imageData" | "arrayBuffer",
-		metrics: CacheMetrics,
+		cacheType: 'imageBitmap' | 'imageData' | 'arrayBuffer',
+		metrics: CacheMetrics
 	): void {
 		if (!this.enabled) return;
 
@@ -288,7 +277,7 @@ export class PerformanceMonitor {
 			hitRate: metrics.hitRate,
 			evictions: metrics.evictions,
 			entries: metrics.currentEntries,
-			memoryUsage: metrics.memoryUsage,
+			memoryUsage: metrics.memoryUsage
 		});
 
 		// Record cache memory usage as a performance metric
@@ -296,20 +285,16 @@ export class PerformanceMonitor {
 			cacheType,
 			memoryUsage: metrics.memoryUsage,
 			entries: metrics.currentEntries,
-			maxMemory: metrics.maxSize,
+			maxMemory: metrics.maxSize
 		});
 
 		// Record cache hit rate percentage (for easier interpretation)
-		this.recordMetric(
-			`cache.${cacheType}.hitRatePercent`,
-			metrics.hitRate * 100,
-			{
-				cacheType,
-				hitRatePercent: metrics.hitRate * 100,
-				hits: metrics.hits,
-				misses: metrics.misses,
-			},
-		);
+		this.recordMetric(`cache.${cacheType}.hitRatePercent`, metrics.hitRate * 100, {
+			cacheType,
+			hitRatePercent: metrics.hitRate * 100,
+			hits: metrics.hits,
+			misses: metrics.misses
+		});
 
 		// Log cache performance periodically
 		const totalOps = metrics.hits + metrics.misses;
@@ -318,7 +303,7 @@ export class PerformanceMonitor {
 			const hitRatePercent = (metrics.hitRate * 100).toFixed(1);
 			const memoryUsageMB = (metrics.memoryUsage / (1024 * 1024)).toFixed(2);
 			console.log(
-				`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`,
+				`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`
 			);
 		}
 	}
@@ -351,24 +336,17 @@ export class PerformanceMonitor {
 	 * @param endTime - End timestamp in milliseconds
 	 * @returns Filtered performance statistics
 	 */
-	getMetricsInRange(
-		startTime: number,
-		endTime: number,
-	): Record<string, PerformanceStats> {
+	getMetricsInRange(startTime: number, endTime: number): Record<string, PerformanceStats> {
 		const filteredStats: Record<string, PerformanceStats> = {};
 
 		for (const [operation, metrics] of this.metrics) {
 			const filteredMetrics = metrics.filter(
-				(metric) =>
-					metric.timestamp >= startTime && metric.timestamp <= endTime,
+				(metric) => metric.timestamp >= startTime && metric.timestamp <= endTime
 			);
 
 			if (filteredMetrics.length > 0) {
 				const durations = filteredMetrics.map((m) => m.duration);
-				const totalDuration = durations.reduce(
-					(sum, duration) => sum + duration,
-					0,
-				);
+				const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
 
 				filteredStats[operation] = {
 					operation,
@@ -378,7 +356,7 @@ export class PerformanceMonitor {
 					minDuration: Math.min(...durations),
 					maxDuration: Math.max(...durations),
 					lastDuration: durations[durations.length - 1],
-					metrics: filteredMetrics,
+					metrics: filteredMetrics
 				};
 			}
 		}
@@ -429,7 +407,7 @@ export class PerformanceMonitor {
 				hits: 0,
 				misses: 0,
 				evictions: 0,
-				memoryUsage: 0,
+				memoryUsage: 0
 			});
 		}
 		return this.cacheMetrics.get(cacheName)!;
@@ -446,17 +424,14 @@ export class PerformanceMonitor {
 		this.dbQueryCount++;
 		this.dbTotalQueryTime += duration;
 		if (duration > 100) {
-			console.warn(
-				`Slow database query: ${_operation} took ${duration.toFixed(1)}ms`,
-			);
+			console.warn(`Slow database query: ${_operation} took ${duration.toFixed(1)}ms`);
 		}
 	}
 
 	getDatabaseMetrics(): { queryCount: number; averageQueryTime: number } {
 		return {
 			queryCount: this.dbQueryCount,
-			averageQueryTime:
-				this.dbQueryCount > 0 ? this.dbTotalQueryTime / this.dbQueryCount : 0,
+			averageQueryTime: this.dbQueryCount > 0 ? this.dbTotalQueryTime / this.dbQueryCount : 0
 		};
 	}
 
@@ -472,7 +447,7 @@ export class PerformanceMonitor {
 	}> = [];
 
 	captureMemoryMetrics(): void {
-		if (typeof window === "undefined") return;
+		if (typeof window === 'undefined') return;
 		const p = performance as Performance & {
 			memory?: {
 				usedJSHeapSize: number;
@@ -483,19 +458,14 @@ export class PerformanceMonitor {
 		const memory = p.memory;
 		if (!memory) return;
 		this.memoryHistory.push({ ...memory, timestamp: Date.now() });
-		if (this.memoryHistory.length > 100)
-			this.memoryHistory = this.memoryHistory.slice(-100);
+		if (this.memoryHistory.length > 100) this.memoryHistory = this.memoryHistory.slice(-100);
 	}
 
 	getAverageMemoryUsage(minutes = 5): number {
 		const cutoff = Date.now() - minutes * 60 * 1000;
 		const recent = this.memoryHistory.filter((m) => m.timestamp >= cutoff);
 		if (recent.length === 0) return 0;
-		return (
-			recent.reduce((s, m) => s + m.usedJSHeapSize, 0) /
-			recent.length /
-			(1024 * 1024)
-		);
+		return recent.reduce((s, m) => s + m.usedJSHeapSize, 0) / recent.length / (1024 * 1024);
 	}
 
 	// ==========================================
@@ -522,11 +492,11 @@ export class PerformanceMonitor {
 		const alert = {
 			id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
 			...data,
-			timestamp: Date.now(),
+			timestamp: Date.now()
 		};
 		this.alerts.push(alert);
 		if (this.alerts.length > 50) this.alerts = this.alerts.slice(-50);
-		if (alert.severity === "critical" || alert.severity === "high") {
+		if (alert.severity === 'critical' || alert.severity === 'high') {
 			console.warn(`[Performance Alert] ${alert.message}`);
 		}
 	}
@@ -557,8 +527,7 @@ export class PerformanceMonitor {
 	recordBatchItem(timePerItem: number): void {
 		this.batchProcessed++;
 		this.batchAvgTime =
-			(this.batchAvgTime * (this.batchProcessed - 1) + timePerItem) /
-			this.batchProcessed;
+			(this.batchAvgTime * (this.batchProcessed - 1) + timePerItem) / this.batchProcessed;
 		const now = performance.now();
 		if (now - this.batchLastReport > 2000) {
 			const elapsed = now - this.batchStartTime;
@@ -566,7 +535,7 @@ export class PerformanceMonitor {
 			const remaining = Math.max(0, this.batchTotal - this.batchProcessed);
 			const eta = (this.batchAvgTime * remaining) / 1000 / 60;
 			console.log(
-				`⚡ Sequential Performance: ${this.batchProcessed}/${this.batchTotal} items | ${rate.toFixed(1)} items/sec | ETA: ${eta.toFixed(1)}min | Avg: ${this.batchAvgTime.toFixed(1)}ms/item`,
+				`⚡ Sequential Performance: ${this.batchProcessed}/${this.batchTotal} items | ${rate.toFixed(1)} items/sec | ETA: ${eta.toFixed(1)}min | Avg: ${this.batchAvgTime.toFixed(1)}ms/item`
 			);
 			this.batchLastReport = now;
 		}
@@ -576,7 +545,7 @@ export class PerformanceMonitor {
 		const totalTime = performance.now() - this.batchStartTime;
 		const finalRate = this.batchProcessed / (totalTime / 1000);
 		console.log(
-			`🎯 Sequential Generation Complete: ${this.batchProcessed} items in ${(totalTime / 1000).toFixed(1)}s | Average: ${finalRate.toFixed(1)} items/sec`,
+			`🎯 Sequential Generation Complete: ${this.batchProcessed} items in ${(totalTime / 1000).toFixed(1)}s | Average: ${finalRate.toFixed(1)} items/sec`
 		);
 	}
 
@@ -603,24 +572,22 @@ export class PerformanceMonitor {
 		const report = this.generateReport();
 		const { summary } = report;
 
-		console.group("📊 Performance Summary");
+		console.group('📊 Performance Summary');
 		console.log(`Total Operations: ${summary.totalOperations}`);
 		console.log(`Total Duration: ${summary.totalDuration.toFixed(2)}ms`);
+		console.log(`Average Operation Time: ${summary.averageOperationTime.toFixed(2)}ms`);
 		console.log(
-			`Average Operation Time: ${summary.averageOperationTime.toFixed(2)}ms`,
+			`Slowest Operation: ${summary.slowestOperation} (${this.getStats(summary.slowestOperation)?.maxDuration.toFixed(2)}ms)`
 		);
 		console.log(
-			`Slowest Operation: ${summary.slowestOperation} (${this.getStats(summary.slowestOperation)?.maxDuration.toFixed(2)}ms)`,
-		);
-		console.log(
-			`Fastest Operation: ${summary.fastestOperation} (${this.getStats(summary.fastestOperation)?.minDuration.toFixed(2)}ms)`,
+			`Fastest Operation: ${summary.fastestOperation} (${this.getStats(summary.fastestOperation)?.minDuration.toFixed(2)}ms)`
 		);
 
 		if (Object.keys(report.operations).length > 0) {
-			console.group("Operation Details");
+			console.group('Operation Details');
 			for (const [operation, stats] of Object.entries(report.operations)) {
 				console.log(
-					`${operation}: ${stats.count} calls, avg ${stats.averageDuration.toFixed(2)}ms`,
+					`${operation}: ${stats.count} calls, avg ${stats.averageDuration.toFixed(2)}ms`
 				);
 			}
 			console.groupEnd();
@@ -638,19 +605,12 @@ export const performanceMonitor = new PerformanceMonitor();
  * @param operationName - Name of the operation for logging
  * @param metadata - Optional metadata to include with the metric
  */
-export function timed(
-	operationName?: string,
-	metadata?: Record<string, unknown>,
-) {
-	return (
-		target: unknown,
-		propertyKey: string,
-		descriptor: PropertyDescriptor,
-	) => {
+export function timed(operationName?: string, metadata?: Record<string, unknown>) {
+	return (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) => {
 		const originalMethod = descriptor.value;
 		const operation =
 			operationName ||
-			`${(target as Record<string, unknown>).constructor?.name || "Unknown"}.${propertyKey}`;
+			`${(target as Record<string, unknown>).constructor?.name || 'Unknown'}.${propertyKey}`;
 
 		descriptor.value = function (...args: unknown[]) {
 			const timerId = performanceMonitor.startTimer(operation);
@@ -658,7 +618,7 @@ export function timed(
 				const result = originalMethod.apply(this, args);
 
 				// Handle both sync and async functions
-				if (result && typeof result.then === "function") {
+				if (result && typeof result.then === 'function') {
 					return result.finally(() => {
 						performanceMonitor.stopTimer(timerId, metadata);
 					});
@@ -669,7 +629,7 @@ export function timed(
 			} catch (error) {
 				performanceMonitor.stopTimer(timerId, {
 					...metadata,
-					error: String(error),
+					error: String(error)
 				});
 				throw error;
 			}
@@ -689,7 +649,7 @@ export function timed(
 export function withTiming<T extends (...args: unknown[]) => unknown>(
 	fn: T,
 	operationName: string,
-	metadata?: Record<string, unknown>,
+	metadata?: Record<string, unknown>
 ): T {
 	return (async (...args: Parameters<T>) => {
 		const timerId = performanceMonitor.startTimer(operationName);
@@ -700,7 +660,7 @@ export function withTiming<T extends (...args: unknown[]) => unknown>(
 		} catch (error) {
 			performanceMonitor.stopTimer(timerId, {
 				...metadata,
-				error: String(error),
+				error: String(error)
 			});
 			throw error;
 		}
@@ -717,7 +677,7 @@ export function withTiming<T extends (...args: unknown[]) => unknown>(
 export async function measureOperation<T>(
 	operation: () => Promise<T> | T,
 	operationName: string,
-	metadata?: Record<string, unknown>,
+	metadata?: Record<string, unknown>
 ): Promise<T> {
 	const timerId = performanceMonitor.startTimer(operationName);
 	try {
@@ -727,7 +687,7 @@ export async function measureOperation<T>(
 	} catch (error) {
 		performanceMonitor.stopTimer(timerId, {
 			...metadata,
-			error: String(error),
+			error: String(error)
 		});
 		throw error;
 	}

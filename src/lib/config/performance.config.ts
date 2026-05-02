@@ -19,14 +19,14 @@ export const PERF_CONFIG = {
 		delay: {
 			min: 100, // Fast for small batches
 			max: 1000, // Slow for large batches to avoid blocking
-			base: 50, // ms per item
+			base: 50 // ms per item
 		},
 
 		/**
 		 * Default batch timeout in milliseconds
 		 * Used for debouncing rapid state changes
 		 */
-		defaultTimeout: 1000,
+		defaultTimeout: 1000
 	},
 
 	/**
@@ -39,7 +39,7 @@ export const PERF_CONFIG = {
 		 */
 		galleryFilter: {
 			maxEntries: 50, // Max filter combinations to remember
-			maxMemoryMB: 100, // Max memory for cached results
+			maxMemoryMB: 100 // Max memory for cached results
 		},
 
 		/**
@@ -50,19 +50,19 @@ export const PERF_CONFIG = {
 			imageBitmap: {
 				maxSizeMB: 100, // 100MB
 				maxEntries: 500,
-				ttlMinutes: 30,
+				ttlMinutes: 30
 			},
 			imageData: {
 				maxSizeMB: 50, // 50MB
 				maxEntries: 200,
-				ttlMinutes: 15,
+				ttlMinutes: 15
 			},
 			arrayBuffer: {
 				maxSizeMB: 200, // 200MB
 				maxEntries: 1000,
-				ttlMinutes: 60,
-			},
-		},
+				ttlMinutes: 60
+			}
+		}
 	},
 
 	/**
@@ -82,8 +82,8 @@ export const PERF_CONFIG = {
 		thresholds: {
 			warnAtMB: 400, // Warn when reaching 400MB
 			errorAtMB: 500, // Error at 500MB
-			pressureCleanupThresholdMB: 50, // Start cleanup at 50MB
-		},
+			pressureCleanupThresholdMB: 50 // Start cleanup at 50MB
+		}
 	},
 
 	/**
@@ -98,7 +98,7 @@ export const PERF_CONFIG = {
 		/**
 		 * Default minutes for recent metrics
 		 */
-		defaultRecentMinutes: 5,
+		defaultRecentMinutes: 5
 	},
 
 	/**
@@ -115,8 +115,8 @@ export const PERF_CONFIG = {
 		 */
 		retry: {
 			maxAttempts: 3,
-			delayMs: 150,
-		},
+			delayMs: 150
+		}
 	},
 
 	/**
@@ -129,7 +129,7 @@ export const PERF_CONFIG = {
 		progress: {
 			updateInterval: 100, // Update UI every N items
 			maxDelayMs: 5000, // 5 second max delay
-			saveIntervalMs: 30000, // Save state every 30 seconds
+			saveIntervalMs: 30000 // Save state every 30 seconds
 		},
 
 		/**
@@ -138,8 +138,8 @@ export const PERF_CONFIG = {
 		workers: {
 			maxWorkers: 8, // Max 8 workers
 			cpuUtilization: 0.75, // Use 75% of available cores
-			memoryPerWorkerMB: 512, // 512MB per worker
-		},
+			memoryPerWorkerMB: 512 // 512MB per worker
+		}
 	},
 
 	/**
@@ -151,7 +151,7 @@ export const PERF_CONFIG = {
 		 */
 		virtualScrolling: {
 			estimatedItemHeight: 250, // px
-			viewportMargin: 50, // px
+			viewportMargin: 50 // px
 		},
 
 		/**
@@ -161,9 +161,9 @@ export const PERF_CONFIG = {
 			// Number extraction patterns
 			patterns: [
 				/(?:[#\-\s:_]\s*)(\d+)/, // Numbers after delimiters
-				/^(\d+)/, // Numbers at start
-			],
-		},
+				/^(\d+)/ // Numbers at start
+			]
+		}
 	},
 
 	/**
@@ -179,8 +179,8 @@ export const PERF_CONFIG = {
 		/**
 		 * Toast notification duration
 		 */
-		toastDuration: 3000,
-	},
+		toastDuration: 3000
+	}
 } as const;
 
 /**
@@ -206,7 +206,7 @@ export function getOptimalBatchSize(collectionSize: number): number {
  */
 export function calculateAdaptiveDelay(
 	queueSize: number,
-	config: typeof PERF_CONFIG.batch.delay = PERF_CONFIG.batch.delay,
+	config: typeof PERF_CONFIG.batch.delay = PERF_CONFIG.batch.delay
 ): number {
 	return Math.min(config.max, Math.max(config.min, queueSize * config.base));
 }
@@ -218,21 +218,17 @@ export function calculateAdaptiveDelay(
 export function getOptimalWorkerCount(
 	maxWorkers = PERF_CONFIG.generation.workers.maxWorkers,
 	overrideCores?: number,
-	overrideMemoryGB?: number,
+	overrideMemoryGB?: number
 ): number {
-	if (typeof navigator === "undefined") return overrideCores ?? 4;
+	if (typeof navigator === 'undefined') return overrideCores ?? 4;
 
 	const cores = overrideCores ?? navigator.hardwareConcurrency ?? 4;
 	// deviceMemory is experimental - use type assertion
 	const memoryGB =
-		overrideMemoryGB ??
-		(navigator as Navigator & { deviceMemory?: number }).deviceMemory ??
-		4;
+		overrideMemoryGB ?? (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
 
 	// Use configured CPU utilization, capped by memory
-	const byCores = Math.floor(
-		cores * PERF_CONFIG.generation.workers.cpuUtilization,
-	);
+	const byCores = Math.floor(cores * PERF_CONFIG.generation.workers.cpuUtilization);
 	const byMemory = Math.floor(memoryGB * 2); // 2 workers per GB
 
 	return Math.min(byCores, byMemory, maxWorkers);

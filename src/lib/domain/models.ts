@@ -10,7 +10,7 @@ export interface DomainEvent {
 }
 
 export interface ProjectCreatedEvent extends DomainEvent {
-	type: "project.created";
+	type: 'project.created';
 	payload: {
 		projectId: string;
 		projectName: string;
@@ -18,7 +18,7 @@ export interface ProjectCreatedEvent extends DomainEvent {
 }
 
 export interface LayerAddedEvent extends DomainEvent {
-	type: "layer.added";
+	type: 'layer.added';
 	payload: {
 		projectId: string;
 		layerId: string;
@@ -27,7 +27,7 @@ export interface LayerAddedEvent extends DomainEvent {
 }
 
 export interface TraitAddedEvent extends DomainEvent {
-	type: "trait.added";
+	type: 'trait.added';
 	payload: {
 		projectId: string;
 		layerId: string;
@@ -37,7 +37,7 @@ export interface TraitAddedEvent extends DomainEvent {
 }
 
 export interface GenerationStartedEvent extends DomainEvent {
-	type: "generation.started";
+	type: 'generation.started';
 	payload: {
 		projectId: string;
 		collectionSize: number;
@@ -45,7 +45,7 @@ export interface GenerationStartedEvent extends DomainEvent {
 }
 
 export interface GenerationCompletedEvent extends DomainEvent {
-	type: "generation.completed";
+	type: 'generation.completed';
 	payload: {
 		projectId: string;
 		generatedCount: number;
