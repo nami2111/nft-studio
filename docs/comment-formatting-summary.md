@@ -11,7 +11,6 @@ We've successfully improved the consistency of inline comments and formatting in
 ## Changes Made
 
 1. **Enhanced Coding Standards Documentation**
-
    - Updated `docs/coding-standards.md` with comprehensive guidelines aligned with AGENTS.md for:
      - Block comments (JSDoc style) with examples; no comments unless requested
      - Inline comments with best practices
@@ -22,14 +21,12 @@ We've successfully improved the consistency of inline comments and formatting in
      - Testing guidelines with Vitest
 
 2. **Maintained Comment Standardization Script**
-
    - Kept `scripts/standardize-comments.js` to automatically:
      - Ensure inline comments have proper spacing (`// ` format)
      - Remove trailing whitespace from lines
    - Retained `pnpm standardize-comments` script in package.json
 
 3. **Applied Standardization**
-
    - Ran the standardization script across the entire `src/` directory
    - Processed all files including Svelte components and TypeScript files
    - Ensured consistent comment formatting throughout the codebase

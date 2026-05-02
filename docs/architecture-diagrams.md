@@ -11,7 +11,6 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ##### Advanced Svelte 5 Component Architecture with Runes-Based Reactivity
 
 - **Layer & Trait Management Components** (`layer/`):
-
   - `LayerManager.svelte`: Main layer orchestration with bulk operations
   - `LayerItem.svelte`: Individual layer management with drag-and-drop reordering
   - `TraitCard.svelte`: Individual trait management with rarity controls
@@ -19,20 +18,17 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - `StrictPair.svelte`: Advanced trait pairing and constraints configuration
 
 - **Trait Management Components** (`layer/`):
-
   - `TraitCard.svelte`: Individual trait management with ruler trait controls
   - `VirtualTraitList.svelte`: Efficient rendering of large trait collections
   - `TraitUpload.svelte`: Drag-and-drop file handling with progress tracking
 
 - **Gallery Components** (`gallery/`):
-
   - `SimpleVirtualGrid.svelte`: High-performance virtual scrolling for item collections
   - `GalleryImport.svelte`: ZIP import with automatic metadata parsing
   - `ItemDetail.svelte`: Interactive item information panel with trait filtering
   - `TraitFilter.svelte`: Multi-layer trait filtering system
 
 - **Preview & Generation System** (`generation/`):
-
   - `Preview.svelte`: Real-time canvas preview with debounced updates (200ms)
   - `GenerationProgress.svelte`: Real-time progress monitoring for batch generation
   - `GenerationControls.svelte`: Main generation configuration and trigger
@@ -47,25 +43,21 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ##### Modern State Management with Svelte 5 Runes and Auto-Persistence
 
 - **`project.store.svelte.ts`**: Core project state with intelligent auto-persistence
-
   - 500ms debounced persistence to LocalStorage
   - Skips projects with traits to avoid broken image references
   - Reactive state management using `$state`, `$derived`, `$effect`
 
 - **`gallery.store.svelte.ts`**: IndexedDB-based collection management
-
   - Virtual scrolling support for large collections
   - Advanced filtering and sorting capabilities
   - Multi-collection support with statistics tracking
 
 - **`resource-manager.ts`**: Three-tier caching system with automatic cleanup
-
   - ImageBitmap Cache: 100MB, 500 entries, 30min TTL
   - ImageData Cache: 50MB, 200 entries, 15min TTL
   - ArrayBuffer Cache: 200MB, 1,000 entries, 1hr TTL
 
 - **`file-operations.ts`**: ZIP import/export with progress tracking
-
   - Streaming import/export with real-time progress
   - Automatic metadata parsing and validation
   - Error recovery with exponential backoff
@@ -80,19 +72,16 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ##### Business Logic with Complex Validation and Worker Orchestration
 
 - **`validation.ts`**: Comprehensive Zod-based validation system
-
   - Runtime type safety with branded types
   - Separate schemas for import/export vs runtime operations
   - Rich error context for debugging and user feedback
 
 - **`project.domain.ts` & `project.service.ts`**: Project business logic
-
   - Factory pattern for entity creation
   - Project lifecycle management
   - Integration with worker orchestration
 
 - **`rarity-calculator.ts`**: Advanced rarity calculation algorithms
-
   - Natural numeric sorting for item names
   - Rarity score calculation and ranking systems
   - Statistical analysis of trait distributions
@@ -107,27 +96,23 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ##### Advanced Worker Pool with Dynamic Scaling and Health Monitoring
 
 - **`worker.pool.ts`**: Sophisticated worker pool management
-
   - Dynamic scaling based on device capabilities (CPU cores, memory, mobile detection)
   - Task complexity classification (LOW to VERY_HIGH)
   - Work-stealing algorithm for optimal task distribution
   - Health monitoring with ping-based checks and automatic restart
 
 - **`generation.worker.ts`**: Canvas-based image generation
-
   - Direct Canvas API optimization with `createImageBitmap`
   - Transferable ArrayBuffer objects for zero-copy performance
   - Progressive generation with streaming updates
 
 - **`generation.worker.client.ts`**: Worker client interface
-
   - CSP solver pre-computes all unique trait combinations upfront
   - TraitBatchScheduler dispatches solved batches to the worker pool
   - Real-time progress reporting
   - Error handling with automatic retry logic
 
 - **`csp-solver.ts`**: Constraint Satisfaction Problem solver
-
   - AC-3 arc consistency for domain pruning (60-80% search space reduction)
   - MRV heuristic with optimized backtracking
   - Bit-packed combination indexing for O(1) uniqueness checks
@@ -143,13 +128,11 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ##### Multi-Backend Storage with Intelligent Caching
 
 - **IndexedDB Integration**: Structured data persistence for large collections
-
   - Gallery collections with automatic quota monitoring
   - Efficient indexing for fast filtering and sorting
   - Transaction-based operations for data integrity
 
 - **LocalStorage Management**: Project settings and user preferences
-
   - Intelligent persistence strategies to avoid broken references
   - Automatic cleanup and migration handling
 
@@ -163,7 +146,6 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ##### Performance Monitoring and Error Handling
 
 - **`performance-monitor.ts`**: Unified performance monitoring
-
   - Timer-based operation tracking with automatic metric collection
   - Cache hit/miss/eviction monitoring with hit rate computation
   - Database query timing and slow-query warnings
@@ -172,7 +154,6 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Batch progress tracking with ETA estimation
 
 - **`error-handler.ts`, `error-handling.ts` & `typed-errors.ts`**: Error management
-
   - Single-source-of-truth error hierarchy in `typed-errors.ts` (AppError subclasses)
   - Type guards for each error category (isValidationError, isStorageError, etc.)
   - Centralized error processing with `handleError()`, `withSafeOperation()`
@@ -188,13 +169,11 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ### Three-Tier Caching System
 
 1. **ImageBitmap Cache** (100MB, 500 entries, 30min TTL)
-
    - Optimized for fast GPU-accelerated rendering
    - LRU eviction with automatic cleanup
    - Device pixel ratio support for sharp rendering
 
 2. **ImageData Cache** (50MB, 200 entries, 15min TTL)
-
    - Canvas manipulation operations
    - Pixel-level access for advanced effects
    - Faster than ImageBitmap for manipulation tasks
@@ -207,7 +186,6 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ### Intelligent Worker Pool
 
 - **Device-Aware Scaling**: Automatically adjusts worker count based on:
-
   - CPU core count (75% utilization target)
   - Available memory (128MB per worker estimate)
   - Mobile detection (50% worker reduction)
@@ -222,7 +200,6 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 ### Memory Management
 
 - **Adaptive Chunking**: Dynamic chunk sizing based on:
-
   - Real-time memory pressure monitoring
   - Available system resources
   - Task complexity and collection size

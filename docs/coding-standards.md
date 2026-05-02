@@ -26,10 +26,8 @@ Example:
  * const transferrableLayers = await prepareLayersForWorker(layers);
  * ```
  */
-export async function prepareLayersForWorker(
-  layers: Layer[],
-): Promise<TransferrableLayer[]> {
-  // Implementation
+export async function prepareLayersForWorker(layers: Layer[]): Promise<TransferrableLayer[]> {
+	// Implementation
 }
 ````
 
@@ -47,7 +45,7 @@ Example:
 ```typescript
 // Validate that all layers have valid image data before processing
 for (const layer of layers) {
-  // Implementation
+	// Implementation
 }
 ```
 
@@ -132,31 +130,30 @@ Example:
 
 ```typescript
 // External libraries
-import { writable } from "svelte/store";
-import type { Writable } from "svelte/store";
+import { writable } from 'svelte/store';
+import type { Writable } from 'svelte/store';
 
 // Svelte imports
-import type { ComponentProps } from "svelte";
+import type { ComponentProps } from 'svelte';
 
 // Project imports
-import type { Layer } from "$lib/types/layer";
-import { validateLayer, validateTrait } from "$lib/domain/validation";
+import type { Layer } from '$lib/types/layer';
+import { validateLayer, validateTrait } from '$lib/domain/validation';
 
 export interface LayerManagerProps {
-  layers: Layer[];
-  onUpdate: (layers: Layer[]) => void;
+	layers: Layer[];
+	onUpdate: (layers: Layer[]) => void;
 }
 
 export function createLayerManager(initialLayers: Layer[]): Writable<Layer[]> {
-  const { subscribe, set, update } = writable(initialLayers);
+	const { subscribe, set, update } = writable(initialLayers);
 
-  return {
-    subscribe,
-    addLayer: (layer: Layer) => update((layers) => [...layers, layer]),
-    removeLayer: (id: string) =>
-      update((layers) => layers.filter((l) => l.id !== id)),
-    set,
-  };
+	return {
+		subscribe,
+		addLayer: (layer: Layer) => update((layers) => [...layers, layer]),
+		removeLayer: (id: string) => update((layers) => layers.filter((l) => l.id !== id)),
+		set
+	};
 }
 ```
 
@@ -185,17 +182,17 @@ Example:
 
 ```typescript
 try {
-  const result = await processLayers(layers);
-  return result;
+	const result = await processLayers(layers);
+	return result;
 } catch (error) {
-  if (error instanceof ValidationError) {
-    showError(error, { description: "Please check your layer configuration" });
-    logger.error("Layer validation failed", { error, layers });
-  } else {
-    showError(error, { description: "An unexpected error occurred" });
-    logger.error("Layer processing failed", { error, layers });
-  }
-  throw error;
+	if (error instanceof ValidationError) {
+		showError(error, { description: 'Please check your layer configuration' });
+		logger.error('Layer validation failed', { error, layers });
+	} else {
+		showError(error, { description: 'An unexpected error occurred' });
+		logger.error('Layer processing failed', { error, layers });
+	}
+	throw error;
 }
 ```
 
@@ -210,17 +207,17 @@ try {
 Example:
 
 ```typescript
-describe("validateProjectName", () => {
-  it("should return success for a valid name", () => {
-    const result = validateProjectName("My Project");
-    expect(result.success).toBe(true);
-    expect(result.data).toBe("My Project");
-  });
+describe('validateProjectName', () => {
+	it('should return success for a valid name', () => {
+		const result = validateProjectName('My Project');
+		expect(result.success).toBe(true);
+		expect(result.data).toBe('My Project');
+	});
 
-  it("should return failure for an invalid name", () => {
-    const result = validateProjectName("!!!");
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-  });
+	it('should return failure for an invalid name', () => {
+		const result = validateProjectName('!!!');
+		expect(result.success).toBe(false);
+		expect(result.error).toBeDefined();
+	});
 });
 ```

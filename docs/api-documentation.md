@@ -44,21 +44,15 @@ export function projectNeedsZipLoad(): boolean;
 
 ```typescript
 export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void;
-export function updateLayersBatch(
-  batch: Array<{ id: LayerId; updates: Partial<Layer> }>,
-): void;
+export function updateLayersBatch(batch: Array<{ id: LayerId; updates: Partial<Layer> }>): void;
 ```
 
 #### Trait Management
 
 ```typescript
-export function updateTrait(
-  layerId: LayerId,
-  traitId: TraitId,
-  updates: Partial<Trait>,
-): void;
+export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial<Trait>): void;
 export function updateTraitsBatch(
-  batch: Array<{ layerId: LayerId; traitId: TraitId; updates: Partial<Trait> }>,
+	batch: Array<{ layerId: LayerId; traitId: TraitId; updates: Partial<Trait> }>
 ): void;
 export function addTraitsBatch(layerId: LayerId, traits: Trait[]): void;
 export function flushBatch(): void;
@@ -87,15 +81,8 @@ export function validateProjectStructure(project: Project): boolean;
 
 ```typescript
 export function updateProjectName(project: Project, name: string): Project;
-export function updateProjectDescription(
-  project: Project,
-  description: string,
-): Project;
-export function updateProjectDimensions(
-  project: Project,
-  width: number,
-  height: number,
-): Project;
+export function updateProjectDescription(project: Project, description: string): Project;
+export function updateProjectDimensions(project: Project, width: number, height: number): Project;
 ```
 
 #### Layer Operations
@@ -103,38 +90,26 @@ export function updateProjectDimensions(
 ```typescript
 export function addLayer(project: Project, name?: string): Project;
 export function removeLayer(project: Project, layerId: string): Project;
-export function updateLayerName(
-  project: Project,
-  layerId: string,
-  name: string,
-): Project;
+export function updateLayerName(project: Project, layerId: string, name: string): Project;
 export function reorderLayers(project: Project, layerIds: string[]): Project;
 ```
 
 #### Trait Operations
 
 ```typescript
-export async function addTrait(
-  project: Project,
-  layerId: string,
-  file: File,
-): Promise<Project>;
-export function removeTrait(
-  project: Project,
-  layerId: string,
-  traitId: string,
-): Project;
+export async function addTrait(project: Project, layerId: string, file: File): Promise<Project>;
+export function removeTrait(project: Project, layerId: string, traitId: string): Project;
 export function updateTraitName(
-  project: Project,
-  layerId: string,
-  traitId: string,
-  name: string,
+	project: Project,
+	layerId: string,
+	traitId: string,
+	name: string
 ): Project;
 export function updateTraitRarity(
-  project: Project,
-  layerId: string,
-  traitId: string,
-  rarityWeight: number,
+	project: Project,
+	layerId: string,
+	traitId: string,
+	rarityWeight: number
 ): Project;
 ```
 
@@ -146,27 +121,27 @@ Advanced rarity calculation with multiple scoring methods and tier systems.
 
 ```typescript
 export enum RarityMethod {
-  TRAIT_RARITY = "trait_rarity",
-  AVERAGE_TRAIT_RARITY = "average_trait_rarity",
-  WEIGHTED_TRAIT_RARITY = "weighted_trait_rarity",
-  STANDARD_DEVIATION = "standard_deviation",
-  ENHANCED_WEIGHTED = "enhanced_weighted",
-  EMERGENT_RARITY = "emergent_rarity",
+	TRAIT_RARITY = 'trait_rarity',
+	AVERAGE_TRAIT_RARITY = 'average_trait_rarity',
+	WEIGHTED_TRAIT_RARITY = 'weighted_trait_rarity',
+	STANDARD_DEVIATION = 'standard_deviation',
+	ENHANCED_WEIGHTED = 'enhanced_weighted',
+	EMERGENT_RARITY = 'emergent_rarity'
 }
 
 export interface TraitRarity {
-  layer: string;
-  trait: string;
-  count: number;
-  percentage: number;
-  rarityScore: number;
+	layer: string;
+	trait: string;
+	count: number;
+	percentage: number;
+	rarityScore: number;
 }
 
 export interface ItemRarityResult {
-  item: GalleryItem;
-  rarityScore: number;
-  rarityRank?: number;
-  traitRarities: TraitRarity[] | EnhancedTraitRarity[];
+	item: GalleryItem;
+	rarityScore: number;
+	rarityRank?: number;
+	traitRarities: TraitRarity[] | EnhancedTraitRarity[];
 }
 ```
 
@@ -174,51 +149,44 @@ export interface ItemRarityResult {
 
 ```typescript
 /** Calculate trait rarities across a collection. Returns Map<layer:trait, TraitRarity>. */
-export function calculateTraitRarities(
-  collection: GalleryCollection,
-): Map<string, TraitRarity>;
+export function calculateTraitRarities(collection: GalleryCollection): Map<string, TraitRarity>;
 
 /** Calculate enhanced trait rarities with custom weights and tiers. */
 export function calculateEnhancedTraitRarities(
-  collection: GalleryCollection,
-  layerImportance?: LayerImportance[],
-  customWeights?: Map<string, number>,
-  tiers?: RarityTier[],
+	collection: GalleryCollection,
+	layerImportance?: LayerImportance[],
+	customWeights?: Map<string, number>,
+	tiers?: RarityTier[]
 ): Map<string, EnhancedTraitRarity>;
 
 /** Calculate rarity scores for all items in a collection using the specified method. */
 export function calculateItemRarities(
-  collection: GalleryCollection,
-  method?: RarityMethod,
+	collection: GalleryCollection,
+	method?: RarityMethod
 ): { traitRarities; itemRarities; rarestItem?; mostCommonItem? };
 
 /** Update a collection with rarity scores and ranks, returning a new collection. */
 export function updateCollectionWithRarity(
-  collection: GalleryCollection,
-  method?: RarityMethod,
+	collection: GalleryCollection,
+	method?: RarityMethod
 ): GalleryCollection;
 
 /** Find items that contain all specified required traits. */
 export function findItemsWithTraits(
-  collection: GalleryCollection,
-  requiredTraits: Array<{ layer: string; trait: string }>,
+	collection: GalleryCollection,
+	requiredTraits: Array<{ layer: string; trait: string }>
 ): GalleryItem[];
 
 /** Jaccard similarity between two items (0 = no overlap, 1 = identical). */
-export function calculateItemSimilarity(
-  item1: GalleryItem,
-  item2: GalleryItem,
-): number;
+export function calculateItemSimilarity(item1: GalleryItem, item2: GalleryItem): number;
 
 /** Get top 20 rarest traits sorted by rarity score. */
-export function getTraitStatistics(
-  collection: GalleryCollection,
-): Array<{
-  layer: string;
-  trait: string;
-  count: number;
-  percentage: number;
-  rarityScore: number;
+export function getTraitStatistics(collection: GalleryCollection): Array<{
+	layer: string;
+	trait: string;
+	count: number;
+	percentage: number;
+	rarityScore: number;
 }>;
 ```
 
@@ -235,22 +203,17 @@ Orchestrates the full generation pipeline: CSP solving → trait batching → wo
  * 2. Delegates batch rendering to TraitBatchScheduler → worker pool.
  */
 export async function startGeneration(
-  layers: TransferrableLayer[],
-  collectionSize: number,
-  outputSize: { width: number; height: number },
-  projectName: string,
-  projectDescription: string,
-  metadataStandard?: MetadataStandard,
-  strictPairConfig?: StrictPairConfig,
-  extraData?: Record<string, unknown>,
-  onMessage?: (
-    data:
-      | CompleteMessage
-      | ErrorMessage
-      | CancelledMessage
-      | ProgressMessage
-      | PreviewMessage,
-  ) => void,
+	layers: TransferrableLayer[],
+	collectionSize: number,
+	outputSize: { width: number; height: number },
+	projectName: string,
+	projectDescription: string,
+	metadataStandard?: MetadataStandard,
+	strictPairConfig?: StrictPairConfig,
+	extraData?: Record<string, unknown>,
+	onMessage?: (
+		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	) => void
 ): Promise<void>;
 
 /** Cancel generation and terminate all active workers. */
@@ -263,23 +226,23 @@ Constraint Satisfaction Problem solver ensuring unique, valid trait combinations
 
 ```typescript
 export class CSPSolver {
-  constructor(
-    layers: TransferrableLayer[],
-    usedCombinations: Map<string, Set<bigint>>,
-    strictPairConfig?: SolverContext["strictPairConfig"],
-  );
+	constructor(
+		layers: TransferrableLayer[],
+		usedCombinations: Map<string, Set<bigint>>,
+		strictPairConfig?: SolverContext['strictPairConfig']
+	);
 
-  /** Solve for one unique, constraint-satisfying trait combination. Returns null if exhausted. */
-  solve(): Map<string, TransferrableTrait> | null;
+	/** Solve for one unique, constraint-satisfying trait combination. Returns null if exhausted. */
+	solve(): Map<string, TransferrableTrait> | null;
 
-  /** Mark the last solution as used to prevent duplicates in subsequent calls. */
-  markCombinationAsUsed(): void;
+	/** Mark the last solution as used to prevent duplicates in subsequent calls. */
+	markCombinationAsUsed(): void;
 
-  /** Get performance stats (constraintChecks, backtracks, ac3Iterations, etc.). */
-  getPerformanceStats(): Record<string, number>;
+	/** Get performance stats (constraintChecks, backtracks, ac3Iterations, etc.). */
+	getPerformanceStats(): Record<string, number>;
 
-  /** Clear internal caches between generations. */
-  clearCaches(): void;
+	/** Clear internal caches between generations. */
+	clearCaches(): void;
 }
 ```
 
@@ -312,19 +275,13 @@ export class TraitBatchScheduler {
 Multi-worker pool with dynamic scaling, health checks, and work-stealing scheduling.
 
 ```typescript
-export async function initializeWorkerPool(
-  config?: WorkerPoolConfig,
-): Promise<void>;
+export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<void>;
 export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void>;
-export function postMessageToPool<T>(
-  message: GenerationWorkerMessage,
-): Promise<T>;
+export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<T>;
 export function terminateWorkerPool(): void;
 export function getWorkerPoolStatus(): WorkerPoolStatus | null;
 export function cleanupOldTasks(thresholdMs?: number): void;
-export function setMessageCallback(
-  callback: (data: WorkerMessage) => void,
-): void;
+export function setMessageCallback(callback: (data: WorkerMessage) => void): void;
 export function getOptimalWorkerCount(collectionSize: number): number;
 ```
 
@@ -337,88 +294,88 @@ Single-source-of-truth error hierarchy with type guards and serialization suppor
 ```typescript
 /** Base error with code, context, timestamp, and recoverable flag. */
 export class AppError extends Error {
-  readonly code: string;
-  readonly context?: Record<string, unknown>;
-  readonly timestamp: Date;
-  readonly recoverable: boolean;
-  toJSON(): Record<string, unknown>;
+	readonly code: string;
+	readonly context?: Record<string, unknown>;
+	readonly timestamp: Date;
+	readonly recoverable: boolean;
+	toJSON(): Record<string, unknown>;
 }
 
 // Validation branch
 export class ValidationError extends AppError {
-  /* code: 'VALIDATION_ERROR', recoverable: true */
+	/* code: 'VALIDATION_ERROR', recoverable: true */
 }
 export class ProjectValidationError extends ValidationError {
-  /* + projectId */
+	/* + projectId */
 }
 export class LayerValidationError extends ValidationError {
-  /* + layerId */
+	/* + layerId */
 }
 export class TraitValidationError extends ValidationError {
-  /* + traitId */
+	/* + traitId */
 }
 
 // Storage branch
 export class StorageError extends AppError {
-  /* code: 'STORAGE_ERROR' */
+	/* code: 'STORAGE_ERROR' */
 }
 export class LocalStorageError extends StorageError {
-  /* tags storageType: 'localStorage' */
+	/* tags storageType: 'localStorage' */
 }
 export class FileStorageError extends StorageError {
-  /* tags storageType: 'file' */
+	/* tags storageType: 'file' */
 }
 
 // File/IO branch
 export class FileError extends AppError {
-  /* code: 'FILE_ERROR' */
+	/* code: 'FILE_ERROR' */
 }
 export class FileReadError extends FileError {
-  /* tags operation: 'read' */
+	/* tags operation: 'read' */
 }
 export class FileWriteError extends FileError {
-  /* tags operation: 'write' */
+	/* tags operation: 'write' */
 }
 export class ImageProcessingError extends FileError {
-  /* tags operation: 'image_processing' */
+	/* tags operation: 'image_processing' */
 }
 
 // Worker branch
 export class WorkerError extends AppError {
-  /* code: 'WORKER_ERROR' */
+	/* code: 'WORKER_ERROR' */
 }
 export class WorkerInitializationError extends WorkerError {
-  /* tags phase: 'initialization' */
+	/* tags phase: 'initialization' */
 }
 export class WorkerExecutionError extends WorkerError {
-  /* + taskId, phase: 'execution' */
+	/* + taskId, phase: 'execution' */
 }
 export class WorkerTimeoutError extends WorkerError {
-  /* + taskId, phase: 'timeout' */
+	/* + taskId, phase: 'timeout' */
 }
 
 // Generation branch
 export class GenerationError extends AppError {
-  /* code: 'GENERATION_ERROR' */
+	/* code: 'GENERATION_ERROR' */
 }
 export class GenerationValidationError extends GenerationError {
-  /* tags type: 'validation' */
+	/* tags type: 'validation' */
 }
 export class GenerationExecutionError extends GenerationError {
-  /* tags type: 'execution' */
+	/* tags type: 'execution' */
 }
 
 // Network branch
 export class NetworkError extends AppError {
-  /* code: 'NETWORK_ERROR' */
+	/* code: 'NETWORK_ERROR' */
 }
 export class ApiError extends NetworkError {
-  /* + statusCode */
+	/* + statusCode */
 }
 
 // Configuration branch
 export class ConfigurationError extends AppError {
-  /* code: 'CONFIGURATION_ERROR', recoverable: false */
+	/* code: 'CONFIGURATION_ERROR', recoverable: false */
 }
 ```
 
@@ -431,18 +388,16 @@ export function isFileError(error: unknown): error is FileError;
 export function isWorkerError(error: unknown): error is WorkerError;
 export function isGenerationError(error: unknown): error is GenerationError;
 export function isNetworkError(error: unknown): error is NetworkError;
-export function isConfigurationError(
-  error: unknown,
-): error is ConfigurationError;
+export function isConfigurationError(error: unknown): error is ConfigurationError;
 
 /** Extract structured info from any error (AppError, plain Error, or unknown). */
 export function getErrorInfo(error: unknown): {
-  name: string;
-  message: string;
-  code?: string;
-  stack?: string;
-  context?: Record<string, unknown>;
-  recoverable?: boolean;
+	name: string;
+	message: string;
+	code?: string;
+	stack?: string;
+	context?: Record<string, unknown>;
+	recoverable?: boolean;
 };
 
 /** Check if an error is recoverable (AppError.recoverable, or true as safe default). */
@@ -508,20 +463,22 @@ export function showWarning(message: string, options?: ErrorOptions): void;
 
 /** Wrap an async function with toast-based error handling (renamed from withErrorHandling). */
 export async function withToastErrorHandling<T>(
-  operation: () => Promise<T>,
-  context?: ErrorContext,
-  fallbackMessage?: string,
+	operation: () => Promise<T>,
+	context?: ErrorContext,
+	fallbackMessage?: string
 ): Promise<T>;
 
 /** Create a wrapped function with automatic toast error handling. */
-export function wrapWithToastErrorHandling<
-  T extends (...args: any[]) => Promise<any>,
->(fn: T, context?: ErrorContext, fallbackMessage?: string): T;
+export function wrapWithToastErrorHandling<T extends (...args: any[]) => Promise<any>>(
+	fn: T,
+	context?: ErrorContext,
+	fallbackMessage?: string
+): T;
 
 /** Create a retry wrapper with toast notifications on failure. */
 export function createRetry<T>(
-  operation: () => Promise<T>,
-  config?: Partial<RetryConfig>,
+	operation: () => Promise<T>,
+	config?: Partial<RetryConfig>
 ): () => Promise<T>;
 ```
 
@@ -598,70 +555,62 @@ Configurable retry with exponential backoff, jitter, conditions, and presets.
 
 ```typescript
 export class RetryOperation<T> {
-  constructor(
-    operation: () => Promise<T>,
-    config?: Partial<RetryConfig>,
-    context?: ErrorContext,
-  );
-  async execute(): Promise<RetryResult<T>>;
+	constructor(operation: () => Promise<T>, config?: Partial<RetryConfig>, context?: ErrorContext);
+	async execute(): Promise<RetryResult<T>>;
 }
 
 /** Convenience function: create + execute in one call. */
 export async function retry<T>(
-  operation: () => Promise<T>,
-  config?: Partial<RetryConfig>,
-  context?: ErrorContext,
+	operation: () => Promise<T>,
+	config?: Partial<RetryConfig>,
+	context?: ErrorContext
 ): Promise<RetryResult<T>>;
 
 /** Wrap any async function with automatic retry. */
-export function withRetry<T>(
-  fn: T,
-  config?: Partial<RetryConfig>,
-  context?: ErrorContext,
-): T;
+export function withRetry<T>(fn: T, config?: Partial<RetryConfig>, context?: ErrorContext): T;
 
 /** Retry condition predicates. */
 export const RetryConditions = {
-  isNetworkError, // Error name 'NetworkError'/'TypeError', message 'network'/'ECONNREFUSED'/'ETIMEDOUT'
-  isServerError, // status >= 500
-  isRateLimitError, // status === 429
-  isTimeoutError, // name 'TimeoutError' or message 'timeout'/'TIMEDOUT'
-  isResourceUnavailable, // message 'unavailable'/'busy'/'overloaded'
-  isRecoverable, // OR of all above
+	isNetworkError, // Error name 'NetworkError'/'TypeError', message 'network'/'ECONNREFUSED'/'ETIMEDOUT'
+	isServerError, // status >= 500
+	isRateLimitError, // status === 429
+	isTimeoutError, // name 'TimeoutError' or message 'timeout'/'TIMEDOUT'
+	isResourceUnavailable, // message 'unavailable'/'busy'/'overloaded'
+	isRecoverable // OR of all above
 };
 
 /** Pre-configured retry configs. */
 export const RetryConfigs = {
-  network: {
-    maxAttempts: 3,
-    initialDelayMs: 1000,
-    backoffFactor: 2,
-    jitter: true,
-  },
-  server: {
-    maxAttempts: 5,
-    initialDelayMs: 2000,
-    backoffFactor: 2,
-    jitter: true,
-  },
-  rateLimit: {
-    maxAttempts: 10,
-    initialDelayMs: 1000,
-    backoffFactor: 1.5,
-    jitter: true,
-  },
-  file: {
-    maxAttempts: 3,
-    initialDelayMs: 500,
-    backoffFactor: 2,
-    jitter: false,
-  },
-  default: {
-    maxAttempts: 3,
-    initialDelayMs: 1000,
-    backoffFactor: 2,
-    jitter: true,
-  },
+	network: {
+		maxAttempts: 3,
+		initialDelayMs: 1000,
+		backoffFactor: 2,
+		jitter: true
+	},
+	server: {
+		maxAttempts: 5,
+		initialDelayMs: 2000,
+		backoffFactor: 2,
+		jitter: true
+	},
+	rateLimit: {
+		maxAttempts: 10,
+		initialDelayMs: 1000,
+		backoffFactor: 1.5,
+		jitter: true
+	},
+	file: {
+		maxAttempts: 3,
+		initialDelayMs: 500,
+		backoffFactor: 2,
+		jitter: false
+	},
+	default: {
+		maxAttempts: 3,
+		initialDelayMs: 1000,
+		backoffFactor: 2,
+		jitter: true
+	}
 };
 ```
 
@@ -673,9 +622,9 @@ Zod-based validation with branded types, XSS protection, and comprehensive schem
 
 ```typescript
 export interface ValidationResult {
-  success: boolean;
-  error?: string;
-  data?: unknown;
+	success: boolean;
+	error?: string;
+	data?: unknown;
 }
 ```
 
@@ -692,10 +641,7 @@ export function sanitizeString(input: string, stripHtml?: boolean): string;
 export function validateProjectName(name: string): ValidationResult;
 export function validateLayerName(name: string): ValidationResult;
 export function validateTraitName(name: string): ValidationResult;
-export function validateDimensions(
-  width: number,
-  height: number,
-): ValidationResult;
+export function validateDimensions(width: number, height: number): ValidationResult;
 export function validateRarityWeight(weight: number): ValidationResult;
 ```
 
@@ -722,19 +668,19 @@ export function validateRulerRule(rule: unknown): ValidationResult;
 ```typescript
 /** Check if two traits are compatible based on ruler rules. */
 export function validateTraitCompatibility(
-  traitA: Trait,
-  layerIdA: string,
-  traitB: Trait,
-  layerIdB: string,
-  layers: Layer[],
+	traitA: Trait,
+	layerIdA: string,
+	traitB: Trait,
+	layerIdB: string,
+	layers: Layer[]
 ): { compatible: boolean; reason?: string };
 
 /** Get all traits from targetLayer that are compatible with the given trait. */
 export function getCompatibleTraits(
-  trait: Trait,
-  layerId: string,
-  targetLayerId: string,
-  layers: Layer[],
+	trait: Trait,
+	layerId: string,
+	targetLayerId: string,
+	layers: Layer[]
 ): Trait[];
 ```
 
@@ -757,8 +703,8 @@ export function createValidatedTrait(overrides?: Partial<Trait>): Trait;
 
 /** Validate with zod schema, returning ValidationResult with typed data. */
 export function safeValidate<T>(
-  schema: z.ZodSchema<T>,
-  data: unknown,
+	schema: z.ZodSchema<T>,
+	data: unknown
 ): ValidationResult & { data?: T };
 ```
 
@@ -778,28 +724,28 @@ export function safeValidate<T>(
 
 ```typescript
 interface Project {
-  id: ProjectId;
-  name: string;
-  description: string;
-  outputSize: { width: number; height: number };
-  layers: Layer[];
+	id: ProjectId;
+	name: string;
+	description: string;
+	outputSize: { width: number; height: number };
+	layers: Layer[];
 }
 
 interface Layer {
-  id: LayerId;
-  name: string;
-  order: number;
-  isOptional?: boolean;
-  traits: Trait[];
+	id: LayerId;
+	name: string;
+	order: number;
+	isOptional?: boolean;
+	traits: Trait[];
 }
 
 interface Trait {
-  id: TraitId;
-  name: string;
-  imageData: ArrayBuffer;
-  rarityWeight: number;
-  type?: TraitType;
-  rulerRules?: RulerRule[];
+	id: TraitId;
+	name: string;
+	imageData: ArrayBuffer;
+	rarityWeight: number;
+	type?: TraitType;
+	rulerRules?: RulerRule[];
 }
 ```
 
@@ -807,34 +753,34 @@ interface Trait {
 
 ```typescript
 interface ProgressMessage {
-  type: "progress";
-  payload: { generatedCount: number; totalCount: number; statusText: string };
+	type: 'progress';
+	payload: { generatedCount: number; totalCount: number; statusText: string };
 }
 
 interface CompleteMessage {
-  type: "complete";
-  payload: {
-    images: Array<{ name: string; blob: Blob }>;
-    metadata: Array<{ name: string; data: object }>;
-    generatedCount: number;
-    totalCount: number;
-  };
+	type: 'complete';
+	payload: {
+		images: Array<{ name: string; blob: Blob }>;
+		metadata: Array<{ name: string; data: object }>;
+		generatedCount: number;
+		totalCount: number;
+	};
 }
 
 interface ErrorMessage {
-  type: "error";
-  payload: { message: string };
+	type: 'error';
+	payload: { message: string };
 }
 
 interface BatchMessage {
-  type: "batch";
-  payload: {
-    solutions: Solution[];
-    layers: TransferrableLayer[];
-    collectionSize: number;
-    outputSize: { width: number; height: number };
-    projectName: string;
-    projectDescription: string;
-  };
+	type: 'batch';
+	payload: {
+		solutions: Solution[];
+		layers: TransferrableLayer[];
+		collectionSize: number;
+		outputSize: { width: number; height: number };
+		projectName: string;
+		projectDescription: string;
+	};
 }
 ```

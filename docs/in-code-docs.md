@@ -32,11 +32,8 @@ Example:
  * const distribution = calculateRarityDistribution(layers, 1000);
  * ```
  */
-export function calculateRarityDistribution(
-  layers: Layer[],
-  count: number,
-): TraitDistribution {
-  // Implementation
+export function calculateRarityDistribution(layers: Layer[], count: number): TraitDistribution {
+	// Implementation
 }
 ````
 
@@ -61,8 +58,8 @@ Complex algorithms should be documented with inline comments explaining the logi
 // Use Fisher-Yates shuffle algorithm to randomize trait selection
 // This ensures even distribution while respecting rarity weights
 for (let i = traits.length - 1; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1));
-  [traits[i], traits[j]] = [traits[j], traits[i]];
+	const j = Math.floor(Math.random() * (i + 1));
+	[traits[i], traits[j]] = [traits[j], traits[i]];
 }
 ```
 
