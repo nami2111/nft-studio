@@ -7,552 +7,834 @@ This document provides comprehensive API documentation for GNStudio's core modul
 - [Stores API](#stores-api)
 - [Domain Services API](#domain-services-api)
 - [Worker API](#worker-api)
-- [Utility Functions](#utility-functions)
+- [Error Handling](#error-handling)
+- [Performance & Retry Utilities](#performance--retry-utilities)
+- [Validation](#validation)
 - [Type Definitions](#type-definitions)
 
 ## Stores API
 
 ### Project Store (`src/lib/stores/project.store.svelte.ts`)
 
-The project store manages the reactive state of the current item project using Svelte 5 runes.
+The project store manages the reactive state of the current project using Svelte 5 runes.
 
 #### Core State
 
 ```typescript
-/**
- * Reactive project state using Svelte 5 runes ($state).
- * Contains the current project data including layers, traits, and configuration.
- * Managed through modular store architecture with single responsibility principle.
- */
+/** Reactive project state using Svelte 5 $state rune. */
 export const project = $state<Project>(validationService.createDefaultProject());
+
+/** Store facade exposing state and action methods. */
+export const projectStore = { ... };
 ```
 
-#### Project Management Functions
+#### Project Management
 
 ```typescript
-/**
- * Updates the project name with validation and XSS protection.
- * @param {string} name - The new project name
- * @throws {Error} If the name is invalid
- */
+export function updateProject(updates: Partial<Project>): void;
 export function updateProjectName(name: string): void;
-
-/**
- * Updates the project description with XSS protection.
- * @param {string} description - The new project description
- */
 export function updateProjectDescription(description: string): void;
-
-/**
- * Updates the project dimensions with validation.
- * @param {number} width - The new width in pixels
- * @param {number} height - The new height in pixels
- * @throws {Error} If the dimensions are invalid
- */
-export function updateProjectDimensions(width: number, height: number): void;
+export function updateProjectMetadataStandard(standard: MetadataStandard): void;
+export function isProjectValid(): boolean;
+export function totalTraitCount(): number;
+export function projectNeedsZipLoad(): boolean;
 ```
 
-#### Layer Management Functions
+#### Layer Management
 
 ```typescript
-/**
- * Adds a new layer to the project with validation.
- * @param {string} name - The name of the layer to add
- * @throws {Error} If the layer name is invalid
- */
-export function addLayer(name: string): void;
-
-/**
- * Removes a layer from the project by ID.
- * @param {string} layerId - The ID of the layer to remove
- */
-export function removeLayer(layerId: string): void;
-
-/**
- * Updates the name of a layer with validation.
- * @param {string} layerId - The ID of the layer to update
- * @param {string} name - The new name for the layer
- * @throws {Error} If the layer name is invalid
- */
-export function updateLayerName(layerId: string, name: string): void;
-
-/**
- * Reorders the layers in the project.
- * @param {Layer[]} reorderedLayers - The reordered layers
- */
-export function reorderLayers(reorderedLayers: Layer[]): void;
+export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void;
+export function updateLayersBatch(
+  batch: Array<{ id: LayerId; updates: Partial<Layer> }>,
+): void;
 ```
 
-#### Trait Management Functions
+#### Trait Management
 
 ```typescript
-/**
- * Adds a new trait to a layer with image processing and security validation.
- * @param {string} layerId - The ID of the layer to add the trait to
- * @param {File} file - The image file for the trait
- * @returns {Promise<void>} Resolves when the trait is added
- * @throws {Error} If the trait name is invalid or image processing fails
- */
-export function addTrait(layerId: LayerId, file: File): Promise<void>;
-
-/**
- * Removes a trait from a layer by ID.
- * @param {string} layerId - The ID of the layer containing the trait
- * @param {string} traitId - The ID of the trait to remove
- */
-export function removeTrait(layerId: string, traitId: string): void;
-
-/**
- * Updates the name of a trait with validation.
- * @param {string} layerId - The ID of the layer containing the trait
- * @param {string} traitId - The ID of the trait to update
- * @param {string} name - The new name for the trait
- * @throws {Error} If the trait name is invalid
- */
-export function updateTraitName(layerId: string, traitId: string, name: string): void;
-
-/**
- * Updates the rarity weight of a trait.
- * @param {string} layerId - The ID of the layer containing the trait
- * @param {string} traitId - The ID of the trait to update
- * @param {number} rarityWeight - The new rarity weight (1-5)
- */
-export function updateTraitRarity(layerId: string, traitId: string, rarityWeight: number): void;
-```
-
-#### Loading State Management
-
-```typescript
-/**
- * Interface for detailed loading state information.
- */
-export interface LoadingState {
-	/** Whether the operation is currently loading */
-	isLoading: boolean;
-	/** Progress percentage (0-100) */
-	progress?: number;
-	/** Current status message */
-	message?: string;
-	/** Timestamp when the operation started */
-	startTime?: number;
-}
-
-/**
- * Starts a detailed loading state for a specific operation.
- * @param {string} key - The key identifying the operation
- * @param {string} [message] - Optional status message
- */
-export function startDetailedLoading(key: string, message?: string): void;
-
-/**
- * Updates the progress of a loading operation.
- * @param {string} key - The key identifying the operation
- * @param {number} progress - Progress percentage (0-100)
- * @param {string} [message] - Optional status message
- */
-export function updateLoadingProgress(key: string, progress: number, message?: string): void;
-
-/**
- * Stops a detailed loading state for a specific operation.
- * @param {string} key - The key identifying the operation
- */
-export function stopDetailedLoading(key: string): void;
-```
-
-#### Import/Export Functions
-
-```typescript
-/**
- * Saves the current project to a ZIP file.
- * @returns {Promise<ArrayBuffer>} The ZIP file data
- */
-export async function saveProjectToZip(): Promise<ArrayBuffer>;
-
-/**
- * Loads a project from a ZIP file with security validation.
- * @param {File} file - The ZIP file to load
- * @returns {Promise<void>} Resolves when the project is loaded
- */
-export async function loadProjectFromZip(file: File): Promise<void>;
+export function updateTrait(
+  layerId: LayerId,
+  traitId: TraitId,
+  updates: Partial<Trait>,
+): void;
+export function updateTraitsBatch(
+  batch: Array<{ layerId: LayerId; traitId: TraitId; updates: Partial<Trait> }>,
+): void;
+export function addTraitsBatch(layerId: LayerId, traits: Trait[]): void;
+export function flushBatch(): void;
 ```
 
 ## Domain Services API
 
 ### Project Service (`src/lib/domain/project.service.ts`)
 
-The project service provides pure business logic functions for project, layer, and trait operations.
+Pure business logic functions for project, layer, and trait operations. All functions return new instances (immutable).
 
-#### Validation Functions
+#### Factory & Queries
 
 ```typescript
-/**
- * Validates a project name.
- * @param {string} name - The project name to validate
- * @returns {boolean} True if the project name is valid, false otherwise
- */
-export function validateProjectName(name: string): boolean;
+/** Creates a default project with generated ID and default 1000×1000 dimensions. */
+export function createProject(): Project;
 
-/**
- * Validates a layer name.
- * @param {string} name - The layer name to validate
- * @returns {boolean} True if the layer name is valid, false otherwise
- */
-export function validateLayerName(name: string): boolean;
+/** Calculates total possible unique combinations across all layers. */
+export function calculateTotalCombinations(project: Project): number;
 
-/**
- * Validates a trait name.
- * @param {string} name - The trait name to validate
- * @returns {boolean} True if the trait name is valid, false otherwise
- */
-export function validateTraitName(name: string): boolean;
-
-/**
- * Validates output dimensions for the project.
- * @param {number} width - The width in pixels
- * @param {number} height - The height in pixels
- * @returns {boolean} True if dimensions are valid, false otherwise
- */
-export function validateDimensions(width: number, height: number): boolean;
+/** Validates project structure (all layers have traits, no duplicate names). */
+export function validateProjectStructure(project: Project): boolean;
 ```
 
 #### Project Operations
 
 ```typescript
-/**
- * Creates a new default project with generated ID and default values.
- * @returns {Project} A new project instance with default configuration
- */
-export function createDefaultProject(): Project;
-
-/**
- * Updates the project name with validation.
- * @param {Project} project - The project to update
- * @param {string} name - The new project name
- * @returns {Project} The project with updated name
- * @throws {Error} If project name is invalid
- */
 export function updateProjectName(project: Project, name: string): Project;
-
-/**
- * Updates the project description.
- * @param {Project} project - The project to update
- * @param {string} description - The new project description
- * @returns {Project} The project with updated description
- */
-export function updateProjectDescription(project: Project, description: string): Project;
-
-/**
- * Updates the project output dimensions with validation.
- * @param {Project} project - The project to update
- * @param {number} width - The new width in pixels
- * @param {number} height - The new height in pixels
- * @returns {Project} The project with updated dimensions
- * @throws {Error} If dimensions are invalid
- */
-export function updateProjectDimensions(project: Project, width: number, height: number): Project;
+export function updateProjectDescription(
+  project: Project,
+  description: string,
+): Project;
+export function updateProjectDimensions(
+  project: Project,
+  width: number,
+  height: number,
+): Project;
 ```
 
 #### Layer Operations
 
 ```typescript
-/**
- * Adds a new layer to a project with validation.
- * @param {Project} project - The project to add the layer to
- * @param {Omit<Layer, 'id' | 'traits'>} layer - The layer data without ID and traits
- * @returns {Project} The updated project with the new layer
- * @throws {Error} If layer name is invalid
- */
-export function addLayerToProject(project: Project, layer: Omit<Layer, 'id' | 'traits'>): Project;
-
-/**
- * Removes a layer from a project by ID.
- * @param {Project} project - The project containing the layer
- * @param {string} layerId - The ID of the layer to remove
- * @returns {Project} The updated project without the specified layer
- */
-export function removeLayerFromProject(project: Project, layerId: string): Project;
-
-/**
- * Updates a layer within a project with partial updates.
- * @param {Project} project - The project containing the layer
- * @param {string} layerId - The ID of the layer to update
- * @param {Partial<Layer>} updates - Partial layer data to apply
- * @returns {Project} The updated project with modified layer
- */
-export function updateLayerInProject(
-	project: Project,
-	layerId: string,
-	updates: Partial<Layer>
+export function addLayer(project: Project, name?: string): Project;
+export function removeLayer(project: Project, layerId: string): Project;
+export function updateLayerName(
+  project: Project,
+  layerId: string,
+  name: string,
 ): Project;
-
-/**
- * Reorders layers in a project based on the provided layer array.
- * @param {Project} project - The project with layers to reorder
- * @param {Layer[]} reorderedLayers - The layers in their new order
- * @returns {Project} The project with layers sorted by order property
- */
-export function reorderLayersInProject(project: Project, reorderedLayers: Layer[]): Project;
+export function reorderLayers(project: Project, layerIds: string[]): Project;
 ```
 
 #### Trait Operations
 
 ```typescript
-/**
- * Adds a trait to a layer with image processing and validation.
- * @param {Layer} layer - The layer to add the trait to
- * @param {Omit<Trait, 'id' | 'imageData'> & { imageData: File }} trait - The trait data including image file
- * @returns {Promise<Trait>} The created trait with processed image data
- * @throws {Error} If trait name is invalid or image processing fails
- */
-export async function addTraitToLayer(
-	layer: Layer,
-	trait: Omit<Trait, 'id' | 'imageData'> & { imageData: File }
-): Promise<Trait>;
-
-/**
- * Removes a trait from a layer by ID.
- * @param {Layer} layer - The layer containing the trait
- * @param {string} traitId - The ID of the trait to remove
- * @returns {Layer} The updated layer without the specified trait
- */
-export function removeTraitFromLayer(layer: Layer, traitId: string): Layer;
-
-/**
- * Updates a trait within a layer with partial updates.
- * @param {Layer} layer - The layer containing the trait
- * @param {string} traitId - The ID of the trait to update
- * @param {Partial<Trait>} updates - Partial trait data to apply
- * @returns {Layer} The updated layer with modified trait
- */
-export function updateTraitInLayer(layer: Layer, traitId: string, updates: Partial<Trait>): Layer;
+export async function addTrait(
+  project: Project,
+  layerId: string,
+  file: File,
+): Promise<Project>;
+export function removeTrait(
+  project: Project,
+  layerId: string,
+  traitId: string,
+): Project;
+export function updateTraitName(
+  project: Project,
+  layerId: string,
+  traitId: string,
+  name: string,
+): Project;
+export function updateTraitRarity(
+  project: Project,
+  layerId: string,
+  traitId: string,
+  rarityWeight: number,
+): Project;
 ```
 
-#### Utility Functions
+### Rarity Calculator (`src/lib/domain/rarity-calculator.ts`)
+
+Advanced rarity calculation with multiple scoring methods and tier systems.
+
+#### Core Types
 
 ```typescript
-/**
- * Checks if any layers contain traits with missing image data.
- * @param {Layer[]} layers - The layers to check
- * @returns {boolean} True if any trait has missing image data, false otherwise
- */
-export function hasMissingImageData(layers: Layer[]): boolean;
+export enum RarityMethod {
+  TRAIT_RARITY = "trait_rarity",
+  AVERAGE_TRAIT_RARITY = "average_trait_rarity",
+  WEIGHTED_TRAIT_RARITY = "weighted_trait_rarity",
+  STANDARD_DEVIATION = "standard_deviation",
+  ENHANCED_WEIGHTED = "enhanced_weighted",
+  EMERGENT_RARITY = "emergent_rarity",
+}
 
-/**
- * Gets a list of traits with missing image data across all layers.
- * @param {Layer[]} layers - The layers to check
- * @returns {Array<{ layerName: string; traitName: string }>} Array of missing image information
- */
-export function getLayersWithMissingImages(
-	layers: Layer[]
-): Array<{ layerName: string; traitName: string }>;
+export interface TraitRarity {
+  layer: string;
+  trait: string;
+  count: number;
+  percentage: number;
+  rarityScore: number;
+}
+
+export interface ItemRarityResult {
+  item: GalleryItem;
+  rarityScore: number;
+  rarityRank?: number;
+  traitRarities: TraitRarity[] | EnhancedTraitRarity[];
+}
 ```
-
-## Worker API
-
-### Generation Worker (`src/lib/workers/generation.worker.ts`)
-
-The generation worker handles intensive image processing and item generation operations in background threads.
 
 #### Core Functions
 
 ```typescript
-/**
- * Generates the complete item collection with optimized chunked processing.
- * Uses adaptive chunk sizing, Canvas API optimization for all collections,
- * and memory-efficient processing with real-time monitoring.
- * @param {TransferrableLayer[]} layers - The layers with traits to generate from
- * @param {number} collectionSize - Total number of items to generate (1-10,000)
- * @param {Object} outputSize - Output dimensions for generated images
- * @param {string} projectName - Name of the project for metadata
- * @param {string} projectDescription - Description for metadata
- * @param {string} [taskId] - Optional task ID for tracking
- * @returns {Promise<void>} Resolves when generation completes
- * @throws {Error} If validation fails or generation encounters critical errors
- */
-async function generateCollection(
-	layers: TransferrableLayer[],
-	collectionSize: number,
-	outputSize: { width: number; height: number },
-	projectName: string,
-	projectDescription: string,
-	taskId?: string
-): Promise<void>;
+/** Calculate trait rarities across a collection. Returns Map<layer:trait, TraitRarity>. */
+export function calculateTraitRarities(
+  collection: GalleryCollection,
+): Map<string, TraitRarity>;
 
-/**
- * Calculates optimal chunk size for processing based on device capabilities.
- * Uses memory-based and core-based calculations with adaptive bounds.
- * Automatically adjusts based on real-time memory usage during Canvas generation.
- * @param {Object} deviceCapabilities - Device capabilities
- * @param {number} collectionSize - Total number of items to generate
- * @returns {number} Optimal chunk size for processing (10-200 items)
- */
-function calculateOptimalChunkSize(
-	deviceCapabilities: ReturnType<typeof getDeviceCapabilities>,
-	collectionSize: number
+/** Calculate enhanced trait rarities with custom weights and tiers. */
+export function calculateEnhancedTraitRarities(
+  collection: GalleryCollection,
+  layerImportance?: LayerImportance[],
+  customWeights?: Map<string, number>,
+  tiers?: RarityTier[],
+): Map<string, EnhancedTraitRarity>;
+
+/** Calculate rarity scores for all items in a collection using the specified method. */
+export function calculateItemRarities(
+  collection: GalleryCollection,
+  method?: RarityMethod,
+): { traitRarities; itemRarities; rarestItem?; mostCommonItem? };
+
+/** Update a collection with rarity scores and ranks, returning a new collection. */
+export function updateCollectionWithRarity(
+  collection: GalleryCollection,
+  method?: RarityMethod,
+): GalleryCollection;
+
+/** Find items that contain all specified required traits. */
+export function findItemsWithTraits(
+  collection: GalleryCollection,
+  requiredTraits: Array<{ layer: string; trait: string }>,
+): GalleryItem[];
+
+/** Jaccard similarity between two items (0 = no overlap, 1 = identical). */
+export function calculateItemSimilarity(
+  item1: GalleryItem,
+  item2: GalleryItem,
 ): number;
 
+/** Get top 20 rarest traits sorted by rarity score. */
+export function getTraitStatistics(
+  collection: GalleryCollection,
+): Array<{
+  layer: string;
+  trait: string;
+  count: number;
+  percentage: number;
+  rarityScore: number;
+}>;
+```
+
+## Worker API
+
+### Generation Worker Client (`src/lib/workers/generation.worker.client.ts`)
+
+Orchestrates the full generation pipeline: CSP solving → trait batching → worker pool dispatch.
+
+```typescript
 /**
- * Detects device capabilities to optimize performance and resource usage.
- * Uses browser APIs to determine available CPU cores, memory, and device type.
- * @returns {Object} Device capabilities object
+ * Start generation of a complete collection.
+ * 1. Pre-solves all unique trait combinations via CSPSolver.
+ * 2. Delegates batch rendering to TraitBatchScheduler → worker pool.
  */
-function getDeviceCapabilities(): {
-	coreCount: number;
-	memoryGB: number;
-	isMobile: boolean;
+export async function startGeneration(
+  layers: TransferrableLayer[],
+  collectionSize: number,
+  outputSize: { width: number; height: number },
+  projectName: string,
+  projectDescription: string,
+  metadataStandard?: MetadataStandard,
+  strictPairConfig?: StrictPairConfig,
+  extraData?: Record<string, unknown>,
+  onMessage?: (
+    data:
+      | CompleteMessage
+      | ErrorMessage
+      | CancelledMessage
+      | ProgressMessage
+      | PreviewMessage,
+  ) => void,
+): Promise<void>;
+
+/** Cancel generation and terminate all active workers. */
+export function cancelGeneration(): void;
+```
+
+### CSP Solver (`src/lib/workers/csp-solver.ts`)
+
+Constraint Satisfaction Problem solver ensuring unique, valid trait combinations per item.
+
+```typescript
+export class CSPSolver {
+  constructor(
+    layers: TransferrableLayer[],
+    usedCombinations: Map<string, Set<bigint>>,
+    strictPairConfig?: SolverContext["strictPairConfig"],
+  );
+
+  /** Solve for one unique, constraint-satisfying trait combination. Returns null if exhausted. */
+  solve(): Map<string, TransferrableTrait> | null;
+
+  /** Mark the last solution as used to prevent duplicates in subsequent calls. */
+  markCombinationAsUsed(): void;
+
+  /** Get performance stats (constraintChecks, backtracks, ac3Iterations, etc.). */
+  getPerformanceStats(): Record<string, number>;
+
+  /** Clear internal caches between generations. */
+  clearCaches(): void;
+}
+```
+
+### Trait Batch Scheduler (`src/lib/workers/trait-batch-scheduler.ts`)
+
+Dispatches pre-solved trait solutions to the worker pool for image rendering.
+
+```typescript
+export interface BatchConfig {
+	layers: TransferrableLayer[];
+	collectionSize: number;
+	outputSize: { width: number; height: number };
+	projectName: string;
+	projectDescription: string;
+	metadataStandard?: MetadataStandard;
+	extraData?: Record<string, unknown>;
+	onMessage?: (data: CompleteMessage | ...) => void;
+}
+
+export class TraitBatchScheduler {
+	constructor(config: BatchConfig);
+
+	/** Chunk solutions into batches and dispatch to the worker pool. Resolves when all batches complete. */
+	async scheduleBatches(solutions: Solution[], batchSize?: number): Promise<void>;
+}
+```
+
+### Worker Pool (`src/lib/workers/worker.pool.ts`)
+
+Multi-worker pool with dynamic scaling, health checks, and work-stealing scheduling.
+
+```typescript
+export async function initializeWorkerPool(
+  config?: WorkerPoolConfig,
+): Promise<void>;
+export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void>;
+export function postMessageToPool<T>(
+  message: GenerationWorkerMessage,
+): Promise<T>;
+export function terminateWorkerPool(): void;
+export function getWorkerPoolStatus(): WorkerPoolStatus | null;
+export function cleanupOldTasks(thresholdMs?: number): void;
+export function setMessageCallback(
+  callback: (data: WorkerMessage) => void,
+): void;
+export function getOptimalWorkerCount(collectionSize: number): number;
+```
+
+## Error Handling
+
+### Typed Error Hierarchy (`src/lib/utils/typed-errors.ts`)
+
+Single-source-of-truth error hierarchy with type guards and serialization support.
+
+```typescript
+/** Base error with code, context, timestamp, and recoverable flag. */
+export class AppError extends Error {
+  readonly code: string;
+  readonly context?: Record<string, unknown>;
+  readonly timestamp: Date;
+  readonly recoverable: boolean;
+  toJSON(): Record<string, unknown>;
+}
+
+// Validation branch
+export class ValidationError extends AppError {
+  /* code: 'VALIDATION_ERROR', recoverable: true */
+}
+export class ProjectValidationError extends ValidationError {
+  /* + projectId */
+}
+export class LayerValidationError extends ValidationError {
+  /* + layerId */
+}
+export class TraitValidationError extends ValidationError {
+  /* + traitId */
+}
+
+// Storage branch
+export class StorageError extends AppError {
+  /* code: 'STORAGE_ERROR' */
+}
+export class LocalStorageError extends StorageError {
+  /* tags storageType: 'localStorage' */
+}
+export class FileStorageError extends StorageError {
+  /* tags storageType: 'file' */
+}
+
+// File/IO branch
+export class FileError extends AppError {
+  /* code: 'FILE_ERROR' */
+}
+export class FileReadError extends FileError {
+  /* tags operation: 'read' */
+}
+export class FileWriteError extends FileError {
+  /* tags operation: 'write' */
+}
+export class ImageProcessingError extends FileError {
+  /* tags operation: 'image_processing' */
+}
+
+// Worker branch
+export class WorkerError extends AppError {
+  /* code: 'WORKER_ERROR' */
+}
+export class WorkerInitializationError extends WorkerError {
+  /* tags phase: 'initialization' */
+}
+export class WorkerExecutionError extends WorkerError {
+  /* + taskId, phase: 'execution' */
+}
+export class WorkerTimeoutError extends WorkerError {
+  /* + taskId, phase: 'timeout' */
+}
+
+// Generation branch
+export class GenerationError extends AppError {
+  /* code: 'GENERATION_ERROR' */
+}
+export class GenerationValidationError extends GenerationError {
+  /* tags type: 'validation' */
+}
+export class GenerationExecutionError extends GenerationError {
+  /* tags type: 'execution' */
+}
+
+// Network branch
+export class NetworkError extends AppError {
+  /* code: 'NETWORK_ERROR' */
+}
+export class ApiError extends NetworkError {
+  /* + statusCode */
+}
+
+// Configuration branch
+export class ConfigurationError extends AppError {
+  /* code: 'CONFIGURATION_ERROR', recoverable: false */
+}
+```
+
+#### Type Guards & Helpers
+
+```typescript
+export function isValidationError(error: unknown): error is ValidationError;
+export function isStorageError(error: unknown): error is StorageError;
+export function isFileError(error: unknown): error is FileError;
+export function isWorkerError(error: unknown): error is WorkerError;
+export function isGenerationError(error: unknown): error is GenerationError;
+export function isNetworkError(error: unknown): error is NetworkError;
+export function isConfigurationError(
+  error: unknown,
+): error is ConfigurationError;
+
+/** Extract structured info from any error (AppError, plain Error, or unknown). */
+export function getErrorInfo(error: unknown): {
+  name: string;
+  message: string;
+  code?: string;
+  stack?: string;
+  context?: Record<string, unknown>;
+  recoverable?: boolean;
+};
+
+/** Check if an error is recoverable (AppError.recoverable, or true as safe default). */
+export function isRecoverableError(error: unknown): boolean;
+```
+
+### Error Handler (`src/lib/utils/error-handler.ts`)
+
+Centralized error processing with typed handlers for each error category.
+
+```typescript
+export async function handleError<T>(
+	operation: () => Promise<T>,
+	options?: ErrorHandlerOptions
+): Promise<T>;
+
+/** Wrap an async function in safe error handling (renamed from withErrorHandling). */
+export async function withSafeOperation<T>(
+	operation: () => Promise<T>,
+	context?: Record<string, unknown>,
+	fallbackMessage?: string
+): Promise<T>;
+
+/** Synchronous variant of withSafeOperation. */
+export function withSafeOperationSync<T>(operation: () => T, ...): T;
+
+// Category-specific handlers (automatically use the correct typed error)
+export async function handleStorageError<T>(operation: () => Promise<T>, ...): Promise<T>;
+export async function handleFileError<T>(operation: () => Promise<T>, ...): Promise<T>;
+export async function handleValidationError<T>(operation: () => Promise<T>, ...): Promise<T>;
+export async function handleWorkerError<T>(operation: () => Promise<T>, ...): Promise<T>;
+export async function handleGenerationError<T>(operation: () => Promise<T>, ...): Promise<T>;
+export async function handleNetworkError<T>(operation: () => Promise<T>, ...): Promise<T>;
+
+// Recovery wrappers (auto-retry + error handling)
+export async function recoverableOperation<T>(operation: () => Promise<T>, ...): Promise<T>;
+export async function recoverableStorageOperation<T>(...): Promise<T>;
+export async function recoverableFileOperation<T>(...): Promise<T>;
+export async function recoverableWorkerOperation<T>(...): Promise<T>;
+export async function recoverableGenerationOperation<T>(...): Promise<T>;
+export async function recoverableNetworkOperation<T>(...): Promise<T>;
+
+/** Check if an error is recoverable and has a suggested retry action. */
+export function isErrorRecoverable(error: unknown): boolean;
+
+/** Get detailed error info for logging/debugging. */
+export function getDetailedErrorInfo(error: unknown, context?: ErrorContext): DetailedErrorInfo;
+
+/** Create a typed error from a code string (e.g. 'VALIDATION_ERROR' → ValidationError). */
+export function createTypedError(message: string, code?: string, context?: Record<string, unknown>): AppError;
+```
+
+### Error Handling (Toast) (`src/lib/utils/error-handling.ts`)
+
+Toast-based user-facing error display with retry support.
+
+```typescript
+/** Show an error toast with optional retry action. */
+export function showError(error: unknown, options?: ErrorOptions): void;
+export function showSuccess(message: string, options?: ErrorOptions): void;
+export function showInfo(message: string, options?: ErrorOptions): void;
+export function showWarning(message: string, options?: ErrorOptions): void;
+
+/** Wrap an async function with toast-based error handling (renamed from withErrorHandling). */
+export async function withToastErrorHandling<T>(
+  operation: () => Promise<T>,
+  context?: ErrorContext,
+  fallbackMessage?: string,
+): Promise<T>;
+
+/** Create a wrapped function with automatic toast error handling. */
+export function wrapWithToastErrorHandling<
+  T extends (...args: any[]) => Promise<any>,
+>(fn: T, context?: ErrorContext, fallbackMessage?: string): T;
+
+/** Create a retry wrapper with toast notifications on failure. */
+export function createRetry<T>(
+  operation: () => Promise<T>,
+  config?: Partial<RetryConfig>,
+): () => Promise<T>;
+```
+
+## Performance & Retry Utilities
+
+### Performance Monitor (`src/lib/utils/performance-monitor.ts`)
+
+Unified performance monitoring with timers, cache metrics, database queries, alerts, and batch tracking.
+
+```typescript
+export class PerformanceMonitor {
+	// Lifecycle
+	setEnabled(enabled: boolean): void;
+	isEnabled(): boolean;
+	clear(): void;
+	clearOperation(operation: string): void;
+	resetAllMetrics(): void;
+
+	// Timers
+	startTimer(operation: string, id?: string): string;
+	stopTimer(timerId: string, metadata?: Record<string, unknown>): number;
+
+	// Metrics
+	recordMetric(operation: string, duration: number, metadata?: Record<string, unknown>): void;
+	getStats(operation: string): PerformanceStats | null;
+	getAllStats(): Record<string, PerformanceStats>;
+	getAverageTime(operation: string): number;
+	getLastDuration(operation: string): number;
+	getMetricsInRange(startTime: number, endTime: number): Record<string, PerformanceStats>;
+	generateReport(): PerformanceReport; // includes summary: totalOperations, slowestOperation, etc.
+	logSummary(): void;
+
+	// Cache Monitoring
+	recordCacheHit(cacheName: string): void;
+	recordCacheMiss(cacheName: string): void;
+	recordCacheEviction(cacheName: string, memoryFreed: number): void;
+	updateCacheMemoryUsage(cacheName: string, memoryUsage: number): void;
+	getCacheHitRate(cacheName: string): number;
+
+	// Database Monitoring
+	recordDatabaseQuery(operation: string, duration: number): void;
+	getDatabaseMetrics(): { queryCount: number; averageQueryTime: number };
+
+	// Memory Monitoring
+	captureMemoryMetrics(): void;
+	getAverageMemoryUsage(minutes?: number): number;
+
+	// Alerts
+	createAlert(data: { metric: string; value: number; threshold: number; severity: string; message: string }): void;
+	getAlerts(minutes?: number): Array<...>;
+
+	// Batch Progress Tracking
+	startBatch(totalCount: number): void;
+	recordBatchItem(timePerItem: number): void;
+	finishBatch(): void;
+}
+
+/** Global singleton instance, used by production code. */
+export const performanceMonitor = new PerformanceMonitor();
+
+/** ES decorator for automatically timing method execution. */
+export function timed(operationName?: string, metadata?: Record<string, unknown>): MethodDecorator;
+
+/** Wrap a function with automatic startTimer/stopTimer tracking. */
+export function withTiming<T>(fn: T, operationName: string, metadata?: Record<string, unknown>): T;
+
+/** Measure a single async/sync operation with timing. */
+export async function measureOperation<T>(operation: () => Promise<T> | T, operationName: string, metadata?: Record<string, unknown>): Promise<T>;
+```
+
+### Retry Utilities (`src/lib/utils/retry.ts`)
+
+Configurable retry with exponential backoff, jitter, conditions, and presets.
+
+```typescript
+export class RetryOperation<T> {
+  constructor(
+    operation: () => Promise<T>,
+    config?: Partial<RetryConfig>,
+    context?: ErrorContext,
+  );
+  async execute(): Promise<RetryResult<T>>;
+}
+
+/** Convenience function: create + execute in one call. */
+export async function retry<T>(
+  operation: () => Promise<T>,
+  config?: Partial<RetryConfig>,
+  context?: ErrorContext,
+): Promise<RetryResult<T>>;
+
+/** Wrap any async function with automatic retry. */
+export function withRetry<T>(
+  fn: T,
+  config?: Partial<RetryConfig>,
+  context?: ErrorContext,
+): T;
+
+/** Retry condition predicates. */
+export const RetryConditions = {
+  isNetworkError, // Error name 'NetworkError'/'TypeError', message 'network'/'ECONNREFUSED'/'ETIMEDOUT'
+  isServerError, // status >= 500
+  isRateLimitError, // status === 429
+  isTimeoutError, // name 'TimeoutError' or message 'timeout'/'TIMEDOUT'
+  isResourceUnavailable, // message 'unavailable'/'busy'/'overloaded'
+  isRecoverable, // OR of all above
+};
+
+/** Pre-configured retry configs. */
+export const RetryConfigs = {
+  network: {
+    maxAttempts: 3,
+    initialDelayMs: 1000,
+    backoffFactor: 2,
+    jitter: true,
+  },
+  server: {
+    maxAttempts: 5,
+    initialDelayMs: 2000,
+    backoffFactor: 2,
+    jitter: true,
+  },
+  rateLimit: {
+    maxAttempts: 10,
+    initialDelayMs: 1000,
+    backoffFactor: 1.5,
+    jitter: true,
+  },
+  file: {
+    maxAttempts: 3,
+    initialDelayMs: 500,
+    backoffFactor: 2,
+    jitter: false,
+  },
+  default: {
+    maxAttempts: 3,
+    initialDelayMs: 1000,
+    backoffFactor: 2,
+    jitter: true,
+  },
 };
 ```
 
-#### Message Types
+## Validation
 
-The worker communicates with the main thread using structured messages:
+### Validation Module (`src/lib/domain/validation.ts`)
+
+Zod-based validation with branded types, XSS protection, and comprehensive schemas.
 
 ```typescript
-// Progress updates
-interface ProgressMessage {
-	type: 'progress';
-	taskId?: string;
-	payload: {
-		generatedCount: number;
-		totalCount: number;
-		statusText: string;
-		memoryUsage?: MemoryUsage;
-	};
-}
-
-// Completion messages
-interface CompleteMessage {
-	type: 'complete';
-	taskId?: string;
-	payload: {
-		images: Array<{ name: string; imageData: ArrayBuffer }>;
-		metadata: Array<{ name: string; data: object }>;
-	};
-}
-
-// Error messages
-interface ErrorMessage {
-	type: 'error';
-	taskId?: string;
-	payload: {
-		message: string;
-	};
+export interface ValidationResult {
+  success: boolean;
+  error?: string;
+  data?: unknown;
 }
 ```
 
-## Utility Functions
-
-### Error Handling Utility (`src/lib/utils/error-handler.ts`)
+#### String Sanitization
 
 ```typescript
-/**
- * Handles validation errors with user-friendly messages.
- * @param {Error} error - The validation error
- * @param {Object} options - Error handling options
- * @param {Object} options.context - Context information for logging
- * @returns {T} The fallback value or throws the error
- */
-export function handleValidationError<T>(error: Error, options: { context: object }): T;
-
-/**
- * Handles file-related errors with user-friendly messages.
- * @param {unknown} error - The file error
- * @param {Object} options - Error handling options
- * @param {Object} options.context - Context information for logging
- * @param {string} options.title - Error title for user display
- * @param {string} options.description - Error description for user display
- */
-export function handleFileError(
-	error: unknown,
-	options: { context: object; title: string; description: string }
-): void;
+/** Trim, strip null bytes & control characters, optionally strip HTML tags. Capped at 100 chars. */
+export function sanitizeString(input: string, stripHtml?: boolean): string;
 ```
 
-### Validation (`src/lib/utils/validation.ts`)
+#### Name & Dimension Validators
 
 ```typescript
-/**
- * Validates project name with length and character restrictions.
- * @param {string} name - The project name to validate
- * @returns {string | null} Sanitized name if valid, null otherwise
- */
-export function isValidProjectName(name: string): string | null;
+export function validateProjectName(name: string): ValidationResult;
+export function validateLayerName(name: string): ValidationResult;
+export function validateTraitName(name: string): ValidationResult;
+export function validateDimensions(
+  width: number,
+  height: number,
+): ValidationResult;
+export function validateRarityWeight(weight: number): ValidationResult;
+```
 
-/**
- * Validates layer name with length and character restrictions.
- * @param {string} name - The layer name to validate
- * @returns {string | null} Sanitized name if valid, null otherwise
- */
-export function isValidLayerName(name: string): string | null;
+#### File Validators
 
-/**
- * Validates trait name with length and character restrictions.
- * @param {string} name - The trait name to validate
- * @returns {string | null} Sanitized name if valid, null otherwise
- */
-export function isValidTraitName(name: string): string | null;
+```typescript
+export function validateFilename(filename: string): ValidationResult;
+export function validateFileSize(sizeInBytes: number): ValidationResult;
+export function validateFileType(type: string): ValidationResult;
+```
 
-/**
- * Validates image file for security and format compliance.
- * @param {File} file - The image file to validate
- * @returns {Promise<boolean>} True if the file is valid and secure
- */
-export async function validateImageSecurity(file: File): Promise<boolean>;
+#### Structural Validators
+
+```typescript
+export function validateProject(project: unknown): ValidationResult;
+export function validateLayer(layer: unknown): ValidationResult;
+export function validateTrait(trait: unknown): ValidationResult;
+export function validateImportedProject(project: unknown): ValidationResult;
+export function validateRulerRule(rule: unknown): ValidationResult;
+```
+
+#### Trait Compatibility
+
+```typescript
+/** Check if two traits are compatible based on ruler rules. */
+export function validateTraitCompatibility(
+  traitA: Trait,
+  layerIdA: string,
+  traitB: Trait,
+  layerIdB: string,
+  layers: Layer[],
+): { compatible: boolean; reason?: string };
+
+/** Get all traits from targetLayer that are compatible with the given trait. */
+export function getCompatibleTraits(
+  trait: Trait,
+  layerId: string,
+  targetLayerId: string,
+  layers: Layer[],
+): Trait[];
+```
+
+#### Zod Schemas (for use with `safeValidate`)
+
+```typescript
+export const ProjectSchema, LayerSchema, TraitSchema;
+export const ImportedProjectSchema, ImportedLayerSchema, ImportedTraitSchema;
+export const NameSchema, DescriptionSchema, RarityWeightSchema;
+export const ProjectDimensionsSchema, RulerRuleSchema, TraitTypeSchema;
+export const FileSizeSchema, FileTypeSchema, FilenameSchema;
+```
+
+#### Factory & Safe Validation
+
+```typescript
+export function createValidatedProject(overrides?: Partial<Project>): Project;
+export function createValidatedLayer(overrides?: Partial<Layer>): Layer;
+export function createValidatedTrait(overrides?: Partial<Trait>): Trait;
+
+/** Validate with zod schema, returning ValidationResult with typed data. */
+export function safeValidate<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown,
+): ValidationResult & { data?: T };
 ```
 
 ## Type Definitions
 
-### Core Types
+### Core Types (`src/lib/types/`)
 
-Core types are defined in `src/lib/types/`:
-
-- **`project.ts`**: Project, Layer, and Trait interfaces
-- **`layer.ts`**: Layer-specific types and enums
-- **`ids.ts`**: ID generation and validation types
-- **`worker-messages.ts`**: Worker communication message types
+| File                 | Contents                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| `project.ts`         | Project, Layer, Trait interfaces                                                                |
+| `layer.ts`           | Layer-specific types, TraitType enum, RulerRule                                                 |
+| `ids.ts`             | Branded ID types (ProjectId, LayerId, TraitId, TaskId)                                          |
+| `worker-messages.ts` | Worker message types (ProgressMessage, CompleteMessage, ErrorMessage, TransferrableLayer/Trait) |
+| `gallery.ts`         | GalleryItem, GalleryCollection, GalleryFilterOptions                                            |
 
 ### Key Interfaces
 
 ```typescript
-// Project configuration and data
 interface Project {
-	id: string;
-	name: string;
-	description: string;
-	outputSize: { width: number; height: number };
-	layers: Layer[];
+  id: ProjectId;
+  name: string;
+  description: string;
+  outputSize: { width: number; height: number };
+  layers: Layer[];
 }
 
-// Layer containing traits and rendering order
 interface Layer {
-	id: string;
-	name: string;
-	order: number;
-	isOptional?: boolean;
-	traits: Trait[];
+  id: LayerId;
+  name: string;
+  order: number;
+  isOptional?: boolean;
+  traits: Trait[];
 }
 
-// Individual trait with image data and rarity configuration
 interface Trait {
-	id: string;
-	name: string;
-	imageData: ArrayBuffer;
-	imageUrl: string;
-	width: number;
-	height: number;
-	rarityWeight: number;
+  id: TraitId;
+  name: string;
+  imageData: ArrayBuffer;
+  rarityWeight: number;
+  type?: TraitType;
+  rulerRules?: RulerRule[];
 }
 ```
 
 ### Worker Message Types
 
-Worker communication types are defined in `src/lib/types/worker-messages.ts`:
-
-- **ProgressMessage**: Generation progress updates
-- **CompleteMessage**: Task completion with results
-- **ErrorMessage**: Error reporting from workers
-- **TransferrableLayer**: Optimized data transfer for workers
-
 ```typescript
-// Footer content
+interface ProgressMessage {
+  type: "progress";
+  payload: { generatedCount: number; totalCount: number; statusText: string };
+}
+
+interface CompleteMessage {
+  type: "complete";
+  payload: {
+    images: Array<{ name: string; blob: Blob }>;
+    metadata: Array<{ name: string; data: object }>;
+    generatedCount: number;
+    totalCount: number;
+  };
+}
+
+interface ErrorMessage {
+  type: "error";
+  payload: { message: string };
+}
+
+interface BatchMessage {
+  type: "batch";
+  payload: {
+    solutions: Solution[];
+    layers: TransferrableLayer[];
+    collectionSize: number;
+    outputSize: { width: number; height: number };
+    projectName: string;
+    projectDescription: string;
+  };
+}
 ```

@@ -25,12 +25,16 @@ cd gnstudio
 pnpm install
 ```
 
-This will automatically run post-install scripts including copying auth workers to the static directory.
-
-### 3. Start the Development Server
+### 3. Run Full Check
 
 ```bash
-pnpm dev
+vp check
+```
+
+### 4. Start the Development Server
+
+```bash
+vp dev
 ```
 
 The application will be available at `http://localhost:5173`
@@ -154,36 +158,33 @@ gnstudio/
 
 ```bash
 # Run all tests
-pnpm test
+vp test
 
 # Run tests in watch mode
-pnpm test:watch
+vp test watch
 
 # Run tests with coverage
-pnpm test:coverage
+vp test run --coverage
 ```
 
 ### Code Quality Checks
 
 ```bash
-# Check for TypeScript and Svelte errors
-pnpm check
+# Format + lint + type check
+vp check
 
-# Lint code for style issues
-pnpm lint
+# Lint code with Oxlint
+vp lint
 
-# Format code according to project standards
-pnpm format
-
-# Standardize comments
-pnpm standardize-comments
+# Format code with Oxfmt
+vp fmt
 ```
 
 ### Building for Production
 
 ```bash
 # Build the application
-pnpm build
+vp run build
 
 # Preview the built application
 pnpm preview
@@ -215,7 +216,7 @@ Follow conventional commit format:
 ### Pull Request Process
 
 1. Ensure your branch is up to date with `main`
-2. Run all checks (`pnpm check`, `pnpm lint`, `pnpm test`)
+2. Run all checks (`vp check`)
 3. Create a PR with a clear description of changes
 4. Request review from team members
 5. Address feedback and merge after approval
@@ -242,19 +243,16 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 
 ## Useful Scripts
 
-| Script                      | Purpose                          |
-| --------------------------- | -------------------------------- |
-| `pnpm dev`                  | Start development server         |
-| `pnpm build`                | Build for production             |
-| `pnpm check`                | Run TypeScript and Svelte checks |
-| `pnpm check:watch`          | Watch mode for type checking     |
-| `pnpm lint`                 | Check code style                 |
-| `pnpm format`               | Format code                      |
-| `pnpm test`                 | Run tests                        |
-| `pnpm test:watch`           | Run tests in watch mode          |
-| `pnpm test:coverage`        | Run tests with coverage          |
-| `pnpm standardize-comments` | Standardize comment formatting   |
-| `pnpm verify-lockfile`      | Verify package lock integrity    |
+| Script                   | Purpose                    |
+| ------------------------ | -------------------------- |
+| `vp dev`                 | Start development server   |
+| `vp run build`           | Build for production       |
+| `vp check`               | Format + lint + type check |
+| `vp lint`                | Lint with Oxlint           |
+| `vp fmt`                 | Format with Oxfmt          |
+| `vp test`                | Run tests                  |
+| `vp test watch`          | Run tests in watch mode    |
+| `vp test run --coverage` | Run tests with coverage    |
 
 ## Getting Help
 
