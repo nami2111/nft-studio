@@ -1,24 +1,25 @@
 // generation.worker.ts
 
+import {
+	getMetadataStrategy,
+	MetadataStandard,
+} from "$lib/domain/metadata/strategies";
+import type { TaskId } from "$lib/types/ids";
 import type {
-	TransferrableTrait,
-	TransferrableLayer,
 	CompleteMessage,
-	IncomingMessage
-} from '$lib/types/worker-messages';
-import { type TaskId } from '$lib/types/ids';
-import { getMetadataStrategy } from '$lib/domain/metadata/strategies';
-import { MetadataStandard } from '$lib/domain/metadata/strategies';
-
+	IncomingMessage,
+	TransferrableLayer,
+	TransferrableTrait,
+} from "$lib/types/worker-messages";
+import { PerformanceMonitor } from "$lib/utils/performance-monitor";
 // Refactored Cache & Optimization Imports
-import { WorkerArrayBufferCache } from './cache/array-buffer.cache';
-import { OptimizedMemoryManager } from './memory/memory.manager';
-import { SequentialPerformanceMonitor } from './monitoring/performance.monitor';
-import { PredictiveTraitLoader } from './optimization/predictive.loader';
+import { WorkerArrayBufferCache } from "./cache/array-buffer.cache";
+import { OptimizedMemoryManager } from "./memory/memory.manager";
+import { PredictiveTraitLoader } from "./optimization/predictive.loader";
 
 // Global worker instances
 const workerArrayBufferCache = new WorkerArrayBufferCache();
-const performanceMonitor = new SequentialPerformanceMonitor();
+const perfMonitor = new PerformanceMonitor();
 const imageBitmapCache = new Map<string, ImageBitmap>();
 const memoryManager = new OptimizedMemoryManager();
 const predictiveTraitLoader = new PredictiveTraitLoader();
@@ -32,11 +33,11 @@ let currentTaskQueue: Promise<void> = Promise.resolve();
 async function createImageBitmapFromBuffer(
 	buffer: ArrayBuffer,
 	traitName: string,
-	options?: { resizeWidth?: number; resizeHeight?: number }
+	options?: { resizeWidth?: number; resizeHeight?: number },
 ): Promise<ImageBitmap> {
 	if (!buffer || buffer.byteLength === 0) {
 		throw new Error(
-			`Image data is empty for trait "${traitName}" (byteLength: ${buffer?.byteLength})`
+			`Image data is empty for trait "${traitName}" (byteLength: ${buffer?.byteLength})`,
 		);
 	}
 
@@ -53,16 +54,16 @@ async function createImageBitmapFromBuffer(
 	}
 
 	try {
-		const blob = new Blob([dataToUse], { type: 'image/png' });
+		const blob = new Blob([dataToUse], { type: "image/png" });
 		const imageBitmapOptions: ImageBitmapOptions = {
-			colorSpaceConversion: 'none',
-			premultiplyAlpha: 'none'
+			colorSpaceConversion: "none",
+			premultiplyAlpha: "none",
 		};
 
 		if (options?.resizeWidth && options?.resizeHeight) {
 			imageBitmapOptions.resizeWidth = options.resizeWidth;
 			imageBitmapOptions.resizeHeight = options.resizeHeight;
-			imageBitmapOptions.resizeQuality = 'high';
+			imageBitmapOptions.resizeQuality = "high";
 		}
 
 		const bitmap = await createImageBitmap(blob, imageBitmapOptions);
@@ -92,7 +93,7 @@ async function compositeTraitsDirect(
 	ctx: OffscreenCanvasRenderingContext2D,
 	targetWidth: number,
 	targetHeight: number,
-	itemIndex: number
+	itemIndex: number,
 ): Promise<void> {
 	if (!selectedTraits || selectedTraits.length === 0) {
 		console.warn(`Item ${itemIndex}: No traits to composite!`);
@@ -101,21 +102,27 @@ async function compositeTraitsDirect(
 
 	for (const { trait, layerId } of selectedTraits) {
 		if (!trait || !trait.imageData) {
-			console.warn(`Item ${itemIndex}: Trait or imageData missing for layer ${layerId}`);
+			console.warn(
+				`Item ${itemIndex}: Trait or imageData missing for layer ${layerId}`,
+			);
 			continue;
 		}
 
 		try {
-			const imageBitmap = await createImageBitmapFromBuffer(trait.imageData, trait.name, {
-				resizeWidth: targetWidth,
-				resizeHeight: targetHeight
-			});
+			const imageBitmap = await createImageBitmapFromBuffer(
+				trait.imageData,
+				trait.name,
+				{
+					resizeWidth: targetWidth,
+					resizeHeight: targetHeight,
+				},
+			);
 
 			ctx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
 		} catch (err) {
 			console.error(
 				`Item ${itemIndex}: Failed to draw trait ${trait.name} on layer ${layerId}:`,
-				err
+				err,
 			);
 		}
 	}
@@ -140,10 +147,10 @@ async function generateIsolatedItem(
 	projectName: string,
 	projectDescription: string,
 	metadataStandard: MetadataStandard = MetadataStandard.ERC721,
-	extraData?: Record<string, unknown>
+	extraData?: Record<string, unknown>,
 ): Promise<QueuedGeneratedItem | undefined> {
 	const canvas = memoryManager.getCanvas(targetWidth, targetHeight);
-	const ctx = canvas.getContext('2d', { willReadFrequently: true });
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
 	if (!ctx) {
 		console.error(`Item ${index}: Failed to get 2D context`);
@@ -157,18 +164,26 @@ async function generateIsolatedItem(
 		predictiveTraitLoader.recordCombination(traitIds);
 
 		ctx.clearRect(0, 0, targetWidth, targetHeight);
-		await compositeTraitsDirect(solutionTraits, ctx, targetWidth, targetHeight, index);
+		await compositeTraitsDirect(
+			solutionTraits,
+			ctx,
+			targetWidth,
+			targetHeight,
+			index,
+		);
 
-		const blob = await canvas.convertToBlob({ type: 'image/png' });
+		const blob = await canvas.convertToBlob({ type: "image/png" });
 
 		if (blob.size < 100) {
-			console.warn(`Item ${index}: Generated blob is suspiciously small (${blob.size} bytes)`);
+			console.warn(
+				`Item ${index}: Generated blob is suspiciously small (${blob.size} bytes)`,
+			);
 		}
 
 		const metadataStrategy = getMetadataStrategy(metadataStandard);
 		const attributes = solutionTraits.map((st) => ({
-			trait_type: layers.find((l) => l.id === st.layerId)?.name || 'Unknown',
-			value: st.trait.name
+			trait_type: layers.find((l) => l.id === st.layerId)?.name || "Unknown",
+			value: st.trait.name,
 		}));
 
 		const metadata = metadataStrategy.format(
@@ -176,16 +191,16 @@ async function generateIsolatedItem(
 			projectDescription,
 			`images/${index + 1}.png`,
 			attributes,
-			extraData
+			extraData,
 		);
 
-		performanceMonitor.recordProcessing(performance.now() - generationStartTime);
+		perfMonitor.recordBatchItem(performance.now() - generationStartTime);
 
 		return {
 			index,
 			name: `${index + 1}.png`,
 			blob,
-			metadata
+			metadata,
 		};
 	} catch (error) {
 		console.error(`Error in generateIsolatedItem for index ${index}:`, error);
@@ -197,7 +212,8 @@ async function generateIsolatedItem(
 
 function getMemoryUsage(): number {
 	return (
-		(performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory?.usedJSHeapSize ?? 0
+		(performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory
+			?.usedJSHeapSize ?? 0
 	);
 }
 
@@ -205,7 +221,10 @@ function getMemoryUsage(): number {
  * Main batch generation handler
  */
 async function handleBatchGeneration(
-	solutions: { index: number; traits: { trait: TransferrableTrait; layerId: string }[] }[],
+	solutions: {
+		index: number;
+		traits: { trait: TransferrableTrait; layerId: string }[];
+	}[],
 	layers: TransferrableLayer[],
 	collectionSize: number,
 	outputSize: { width: number; height: number },
@@ -213,9 +232,9 @@ async function handleBatchGeneration(
 	projectDescription: string,
 	taskId?: TaskId,
 	metadataStandard: MetadataStandard = MetadataStandard.ERC721,
-	extraData?: Record<string, unknown>
+	extraData?: Record<string, unknown>,
 ) {
-	performanceMonitor.start(solutions.length);
+	perfMonitor.startBatch(solutions.length);
 
 	const chunkImages: { name: string; blob: Blob }[] = [];
 	const chunkMetadata: { name: string; data: object }[] = [];
@@ -233,25 +252,28 @@ async function handleBatchGeneration(
 				projectName,
 				projectDescription,
 				metadataStandard,
-				extraData
+				extraData,
 			);
 
 			if (item) {
 				chunkImages.push({ name: item.name, blob: item.blob });
-				chunkMetadata.push({ name: `${item.index + 1}.json`, data: item.metadata });
+				chunkMetadata.push({
+					name: `${item.index + 1}.json`,
+					data: item.metadata,
+				});
 				processedInChunk++;
 			}
 
 			if (processedInChunk % 10 === 0) {
 				self.postMessage({
-					type: 'progress',
+					type: "progress",
 					taskId,
 					payload: {
 						generatedCount: solution.index + 1,
 						totalCount: collectionSize,
 						statusText: `Batch processing: ${processedInChunk}/${TOTAL_IN_BATCH}`,
-						memoryUsage: getMemoryUsage()
-					}
+						memoryUsage: getMemoryUsage(),
+					},
 				});
 			}
 		}
@@ -259,53 +281,58 @@ async function handleBatchGeneration(
 		const imageBuffers = await Promise.all(
 			chunkImages.map(async (img) => ({
 				name: img.name,
-				buffer: await img.blob.arrayBuffer()
-			}))
+				buffer: await img.blob.arrayBuffer(),
+			})),
 		);
 
-		performanceMonitor.finish();
+		perfMonitor.finishBatch();
 		await clearImageBitmapCache();
 
 		const message: CompleteMessage = {
-			type: 'complete',
+			type: "complete",
 			taskId,
 			payload: {
 				images: imageBuffers.map((img) => ({
 					name: img.name,
-					imageData: img.buffer
+					imageData: img.buffer,
 				})),
-				metadata: chunkMetadata as { name: string; data: Record<string, unknown> }[],
+				metadata: chunkMetadata as {
+					name: string;
+					data: Record<string, unknown>;
+				}[],
 				generatedCount: 0,
 				totalCount: 0,
-				isChunk: true
-			}
+				isChunk: true,
+			},
 		};
 
-		const transferrables = imageBuffers.map((img) => img.buffer) as unknown as Transferable[];
+		const transferrables = imageBuffers.map(
+			(img) => img.buffer,
+		) as unknown as Transferable[];
 		(self as unknown as Worker).postMessage(message, transferrables);
 
 		self.postMessage({
-			type: 'complete',
+			type: "complete",
 			taskId,
 			payload: {
 				images: [],
 				metadata: [],
-				isChunk: true
-			}
+				isChunk: true,
+			},
 		});
 	} catch (error) {
-		console.error('Batch processing error:', error);
+		console.error("Batch processing error:", error);
 		throw error;
 	}
 }
 
 // Message Listener with serialization
-self.addEventListener('message', (e: MessageEvent) => {
+self.addEventListener("message", (e: MessageEvent) => {
 	const message = e.data as IncomingMessage;
 
 	currentTaskQueue = currentTaskQueue
 		.then(async () => {
-			if (message.type === 'batch') {
+			if (message.type === "batch") {
 				const {
 					solutions,
 					layers,
@@ -314,7 +341,7 @@ self.addEventListener('message', (e: MessageEvent) => {
 					projectName,
 					projectDescription,
 					metadataStandard,
-					extraData
+					extraData,
 				} = message.payload;
 				try {
 					await handleBatchGeneration(
@@ -326,27 +353,27 @@ self.addEventListener('message', (e: MessageEvent) => {
 						projectDescription,
 						message.taskId,
 						metadataStandard,
-						extraData
+						extraData,
 					);
 				} catch (error) {
 					self.postMessage({
-						type: 'error',
+						type: "error",
 						taskId: message.taskId,
-						payload: { message: error instanceof Error ? error.message : 'Batch error' }
+						payload: {
+							message: error instanceof Error ? error.message : "Batch error",
+						},
 					});
 				}
-			} else if (message.type === 'initialize') {
-				self.postMessage({ type: 'ready' });
-			} else if (message.type === 'ping') {
+			} else if (message.type === "initialize") {
+				self.postMessage({ type: "ready" });
+			} else if (message.type === "ping") {
 				self.postMessage({
-					type: 'pingResponse',
-					pingResponse: (message as unknown as { pingId: string }).pingId
+					type: "pingResponse",
+					pingResponse: (message as unknown as { pingId: string }).pingId,
 				});
 			}
 		})
 		.catch((err) => {
-			console.error('Task queue fatal error:', err);
+			console.error("Task queue fatal error:", err);
 		});
 });
-
-export {};

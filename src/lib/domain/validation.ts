@@ -3,9 +3,9 @@
  * Provides comprehensive validation for project data, layers, traits, and files
  */
 
-import { z } from 'zod';
-import type { Project, Layer, Trait } from '$lib/types/project';
-import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
+import { z } from "zod";
+import type { LayerId, ProjectId, TraitId } from "$lib/types/ids";
+import type { Layer, Project, Trait } from "$lib/types/project";
 
 // Validation result interface
 export interface ValidationResult {
@@ -25,17 +25,17 @@ export const DescriptionSchema = z.string().max(500).optional();
 export const RarityWeightSchema = z.number().int().min(1).max(5);
 
 // Ruler trait schemas
-export const TraitTypeSchema = z.enum(['normal', 'ruler']).default('normal');
+export const TraitTypeSchema = z.enum(["normal", "ruler"]).default("normal");
 export const RulerRuleSchema = z.object({
 	layerId: IdSchema,
 	allowedTraitIds: z.array(IdSchema).default([]),
-	forbiddenTraitIds: z.array(IdSchema).default([])
+	forbiddenTraitIds: z.array(IdSchema).default([]),
 });
 
 // Project schemas
 export const ProjectDimensionsSchema = z.object({
 	width: z.number().int().min(1).max(10000),
-	height: z.number().int().min(1).max(10000)
+	height: z.number().int().min(1).max(10000),
 });
 
 export const TraitSchema = z.object({
@@ -45,7 +45,7 @@ export const TraitSchema = z.object({
 	imageUrl: z.string().optional(),
 	rarityWeight: RarityWeightSchema.optional(),
 	type: TraitTypeSchema.optional(),
-	rulerRules: z.array(RulerRuleSchema).optional()
+	rulerRules: z.array(RulerRuleSchema).optional(),
 });
 
 export const LayerSchema = z.object({
@@ -53,7 +53,7 @@ export const LayerSchema = z.object({
 	name: NameSchema,
 	order: z.number().int().min(0),
 	isOptional: z.boolean().optional(),
-	traits: z.array(TraitSchema)
+	traits: z.array(TraitSchema),
 });
 
 export const ProjectSchema = z.object({
@@ -61,7 +61,7 @@ export const ProjectSchema = z.object({
 	name: NameSchema,
 	description: DescriptionSchema,
 	outputSize: ProjectDimensionsSchema,
-	layers: z.array(LayerSchema)
+	layers: z.array(LayerSchema),
 });
 
 // Import/export schemas (more lenient for compatibility)
@@ -74,7 +74,7 @@ export const ImportedTraitSchema = z.object({
 	imageUrl: z.string().optional(),
 	// Ruler trait fields
 	type: TraitTypeSchema.optional(),
-	rulerRules: z.array(RulerRuleSchema).optional()
+	rulerRules: z.array(RulerRuleSchema).optional(),
 });
 
 export const ImportedLayerSchema = z.object({
@@ -82,7 +82,7 @@ export const ImportedLayerSchema = z.object({
 	name: NameSchema,
 	order: z.number().int().min(0).optional(),
 	isOptional: z.boolean().optional(),
-	traits: z.array(ImportedTraitSchema)
+	traits: z.array(ImportedTraitSchema),
 });
 
 export const ImportedProjectSchema = z.object({
@@ -90,7 +90,7 @@ export const ImportedProjectSchema = z.object({
 	name: NameSchema,
 	description: DescriptionSchema.optional(),
 	outputSize: ProjectDimensionsSchema.optional(),
-	layers: z.array(ImportedLayerSchema)
+	layers: z.array(ImportedLayerSchema),
 });
 
 // File validation schemas
@@ -99,7 +99,7 @@ export const FileSizeSchema = z
 	.int()
 	.min(1)
 	.max(10 * 1024 * 1024); // 10MB max
-export const FileTypeSchema = z.enum(['image/png', 'image/jpeg', 'image/jpg']);
+export const FileTypeSchema = z.enum(["image/png", "image/jpeg", "image/jpg"]);
 export const FilenameSchema = z
 	.string()
 	.min(1)
@@ -107,12 +107,16 @@ export const FilenameSchema = z
 	.regex(/^[a-zA-Z0-9\s\-_.]+$/);
 
 // Helper function for string sanitization
-export function sanitizeString(input: string): string {
-	return input
+export function sanitizeString(input: string, stripHtml = true): string {
+	let result = input
 		.trim()
-		.replace(/\0/g, '') // Remove null bytes
-		.replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+		.replace(/\0/g, "") // Remove null bytes
+		.replace(/[\x00-\x1F\x7F-\x9F]/g, "") // Remove control characters
 		.slice(0, 100); // Limit length
+	if (stripHtml) {
+		result = result.replace(/<[^>]*>/g, ""); // Strip HTML tags
+	}
+	return result;
 }
 
 // Validation functions that return ValidationResult objects
@@ -124,13 +128,14 @@ export function validateProjectName(name: string): ValidationResult {
 			success: result.success,
 			error: result.success
 				? undefined
-				: 'Project name must be 1-100 characters and contain only letters, numbers, spaces, hyphens, and underscores',
-			data: result.success ? result.data : undefined
+				: "Project name must be 1-100 characters and contain only letters, numbers, spaces, hyphens, and underscores",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -142,13 +147,14 @@ export function validateLayerName(name: string): ValidationResult {
 			success: result.success,
 			error: result.success
 				? undefined
-				: 'Layer name must be 1-100 characters and contain only letters, numbers, spaces, hyphens, and underscores',
-			data: result.success ? result.data : undefined
+				: "Layer name must be 1-100 characters and contain only letters, numbers, spaces, hyphens, and underscores",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -160,31 +166,36 @@ export function validateTraitName(name: string): ValidationResult {
 			success: result.success,
 			error: result.success
 				? undefined
-				: 'Trait name must be 1-100 characters and contain only letters, numbers, spaces, hyphens, and underscores',
-			data: result.success ? result.data : undefined
+				: "Trait name must be 1-100 characters and contain only letters, numbers, spaces, hyphens, and underscores",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
 
-export function validateDimensions(width: number, height: number): ValidationResult {
+export function validateDimensions(
+	width: number,
+	height: number,
+): ValidationResult {
 	try {
 		const result = ProjectDimensionsSchema.safeParse({ width, height });
 		return {
 			success: result.success,
 			error: result.success
 				? undefined
-				: 'Dimensions must be positive integers between 1 and 10000',
-			data: result.success ? result.data : undefined
+				: "Dimensions must be positive integers between 1 and 10000",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -196,20 +207,21 @@ export function validateFilename(filename: string): ValidationResult {
 			success: result.success,
 			error: result.success
 				? undefined
-				: 'Filename must be 1-255 characters and contain only letters, numbers, spaces, hyphens, underscores, and periods',
-			data: result.success ? result.data : undefined
+				: "Filename must be 1-255 characters and contain only letters, numbers, spaces, hyphens, underscores, and periods",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
 
 export function validateFileSize(
 	size: number,
-	maxSize: number = 10 * 1024 * 1024
+	maxSize: number = 10 * 1024 * 1024,
 ): ValidationResult {
 	try {
 		const result = z.number().int().min(1).max(maxSize).safeParse(size);
@@ -218,31 +230,37 @@ export function validateFileSize(
 			error: result.success
 				? undefined
 				: `File size must be between 1 byte and ${maxSize / (1024 * 1024)}MB`,
-			data: result.success ? result.data : undefined
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
 
 export function validateFileType(
 	type: string,
-	allowedTypes: string[] = ['image/png', 'image/jpeg', 'image/jpg']
+	allowedTypes: string[] = ["image/png", "image/jpeg", "image/jpg"],
 ): ValidationResult {
 	try {
-		const result = z.enum(allowedTypes as [string, ...string[]]).safeParse(type);
+		const result = z
+			.enum(allowedTypes as [string, ...string[]])
+			.safeParse(type);
 		return {
 			success: result.success,
-			error: result.success ? undefined : `File type must be one of: ${allowedTypes.join(', ')}`,
-			data: result.success ? result.data : undefined
+			error: result.success
+				? undefined
+				: `File type must be one of: ${allowedTypes.join(", ")}`,
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -252,13 +270,16 @@ export function validateRarityWeight(weight: number): ValidationResult {
 		const result = RarityWeightSchema.safeParse(weight);
 		return {
 			success: result.success,
-			error: result.success ? undefined : 'Rarity weight must be an integer between 1 and 5',
-			data: result.success ? result.data : undefined
+			error: result.success
+				? undefined
+				: "Rarity weight must be an integer between 1 and 5",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -268,13 +289,14 @@ export function validateProject(project: unknown): ValidationResult {
 		const result = ProjectSchema.safeParse(project);
 		return {
 			success: result.success,
-			error: result.success ? undefined : 'Invalid project structure',
-			data: result.success ? result.data : undefined
+			error: result.success ? undefined : "Invalid project structure",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -284,13 +306,14 @@ export function validateLayer(layer: unknown): ValidationResult {
 		const result = LayerSchema.safeParse(layer);
 		return {
 			success: result.success,
-			error: result.success ? undefined : 'Invalid layer structure',
-			data: result.success ? result.data : undefined
+			error: result.success ? undefined : "Invalid layer structure",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -300,13 +323,14 @@ export function validateTrait(trait: unknown): ValidationResult {
 		const result = TraitSchema.safeParse(trait);
 		return {
 			success: result.success,
-			error: result.success ? undefined : 'Invalid trait structure',
-			data: result.success ? result.data : undefined
+			error: result.success ? undefined : "Invalid trait structure",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -316,26 +340,29 @@ export function validateImportedProject(project: unknown): ValidationResult {
 		const result = ImportedProjectSchema.safeParse(project);
 		return {
 			success: result.success,
-			error: result.success ? undefined : 'Invalid imported project structure',
-			data: result.success ? result.data : undefined
+			error: result.success ? undefined : "Invalid imported project structure",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
 
 // Factory functions for creating validated entities
 
-export function createValidatedProject(overrides: Partial<Project> = {}): Project {
+export function createValidatedProject(
+	overrides: Partial<Project> = {},
+): Project {
 	const defaultProject: Project = {
 		id: crypto.randomUUID() as ProjectId,
-		name: 'My Collection',
-		description: 'A collection of unique items',
+		name: "My Collection",
+		description: "A collection of unique items",
 		outputSize: { width: 100, height: 100 },
-		layers: []
+		layers: [],
 	};
 
 	const project = { ...defaultProject, ...overrides };
@@ -351,9 +378,9 @@ export function createValidatedProject(overrides: Partial<Project> = {}): Projec
 export function createValidatedLayer(overrides: Partial<Layer> = {}): Layer {
 	const defaultLayer: Layer = {
 		id: crypto.randomUUID() as LayerId,
-		name: 'New Layer',
+		name: "New Layer",
 		order: 0,
-		traits: []
+		traits: [],
 	};
 
 	const layer = { ...defaultLayer, ...overrides };
@@ -369,9 +396,9 @@ export function createValidatedLayer(overrides: Partial<Layer> = {}): Layer {
 export function createValidatedTrait(overrides: Partial<Trait> = {}): Trait {
 	const defaultTrait: Trait = {
 		id: crypto.randomUUID() as TraitId,
-		name: 'New Trait',
+		name: "New Trait",
 		imageData: new ArrayBuffer(0),
-		rarityWeight: 5
+		rarityWeight: 5,
 	};
 
 	const trait = { ...defaultTrait, ...overrides };
@@ -391,13 +418,13 @@ export function createValidatedTrait(overrides: Partial<Trait> = {}): Trait {
  */
 export function validateTraitCompatibility(
 	selectedTraits: { traitId: TraitId; layerId: LayerId }[],
-	layers: Layer[]
+	layers: Layer[],
 ): ValidationResult {
 	try {
 		const rulerTraits = selectedTraits.filter(({ traitId }) => {
 			for (const layer of layers) {
 				const trait = layer.traits.find((t) => t.id === traitId);
-				if (trait && trait.type === 'ruler') {
+				if (trait && trait.type === "ruler") {
 					return true;
 				}
 			}
@@ -406,26 +433,31 @@ export function validateTraitCompatibility(
 
 		for (const rulerTrait of rulerTraits) {
 			const rulerLayer = layers.find((layer) =>
-				layer.traits.some((trait) => trait.id === rulerTrait.traitId)
+				layer.traits.some((trait) => trait.id === rulerTrait.traitId),
 			);
-			const rulerTraitData = rulerLayer?.traits.find((t) => t.id === rulerTrait.traitId);
+			const rulerTraitData = rulerLayer?.traits.find(
+				(t) => t.id === rulerTrait.traitId,
+			);
 
 			if (!rulerTraitData?.rulerRules) continue;
 
 			for (const rule of rulerTraitData.rulerRules) {
 				const conflictingTrait = selectedTraits.find(
 					({ traitId, layerId }) =>
-						layerId === rule.layerId && rule.forbiddenTraitIds.includes(traitId)
+						layerId === rule.layerId &&
+						rule.forbiddenTraitIds.includes(traitId),
 				);
 
 				if (conflictingTrait) {
 					return {
 						success: false,
-						error: `Trait "${rulerTraitData.name}" (ruler) is incompatible with the selected trait in layer "${layers.find((l) => l.id === rule.layerId)?.name}"`
+						error: `Trait "${rulerTraitData.name}" (ruler) is incompatible with the selected trait in layer "${layers.find((l) => l.id === rule.layerId)?.name}"`,
 					};
 				}
 
-				const allowedTraitInLayer = selectedTraits.find(({ layerId }) => layerId === rule.layerId);
+				const allowedTraitInLayer = selectedTraits.find(
+					({ layerId }) => layerId === rule.layerId,
+				);
 
 				if (
 					allowedTraitInLayer &&
@@ -434,7 +466,7 @@ export function validateTraitCompatibility(
 				) {
 					return {
 						success: false,
-						error: `Trait "${rulerTraitData.name}" (ruler) only allows specific traits in layer "${layers.find((l) => l.id === rule.layerId)?.name}"`
+						error: `Trait "${rulerTraitData.name}" (ruler) only allows specific traits in layer "${layers.find((l) => l.id === rule.layerId)?.name}"`,
 					};
 				}
 			}
@@ -444,7 +476,10 @@ export function validateTraitCompatibility(
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown compatibility validation error'
+			error:
+				error instanceof Error
+					? error.message
+					: "Unknown compatibility validation error",
 		};
 	}
 }
@@ -455,7 +490,7 @@ export function validateTraitCompatibility(
 export function getCompatibleTraits(
 	layerId: LayerId,
 	selectedTraits: { traitId: TraitId; layerId: LayerId }[],
-	layers: Layer[]
+	layers: Layer[],
 ): TraitId[] {
 	try {
 		const layer = layers.find((l) => l.id === layerId);
@@ -464,19 +499,21 @@ export function getCompatibleTraits(
 		let compatibleTraitIds = layer.traits.map((t) => t.id);
 
 		for (const { traitId } of selectedTraits) {
-			const sourceLayer = layers.find((l) => l.traits.some((t) => t.id === traitId));
+			const sourceLayer = layers.find((l) =>
+				l.traits.some((t) => t.id === traitId),
+			);
 			const sourceTrait = sourceLayer?.traits.find((t) => t.id === traitId);
 
-			if (sourceTrait?.type === 'ruler' && sourceTrait.rulerRules) {
+			if (sourceTrait?.type === "ruler" && sourceTrait.rulerRules) {
 				const rule = sourceTrait.rulerRules.find((r) => r.layerId === layerId);
 				if (rule) {
 					if (rule.allowedTraitIds.length > 0) {
 						compatibleTraitIds = compatibleTraitIds.filter((id) =>
-							rule.allowedTraitIds.includes(id)
+							rule.allowedTraitIds.includes(id),
 						);
 					}
 					compatibleTraitIds = compatibleTraitIds.filter(
-						(id) => !rule.forbiddenTraitIds.includes(id)
+						(id) => !rule.forbiddenTraitIds.includes(id),
 					);
 				}
 			}
@@ -484,7 +521,7 @@ export function getCompatibleTraits(
 
 		return compatibleTraitIds;
 	} catch (error) {
-		console.error('Error getting compatible traits:', error);
+		console.error("Error getting compatible traits:", error);
 		return [];
 	}
 }
@@ -497,13 +534,14 @@ export function validateRulerRule(rule: unknown): ValidationResult {
 		const result = RulerRuleSchema.safeParse(rule);
 		return {
 			success: result.success,
-			error: result.success ? undefined : 'Invalid ruler rule structure',
-			data: result.success ? result.data : undefined
+			error: result.success ? undefined : "Invalid ruler rule structure",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }
@@ -512,19 +550,20 @@ export function validateRulerRule(rule: unknown): ValidationResult {
 
 export function safeValidate<T>(
 	schema: z.ZodSchema<T>,
-	data: unknown
+	data: unknown,
 ): ValidationResult & { data?: T } {
 	try {
 		const result = schema.safeParse(data);
 		return {
 			success: result.success,
-			error: result.success ? undefined : 'Validation failed',
-			data: result.success ? result.data : undefined
+			error: result.success ? undefined : "Validation failed",
+			data: result.success ? result.data : undefined,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error:
+				error instanceof Error ? error.message : "Unknown validation error",
 		};
 	}
 }

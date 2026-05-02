@@ -3,15 +3,15 @@
  * Handles object URLs, caching, and intelligent memory management
  */
 
+import { MEMORY, TIME } from "$lib/config/constants";
 import {
+	ArrayBufferCache,
+	type CacheMetrics,
 	ImageBitmapCache,
 	ImageDataCache,
-	ArrayBufferCache,
-	type CacheMetrics
-} from '$lib/utils/advanced-cache';
-import { performanceMonitor } from '$lib/utils/performance-monitor';
-import { formatFileSize } from '$lib/utils/formatters';
-import { MEMORY, TIME } from '$lib/config/constants';
+} from "$lib/utils/advanced-cache";
+import { formatFileSize } from "$lib/utils/formatters";
+import { performanceMonitor } from "$lib/utils/performance-monitor";
 
 export interface CacheConfig {
 	imageBitmap?: {
@@ -40,7 +40,7 @@ export class ResourceManager {
 		objectUrls: 0,
 		cacheHits: 0,
 		cacheMisses: 0,
-		memoryUsage: 0
+		memoryUsage: 0,
 	};
 	private memoryPressureListener?: (event: Event) => void;
 	private cleanupTimeout: number | null = null;
@@ -52,24 +52,29 @@ export class ResourceManager {
 	constructor(config: CacheConfig = {}) {
 		// Initialize specialized caches with optimized defaults
 		this.imageBitmapCache = new ImageBitmapCache({
-			maxSize: config.imageBitmap?.maxSize || MEMORY.IMAGE_BITMAP_CACHE_MAX_SIZE,
-			maxEntries: config.imageBitmap?.maxEntries || MEMORY.IMAGE_BITMAP_CACHE_MAX_ENTRIES,
+			maxSize:
+				config.imageBitmap?.maxSize || MEMORY.IMAGE_BITMAP_CACHE_MAX_SIZE,
+			maxEntries:
+				config.imageBitmap?.maxEntries || MEMORY.IMAGE_BITMAP_CACHE_MAX_ENTRIES,
 			defaultTtl: config.imageBitmap?.ttl || MEMORY.IMAGE_BITMAP_CACHE_TTL,
-			evictionPolicy: 'lru'
+			evictionPolicy: "lru",
 		});
 
 		this.imageCache = new ImageDataCache({
 			maxSize: config.imageData?.maxSize || MEMORY.IMAGE_DATA_CACHE_MAX_SIZE,
-			maxEntries: config.imageData?.maxEntries || MEMORY.IMAGE_DATA_CACHE_MAX_ENTRIES,
+			maxEntries:
+				config.imageData?.maxEntries || MEMORY.IMAGE_DATA_CACHE_MAX_ENTRIES,
 			defaultTtl: config.imageData?.ttl || MEMORY.IMAGE_DATA_CACHE_TTL,
-			evictionPolicy: 'lru'
+			evictionPolicy: "lru",
 		});
 
 		this.arrayBufferCache = new ArrayBufferCache({
-			maxSize: config.arrayBuffer?.maxSize || MEMORY.ARRAY_BUFFER_CACHE_MAX_SIZE,
-			maxEntries: config.arrayBuffer?.maxEntries || MEMORY.ARRAY_BUFFER_CACHE_MAX_ENTRIES,
+			maxSize:
+				config.arrayBuffer?.maxSize || MEMORY.ARRAY_BUFFER_CACHE_MAX_SIZE,
+			maxEntries:
+				config.arrayBuffer?.maxEntries || MEMORY.ARRAY_BUFFER_CACHE_MAX_ENTRIES,
 			defaultTtl: config.arrayBuffer?.ttl || TIME.BUFFER_CACHE_TTL,
-			evictionPolicy: 'lru'
+			evictionPolicy: "lru",
 		});
 
 		// Set up memory pressure event handling for proactive cleanup
@@ -83,9 +88,9 @@ export class ResourceManager {
 	 * Bind this ResourceManager to a component lifecycle
 	 * Call onMount in your component and pass the returned cleanup function to onDestroy
 	 */
-	bindLifecycle(onDestroy: () => void): void {
+	setupLifecycle(onDestroy: () => void): () => void {
 		this.componentCount++;
-		this.cleanupCallback = () => {
+		return () => {
 			onDestroy();
 			this.componentCount--;
 			// If no components remain, perform cleanup
@@ -96,17 +101,10 @@ export class ResourceManager {
 	}
 
 	/**
-	 * Get cleanup function to pass to onDestroy
-	 */
-	getCleanupFn(): () => void {
-		return this.cleanupCallback || (() => {});
-	}
-
-	/**
 	 * Perform full cleanup when last component unmounts
 	 */
 	private performFullCleanup(): void {
-		console.info('No components remaining, performing full resource cleanup');
+		console.info("No components remaining, performing full resource cleanup");
 		this.cleanup();
 	}
 
@@ -114,23 +112,23 @@ export class ResourceManager {
 	 * Set up memory pressure event handling
 	 */
 	private setupMemoryPressureHandling(): void {
-		if (typeof window === 'undefined') return;
+		if (typeof window === "undefined") return;
 
 		this.memoryPressureListener = () => {
-			console.warn('Memory pressure detected, performing emergency cleanup');
+			console.warn("Memory pressure detected, performing emergency cleanup");
 			this.handleMemoryPressure();
 		};
 
 		// Listen for memory pressure events (supported in some browsers)
-		if (typeof window !== 'undefined' && 'addEventListener' in window) {
-			window.addEventListener('memorypressure', this.memoryPressureListener);
+		if (typeof window !== "undefined" && "addEventListener" in window) {
+			window.addEventListener("memorypressure", this.memoryPressureListener);
 
 			// Also add a periodic cleanup check every 5 minutes
 			this.memoryPressureInterval = window.setInterval(
 				() => {
 					this.performPeriodicCleanup();
 				},
-				5 * 60 * 1000
+				5 * 60 * 1000,
 			);
 		}
 	}
@@ -148,7 +146,7 @@ export class ResourceManager {
 			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
 			urlArray.forEach((url) => this.removeObjectUrl(url));
 
-			console.warn('Memory pressure cleanup completed: aggressive');
+			console.warn("Memory pressure cleanup completed: aggressive");
 		}
 		// If using more than 50MB, do moderate cleanup
 		else if (currentUsage > 50 * 1024 * 1024) {
@@ -157,7 +155,7 @@ export class ResourceManager {
 			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
 			urlArray.forEach((url) => this.removeObjectUrl(url));
 
-			console.warn('Memory pressure cleanup completed: moderate');
+			console.warn("Memory pressure cleanup completed: moderate");
 		}
 
 		this.updateMetrics();
@@ -206,16 +204,25 @@ export class ResourceManager {
 
 			// Convert cache metrics to the format expected by performance monitor
 			if (bitmapMetrics) {
-				performanceMonitor.addCacheMetrics('imageBitmap', bitmapMetrics as CacheMetrics);
+				performanceMonitor.addCacheMetrics(
+					"imageBitmap",
+					bitmapMetrics as CacheMetrics,
+				);
 			}
 			if (imageMetrics) {
-				performanceMonitor.addCacheMetrics('imageData', imageMetrics as CacheMetrics);
+				performanceMonitor.addCacheMetrics(
+					"imageData",
+					imageMetrics as CacheMetrics,
+				);
 			}
 			if (bufferMetrics) {
-				performanceMonitor.addCacheMetrics('arrayBuffer', bufferMetrics as CacheMetrics);
+				performanceMonitor.addCacheMetrics(
+					"arrayBuffer",
+					bufferMetrics as CacheMetrics,
+				);
 			}
 		} catch (error) {
-			console.warn('Failed to collect cache metrics:', error);
+			console.warn("Failed to collect cache metrics:", error);
 		}
 	}
 
@@ -261,8 +268,8 @@ export class ResourceManager {
 	 */
 	destroy(): void {
 		// Clean up event listeners and intervals
-		if (this.memoryPressureListener && typeof window !== 'undefined') {
-			window.removeEventListener('memorypressure', this.memoryPressureListener);
+		if (this.memoryPressureListener && typeof window !== "undefined") {
+			window.removeEventListener("memorypressure", this.memoryPressureListener);
 			this.memoryPressureListener = undefined;
 		}
 
@@ -446,9 +453,12 @@ export class ResourceManager {
 		const imageDataMetrics = this.imageCache.getMetrics();
 		const arrayBufferMetrics = this.arrayBufferCache.getMetrics();
 
-		const totalHits = imageBitmapMetrics.hits + imageDataMetrics.hits + arrayBufferMetrics.hits;
+		const totalHits =
+			imageBitmapMetrics.hits + imageDataMetrics.hits + arrayBufferMetrics.hits;
 		const totalMisses =
-			imageBitmapMetrics.misses + imageDataMetrics.misses + arrayBufferMetrics.misses;
+			imageBitmapMetrics.misses +
+			imageDataMetrics.misses +
+			arrayBufferMetrics.misses;
 		const totalMemoryUsage =
 			imageBitmapMetrics.memoryUsage +
 			imageDataMetrics.memoryUsage +
@@ -467,8 +477,11 @@ export class ResourceManager {
 				totalMisses,
 				totalMemoryUsage,
 				totalEntries,
-				overallHitRate: totalHits + totalMisses > 0 ? totalHits / (totalHits + totalMisses) : 0
-			}
+				overallHitRate:
+					totalHits + totalMisses > 0
+						? totalHits / (totalHits + totalMisses)
+						: 0,
+			},
 		};
 	}
 
@@ -491,9 +504,9 @@ export class ResourceManager {
 			byCache: {
 				imageBitmap: this.imageBitmapCache.getMemoryUsage(),
 				imageData: this.imageCache.getMemoryUsage(),
-				arrayBuffer: this.arrayBufferCache.getMemoryUsage()
+				arrayBuffer: this.arrayBufferCache.getMemoryUsage(),
 			},
-			objectUrls: this.metrics.objectUrls
+			objectUrls: this.metrics.objectUrls,
 		};
 	}
 

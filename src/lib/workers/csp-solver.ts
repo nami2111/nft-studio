@@ -2,9 +2,12 @@
 // Enhanced with constraint ordering, early termination, and predictive caching
 // Delivers 40-60% performance improvement over standard AC-3
 
-import type { TransferrableLayer, TransferrableTrait } from '$lib/types/worker-messages';
-import { CombinationIndexer } from '$lib/utils/combination-indexer';
-import { logger } from '$lib/utils/logger';
+import type {
+	TransferrableLayer,
+	TransferrableTrait,
+} from "$lib/types/worker-messages";
+import { CombinationIndexer } from "$lib/utils/combination-indexer";
+import { logger } from "$lib/utils/logger";
 
 interface SolverContext {
 	layers: TransferrableLayer[];
@@ -64,7 +67,11 @@ class ConstraintCache {
 		return result;
 	}
 
-	set(traitId: string, targetLayerId: string, compatibleTraits: Set<string>): void {
+	set(
+		traitId: string,
+		targetLayerId: string,
+		compatibleTraits: Set<string>,
+	): void {
 		const cacheKey = `${traitId}_${targetLayerId}`;
 		this.compatiblePairs.set(cacheKey, new Set(compatibleTraits));
 	}
@@ -82,16 +89,13 @@ class ConstraintCache {
 			hitRate: this.hitRate.toFixed(1),
 			accessCount: this.accessCount,
 			hits: this.hits,
-			cacheSize: this.compatiblePairs.size
+			cacheSize: this.compatiblePairs.size,
 		};
 	}
 }
 
 // Module-level flag to prevent duplicate ruler logging
 let hasLoggedRulerInfo = false;
-
-// Debug flag for ruler violations (set to false in production to reduce spam)
-const DEBUG_RULER_VIOLATIONS = false;
 
 export class CSPSolver {
 	private context: SolverContext;
@@ -107,7 +111,7 @@ export class CSPSolver {
 		ac3Iterations: 0,
 		earlyTerminations: 0,
 		predictedDeadEnds: 0,
-		constraintCacheHits: 0
+		constraintCacheHits: 0,
 	};
 	private maxCacheSize = 1000;
 	private constraintOrdering: Arc[] = []; // Pre-ordered constraints for faster processing
@@ -116,13 +120,13 @@ export class CSPSolver {
 	constructor(
 		layers: TransferrableLayer[],
 		usedCombinations: Map<string, Set<bigint>>,
-		strictPairConfig?: SolverContext['strictPairConfig']
+		strictPairConfig?: SolverContext["strictPairConfig"],
 	) {
 		this.context = {
 			layers,
 			selectedTraits: new Map(),
 			usedCombinations,
-			strictPairConfig
+			strictPairConfig,
 		};
 
 		// Log ruler configuration once per session
@@ -131,19 +135,27 @@ export class CSPSolver {
 
 			for (const layer of layers) {
 				for (const trait of layer.traits) {
-					if (trait.type === 'ruler' && trait.rulerRules && trait.rulerRules.length > 0) {
+					if (
+						trait.type === "ruler" &&
+						trait.rulerRules &&
+						trait.rulerRules.length > 0
+					) {
 						const rules = trait.rulerRules
 							.map((rule) => {
 								const constraints: string[] = [];
 								if (rule.forbiddenTraitIds.length > 0) {
-									constraints.push(`❌ forbid ${rule.forbiddenTraitIds.length} traits`);
+									constraints.push(
+										`❌ forbid ${rule.forbiddenTraitIds.length} traits`,
+									);
 								}
 								if (rule.allowedTraitIds.length > 0) {
-									constraints.push(`✅ allow ${rule.allowedTraitIds.length} traits`);
+									constraints.push(
+										`✅ allow ${rule.allowedTraitIds.length} traits`,
+									);
 								}
-								return `  → ${rule.layerId}: ${constraints.join(' | ')}`;
+								return `  → ${rule.layerId}: ${constraints.join(" | ")}`;
 							})
-							.join('\n');
+							.join("\n");
 
 						rulerConfigs.push(`${trait.name}:\n${rules}`);
 					}
@@ -151,7 +163,9 @@ export class CSPSolver {
 			}
 
 			if (rulerConfigs.length > 0) {
-				logger.debug(`🎯 CSP Ruler Configuration:\n${rulerConfigs.join('\n\n')}`);
+				logger.debug(
+					`🎯 CSP Ruler Configuration:\n${rulerConfigs.join("\n\n")}`,
+				);
 				hasLoggedRulerInfo = true;
 			}
 		}
@@ -191,7 +205,7 @@ export class CSPSolver {
 			// Log the actual traits selected to verify constraints
 			const traitDetails = Array.from(result.entries())
 				.map(([layerId, trait]) => `${layerId}: ${trait.name} (${trait.id})`)
-				.join(', ');
+				.join(", ");
 			logger.debug(`✅ CSP SOLUTION: ${traitDetails}`);
 		}
 
@@ -204,11 +218,11 @@ export class CSPSolver {
 					`backtracks: ${stats.backtracks}, ` +
 					`cache: ${stats.constraintCacheHits} (${this.constraintCache.getStats().hitRate}%), ` +
 					`ruler violations: ${this.rulerViolationCount}, ` +
-					`result: ${result ? 'SUCCESS' : 'FAILED'}`
+					`result: ${result ? "SUCCESS" : "FAILED"}`,
 			);
 		} else {
 			logger.debug(
-				`[CSP SOLVE] Completed in ${Date.now() - startTime}ms, result: ${result ? 'SUCCESS' : 'FAILED'}`
+				`[CSP SOLVE] Completed in ${Date.now() - startTime}ms, result: ${result ? "SUCCESS" : "FAILED"}`,
 			);
 		}
 
@@ -240,7 +254,7 @@ export class CSPSolver {
 				availableTraits: [...layer.traits],
 				originalSize: layer.traits.length,
 				constraintInfluence: new Map<string, number>(),
-				predictedElimination: new Set<string>()
+				predictedElimination: new Set<string>(),
 			});
 		}
 	}
@@ -254,7 +268,7 @@ export class CSPSolver {
 			const constrainedLayers = new Set<string>();
 
 			for (const trait of layer.traits) {
-				if (trait.type === 'ruler' && trait.rulerRules) {
+				if (trait.type === "ruler" && trait.rulerRules) {
 					// Ruler rules constrain specific layers
 					for (const rule of trait.rulerRules) {
 						constrainedLayers.add(rule.layerId);
@@ -277,30 +291,38 @@ export class CSPSolver {
 
 		for (const [layerId, constrainedLayers] of this.constraints) {
 			for (const constrainedLayerId of constrainedLayers) {
-				const weight = this.calculateConstraintWeight(layerId, constrainedLayerId);
+				const weight = this.calculateConstraintWeight(
+					layerId,
+					constrainedLayerId,
+				);
 				this.constraintOrdering.push({
 					fromLayerId: layerId,
 					toLayerId: constrainedLayerId,
 					constraintWeight: weight,
-					reviseCount: 0
+					reviseCount: 0,
 				});
 			}
 		}
 
 		// Sort by weight (highest weight first for most restrictive constraints)
-		this.constraintOrdering.sort((a, b) => b.constraintWeight - a.constraintWeight);
+		this.constraintOrdering.sort(
+			(a, b) => b.constraintWeight - a.constraintWeight,
+		);
 	}
 
 	/**
 	 * Calculate constraint weight based on number of rules and restrictiveness
 	 */
-	private calculateConstraintWeight(fromLayerId: string, toLayerId: string): number {
+	private calculateConstraintWeight(
+		fromLayerId: string,
+		toLayerId: string,
+	): number {
 		const fromLayer = this.context.layers.find((l) => l.id === fromLayerId);
 		if (!fromLayer) return 1;
 
 		let weight = 1;
 		for (const trait of fromLayer.traits) {
-			if (trait.type === 'ruler' && trait.rulerRules) {
+			if (trait.type === "ruler" && trait.rulerRules) {
 				for (const rule of trait.rulerRules) {
 					if (rule.layerId === toLayerId) {
 						// Higher weight for more restrictive rules
@@ -318,14 +340,14 @@ export class CSPSolver {
 	 */
 	private createArc(fromLayerId: string, toLayerId: string): Arc {
 		const existingArc = this.constraintOrdering.find(
-			(arc) => arc.fromLayerId === fromLayerId && arc.toLayerId === toLayerId
+			(arc) => arc.fromLayerId === fromLayerId && arc.toLayerId === toLayerId,
 		);
 		return (
 			existingArc || {
 				fromLayerId,
 				toLayerId,
 				constraintWeight: 1,
-				reviseCount: 0
+				reviseCount: 0,
 			}
 		);
 	}
@@ -352,7 +374,10 @@ export class CSPSolver {
 			this.performanceStats.ac3Iterations++;
 
 			// Early termination check: if too many revisions, might be infinite loop
-			if (this.performanceStats.ac3Iterations > this.context.layers.length * 100) {
+			if (
+				this.performanceStats.ac3Iterations >
+				this.context.layers.length * 100
+			) {
 				this.performanceStats.earlyTerminations++;
 				break;
 			}
@@ -392,33 +417,54 @@ export class CSPSolver {
 		const originalSize = fromDomain.availableTraits.length;
 
 		// Filter traits that have no support in toDomain with smart caching
-		fromDomain.availableTraits = fromDomain.availableTraits.filter((fromTrait) => {
-			// Check constraint cache first for performance
-			const cachedCompatible = this.constraintCache.get(fromTrait.id, arc.toLayerId);
-			if (cachedCompatible !== undefined) {
-				this.performanceStats.constraintCacheHits++;
-				// Use cached compatible traits
-				return toDomain.availableTraits.some((toTrait) => cachedCompatible.has(toTrait.id));
-			}
+		fromDomain.availableTraits = fromDomain.availableTraits.filter(
+			(fromTrait) => {
+				// Check constraint cache first for performance
+				const cachedCompatible = this.constraintCache.get(
+					fromTrait.id,
+					arc.toLayerId,
+				);
+				if (cachedCompatible !== undefined) {
+					this.performanceStats.constraintCacheHits++;
+					// Use cached compatible traits
+					return toDomain.availableTraits.some((toTrait) =>
+						cachedCompatible.has(toTrait.id),
+					);
+				}
 
-			// Check if there's at least one trait in toDomain that's consistent with fromTrait
-			const hasCompatible = toDomain.availableTraits.some((toTrait) => {
-				const isCompatible = this.isConsistent(fromTrait, arc.fromLayerId, toTrait, arc.toLayerId);
-				return isCompatible;
-			});
+				// Check if there's at least one trait in toDomain that's consistent with fromTrait
+				const hasCompatible = toDomain.availableTraits.some((toTrait) => {
+					const isCompatible = this.isConsistent(
+						fromTrait,
+						arc.fromLayerId,
+						toTrait,
+						arc.toLayerId,
+					);
+					return isCompatible;
+				});
 
-			// Cache the result for future use
-			if (hasCompatible) {
-				const compatibleIds = toDomain.availableTraits
-					.filter((toTrait) =>
-						this.isConsistent(fromTrait, arc.fromLayerId, toTrait, arc.toLayerId)
-					)
-					.map((toTrait) => toTrait.id);
-				this.constraintCache.set(fromTrait.id, arc.toLayerId, new Set(compatibleIds));
-			}
+				// Cache the result for future use
+				if (hasCompatible) {
+					const compatibleIds = toDomain.availableTraits
+						.filter((toTrait) =>
+							this.isConsistent(
+								fromTrait,
+								arc.fromLayerId,
+								toTrait,
+								arc.toLayerId,
+							),
+						)
+						.map((toTrait) => toTrait.id);
+					this.constraintCache.set(
+						fromTrait.id,
+						arc.toLayerId,
+						new Set(compatibleIds),
+					);
+				}
 
-			return hasCompatible;
-		});
+				return hasCompatible;
+			},
+		);
 
 		// Track constraint influence for optimization
 		if (fromDomain.availableTraits.length < originalSize) {
@@ -437,32 +483,25 @@ export class CSPSolver {
 		traitA: TransferrableTrait,
 		layerIdA: string,
 		traitB: TransferrableTrait,
-		layerIdB: string
+		layerIdB: string,
 	): boolean {
 		this.performanceStats.constraintChecks++;
 
 		// Check if traitA constrains traitB
-		if (traitA.type === 'ruler' && traitA.rulerRules) {
+		if (traitA.type === "ruler" && traitA.rulerRules) {
 			const rule = traitA.rulerRules.find((r) => r.layerId === layerIdB);
 			if (rule) {
 				// Check forbidden list
 				if (rule.forbiddenTraitIds.includes(traitB.id)) {
-					if (DEBUG_RULER_VIOLATIONS) {
-						logger.info(
-							`❌ RULER VIOLATION: ${traitA.name} (${layerIdA}) forbids ${traitB.name} (${layerIdB}) - trait ${traitB.id} is forbidden`
-						);
-					}
 					this.rulerViolationCount++;
 					return false;
 				}
 				// Check allowed list (whitelist) - only if it's explicitly defined
 				// If allowedTraitIds is empty, it means "allow all" (except forbidden ones)
-				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitB.id)) {
-					if (DEBUG_RULER_VIOLATIONS) {
-						logger.info(
-							`❌ RULER VIOLATION: ${traitA.name} (${layerIdA}) only allows ${rule.allowedTraitIds.length} specific traits, rejecting ${traitB.name} (${layerIdB})`
-						);
-					}
+				if (
+					rule.allowedTraitIds.length > 0 &&
+					!rule.allowedTraitIds.includes(traitB.id)
+				) {
 					this.rulerViolationCount++;
 					return false;
 				}
@@ -470,27 +509,20 @@ export class CSPSolver {
 		}
 
 		// Check if traitB constrains traitA
-		if (traitB.type === 'ruler' && traitB.rulerRules) {
+		if (traitB.type === "ruler" && traitB.rulerRules) {
 			const rule = traitB.rulerRules.find((r) => r.layerId === layerIdA);
 			if (rule) {
 				// Check forbidden list
 				if (rule.forbiddenTraitIds.includes(traitA.id)) {
-					if (DEBUG_RULER_VIOLATIONS) {
-						logger.info(
-							`❌ RULER VIOLATION: ${traitB.name} (${layerIdB}) forbids ${traitA.name} (${layerIdA}) - trait ${traitA.id} is forbidden`
-						);
-					}
 					this.rulerViolationCount++;
 					return false;
 				}
 				// Check allowed list (whitelist) - only if it's explicitly defined
 				// If allowedTraitIds is empty, it means "allow all" (except forbidden ones)
-				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitA.id)) {
-					if (DEBUG_RULER_VIOLATIONS) {
-						logger.info(
-							`❌ RULER VIOLATION: ${traitB.name} (${layerIdB}) only allows ${rule.allowedTraitIds.length} specific traits, rejecting ${traitA.name} (${layerIdA})`
-						);
-					}
+				if (
+					rule.allowedTraitIds.length > 0 &&
+					!rule.allowedTraitIds.includes(traitA.id)
+				) {
 					this.rulerViolationCount++;
 					return false;
 				}
@@ -562,7 +594,7 @@ export class CSPSolver {
 		}
 
 		// Cache this impossible combination to avoid retrying
-		this.cacheImpossibleCombination(cacheKey, 'no_valid_combination');
+		this.cacheImpossibleCombination(cacheKey, "no_valid_combination");
 		this.performanceStats.backtracks++;
 
 		return null;
@@ -572,8 +604,8 @@ export class CSPSolver {
 	 * Get current partial assignment as cache key
 	 */
 	private getAssignmentKey(): string {
-		const assignment = Array.from(this.context.selectedTraits.entries()).sort(([a], [b]) =>
-			a.localeCompare(b)
+		const assignment = Array.from(this.context.selectedTraits.entries()).sort(
+			([a], [b]) => a.localeCompare(b),
 		);
 		return JSON.stringify(assignment);
 	}
@@ -612,8 +644,12 @@ export class CSPSolver {
 	 * Check if assignment is complete (all required layers assigned)
 	 */
 	private isComplete(): boolean {
-		const requiredLayers = this.context.layers.filter((layer) => !layer.isOptional);
-		return requiredLayers.every((layer) => this.context.selectedTraits.has(layer.id));
+		const requiredLayers = this.context.layers.filter(
+			(layer) => !layer.isOptional,
+		);
+		return requiredLayers.every((layer) =>
+			this.context.selectedTraits.has(layer.id),
+		);
 	}
 
 	/**
@@ -654,7 +690,7 @@ export class CSPSolver {
 				availableTraits: [...domain.availableTraits],
 				originalSize: domain.originalSize,
 				constraintInfluence: new Map(domain.constraintInfluence),
-				predictedElimination: new Set(domain.predictedElimination)
+				predictedElimination: new Set(domain.predictedElimination),
 			});
 		}
 		return snapshot;
@@ -679,7 +715,9 @@ export class CSPSolver {
 		// Remove this trait from domain (it's now assigned)
 		const domain = this.domains.get(layerId);
 		if (domain) {
-			domain.availableTraits = domain.availableTraits.filter((t) => t.id !== trait.id);
+			domain.availableTraits = domain.availableTraits.filter(
+				(t) => t.id !== trait.id,
+			);
 		}
 	}
 
@@ -704,7 +742,7 @@ export class CSPSolver {
 			partialAssignment: key,
 			reason,
 			constraintHash,
-			predictedDeadEnd
+			predictedDeadEnd,
 		});
 	}
 
@@ -740,7 +778,8 @@ export class CSPSolver {
 		// This ensures basic duplicate prevention works
 
 		// Check all layer combinations (including synthetic ones for basic tracking)
-		for (const layerCombination of this.context.strictPairConfig?.layerCombinations || []) {
+		for (const layerCombination of this.context.strictPairConfig
+			?.layerCombinations || []) {
 			if (!layerCombination.active) {
 				continue;
 			}
@@ -779,11 +818,13 @@ export class CSPSolver {
 				const numericIds: number[] = [];
 				for (const layerId of layerCombination.layerIds) {
 					const trait = this.context.selectedTraits.get(layerId);
-					const index = trait ? this.layerTraitIdToIndex.get(layerId)?.get(trait.id) : undefined;
+					const index = trait
+						? this.layerTraitIdToIndex.get(layerId)?.get(trait.id)
+						: undefined;
 					if (index !== undefined) {
 						numericIds.push(index);
 					} else {
-						throw new Error('Trait not found in mapping');
+						throw new Error("Trait not found in mapping");
 					}
 				}
 
@@ -795,12 +836,12 @@ export class CSPSolver {
 						return false; // Already used
 					}
 				} else {
-					throw new Error('Incompatible for bit-packing');
+					throw new Error("Incompatible for bit-packing");
 				}
 			} catch {
 				// Fallback to hash-based check for edge cases
 				// This happens if trait IDs > 255 or > 8 traits, or if mapping failed
-				const fallbackKey = traitIds.sort().join('|');
+				const fallbackKey = traitIds.sort().join("|");
 				const numericHash = this.generateNumericHash(fallbackKey);
 				const hashAsBigInt = BigInt(numericHash);
 
@@ -833,7 +874,7 @@ export class CSPSolver {
 				if (!this.isConsistent(traitA, layerIdA, traitB, layerIdB)) {
 					// Found a constraint violation
 					logger.debug(
-						`❌ FINAL CONSTRAINT CHECK FAILED: ${traitA.name} and ${traitB.name} violate ruler rules`
+						`❌ FINAL CONSTRAINT CHECK FAILED: ${traitA.name} and ${traitB.name} violate ruler rules`,
 					);
 					return false;
 				}
@@ -863,7 +904,8 @@ export class CSPSolver {
 	 */
 	markCombinationAsUsed(): void {
 		// Check all layer combinations and add to appropriate tracking sets
-		for (const layerCombination of this.context.strictPairConfig?.layerCombinations || []) {
+		for (const layerCombination of this.context.strictPairConfig
+			?.layerCombinations || []) {
 			if (!layerCombination.active) {
 				continue;
 			}
@@ -899,11 +941,13 @@ export class CSPSolver {
 				const numericIds: number[] = [];
 				for (const layerId of layerCombination.layerIds) {
 					const trait = this.context.selectedTraits.get(layerId);
-					const index = trait ? this.layerTraitIdToIndex.get(layerId)?.get(trait.id) : undefined;
+					const index = trait
+						? this.layerTraitIdToIndex.get(layerId)?.get(trait.id)
+						: undefined;
 					if (index !== undefined) {
 						numericIds.push(index);
 					} else {
-						throw new Error('Trait not found in mapping');
+						throw new Error("Trait not found in mapping");
 					}
 				}
 
@@ -917,7 +961,7 @@ export class CSPSolver {
 			}
 
 			// Fallback to hash-based for edge cases
-			const stringKey = traitIds.sort().join('|');
+			const stringKey = traitIds.sort().join("|");
 			const numericHash = this.generateNumericHash(stringKey);
 			const hashAsBigInt = BigInt(numericHash);
 			usedSet.add(hashAsBigInt);
@@ -946,7 +990,7 @@ export class CSPSolver {
 			ac3Iterations: 0,
 			earlyTerminations: 0,
 			predictedDeadEnds: 0,
-			constraintCacheHits: 0
+			constraintCacheHits: 0,
 		};
 		this.constraintOrdering = [];
 	}

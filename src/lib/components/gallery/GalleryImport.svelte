@@ -5,6 +5,9 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
 	import { showError, showSuccess, showWarning } from '$lib/utils/error-handling';
+	// Two ZIP libraries are needed: jszip for standard loading (<2GB),
+	// @zip.js/zip.js for streaming large files (>2GB) to avoid OOM.
+	// jszip is dynamically imported in processNormalZipFile().
 	import { ZipReader, BlobReader, BlobWriter, TextWriter } from '@zip.js/zip.js';
 	import { detectImageFormat } from '$lib/utils/image-format-detector';
 

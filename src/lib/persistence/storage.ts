@@ -3,8 +3,8 @@
  * Provides smart storage management with quota monitoring and fallback strategies.
  */
 
-import { handleStorageError } from '$lib/utils/error-handler';
-import { arrayBufferToBase64, base64ToArrayBuffer } from '$lib/utils';
+import { arrayBufferToBase64, base64ToArrayBuffer } from "$lib/utils";
+import { handleStorageError } from "$lib/utils/error-handler";
 
 interface StorageProject {
 	id?: string;
@@ -38,9 +38,9 @@ function getStorageSize(data: unknown): number {
 	try {
 		// For Project objects, create a compact version for more accurate estimation
 		if (
-			typeof data === 'object' &&
+			typeof data === "object" &&
 			data !== null &&
-			'layers' in (data as Record<string, unknown>)
+			"layers" in (data as Record<string, unknown>)
 		) {
 			const project = data as StorageProject;
 			const compactProject = {
@@ -51,9 +51,9 @@ function getStorageSize(data: unknown): number {
 						...trait,
 						// Remove image data and URLs for size estimation
 						imageData: undefined,
-						imageUrl: undefined
-					}))
-				}))
+						imageUrl: undefined,
+					})),
+				})),
 			};
 			const serialized = JSON.stringify(compactProject);
 			const size = new Blob([serialized]).size;
@@ -95,8 +95,11 @@ export function loadFromLocalStorageSync<T>(key: string): T | null {
 		return restored;
 	} catch (error) {
 		handleStorageError(error, {
-			context: { component: 'LocalStorage', action: 'loadFromLocalStorageSync' },
-			silent: true
+			context: {
+				component: "LocalStorage",
+				action: "loadFromLocalStorageSync",
+			},
+			silent: true,
 		});
 		return null;
 	}
@@ -108,7 +111,7 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
 		const estimatedSize = getStorageSize(value);
 		if (estimatedSize > STORAGE_QUOTA_LIMIT) {
 			console.warn(
-				`Storage warning: Attempting to save ${Math.round(estimatedSize / 1024)}KB, limit is ${Math.round(STORAGE_QUOTA_LIMIT / 1024)}KB`
+				`Storage warning: Attempting to save ${Math.round(estimatedSize / 1024)}KB, limit is ${Math.round(STORAGE_QUOTA_LIMIT / 1024)}KB`,
 			);
 
 			// For large projects, save only essential metadata
@@ -116,20 +119,24 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
 			const compactSize = getStorageSize(compactValue);
 
 			if (compactSize > STORAGE_QUOTA_LIMIT) {
-				console.error('Project too large for localStorage, consider using IndexedDB');
-				throw new Error('Project size exceeds localStorage quota');
+				console.error(
+					"Project too large for localStorage, consider using IndexedDB",
+				);
+				throw new Error("Project size exceeds localStorage quota");
 			}
 
 			const serialized = serializeArrayBuffers(compactValue);
 			localStorage.setItem(key, JSON.stringify(serialized));
-			console.info(`Saved compact version (${Math.round(compactSize / 1024)}KB) to localStorage`);
+			console.info(
+				`Saved compact version (${Math.round(compactSize / 1024)}KB) to localStorage`,
+			);
 			return;
 		}
 
 		// For projects that are getting large, use compact mode proactively
 		if (estimatedSize > COMPACT_PROJECT_THRESHOLD) {
 			console.info(
-				`Project size ${Math.round(estimatedSize / 1024)}KB exceeds compact threshold, using compact mode`
+				`Project size ${Math.round(estimatedSize / 1024)}KB exceeds compact threshold, using compact mode`,
 			);
 			const compactValue = createCompactVersion(value);
 			const serialized = serializeArrayBuffers(compactValue);
@@ -141,8 +148,8 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
 		localStorage.setItem(key, JSON.stringify(serialized));
 	} catch (error) {
 		handleStorageError(error, {
-			context: { component: 'LocalStorage', action: 'saveToLocalStorageSync' },
-			silent: true
+			context: { component: "LocalStorage", action: "saveToLocalStorageSync" },
+			silent: true,
 		});
 	}
 }
@@ -153,9 +160,9 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
 function createCompactVersion<T>(value: T): T {
 	// Handle Project type specifically
 	if (
-		typeof value === 'object' &&
+		typeof value === "object" &&
 		value !== null &&
-		'layers' in (value as Record<string, unknown>)
+		"layers" in (value as Record<string, unknown>)
 	) {
 		const project = value as StorageProject;
 		return {
@@ -166,9 +173,9 @@ function createCompactVersion<T>(value: T): T {
 					...trait,
 					// Remove image data and URLs to reduce size
 					imageData: undefined,
-					imageUrl: undefined
-				}))
-			}))
+					imageUrl: undefined,
+				})),
+			})),
 		} as T;
 	}
 
@@ -181,8 +188,11 @@ export function removeFromLocalStorageSync(key: string): void {
 		localStorage.removeItem(key);
 	} catch (error) {
 		handleStorageError(error, {
-			context: { component: 'LocalStorage', action: 'removeFromLocalStorageSync' },
-			silent: true
+			context: {
+				component: "LocalStorage",
+				action: "removeFromLocalStorageSync",
+			},
+			silent: true,
 		});
 	}
 }
@@ -207,8 +217,8 @@ export class LocalStorageStore<T> implements PersistenceStore<T> {
 export class IndexedDbStore<T> implements PersistenceStore<T> {
 	constructor(
 		public key: string,
-		private dbName: string = 'gnstudio',
-		private storeName: string = 'store'
+		private dbName: string = "gnstudio-assets",
+		private storeName: string = "store",
 	) {}
 
 	private open(): Promise<IDBDatabase> {
@@ -218,12 +228,12 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 				req.onupgradeneeded = () => {
 					const db = req.result;
 					if (!db.objectStoreNames.contains(this.storeName)) {
-						db.createObjectStore(this.storeName, { keyPath: 'key' });
+						db.createObjectStore(this.storeName, { keyPath: "key" });
 					}
 				};
 				req.onsuccess = () => resolve(req.result);
 				req.onerror = () => reject(req.error);
-				req.onblocked = () => reject(new Error('IndexedDB blocked'));
+				req.onblocked = () => reject(new Error("IndexedDB blocked"));
 			} catch (e) {
 				// IndexedDB not available
 				reject(e as Error);
@@ -234,7 +244,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 	async save(value: T): Promise<void> {
 		try {
 			const db = await this.open();
-			const tx = db.transaction([this.storeName], 'readwrite');
+			const tx = db.transaction([this.storeName], "readwrite");
 			const store = tx.objectStore(this.storeName);
 
 			// Clean the value to remove non-serializable objects
@@ -247,8 +257,8 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			});
 		} catch (error) {
 			handleStorageError(error, {
-				context: { component: 'IndexedDB', action: 'save' },
-				silent: true
+				context: { component: "IndexedDB", action: "save" },
+				silent: true,
 			});
 			// Fallback to localStorage for small data
 			try {
@@ -258,7 +268,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 					saveToLocalStorageSync(this.key, value);
 				}
 			} catch (fallbackError) {
-				console.error('Storage fallback failed:', fallbackError);
+				console.error("Storage fallback failed:", fallbackError);
 			}
 		}
 	}
@@ -266,7 +276,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 	async load(): Promise<T | null> {
 		try {
 			const db = await this.open();
-			const tx = db.transaction([this.storeName], 'readonly');
+			const tx = db.transaction([this.storeName], "readonly");
 			const store = tx.objectStore(this.storeName);
 			return await new Promise<T | null>((resolve, reject) => {
 				const req = store.get(this.key);
@@ -275,8 +285,8 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			});
 		} catch (error) {
 			handleStorageError(error, {
-				context: { component: 'IndexedDB', action: 'load' },
-				silent: true
+				context: { component: "IndexedDB", action: "load" },
+				silent: true,
 			});
 			// Fallback to localStorage
 			return loadFromLocalStorageSync<T>(this.key);
@@ -286,7 +296,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 	async clear(): Promise<void> {
 		try {
 			const db = await this.open();
-			const tx = db.transaction([this.storeName], 'readwrite');
+			const tx = db.transaction([this.storeName], "readwrite");
 			const store = tx.objectStore(this.storeName);
 			store.delete(this.key);
 			await new Promise<void>((resolve, reject) => {
@@ -295,8 +305,8 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			});
 		} catch (error) {
 			handleStorageError(error, {
-				context: { component: 'IndexedDB', action: 'clear' },
-				silent: true
+				context: { component: "IndexedDB", action: "clear" },
+				silent: true,
 			});
 			removeFromLocalStorageSync(this.key);
 		}
@@ -310,7 +320,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			return obj;
 		}
 
-		if (typeof obj === 'object') {
+		if (typeof obj === "object") {
 			if (Array.isArray(obj)) {
 				return obj.map((item) => this.cleanForSerialization(item));
 			}
@@ -321,8 +331,8 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 				try {
 					// Skip functions, symbols, and other problematic types
 					if (
-						typeof value !== 'function' &&
-						typeof value !== 'symbol' &&
+						typeof value !== "function" &&
+						typeof value !== "symbol" &&
 						value !== window &&
 						value !== document
 					) {
@@ -357,7 +367,7 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 	constructor(
 		public key: string,
 		private localStorageStore = new LocalStorageStore<T>(key),
-		private indexedDbStore = new IndexedDbStore<T>(key)
+		private indexedDbStore = new IndexedDbStore<T>(key),
 	) {}
 
 	async save(value: T): Promise<void> {
@@ -381,23 +391,30 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 				this.localStorageStore.save(value);
 			}
 		} catch (error) {
-			console.error('SmartStorage: Primary storage failed:', error);
+			console.error("SmartStorage: Primary storage failed:", error);
 
 			// Fallback to alternative storage
 			try {
 				const estimatedSize = getStorageSize(value);
 				if (estimatedSize > LARGE_PROJECT_THRESHOLD) {
 					// If IndexedDB failed, try localStorage (might work for smaller actual size)
-					console.warn('SmartStorage: IndexedDB failed, trying localStorage fallback');
+					console.warn(
+						"SmartStorage: IndexedDB failed, trying localStorage fallback",
+					);
 					this.localStorageStore.save(value);
 				} else {
 					// If localStorage failed, try IndexedDB
-					console.warn('SmartStorage: localStorage failed, trying IndexedDB fallback');
+					console.warn(
+						"SmartStorage: localStorage failed, trying IndexedDB fallback",
+					);
 					await this.indexedDbStore.save(value);
 				}
 			} catch (fallbackError) {
-				console.error('SmartStorage: Both storage methods failed:', fallbackError);
-				throw new Error('All storage methods failed');
+				console.error(
+					"SmartStorage: Both storage methods failed:",
+					fallbackError,
+				);
+				throw new Error("All storage methods failed");
 			}
 		}
 	}
@@ -414,7 +431,7 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 				}
 				// Data is corrupted or invalid, clear corrupted data and try IndexedDB
 				console.warn(
-					'SmartStorage: localStorage data invalid, clearing and falling back to IndexedDB'
+					"SmartStorage: localStorage data invalid, clearing and falling back to IndexedDB",
 				);
 				await this.localStorageStore.clear();
 			}
@@ -423,8 +440,8 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 			return await this.indexedDbStore.load();
 		} catch (error) {
 			handleStorageError(error, {
-				context: { component: 'SmartStorage', action: 'load' },
-				silent: false // Show error for smart storage failures
+				context: { component: "SmartStorage", action: "load" },
+				silent: false, // Show error for smart storage failures
 			});
 			return null;
 		}
@@ -438,19 +455,19 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 			return false;
 		}
 
-		if (typeof data !== 'object') {
+		if (typeof data !== "object") {
 			return false;
 		}
 
 		// For project-like objects, validate required structure
-		if ('id' in (data as object) && 'layers' in (data as object)) {
+		if ("id" in (data as object) && "layers" in (data as object)) {
 			const project = data as { id?: unknown; layers?: unknown };
-			if (!project.id || typeof project.id !== 'string') {
-				console.warn('SmartStorage: Invalid project ID');
+			if (!project.id || typeof project.id !== "string") {
+				console.warn("SmartStorage: Invalid project ID");
 				return false;
 			}
 			if (!Array.isArray(project.layers)) {
-				console.warn('SmartStorage: Layers is not an array');
+				console.warn("SmartStorage: Layers is not an array");
 				return false;
 			}
 		}
@@ -460,11 +477,14 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 
 	async clear(): Promise<void> {
 		try {
-			await Promise.all([this.localStorageStore.clear(), this.indexedDbStore.clear()]);
+			await Promise.all([
+				this.localStorageStore.clear(),
+				this.indexedDbStore.clear(),
+			]);
 		} catch (error) {
 			handleStorageError(error, {
-				context: { component: 'SmartStorage', action: 'clear' },
-				silent: true
+				context: { component: "SmartStorage", action: "clear" },
+				silent: true,
 			});
 		}
 	}
@@ -478,8 +498,8 @@ function serializeArrayBuffers(obj: unknown): unknown {
 
 	if (obj instanceof ArrayBuffer) {
 		return {
-			__type: 'ArrayBuffer',
-			data: arrayBufferToBase64(obj)
+			__type: "ArrayBuffer",
+			data: arrayBufferToBase64(obj),
 		};
 	}
 
@@ -487,7 +507,7 @@ function serializeArrayBuffers(obj: unknown): unknown {
 		return obj.map((item) => serializeArrayBuffers(item));
 	}
 
-	if (typeof obj === 'object') {
+	if (typeof obj === "object") {
 		const result: Record<string, unknown> = {};
 		for (const [key, value] of Object.entries(obj)) {
 			result[key] = serializeArrayBuffers(value);
@@ -503,9 +523,9 @@ function restoreArrayBuffers(obj: unknown): unknown {
 		return obj;
 	}
 
-	if (typeof obj === 'object' && !Array.isArray(obj)) {
+	if (typeof obj === "object" && !Array.isArray(obj)) {
 		// Check if this is a serialized ArrayBuffer
-		if ((obj as { __type?: string }).__type === 'ArrayBuffer') {
+		if ((obj as { __type?: string }).__type === "ArrayBuffer") {
 			const base64Data = (obj as { data?: string }).data;
 			if (base64Data) {
 				return base64ToArrayBuffer(base64Data);
