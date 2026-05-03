@@ -201,7 +201,7 @@
 		};
 	});
 
-	// Recalculate when nfts or container height change
+	// Recalculate when items or container height change
 	$effect(() => {
 		// Track dependencies
 		const _items = items;

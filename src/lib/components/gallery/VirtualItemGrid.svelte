@@ -63,8 +63,8 @@
 		// Initial preload of first page of images
 		const preloadCount = Math.min(50, items.length);
 		for (let i = 0; i < preloadCount; i++) {
-			if (nfts[i]) {
-				imageUrlCache.preload(nfts[i].id, nfts[i].imageData);
+			if (items[i]) {
+				imageUrlCache.preload(items[i].id, items[i].imageData);
 			}
 		}
 
