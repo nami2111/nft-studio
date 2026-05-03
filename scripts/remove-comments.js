@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -15,7 +15,7 @@ function findJSFiles(dir) {
 		const stat = fs.statSync(file);
 		if (stat && stat.isDirectory()) {
 			results = [...results, ...findJSFiles(file)];
-		} else if (path.extname(file) === '.js') {
+		} else if (path.extname(file) === ".js") {
 			results.push(file);
 		}
 	});
@@ -25,13 +25,13 @@ function findJSFiles(dir) {
 // Function to remove the comment from a file
 function removeCommentFromFile(filePath) {
 	try {
-		const content = fs.readFileSync(filePath, 'utf8');
+		const content = fs.readFileSync(filePath, "utf8");
 		const modifiedContent = content.replace(
 			/\/\/ \.\.\. \(unchanged parts of the component\)/g,
-			''
+			"",
 		);
 		if (content !== modifiedContent) {
-			fs.writeFileSync(filePath, modifiedContent, 'utf8');
+			fs.writeFileSync(filePath, modifiedContent, "utf8");
 			console.log(`Removed comment from ${filePath}`);
 		}
 	} catch (error) {
@@ -77,32 +77,35 @@ function removeEmptyChunks(buildDir) {
 
 	for (const file of remainingFiles) {
 		try {
-			let content = fs.readFileSync(file, 'utf8');
+			let content = fs.readFileSync(file, "utf8");
 			let modified = false;
 
 			for (const { basename } of emptyFileNames) {
-				const nameWithoutExt = basename.replace('.js', '');
+				const nameWithoutExt = basename.replace(".js", "");
 				// Match import statements like: import"./BTN-ohlh.js";
 				const importPattern = new RegExp(
 					`import\\s*["']\\.\\/[^"']*${nameWithoutExt}[^"']*\\.js["']\\s*;?`,
-					'g'
+					"g",
 				);
 				// Match import statements like: import"./chunks/BTN-ohlh.js";
 				const importPattern2 = new RegExp(
 					`import\\s*["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*;?`,
-					'g'
+					"g",
 				);
 				// Match dynamic imports
 				const dynamicImportPattern = new RegExp(
 					`import\\s*\\(\\s*["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*\\)\\s*,?`,
-					'g'
+					"g",
 				);
 				// Match in arrays (like PWA precache lists)
-				const arrayPattern = new RegExp(`["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*,?`, 'g');
+				const arrayPattern = new RegExp(
+					`["'][^"']*${nameWithoutExt}[^"']*\\.js["']\\s*,?`,
+					"g",
+				);
 				// Match modulepreload links
 				const preloadPattern = new RegExp(
 					`<link[^>]*href=["'][^"']*${nameWithoutExt}[^"']*\\.js["'][^>]*>\\s*`,
-					'g'
+					"g",
 				);
 
 				const patterns = [
@@ -110,11 +113,11 @@ function removeEmptyChunks(buildDir) {
 					importPattern2,
 					dynamicImportPattern,
 					arrayPattern,
-					preloadPattern
+					preloadPattern,
 				];
 
 				for (const pattern of patterns) {
-					const newContent = content.replace(pattern, '');
+					const newContent = content.replace(pattern, "");
 					if (newContent !== content) {
 						content = newContent;
 						modified = true;
@@ -123,7 +126,7 @@ function removeEmptyChunks(buildDir) {
 			}
 
 			if (modified) {
-				fs.writeFileSync(file, content, 'utf8');
+				fs.writeFileSync(file, content, "utf8");
 				const relPath = path.relative(buildDir, file);
 				console.log(`Cleaned references from: ${relPath}`);
 				totalRefsRemoved++;
@@ -137,7 +140,7 @@ function removeEmptyChunks(buildDir) {
 }
 
 // Main execution
-const buildDir = path.resolve(__dirname, '../build');
+const buildDir = path.resolve(__dirname, "../build");
 if (fs.existsSync(buildDir)) {
 	const jsFiles = findJSFiles(buildDir);
 	console.log(`Found ${jsFiles.length} JavaScript files in build directory`);
@@ -146,10 +149,14 @@ if (fs.existsSync(buildDir)) {
 		removeCommentFromFile(file);
 	});
 
-	console.log('Finished removing comments from build files');
+	console.log("Finished removing comments from build files");
 
 	// Remove empty JS chunks and clean up references
-	removeEmptyChunks(buildDir);
+	// NOTE: Disabled — regex-based reference cleanup is fragile and can
+	// leave dangling dynamic imports in SW precache manifests and lazy-loaded
+	// components, causing "MIME type text/html" errors in production.
+	// Empty chunks are harmless; deleting them creates real bugs.
+	// removeEmptyChunks(buildDir);
 } else {
-	console.log('Build directory not found');
+	console.log("Build directory not found");
 }
