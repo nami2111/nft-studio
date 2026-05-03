@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		ArrowLeft,
@@ -134,7 +135,7 @@
 								variant="outline"
 								size="lg"
 								class="w-full"
-								onclick={() => (window.location.href = '/app')}
+								onclick={() => goto('/app')}
 							>
 								Launch Studio
 							</Button>
@@ -142,7 +143,7 @@
 								variant="outline"
 								size="lg"
 								class="w-full"
-								onclick={() => (window.location.href = '/')}
+								onclick={() => goto('/')}
 							>
 								Homepage
 							</Button>
@@ -228,7 +229,7 @@
 						variant="outline"
 						size="lg"
 						class="w-full"
-						onclick={() => (window.location.href = '/app')}
+						onclick={() => goto('/app')}
 					>
 						Launch Studio
 					</Button>
@@ -236,7 +237,7 @@
 						variant="outline"
 						size="lg"
 						class="w-full"
-						onclick={() => (window.location.href = '/')}
+						onclick={() => goto('/')}
 					>
 						Homepage
 					</Button>
