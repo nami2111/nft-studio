@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { Settings, LayoutGrid } from '@lucide/svelte';
@@ -31,7 +32,7 @@
 		size="sm"
 		onclick={() => {
 			const nextMode = modes[(modes.indexOf(currentMode) + 1) % modes.length];
-			window.location.href = nextMode.route;
+			goto(nextMode.route);
 		}}
 		class="flex items-center gap-2 {className}"
 	>
