@@ -302,9 +302,10 @@ export class PerformanceMonitor {
 			// Every 50 operations
 			const hitRatePercent = (metrics.hitRate * 100).toFixed(1);
 			const memoryUsageMB = (metrics.memoryUsage / (1024 * 1024)).toFixed(2);
-			console.log(
-				`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`
-			);
+			if (import.meta.env.DEV)
+				console.log(
+					`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`
+				);
 		}
 	}
 
@@ -534,9 +535,10 @@ export class PerformanceMonitor {
 			const rate = this.batchProcessed / (elapsed / 1000);
 			const remaining = Math.max(0, this.batchTotal - this.batchProcessed);
 			const eta = (this.batchAvgTime * remaining) / 1000 / 60;
-			console.log(
-				`⚡ Sequential Performance: ${this.batchProcessed}/${this.batchTotal} items | ${rate.toFixed(1)} items/sec | ETA: ${eta.toFixed(1)}min | Avg: ${this.batchAvgTime.toFixed(1)}ms/item`
-			);
+			if (import.meta.env.DEV)
+				console.log(
+					`⚡ Sequential Performance: ${this.batchProcessed}/${this.batchTotal} items | ${rate.toFixed(1)} items/sec | ETA: ${eta.toFixed(1)}min | Avg: ${this.batchAvgTime.toFixed(1)}ms/item`
+				);
 			this.batchLastReport = now;
 		}
 	}
@@ -544,9 +546,10 @@ export class PerformanceMonitor {
 	finishBatch(): void {
 		const totalTime = performance.now() - this.batchStartTime;
 		const finalRate = this.batchProcessed / (totalTime / 1000);
-		console.log(
-			`🎯 Sequential Generation Complete: ${this.batchProcessed} items in ${(totalTime / 1000).toFixed(1)}s | Average: ${finalRate.toFixed(1)} items/sec`
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`🎯 Sequential Generation Complete: ${this.batchProcessed} items in ${(totalTime / 1000).toFixed(1)}s | Average: ${finalRate.toFixed(1)} items/sec`
+			);
 	}
 
 	// ==========================================
@@ -573,22 +576,26 @@ export class PerformanceMonitor {
 		const { summary } = report;
 
 		console.group('📊 Performance Summary');
-		console.log(`Total Operations: ${summary.totalOperations}`);
-		console.log(`Total Duration: ${summary.totalDuration.toFixed(2)}ms`);
-		console.log(`Average Operation Time: ${summary.averageOperationTime.toFixed(2)}ms`);
-		console.log(
-			`Slowest Operation: ${summary.slowestOperation} (${this.getStats(summary.slowestOperation)?.maxDuration.toFixed(2)}ms)`
-		);
-		console.log(
-			`Fastest Operation: ${summary.fastestOperation} (${this.getStats(summary.fastestOperation)?.minDuration.toFixed(2)}ms)`
-		);
+		if (import.meta.env.DEV) console.log(`Total Operations: ${summary.totalOperations}`);
+		if (import.meta.env.DEV) console.log(`Total Duration: ${summary.totalDuration.toFixed(2)}ms`);
+		if (import.meta.env.DEV)
+			console.log(`Average Operation Time: ${summary.averageOperationTime.toFixed(2)}ms`);
+		if (import.meta.env.DEV)
+			console.log(
+				`Slowest Operation: ${summary.slowestOperation} (${this.getStats(summary.slowestOperation)?.maxDuration.toFixed(2)}ms)`
+			);
+		if (import.meta.env.DEV)
+			console.log(
+				`Fastest Operation: ${summary.fastestOperation} (${this.getStats(summary.fastestOperation)?.minDuration.toFixed(2)}ms)`
+			);
 
 		if (Object.keys(report.operations).length > 0) {
 			console.group('Operation Details');
 			for (const [operation, stats] of Object.entries(report.operations)) {
-				console.log(
-					`${operation}: ${stats.count} calls, avg ${stats.averageDuration.toFixed(2)}ms`
-				);
+				if (import.meta.env.DEV)
+					console.log(
+						`${operation}: ${stats.count} calls, avg ${stats.averageDuration.toFixed(2)}ms`
+					);
 			}
 			console.groupEnd();
 		}

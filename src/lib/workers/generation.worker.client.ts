@@ -80,7 +80,7 @@ export async function startGeneration(
 			traits: { layerId: string; trait: TransferrableTrait }[];
 		}[] = [];
 
-		console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
+		if (import.meta.env.DEV) console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
 		const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
 
 		for (let i = 0; i < collectionSize; i++) {
@@ -117,7 +117,7 @@ export async function startGeneration(
 		}
 
 		performanceMonitor.stopTimer(preSolveTimer);
-		console.log(`✅ Pre-solved ${solutions.length} combinations.`);
+		if (import.meta.env.DEV) console.log(`✅ Pre-solved ${solutions.length} combinations.`);
 
 		// 2. Schedule solved traits as batches to the worker pool for rendering
 		const scheduler = new TraitBatchScheduler({

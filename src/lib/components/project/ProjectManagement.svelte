@@ -74,7 +74,7 @@
 			document.body.appendChild(a);
 			try {
 				a.click();
-				console.log('Project download initiated for:', a.download);
+if (import.meta.env.DEV) console.log('Project download initiated for:', a.download);
 			} catch (error) {
 				console.error('Download failed:', error);
 				throw error;

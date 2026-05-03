@@ -4,10 +4,7 @@
  * Reduces HTTP requests from N to N/64 for N traits
  */
 
-import type {
-	TransferrableLayer,
-	TransferrableTrait,
-} from "$lib/types/worker-messages";
+import type { TransferrableLayer, TransferrableTrait } from '$lib/types/worker-messages';
 
 export interface SpriteFrame {
 	x: number;
@@ -43,9 +40,10 @@ export class SpritePacker {
 		this.FRAMES_PER_ROW = atlasSize / spriteSize;
 		this.FRAMES_PER_SHEET = this.FRAMES_PER_ROW * this.FRAMES_PER_ROW;
 
-		console.log(
-			`🎨 SpritePacker initialized: ${this.FRAMES_PER_SHEET} frames/sheet (${this.FRAMES_PER_ROW}x${this.FRAMES_PER_ROW} grid), ${spriteSize}px sprites, ${atlasSize}px atlas`,
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`🎨 SpritePacker initialized: ${this.FRAMES_PER_SHEET} frames/sheet (${this.FRAMES_PER_ROW}x${this.FRAMES_PER_ROW} grid), ${spriteSize}px sprites, ${atlasSize}px atlas`
+			);
 	}
 
 	/**
@@ -58,16 +56,17 @@ export class SpritePacker {
 			return {
 				layerId: layer.id,
 				sheets: [],
-				traitCount: 0,
+				traitCount: 0
 			};
 		}
 
 		const traits = layer.traits;
 		const numSheets = Math.ceil(traits.length / this.FRAMES_PER_SHEET);
 
-		console.log(
-			`📦 Packing ${traits.length} traits from layer '${layer.name}' into ${numSheets} sprite sheets...`,
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`📦 Packing ${traits.length} traits from layer '${layer.name}' into ${numSheets} sprite sheets...`
+			);
 
 		const sheets: SpriteSheet[] = [];
 		const packPromises: Promise<SpriteSheet>[] = [];
@@ -85,14 +84,15 @@ export class SpritePacker {
 		const packedSheets = await Promise.all(packPromises);
 		sheets.push(...packedSheets);
 
-		console.log(
-			`✅ Layer '${layer.name}' packed: ${traits.length} traits in ${numSheets} sheets`,
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`✅ Layer '${layer.name}' packed: ${traits.length} traits in ${numSheets} sheets`
+			);
 
 		return {
 			layerId: layer.id,
 			sheets,
-			traitCount: traits.length,
+			traitCount: traits.length
 		};
 	}
 
@@ -106,19 +106,19 @@ export class SpritePacker {
 	private async createAtlas(
 		traits: TransferrableTrait[],
 		layerId: string,
-		sheetIndex: number,
+		sheetIndex: number
 	): Promise<SpriteSheet> {
 		// Create OffscreenCanvas for atlas
 		const canvas = new OffscreenCanvas(this.ATLAS_SIZE, this.ATLAS_SIZE);
-		const ctx = canvas.getContext("2d");
+		const ctx = canvas.getContext('2d');
 
 		if (!ctx) {
-			throw new Error("Failed to get 2D context for sprite atlas");
+			throw new Error('Failed to get 2D context for sprite atlas');
 		}
 
 		// Enable image smoothing for better quality if needed
 		ctx.imageSmoothingEnabled = true;
-		ctx.imageSmoothingQuality = "high";
+		ctx.imageSmoothingQuality = 'high';
 
 		const frames = new Map<string, SpriteFrame>();
 		const loadPromises: Promise<void>[] = [];
@@ -138,7 +138,7 @@ export class SpritePacker {
 				y,
 				width: this.SPRITE_SIZE,
 				height: this.SPRITE_SIZE,
-				traitId: trait.id,
+				traitId: trait.id
 			});
 
 			// Load and draw trait image onto atlas
@@ -157,7 +157,7 @@ export class SpritePacker {
 			atlas,
 			frames,
 			layerId,
-			textureSize: this.ATLAS_SIZE,
+			textureSize: this.ATLAS_SIZE
 		};
 	}
 
@@ -172,7 +172,7 @@ export class SpritePacker {
 		ctx: OffscreenCanvasRenderingContext2D,
 		trait: TransferrableTrait,
 		x: number,
-		y: number,
+		y: number
 	): Promise<void> {
 		try {
 			if (!trait.imageData || trait.imageData.byteLength === 0) {
@@ -181,13 +181,13 @@ export class SpritePacker {
 			}
 
 			// Create blob from ArrayBuffer
-			const blob = new Blob([trait.imageData], { type: "image/png" });
+			const blob = new Blob([trait.imageData], { type: 'image/png' });
 
 			// Create ImageBitmap with resize to fit sprite size
 			const bitmap = await createImageBitmap(blob, {
 				resizeWidth: this.SPRITE_SIZE,
 				resizeHeight: this.SPRITE_SIZE,
-				resizeQuality: "high",
+				resizeQuality: 'high'
 			});
 
 			// Draw onto atlas
@@ -207,10 +207,7 @@ export class SpritePacker {
 	 * @param traitId Trait ID to find
 	 * @returns SpriteFrame if found, undefined otherwise
 	 */
-	static getTraitFrame(
-		packedLayer: PackedLayer,
-		traitId: string,
-	): SpriteFrame | undefined {
+	static getTraitFrame(packedLayer: PackedLayer, traitId: string): SpriteFrame | undefined {
 		for (const sheet of packedLayer.sheets) {
 			const frame = sheet.frames.get(traitId);
 			if (frame) {
@@ -238,7 +235,7 @@ export class SpritePacker {
 		destX: number,
 		destY: number,
 		destWidth?: number,
-		destHeight?: number,
+		destHeight?: number
 	): boolean {
 		const frame = sheet.frames.get(traitId);
 		if (!frame) {
@@ -259,7 +256,7 @@ export class SpritePacker {
 			destX,
 			destY,
 			width,
-			height,
+			height
 		);
 
 		return true;
@@ -270,10 +267,9 @@ export class SpritePacker {
 	 * @param layers Array of layers to pack
 	 * @returns Map of layerId to PackedLayer
 	 */
-	async packLayers(
-		layers: TransferrableLayer[],
-	): Promise<Map<string, PackedLayer>> {
-		console.log(`🎨 Packing ${layers.length} layers into sprite sheets...`);
+	async packLayers(layers: TransferrableLayer[]): Promise<Map<string, PackedLayer>> {
+		if (import.meta.env.DEV)
+			console.log(`🎨 Packing ${layers.length} layers into sprite sheets...`);
 
 		const startTime = performance.now();
 		const packedLayers = new Map<string, PackedLayer>();
@@ -300,9 +296,10 @@ export class SpritePacker {
 			totalSheets += packedLayer.sheets.length;
 		}
 
-		console.log(
-			`✅ Packed ${totalTraits} traits from ${layers.length} layers into ${totalSheets} sprite sheets in ${duration.toFixed(1)}ms`,
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`✅ Packed ${totalTraits} traits from ${layers.length} layers into ${totalSheets} sprite sheets in ${duration.toFixed(1)}ms`
+			);
 
 		return packedLayers;
 	}
@@ -324,8 +321,7 @@ export class SpritePacker {
 		const averageImageSize = 50 * 1024; // Average 50KB per trait image
 
 		// Total for individual images
-		const individualImagesBytes =
-			numTraits * (averageImageSize + INDIVIDUAL_IMAGE_OVERHEAD);
+		const individualImagesBytes = numTraits * (averageImageSize + INDIVIDUAL_IMAGE_OVERHEAD);
 
 		// Sprite sheets: 64 traits per sheet (8x8 grid at 512px each = 4096px atlas)
 		// Each atlas is ~3MB (4096x4096 RGBA = 67MB uncompressed, ~3MB compressed)
@@ -345,7 +341,7 @@ export class SpritePacker {
 			spriteSheetBytes,
 			savingsBytes,
 			savingsPercent,
-			reducedRequests,
+			reducedRequests
 		};
 	}
 
@@ -364,6 +360,6 @@ export class SpritePacker {
 			}
 		}
 
-		console.log(`🧹 Cleaned up ${closedCount} sprite sheets`);
+		if (import.meta.env.DEV) console.log(`🧹 Cleaned up ${closedCount} sprite sheets`);
 	}
 }

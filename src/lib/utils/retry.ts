@@ -61,13 +61,14 @@ export class RetryOperation<T> {
 			try {
 				const data = await this.operation();
 
-				console.log(`Operation succeeded on attempt ${attempt}`, {
-					...this.context,
-					additionalData: {
-						attempts: attempt,
-						durationMs: Date.now() - startTime
-					}
-				});
+				if (import.meta.env.DEV)
+					console.log(`Operation succeeded on attempt ${attempt}`, {
+						...this.context,
+						additionalData: {
+							attempts: attempt,
+							durationMs: Date.now() - startTime
+						}
+					});
 
 				return {
 					success: true,

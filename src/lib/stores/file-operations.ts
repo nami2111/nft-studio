@@ -141,14 +141,16 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 	}
 
 	try {
-		console.log(
-			`[loadProjectFromZip] Starting to load project from: ${file.name} (${Math.round(file.size / 1024)}KB)`
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`[loadProjectFromZip] Starting to load project from: ${file.name} (${Math.round(file.size / 1024)}KB)`
+			);
 
 		// Use the enhanced fileToArrayBuffer with retry logic
 		const arrayBuffer = await fileToArrayBuffer(file, 3, 150);
 
-		console.log(`[loadProjectFromZip] File read successfully, parsing ZIP...`);
+		if (import.meta.env.DEV)
+			console.log(`[loadProjectFromZip] File read successfully, parsing ZIP...`);
 		const zip = await JSZip.loadAsync(arrayBuffer);
 
 		// Read project metadata

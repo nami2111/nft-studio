@@ -65,7 +65,8 @@ export class TraitBatchScheduler {
 		const totalBatches = Math.ceil(solutions.length / batchSize);
 		const batchPromises: Promise<unknown>[] = [];
 
-		console.log(`📦 Distributing ${totalBatches} batches to worker pool...`);
+		if (import.meta.env.DEV)
+			console.log(`📦 Distributing ${totalBatches} batches to worker pool...`);
 
 		for (let b = 0; b < totalBatches; b++) {
 			const batchSolutions = solutions.slice(b * batchSize, (b + 1) * batchSize);

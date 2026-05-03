@@ -11,8 +11,8 @@ async function loadSingleImage(id: string, src: string) {
 		const response = await fetch(src, {
 			signal: controller.signal,
 			headers: {
-				"Cache-Control": "no-cache",
-			},
+				'Cache-Control': 'no-cache'
+			}
 		});
 		clearTimeout(timeoutId);
 
@@ -32,7 +32,7 @@ async function loadSingleImage(id: string, src: string) {
 				id,
 				objectUrl,
 				width: img.naturalWidth,
-				height: img.naturalHeight,
+				height: img.naturalHeight
 			});
 			// Note: Don't revoke object URL here - it will be cleaned up when no longer needed
 		};
@@ -42,7 +42,7 @@ async function loadSingleImage(id: string, src: string) {
 				URL.revokeObjectURL(objectUrls.get(id)!);
 				objectUrls.delete(id);
 			}
-			self.postMessage({ id, error: "Failed to load image dimensions" });
+			self.postMessage({ id, error: 'Failed to load image dimensions' });
 		};
 		img.src = objectUrl;
 	} catch (error) {
@@ -53,10 +53,10 @@ async function loadSingleImage(id: string, src: string) {
 		}
 
 		// Handle different error types
-		let errorMessage = "Unknown error";
+		let errorMessage = 'Unknown error';
 		if (error instanceof Error) {
-			if (error.name === "AbortError") {
-				errorMessage = "Request timeout - image took too long to load";
+			if (error.name === 'AbortError') {
+				errorMessage = 'Request timeout - image took too long to load';
 			} else {
 				errorMessage = error.message;
 			}
@@ -77,8 +77,8 @@ async function loadBatchImages(requests: Array<{ id: string; src: string }>) {
 				const response = await fetch(src, {
 					signal: controller.signal,
 					headers: {
-						"Cache-Control": "no-cache",
-					},
+						'Cache-Control': 'no-cache'
+					}
 				});
 				clearTimeout(timeoutId);
 
@@ -100,7 +100,7 @@ async function loadBatchImages(requests: Array<{ id: string; src: string }>) {
 							id,
 							objectUrl,
 							width: img.naturalWidth,
-							height: img.naturalHeight,
+							height: img.naturalHeight
 						});
 						// Note: Don't remove from map here - cleanup happens later
 					};
@@ -109,28 +109,28 @@ async function loadBatchImages(requests: Array<{ id: string; src: string }>) {
 							URL.revokeObjectURL(objectUrls.get(id)!);
 							objectUrls.delete(id);
 						}
-						reject(new Error("Failed to load image dimensions"));
+						reject(new Error('Failed to load image dimensions'));
 					};
 					img.src = objectUrl;
 				});
 			} catch (error) {
 				// Handle different error types
-				let errorMessage = "Unknown error";
+				let errorMessage = 'Unknown error';
 				if (error instanceof Error) {
-					if (error.name === "AbortError") {
-						errorMessage = "Request timeout - image took too long to load";
+					if (error.name === 'AbortError') {
+						errorMessage = 'Request timeout - image took too long to load';
 					} else {
 						errorMessage = error.message;
 					}
 				}
 				throw { id, error: errorMessage };
 			}
-		}),
+		})
 	);
 
 	// Send results for successful loads
 	results.forEach((result) => {
-		if (result.status === "fulfilled") {
+		if (result.status === 'fulfilled') {
 			self.postMessage(result.value);
 		} else {
 			const error = result.reason;
@@ -142,13 +142,11 @@ async function loadBatchImages(requests: Array<{ id: string; src: string }>) {
 }
 
 self.onmessage = (
-	event: MessageEvent<
-		{ id: string; src: string } | { batch: Array<{ id: string; src: string }> }
-	>,
+	event: MessageEvent<{ id: string; src: string } | { batch: Array<{ id: string; src: string }> }>
 ) => {
 	const data = event.data;
 
-	if ("batch" in data) {
+	if ('batch' in data) {
 		// Handle batch request
 		loadBatchImages(data.batch);
 	} else {
@@ -158,7 +156,7 @@ self.onmessage = (
 };
 
 // Cleanup on worker termination
-self.addEventListener("beforeunload", () => {
+self.addEventListener('beforeunload', () => {
 	for (const url of objectUrls.values()) {
 		URL.revokeObjectURL(url);
 	}

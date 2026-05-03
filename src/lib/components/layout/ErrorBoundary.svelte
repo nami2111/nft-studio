@@ -285,7 +285,7 @@
 			.writeText(JSON.stringify(errorDetails, null, 2))
 			.then(() => {
 				// Could show a toast here if we had a toast system
-				console.log('Error details copied to clipboard');
+if (import.meta.env.DEV) console.log('Error details copied to clipboard');
 			})
 			.catch((err) => {
 				console.error('Failed to copy error details:', err);

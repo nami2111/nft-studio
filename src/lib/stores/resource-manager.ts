@@ -99,7 +99,8 @@ export class ResourceManager {
 	 * Perform full cleanup when last component unmounts
 	 */
 	private performFullCleanup(): void {
-		console.info('No components remaining, performing full resource cleanup');
+		if (import.meta.env.DEV)
+			console.info('No components remaining, performing full resource cleanup');
 		this.cleanup();
 	}
 

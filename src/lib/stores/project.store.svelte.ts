@@ -8,34 +8,27 @@
  * migrate to Svelte context (setContext/getContext).
  */
 
-import { SvelteMap } from "svelte/reactivity";
-import { calculateAdaptiveDelay } from "$lib/config/performance.config";
-import type { MetadataStandard } from "$lib/domain/metadata/metadata.strategy";
-import type { LayerId, ProjectId, TraitId } from "$lib/types/ids";
-import { createLayerId, createTraitId } from "$lib/types/ids";
-import type { StrictPairConfig } from "$lib/types/layer";
-import type {
-	Layer,
-	Project,
-	ProjectDimensions,
-	Trait,
-} from "$lib/types/project";
-import { fileToArrayBuffer } from "$lib/utils";
-import { performanceMonitor } from "$lib/utils/performance-monitor";
-import { persistenceService } from "../services/persistence.service";
-import { validationService } from "../services/validation.service";
+import { SvelteMap } from 'svelte/reactivity';
+import { calculateAdaptiveDelay } from '$lib/config/performance.config';
+import type { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
+import type { LayerId, ProjectId, TraitId } from '$lib/types/ids';
+import { createLayerId, createTraitId } from '$lib/types/ids';
+import type { StrictPairConfig } from '$lib/types/layer';
+import type { Layer, Project, ProjectDimensions, Trait } from '$lib/types/project';
+import { fileToArrayBuffer } from '$lib/utils';
+import { performanceMonitor } from '$lib/utils/performance-monitor';
+import { persistenceService } from '../services/persistence.service';
+import { validationService } from '../services/validation.service';
 import {
 	loadProjectFromZip as loadProjectFromZipImpl,
-	saveProjectToZip as saveProjectToZipImpl,
-} from "./file-operations";
-import { loadingStateManager } from "./loading-state";
-import { globalResourceManager } from "./resource-manager";
+	saveProjectToZip as saveProjectToZipImpl
+} from './file-operations';
+import { loadingStateManager } from './loading-state';
+import { globalResourceManager } from './resource-manager';
 
 // Initialize project with a fresh default project.
 // Auto-load disabled: users must manually load saved projects via "Load Project" button.
-export const project = $state<Project>(
-	validationService.createDefaultProject(),
-);
+export const project = $state<Project>(validationService.createDefaultProject());
 
 // Export a simple store wrapper for components
 export const projectStore = {
@@ -45,7 +38,7 @@ export const projectStore = {
 	updateStrictPairConfig,
 	getStrictPairConfig,
 	isStrictPairEnabled,
-	getActiveLayerCombinations,
+	getActiveLayerCombinations
 };
 
 // Enhanced state setters with automatic persistence
@@ -62,11 +55,7 @@ export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void {
 	}
 }
 
-export function updateTrait(
-	layerId: LayerId,
-	traitId: TraitId,
-	updates: Partial<Trait>,
-): void {
+export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial<Trait>): void {
 	const layer = project.layers.find((l) => l.id === layerId);
 	if (layer) {
 		const traitIndex = layer.traits.findIndex((t) => t.id === traitId);
@@ -82,7 +71,7 @@ interface BatchUpdate {
 	layerId?: LayerId;
 	traitId?: TraitId;
 	updates: Partial<Project | Layer | Trait>;
-	type: "project" | "layer" | "trait";
+	type: 'project' | 'layer' | 'trait';
 }
 
 let batchQueue: BatchUpdate[] = [];
@@ -97,26 +86,22 @@ function processBatchQueue(): void {
 	// Apply all updates
 	for (const update of updates) {
 		switch (update.type) {
-			case "project":
+			case 'project':
 				Object.assign(project, update.updates);
 				break;
-			case "layer":
+			case 'layer':
 				if (update.layerId) {
-					const layerIndex = project.layers.findIndex(
-						(l) => l.id === update.layerId,
-					);
+					const layerIndex = project.layers.findIndex((l) => l.id === update.layerId);
 					if (layerIndex !== -1) {
 						Object.assign(project.layers[layerIndex], update.updates);
 					}
 				}
 				break;
-			case "trait":
+			case 'trait':
 				if (update.layerId && update.traitId) {
 					const layer = project.layers.find((l) => l.id === update.layerId);
 					if (layer) {
-						const traitIndex = layer.traits.findIndex(
-							(t) => t.id === update.traitId,
-						);
+						const traitIndex = layer.traits.findIndex((t) => t.id === update.traitId);
 						if (traitIndex !== -1) {
 							Object.assign(layer.traits[traitIndex], update.updates);
 						}
@@ -148,14 +133,14 @@ export function updateTraitsBatch(
 		layerId: LayerId;
 		traitId: TraitId;
 		updates: Partial<Trait>;
-	}>,
+	}>
 ): void {
 	for (const update of updates) {
 		batchQueue.push({
 			layerId: update.layerId,
 			traitId: update.traitId,
 			updates: update.updates,
-			type: "trait",
+			type: 'trait'
 		});
 	}
 	scheduleBatchPersist();
@@ -165,13 +150,13 @@ export function updateLayersBatch(
 	updates: Array<{
 		layerId: LayerId;
 		updates: Partial<Layer>;
-	}>,
+	}>
 ): void {
 	for (const update of updates) {
 		batchQueue.push({
 			layerId: update.layerId,
 			updates: update.updates,
-			type: "layer",
+			type: 'layer'
 		});
 	}
 	scheduleBatchPersist();
@@ -212,10 +197,7 @@ export function isProjectValid(): boolean {
 }
 
 export function totalTraitCount(): number {
-	return project.layers.reduce(
-		(sum: number, layer: Layer) => sum + layer.traits.length,
-		0,
-	);
+	return project.layers.reduce((sum: number, layer: Layer) => sum + layer.traits.length, 0);
 }
 
 export function projectNeedsZipLoad(): boolean {
@@ -234,9 +216,7 @@ export function updateProjectDescription(description: string): void {
 	persistenceService.schedulePersist(project);
 }
 
-export function updateProjectMetadataStandard(
-	standard: MetadataStandard,
-): void {
+export function updateProjectMetadataStandard(standard: MetadataStandard): void {
 	project.metadataStandard = standard;
 	persistenceService.schedulePersist(project);
 }
@@ -261,9 +241,7 @@ export function updateProjectAnimationUrl(url: string): void {
 	persistenceService.schedulePersist(project);
 }
 
-export function updateProjectCreators(
-	creators: { address: string; share: number }[],
-): void {
+export function updateProjectCreators(creators: { address: string; share: number }[]): void {
 	project.creators = creators;
 	persistenceService.schedulePersist(project);
 }
@@ -282,7 +260,7 @@ export function addLayer(name: string): void {
 		id: createLayerId(crypto.randomUUID()),
 		name,
 		order: project.layers.length,
-		traits: [],
+		traits: []
 	};
 
 	project.layers.push(newLayer);
@@ -290,9 +268,7 @@ export function addLayer(name: string): void {
 }
 
 export function removeLayer(layerId: LayerId): void {
-	const layerIndex = project.layers.findIndex(
-		(layer: Layer) => layer.id === layerId,
-	);
+	const layerIndex = project.layers.findIndex((layer: Layer) => layer.id === layerId);
 	if (layerIndex === -1) return;
 
 	const layer = project.layers[layerIndex];
@@ -334,10 +310,7 @@ export function reorderLayers(layerIds: LayerId[]): void {
 }
 
 // Batch loading state for traits
-const pendingTraitUpdates = new SvelteMap<
-	string,
-	{ trait: Trait; layer: Layer; file: File }
->();
+const pendingTraitUpdates = new SvelteMap<string, { trait: Trait; layer: Layer; file: File }>();
 const pendingTraitPromises = new SvelteMap<
 	TraitId,
 	{ resolve: () => void; reject: (error: Error) => void }
@@ -355,7 +328,7 @@ async function processPendingTraitUpdates(): Promise<void> {
 				const arrayBuffer = await fileToArrayBuffer(file);
 				trait.imageData = arrayBuffer;
 				const blob = new Blob([arrayBuffer], {
-					type: file.type || "image/png",
+					type: file.type || 'image/png'
 				});
 				trait.imageUrl = URL.createObjectURL(blob);
 				globalResourceManager.addObjectUrl(trait.imageUrl);
@@ -363,20 +336,16 @@ async function processPendingTraitUpdates(): Promise<void> {
 				pendingTraitPromises.delete(trait.id);
 				return { trait, layer };
 			} catch (error) {
-				const traitIndex = layer.traits.findIndex(
-					(t: Trait) => t.id === trait.id,
-				);
+				const traitIndex = layer.traits.findIndex((t: Trait) => t.id === trait.id);
 				if (traitIndex !== -1) layer.traits.splice(traitIndex, 1);
 				pendingTraitPromises.get(trait.id)?.reject(error as Error);
 				pendingTraitPromises.delete(trait.id);
 				return null;
 			}
-		}),
+		})
 	);
 
-	const validResults = results.filter(
-		(r): r is { trait: Trait; layer: Layer } => r !== null,
-	);
+	const validResults = results.filter((r): r is { trait: Trait; layer: Layer } => r !== null);
 	for (const { trait, layer } of validResults) {
 		const traitIndex = layer.traits.findIndex((t: Trait) => t.id === trait.id);
 		if (traitIndex !== -1) layer.traits[traitIndex] = trait;
@@ -399,14 +368,14 @@ export function addTrait(layerId: LayerId, file: File): Promise<void> {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
 	if (!layer) throw new Error(`Layer with ID ${layerId} not found`);
 
-	const traitName = file.name.replace(/\.[^/.]+$/, "");
+	const traitName = file.name.replace(/\.[^/.]+$/, '');
 	validationService.validateTraitName(traitName);
 
 	const newTrait: Trait = {
 		id: createTraitId(crypto.randomUUID()),
 		name: traitName,
 		imageData: new ArrayBuffer(0),
-		rarityWeight: 5,
+		rarityWeight: 5
 	};
 
 	layer.traits.push(newTrait);
@@ -425,9 +394,7 @@ export function removeTrait(layerId: LayerId, traitId: TraitId): void {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
 	if (!layer) return;
 
-	const traitIndex = layer.traits.findIndex(
-		(trait: Trait) => trait.id === traitId,
-	);
+	const traitIndex = layer.traits.findIndex((trait: Trait) => trait.id === traitId);
 	if (traitIndex === -1) return;
 
 	const trait = layer.traits[traitIndex];
@@ -437,11 +404,7 @@ export function removeTrait(layerId: LayerId, traitId: TraitId): void {
 	persistenceService.schedulePersist(project);
 }
 
-export function updateTraitName(
-	layerId: LayerId,
-	traitId: TraitId,
-	name: string,
-): void {
+export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string): void {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
 	if (!layer) return;
 	const trait = layer.traits.find((trait: Trait) => trait.id === traitId);
@@ -451,11 +414,7 @@ export function updateTraitName(
 	persistenceService.schedulePersist(project);
 }
 
-export function updateTraitRarity(
-	layerId: LayerId,
-	traitId: TraitId,
-	rarityWeight: number,
-): void {
+export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeight: number): void {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
 	if (!layer) return;
 	const trait = layer.traits.find((trait: Trait) => trait.id === traitId);
@@ -490,18 +449,18 @@ export function getDetailedLoadingState(op: string) {
 
 // Project persistence
 export async function saveProjectToZip(): Promise<ArrayBuffer> {
-	const timerId = performanceMonitor.startTimer("project.saveProjectToZip");
-	startLoading("project-save");
-	startDetailedLoading("project-save", 100);
+	const timerId = performanceMonitor.startTimer('project.saveProjectToZip');
+	startLoading('project-save');
+	startDetailedLoading('project-save', 100);
 	try {
 		const result = await saveProjectToZipImpl(project);
-		stopDetailedLoading("project-save");
-		stopLoading("project-save");
+		stopDetailedLoading('project-save');
+		stopLoading('project-save');
 		performanceMonitor.stopTimer(timerId);
 		return result;
 	} catch (error) {
-		stopDetailedLoading("project-save", false);
-		stopLoading("project-save");
+		stopDetailedLoading('project-save', false);
+		stopLoading('project-save');
 		performanceMonitor.stopTimer(timerId, { error: String(error) });
 		throw error;
 	}
@@ -509,22 +468,22 @@ export async function saveProjectToZip(): Promise<ArrayBuffer> {
 
 export async function loadProjectFromZip(file: File): Promise<void> {
 	try {
-		startLoading("project-load");
-		startDetailedLoading("project-load", 100);
+		startLoading('project-load');
+		startDetailedLoading('project-load', 100);
 		globalResourceManager.cleanup();
 		const loadedProject = await loadProjectFromZipImpl(file);
 		project.id = loadedProject.id;
 		project.name = loadedProject.name;
-		project.description = loadedProject.description || "";
+		project.description = loadedProject.description || '';
 		project.outputSize = loadedProject.outputSize || { width: 0, height: 0 };
 		project.layers = loadedProject.layers;
 		project._needsProperLoad = false;
 		persistenceService.schedulePersist(project);
-		stopDetailedLoading("project-load");
-		stopLoading("project-load");
+		stopDetailedLoading('project-load');
+		stopLoading('project-load');
 	} catch (error) {
-		stopDetailedLoading("project-load", false);
-		stopLoading("project-load");
+		stopDetailedLoading('project-load', false);
+		stopLoading('project-load');
 		throw error;
 	}
 }
@@ -546,11 +505,8 @@ export function hasPersistedData(): boolean {
 }
 
 // Strict Pair management
-export function updateStrictPairConfig(
-	projectId: ProjectId,
-	config: StrictPairConfig,
-): void {
-	if (project.id !== projectId) throw new Error("Project ID mismatch");
+export function updateStrictPairConfig(projectId: ProjectId, config: StrictPairConfig): void {
+	if (project.id !== projectId) throw new Error('Project ID mismatch');
 	project.strictPairConfig = { ...config };
 	persistenceService.schedulePersist(project);
 }

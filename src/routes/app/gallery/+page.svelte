@@ -78,7 +78,7 @@
 	});
 
 	function forceClearCache() {
-		console.log('Force clearing gallery cache...');
+		if (import.meta.env.DEV) console.log('Force clearing gallery cache...');
 		galleryStore.clearGallery();
 		imageUrlCache.clear();
 		window.location.reload();
