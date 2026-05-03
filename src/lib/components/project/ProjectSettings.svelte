@@ -163,7 +163,7 @@
 					onchange={(e: Event) => saveSymbol((e.target as HTMLInputElement).value)}
 					onfocus={() => (focusedField = 'symbol')}
 					onblur={() => (focusedField = null)}
-					placeholder="e.g. NFT"
+					placeholder="e.g. GNST"
 					class="text-xs uppercase sm:text-sm"
 				/>
 				<p class="text-muted-foreground mt-1 text-xs">Token symbol (Solana required)</p>

@@ -212,16 +212,20 @@ export function calculateAdaptiveDelay(
 }
 
 /**
- * Get optimal worker count based on device capabilities
+ * Get optimal worker count based on device capabilities.
+ * Pass overrideCores and/or overrideMemoryGB to avoid hardware fingerprinting.
  */
 export function getOptimalWorkerCount(
-	maxWorkers = PERF_CONFIG.generation.workers.maxWorkers
+	maxWorkers = PERF_CONFIG.generation.workers.maxWorkers,
+	overrideCores?: number,
+	overrideMemoryGB?: number
 ): number {
-	if (typeof navigator === 'undefined') return 4;
+	if (typeof navigator === 'undefined') return overrideCores ?? 4;
 
-	const cores = navigator.hardwareConcurrency || 4;
+	const cores = overrideCores ?? navigator.hardwareConcurrency ?? 4;
 	// deviceMemory is experimental - use type assertion
-	const memoryGB = (navigator as Navigator & { deviceMemory?: number }).deviceMemory || 4;
+	const memoryGB =
+		overrideMemoryGB ?? (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
 
 	// Use configured CPU utilization, capped by memory
 	const byCores = Math.floor(cores * PERF_CONFIG.generation.workers.cpuUtilization);

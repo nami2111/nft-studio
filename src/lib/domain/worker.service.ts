@@ -114,7 +114,7 @@ export async function startGeneration(
 			},
 			title: 'Generation Failed',
 			description:
-				'Failed to start NFT generation. This may be due to memory limitations or worker initialization issues.'
+				'Failed to start generation. This may be due to memory limitations or worker initialization issues.'
 		}
 	);
 }
@@ -123,7 +123,7 @@ export async function startGeneration(
  * Cancel generation and clean up resources
  */
 export function cancelGeneration(): void {
-	console.log('🛑 Cancelling generation');
+	if (import.meta.env.DEV) console.log('🛑 Cancelling generation');
 
 	// Mark as cancelled in persistent state
 	generationState.error = 'Generation cancelled by user';

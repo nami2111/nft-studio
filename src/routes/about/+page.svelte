@@ -45,10 +45,10 @@
 </script>
 
 <svelte:head>
-	<title>About NFT Studio - Documentation</title>
+	<title>About GNStudio - Documentation</title>
 	<meta
 		name="description"
-		content="NFT Studio: Professional web-based platform for creating generative NFT collections"
+		content="GNStudio: Browser-based platform for creating generative art collections"
 	/>
 </svelte:head>
 
@@ -66,7 +66,7 @@
 					<Menu class="h-5 w-5" />
 				</Button>
 				<div>
-					<h1 class="text-foreground text-lg font-bold">NFT Studio</h1>
+					<h1 class="text-foreground text-lg font-bold">GNStudio</h1>
 					<p class="text-muted-foreground text-xs">Documentation</p>
 				</div>
 			</div>
@@ -98,7 +98,7 @@
 				<div class="p-4">
 					<div class="mb-6 flex items-center justify-between">
 						<div>
-							<h1 class="text-foreground text-lg font-bold">NFT Studio</h1>
+							<h1 class="text-foreground text-lg font-bold">GNStudio</h1>
 							<p class="text-muted-foreground text-xs">Documentation</p>
 						</div>
 						<Button
@@ -201,7 +201,7 @@
 
 			<!-- Logo/Title -->
 			<div class="mb-8">
-				<h1 class="text-foreground text-xl font-bold">NFT Studio</h1>
+				<h1 class="text-foreground text-xl font-bold">GNStudio</h1>
 				<p class="text-muted-foreground mt-1 text-sm">Documentation</p>
 			</div>
 
@@ -278,11 +278,11 @@
 			<!-- Header Section -->
 			<div class="mb-6 sm:mb-8">
 				<div class="mb-4 sm:mb-6">
-					<h1 class="text-foreground mb-2 text-2xl font-bold sm:text-3xl">NFT Studio</h1>
-					<p class="text-muted-foreground text-base sm:text-lg">
-						Professional web-based platform for creating generative NFT collections with advanced
-						layer management and high-performance generation.
-					</p>
+			<h1 class="text-foreground mb-2 text-2xl font-bold sm:text-3xl">GNStudio</h1>
+				<p class="text-muted-foreground text-base sm:text-lg">
+					Browser-based platform for creating generative art collections with advanced
+					layer management and high-performance generation.
+				</p>
 				</div>
 			</div>
 
@@ -297,12 +297,12 @@
 							</div>
 							<div class="px-4 py-4 sm:px-6 sm:py-6">
 								<div class="prose max-w-none">
-									<p class="text-muted-foreground mb-6 leading-relaxed">
-										NFT Studio is a professional web application built with SvelteKit 2, Svelte 5,
-										TypeScript, and Web Workers. It provides artists and creators with a
-										comprehensive toolkit for building generative NFT collections through an
-										intuitive, high-performance interface.
-									</p>
+								<p class="text-muted-foreground mb-6 leading-relaxed">
+									GNStudio is a browser-based application built with SvelteKit 2, Svelte 5,
+									TypeScript, and Web Workers. It provides artists and creators with a
+									comprehensive toolkit for building generative art collections through an
+									intuitive, high-performance interface.
+								</p>
 
 									<div class="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
 										<div>
@@ -349,14 +349,14 @@
 													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
 													>Canvas API</span
 												>
-												<span
-													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-													>ICP Blockchain</span
-												>
-												<span
-													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-													>Juno</span
-												>
+									<span
+												class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
+												>Static Hosting</span
+											>
+											<span
+												class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
+												>Juno</span
+											>
 											</div>
 										</div>
 									</div>
@@ -533,7 +533,7 @@
 										</div>
 										<div>
 											<strong class="text-foreground">Metadata:</strong>
-											<p class="text-muted-foreground">ERC-721/1155 compatible JSON</p>
+											<p class="text-muted-foreground">JSON with traits and attributes</p>
 										</div>
 										<div>
 											<strong class="text-foreground">Preview:</strong>
@@ -559,7 +559,7 @@
 										<h3 class="text-foreground mb-4 font-semibold">View & Manage Collections</h3>
 										<p class="text-muted-foreground mb-4">
 											Gallery Mode provides a powerful interface for viewing, filtering, and
-											managing your generated NFT collections. Access it by clicking "Gallery Mode"
+											managing your generated collections. Access it by clicking "Gallery Mode"
 											in the top-right corner of the main app.
 										</p>
 
@@ -576,7 +576,7 @@
 											<div>
 												<h4 class="text-foreground mb-3 font-semibold">Advanced Filtering</h4>
 												<div class="text-muted-foreground space-y-2 text-sm">
-													<p>• Search by NFT name and description</p>
+													<p>• Search by item name and description</p>
 													<p>• Multi-layer trait filtering</p>
 													<p>• Sort by rarity, name, or generation date</p>
 													<p>• Real-time filter results</p>
@@ -588,7 +588,7 @@
 									<div>
 										<h3 class="text-foreground mb-4 font-semibold">Interactive Trait Filtering</h3>
 										<p class="text-muted-foreground mb-4">
-											Click on any trait in NFT details to instantly filter the entire collection by
+											Click on any trait in item details to instantly filter the entire collection by
 											that trait. Build complex filters by selecting multiple traits from different
 											layers.
 										</p>
@@ -598,7 +598,7 @@
 												How Interactive Filtering Works:
 											</h4>
 											<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
-												<li>Click any NFT to view its details in the right panel</li>
+												<li>Click any item to view its details in the right panel</li>
 												<li>Click on individual traits to filter by that specific attribute</li>
 												<li>Selected traits are highlighted with primary color styling</li>
 												<li>Build multi-trait filters by clicking additional traits</li>
@@ -631,7 +631,7 @@
 											<div class="border-border bg-muted rounded-lg border p-4">
 												<h4 class="text-foreground mb-2 font-semibold">Desktop</h4>
 												<p class="text-muted-foreground text-sm">
-													70/30 split layout with fixed right panel and comprehensive NFT details
+													70/30 split layout with fixed right panel and comprehensive item details
 												</p>
 											</div>
 										</div>
@@ -661,7 +661,7 @@
 										<h3 class="text-foreground mb-4 font-semibold">Rarity Calculation System</h3>
 										<p class="text-muted-foreground mb-4">
 											Gallery Mode automatically calculates rarity scores and ranks for all imported
-											NFTs using advanced algorithms that analyze trait distribution across the
+											items using advanced algorithms that analyze trait distribution across the
 											entire collection.
 										</p>
 
@@ -674,18 +674,18 @@
 												</p>
 												<div class="border-border bg-muted rounded-lg border p-3">
 													<p class="text-foreground mb-2 font-mono text-xs">
-														Trait Rarity (%) = (Number of NFTs with this trait ÷ Total NFTs) × 100
+														Trait Rarity (%) = (Number of items with this trait ÷ Total items) × 100
 													</p>
 													<p class="text-muted-foreground text-xs">
-														Example: If only 50 out of 1000 NFTs have a "Golden Crown" trait, its
+														Example: If only 50 out of 1000 items have a "Golden Crown" trait, its
 														rarity is 5%.
 													</p>
 												</div>
 											</div>
 											<div>
-												<h4 class="text-foreground mb-3 font-semibold">Overall NFT Score</h4>
+												<h4 class="text-foreground mb-3 font-semibold">Overall Item Score</h4>
 												<p class="text-muted-foreground mb-3 text-sm">
-													Each NFT's rarity score is calculated by summing its individual trait
+													Each item's rarity score is calculated by summing its individual trait
 													rarity scores (where rarer = higher score):
 												</p>
 												<div class="border-border bg-muted rounded-lg border p-3">
@@ -693,7 +693,7 @@
 														Trait Score = 100 ÷ Trait Percentage
 													</p>
 													<p class="text-foreground mb-2 font-mono text-xs">
-														NFT Score = Sum of all trait scores
+														Item Score = Sum of all trait scores
 													</p>
 													<p class="text-muted-foreground text-xs">
 														Example: A 5% rare trait = 20 points, 10% trait = 10 points. Total score
@@ -707,10 +707,10 @@
 											<h4 class="text-foreground mb-2 font-semibold">Ranking System</h4>
 											<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
 												<li>
-													<strong>Rank #1:</strong> Most rare NFT (HIGHEST score - has rarest traits)
+													<strong>Rank #1:</strong> Most rare item (HIGHEST score - has rarest traits)
 												</li>
 												<li>
-													<strong>Higher numbers:</strong> Less rare NFTs (LOWER scores - more common
+													<strong>Higher numbers:</strong> Less rare items (LOWER scores - more common
 													traits)
 												</li>
 												<li>
@@ -723,7 +723,7 @@
 												</li>
 												<li>
 													<strong>Visual indicators:</strong> Rarity scores and ranks are displayed in
-													NFT details
+													item details
 												</li>
 											</ul>
 										</div>
@@ -733,11 +733,11 @@
 											<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
 												<div>
 													<h5 class="text-foreground mb-1 text-sm font-medium">
-														In NFT Details Panel:
+														In Item Details Panel:
 													</h5>
 													<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-xs">
 														<li>Individual trait rarity percentages</li>
-														<li>Overall NFT rarity score</li>
+														<li>Overall item rarity score</li>
 														<li>Global rarity rank (e.g., "Rank #42")</li>
 													</ul>
 												</div>
@@ -746,8 +746,8 @@
 														In Collection Stats:
 													</h5>
 													<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-xs">
-														<li>Rarest NFT in the collection</li>
-														<li>Average rarity score across all NFTs</li>
+														<li>Rarest item in the collection</li>
+														<li>Average rarity score across all items</li>
 														<li>Total number of unique traits</li>
 													</ul>
 												</div>
@@ -830,12 +830,12 @@
 
 								<div class="bg-muted mt-6 rounded-lg p-4">
 									<h4 class="text-foreground mb-2 font-semibold">
-										Metadata Structure (ERC-721 Compatible)
+										Metadata Structure
 									</h4>
 									<pre
 										class="bg-card text-foreground overflow-x-auto rounded border p-3 text-xs">{`{
   "name": "Collection #1",
-  "description": "Generated by NFT Studio",
+  "description": "Generated by GNStudio",
   "image": "images/1.png",
   "edition": 1,
   "attributes": [
@@ -911,7 +911,7 @@
 										<h3 class="text-foreground mb-4 font-semibold">What is Strict Pair Mode?</h3>
 										<p class="text-muted-foreground mb-4">
 											Strict Pair Mode is an advanced feature that prevents specific trait
-											combinations from appearing more than once in your NFT collection. This gives
+											combinations from appearing more than once in your collection. This gives
 											you precise control over the uniqueness of specific trait combinations,
 											allowing you to create more valuable and strategically designed collections.
 										</p>
@@ -970,7 +970,7 @@
 													trait combinations between selected layers
 												</li>
 												<li>
-													<strong>Generation Prevention:</strong> During NFT generation, duplicate combinations
+													<strong>Generation Prevention:</strong> During generation, duplicate combinations
 													are automatically blocked and regenerated with different traits
 												</li>
 											</ol>
@@ -1201,7 +1201,7 @@
 										<h3 class="text-foreground mb-4 font-semibold">What are Ruler Traits?</h3>
 										<p class="text-muted-foreground mb-4">
 											Ruler traits are special traits that control which other traits can be
-											combined together in your NFTs. They act as "rules" that enforce compatibility
+											combined together in your items. They act as "rules" that enforce compatibility
 											between different trait categories, allowing you to create more sophisticated
 											and logical trait combinations.
 										</p>

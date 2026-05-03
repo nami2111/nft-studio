@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { GalleryNFT } from '$lib/types/gallery';
+	import type { GalleryItem } from '$lib/types/gallery';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import { onMount, untrack } from 'svelte';
 
 	interface Props {
-		nfts: GalleryNFT[];
-		selectedNFT?: GalleryNFT | null;
-		onselect?: (nft: GalleryNFT) => void;
+		items: GalleryItem[];
+		selectedItem?: GalleryItem | null;
+		onselect?: (item: GalleryItem) => void;
 		class?: string;
 		columns?: number;
 		itemHeight?: number;
@@ -14,8 +14,8 @@
 	}
 
 	const {
-		nfts,
-		selectedNFT = null,
+		items,
+		selectedItem = null,
 		onselect,
 		class: className = '',
 		columns = 4,
@@ -39,14 +39,14 @@
 	// Update visible range
 	function calculateVisibleRange() {
 		// Use local variable to ensure we have a stable reference during calculation
-		const currentNfts = nfts;
+		const currentItems = items;
 		const currentHeight = containerHeight;
 
-		if (!currentNfts || currentNfts.length === 0 || currentHeight <= 0) {
+		if (!currentItems || currentItems.length === 0 || currentHeight <= 0) {
 			// If height is 0, we still want to render something initially if possible
-			if (currentNfts && currentNfts.length > 0 && currentHeight === 0) {
+			if (currentItems && currentItems.length > 0 && currentHeight === 0) {
 				visibleStart = 0;
-				visibleEnd = Math.min(currentNfts.length, columns * 10); // Render first 10 rows as safety
+				visibleEnd = Math.min(currentItems.length, columns * 10); // Render first 10 rows as safety
 			}
 			return;
 		}
@@ -54,15 +54,15 @@
 		// Calculate which rows are visible
 		const startRow = Math.floor(scrollTop / rowHeight);
 		const rowsVisible = Math.ceil(currentHeight / rowHeight);
-		const endRow = Math.min(Math.ceil(currentNfts.length / columns), startRow + rowsVisible);
+		const endRow = Math.min(Math.ceil(currentItems.length / columns), startRow + rowsVisible);
 
 		// Apply overscan to rows, then convert to item indices
 		const overscanStartRow = Math.max(0, startRow - overscanRows);
-		const overscanEndRow = Math.min(Math.ceil(currentNfts.length / columns), endRow + overscanRows);
+		const overscanEndRow = Math.min(Math.ceil(currentItems.length / columns), endRow + overscanRows);
 
 		// Convert row indices to item indices
 		visibleStart = overscanStartRow * columns;
-		visibleEnd = Math.min(currentNfts.length, overscanEndRow * columns);
+		visibleEnd = Math.min(currentItems.length, overscanEndRow * columns);
 	}
 
 	// Update visible range when scrolling
@@ -93,41 +93,41 @@
 	let imageUrls = $state<Record<string, string>>({});
 
 	// Request image URL creation (async, non-blocking)
-	function requestImageUrl(nft: GalleryNFT): string {
+	function requestImageUrl(item: GalleryItem): string {
 		// Check if already loaded
-		if (imageUrls[nft.id]) {
-			return imageUrls[nft.id];
+		if (imageUrls[item.id]) {
+			return imageUrls[item.id];
 		}
 
 		// Check if imageData exists
-		if (!nft.imageData || (typeof nft.imageData !== 'string' && nft.imageData.byteLength === 0)) {
+		if (!item.imageData || (typeof item.imageData !== 'string' && item.imageData.byteLength === 0)) {
 			return '';
 		}
 
 		// Add to queue for async loading
-		if (!imageLoadQueue.has(nft.id)) {
-			imageLoadQueue.add(nft.id);
+		if (!imageLoadQueue.has(item.id)) {
+			imageLoadQueue.add(item.id);
 
 			// Load image in background without blocking UI
 			// We use setTimeout to ensure this update happens outside the current render cycle,
 			// which avoids the state_unsafe_mutation error.
 			setTimeout(() => {
 				try {
-					const url = imageUrlCache.get(nft.id, nft.imageData);
-					imageUrls[nft.id] = url; // This triggers reactivity!
-					imageLoadQueue.delete(nft.id);
+					const url = imageUrlCache.get(item.id, item.imageData);
+					imageUrls[item.id] = url; // This triggers reactivity!
+					imageLoadQueue.delete(item.id);
 				} catch {
-					imageLoadQueue.delete(nft.id);
-					imageUrls[nft.id] = 'error';
+					imageLoadQueue.delete(item.id);
+					imageUrls[item.id] = 'error';
 				}
 			}, 0);
 
 			// Add timeout protection (5 seconds max)
 			setTimeout(() => {
-				if (imageLoadQueue.has(nft.id)) {
-					imageLoadQueue.delete(nft.id);
+				if (imageLoadQueue.has(item.id)) {
+					imageLoadQueue.delete(item.id);
 					// Mark as failed to prevent infinite loading
-					imageUrls[nft.id] = 'error';
+					imageUrls[item.id] = 'error';
 				}
 			}, 5000);
 		}
@@ -137,11 +137,11 @@
 	}
 
 	// Handle image loading errors with automatic retry
-	function handleImageError(event: Event, nft: GalleryNFT) {
+	function handleImageError(event: Event, item: GalleryItem) {
 		const target = event.target as HTMLImageElement;
 
 		// Try to handle the error using the cache
-		const retryUrl = imageUrlCache.handleUrlError(nft.id);
+		const retryUrl = imageUrlCache.handleUrlError(item.id);
 		if (retryUrl && retryUrl !== target.src) {
 			// Retry with the new URL
 			target.src = retryUrl;
@@ -156,8 +156,8 @@
 		}
 	}
 
-	function handleNFTClick(nft: GalleryNFT) {
-		onselect?.(nft);
+	function handleItemClick(item: GalleryItem) {
+		onselect?.(item);
 	}
 
 	// ResizeObserver to properly track container height changes
@@ -201,10 +201,10 @@
 		};
 	});
 
-	// Recalculate when nfts or container height change
+	// Recalculate when items or container height change
 	$effect(() => {
 		// Track dependencies
-		const _nfts = nfts;
+		const _items = items;
 		const _height = containerHeight;
 
 		untrack(() => {
@@ -222,7 +222,7 @@
 	});
 
 	// Calculate total height
-	const totalHeight = $derived(Math.ceil(nfts.length / columns) * rowHeight);
+	const totalHeight = $derived(Math.ceil(items.length / columns) * rowHeight);
 </script>
 
 <div bind:this={wrapperElement} class="flex h-full flex-col {className}">
@@ -231,7 +231,7 @@
 		<div
 			class="border-border/40 text-muted-foreground bg-muted/30 flex-none border-b px-2 py-1 font-mono text-[10px] backdrop-blur-sm"
 		>
-			Total: {nfts.length} | Showing: {visibleEnd - visibleStart} (indexes {visibleStart}-{visibleEnd})
+			Total: {items.length} | Showing: {visibleEnd - visibleStart} (indexes {visibleStart}-{visibleEnd})
 			| Container: {containerHeight.toFixed(0)}px
 		</div>
 	{/if}
@@ -247,34 +247,34 @@
 			<!-- Spacer for total height - add top padding via transform -->
 			<div style="height: {totalHeight + 40}px; position: relative; padding-top: 20px;">
 				<!-- Visible items -->
-				{#each Array.from({ length: visibleEnd - visibleStart }, (_, i) => visibleStart + i) as nftIndex (nftIndex)}
-					{@const nft = nfts[nftIndex]}
-					{@const row = Math.floor(nftIndex / columns)}
-					{@const col = nftIndex % columns}
-					{#if nft}
+				{#each Array.from({ length: visibleEnd - visibleStart }, (_, i) => visibleStart + i) as itemIndex (itemIndex)}
+					{@const item = items[itemIndex]}
+					{@const row = Math.floor(itemIndex / columns)}
+					{@const col = itemIndex % columns}
+					{#if item}
 						<button
 							type="button"
-							class="group bg-muted/50 hover:border-primary absolute cursor-pointer overflow-hidden border transition-all hover:scale-105 {selectedNFT?.id ===
-							nft.id
+							class="group bg-muted/50 hover:border-primary absolute cursor-pointer overflow-hidden border transition-all hover:scale-105 {selectedItem?.id ===
+							item.id
 								? 'ring-primary ring-2'
 								: ''}"
 							style="top: {row * rowHeight + 20}px; left: calc({(col * 100) / columns}% + {(col *
 								gap) /
 								columns}px); width: calc({100 / columns}% - {(gap * (columns - 1)) /
 								columns}px); height: {itemHeight}px;"
-							onclick={() => handleNFTClick(nft)}
+							onclick={() => handleItemClick(item)}
 						>
-							<!-- NFT Image -->
+							<!-- Item Image -->
 							<div class="bg-muted h-full w-full overflow-hidden">
-								{#if nft.imageData && (typeof nft.imageData === 'string' || nft.imageData.byteLength > 0)}
-									{@const imageUrl = requestImageUrl(nft)}
+								{#if item.imageData && (typeof item.imageData === 'string' || item.imageData.byteLength > 0)}
+									{@const imageUrl = requestImageUrl(item)}
 									{#if imageUrl && imageUrl !== 'error'}
 										<img
 											src={imageUrl}
-											alt={nft.name}
+											alt={item.name}
 											class="h-full w-full object-cover transition-transform group-hover:scale-110"
 											loading="lazy"
-											onerror={(e) => handleImageError(e, nft)}
+											onerror={(e) => handleImageError(e, item)}
 										/>
 										<div
 											class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-2 text-xs"
@@ -376,7 +376,7 @@
 							<!-- Rarity Badge -->
 							<div class="absolute top-1 right-1">
 								<span class="rounded bg-black/70 px-1 py-0.5 text-[10px] font-semibold text-white">
-									#{nft.rarityRank}
+									#{item.rarityRank}
 								</span>
 							</div>
 
@@ -385,8 +385,8 @@
 								class="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
 							>
 								<div class="absolute right-0 bottom-0 left-0 p-1 text-white">
-									<div class="truncate text-[10px] font-medium">{nft.name}</div>
-									<div class="text-[9px] opacity-80">Score: {nft.rarityScore.toFixed(1)}</div>
+									<div class="truncate text-[10px] font-medium">{item.name}</div>
+									<div class="text-[9px] opacity-80">Score: {item.rarityScore.toFixed(1)}</div>
 								</div>
 							</div>
 						</button>

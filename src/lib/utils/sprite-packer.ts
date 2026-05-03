@@ -40,9 +40,10 @@ export class SpritePacker {
 		this.FRAMES_PER_ROW = atlasSize / spriteSize;
 		this.FRAMES_PER_SHEET = this.FRAMES_PER_ROW * this.FRAMES_PER_ROW;
 
-		console.log(
-			`🎨 SpritePacker initialized: ${this.FRAMES_PER_SHEET} frames/sheet (${this.FRAMES_PER_ROW}x${this.FRAMES_PER_ROW} grid), ${spriteSize}px sprites, ${atlasSize}px atlas`
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`🎨 SpritePacker initialized: ${this.FRAMES_PER_SHEET} frames/sheet (${this.FRAMES_PER_ROW}x${this.FRAMES_PER_ROW} grid), ${spriteSize}px sprites, ${atlasSize}px atlas`
+			);
 	}
 
 	/**
@@ -62,9 +63,10 @@ export class SpritePacker {
 		const traits = layer.traits;
 		const numSheets = Math.ceil(traits.length / this.FRAMES_PER_SHEET);
 
-		console.log(
-			`📦 Packing ${traits.length} traits from layer '${layer.name}' into ${numSheets} sprite sheets...`
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`📦 Packing ${traits.length} traits from layer '${layer.name}' into ${numSheets} sprite sheets...`
+			);
 
 		const sheets: SpriteSheet[] = [];
 		const packPromises: Promise<SpriteSheet>[] = [];
@@ -82,7 +84,10 @@ export class SpritePacker {
 		const packedSheets = await Promise.all(packPromises);
 		sheets.push(...packedSheets);
 
-		console.log(`✅ Layer '${layer.name}' packed: ${traits.length} traits in ${numSheets} sheets`);
+		if (import.meta.env.DEV)
+			console.log(
+				`✅ Layer '${layer.name}' packed: ${traits.length} traits in ${numSheets} sheets`
+			);
 
 		return {
 			layerId: layer.id,
@@ -192,6 +197,7 @@ export class SpritePacker {
 			bitmap.close();
 		} catch (error) {
 			console.warn(`Failed to draw trait ${trait.name} onto atlas:`, error);
+			throw error;
 		}
 	}
 
@@ -262,7 +268,8 @@ export class SpritePacker {
 	 * @returns Map of layerId to PackedLayer
 	 */
 	async packLayers(layers: TransferrableLayer[]): Promise<Map<string, PackedLayer>> {
-		console.log(`🎨 Packing ${layers.length} layers into sprite sheets...`);
+		if (import.meta.env.DEV)
+			console.log(`🎨 Packing ${layers.length} layers into sprite sheets...`);
 
 		const startTime = performance.now();
 		const packedLayers = new Map<string, PackedLayer>();
@@ -289,9 +296,10 @@ export class SpritePacker {
 			totalSheets += packedLayer.sheets.length;
 		}
 
-		console.log(
-			`✅ Packed ${totalTraits} traits from ${layers.length} layers into ${totalSheets} sprite sheets in ${duration.toFixed(1)}ms`
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`✅ Packed ${totalTraits} traits from ${layers.length} layers into ${totalSheets} sprite sheets in ${duration.toFixed(1)}ms`
+			);
 
 		return packedLayers;
 	}
@@ -352,6 +360,6 @@ export class SpritePacker {
 			}
 		}
 
-		console.log(`🧹 Cleaned up ${closedCount} sprite sheets`);
+		if (import.meta.env.DEV) console.log(`🧹 Cleaned up ${closedCount} sprite sheets`);
 	}
 }

@@ -3,15 +3,15 @@
  * Handles object URLs, caching, and intelligent memory management
  */
 
-import {
-	ImageBitmapCache,
-	ImageDataCache,
-	ArrayBufferCache,
-	type CacheMetrics
-} from '$lib/utils/advanced-cache';
-import { performanceMonitor } from '$lib/utils/performance-monitor';
-import { formatFileSize } from '$lib/utils/formatters';
 import { MEMORY, TIME } from '$lib/config/constants';
+import {
+	ArrayBufferCache,
+	type CacheMetrics,
+	ImageBitmapCache,
+	ImageDataCache
+} from '$lib/utils/advanced-cache';
+import { formatFileSize } from '$lib/utils/formatters';
+import { performanceMonitor } from '$lib/utils/performance-monitor';
 
 export interface CacheConfig {
 	imageBitmap?: {
@@ -83,9 +83,9 @@ export class ResourceManager {
 	 * Bind this ResourceManager to a component lifecycle
 	 * Call onMount in your component and pass the returned cleanup function to onDestroy
 	 */
-	bindLifecycle(onDestroy: () => void): void {
+	setupLifecycle(onDestroy: () => void): () => void {
 		this.componentCount++;
-		this.cleanupCallback = () => {
+		return () => {
 			onDestroy();
 			this.componentCount--;
 			// If no components remain, perform cleanup
@@ -96,17 +96,11 @@ export class ResourceManager {
 	}
 
 	/**
-	 * Get cleanup function to pass to onDestroy
-	 */
-	getCleanupFn(): () => void {
-		return this.cleanupCallback || (() => {});
-	}
-
-	/**
 	 * Perform full cleanup when last component unmounts
 	 */
 	private performFullCleanup(): void {
-		console.info('No components remaining, performing full resource cleanup');
+		if (import.meta.env.DEV)
+			console.info('No components remaining, performing full resource cleanup');
 		this.cleanup();
 	}
 

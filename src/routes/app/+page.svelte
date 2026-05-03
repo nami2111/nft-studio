@@ -85,8 +85,8 @@
 </script>
 
 <svelte:head>
-	<title>NFT Studio Workspace - Create & Generate</title>
-	<meta name="description" content="Design layers, configure traits, and generate your NFT collection with the NFT Studio workspace." />
+	<title>GNStudio Workspace</title>
+	<meta name="description" content="Design layers, configure traits, and generate your art collection with GNStudio." />
 </svelte:head>
 
 <div class="w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">

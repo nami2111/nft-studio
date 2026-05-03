@@ -1,5 +1,5 @@
 /**
- * Performance monitoring utility for NFT Studio
+ * Performance monitoring utility
  * Provides comprehensive metrics collection and analysis for application performance
  */
 
@@ -302,9 +302,10 @@ export class PerformanceMonitor {
 			// Every 50 operations
 			const hitRatePercent = (metrics.hitRate * 100).toFixed(1);
 			const memoryUsageMB = (metrics.memoryUsage / (1024 * 1024)).toFixed(2);
-			console.log(
-				`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`
-			);
+			if (import.meta.env.DEV)
+				console.log(
+					`🎯 Cache ${cacheType}: ${hitRatePercent}% hit rate, ${memoryUsageMB}MB, ${metrics.currentEntries} entries`
+				);
 		}
 	}
 
@@ -364,6 +365,205 @@ export class PerformanceMonitor {
 		return filteredStats;
 	}
 
+	// ==========================================
+	// Cache Monitoring
+	// ==========================================
+
+	private cacheMetrics = new Map<
+		string,
+		{ hits: number; misses: number; evictions: number; memoryUsage: number }
+	>();
+
+	recordCacheHit(cacheName: string): void {
+		const m = this.getOrCreateCacheMetrics(cacheName);
+		m.hits++;
+	}
+
+	recordCacheMiss(cacheName: string): void {
+		const m = this.getOrCreateCacheMetrics(cacheName);
+		m.misses++;
+	}
+
+	recordCacheEviction(cacheName: string, memoryFreed: number): void {
+		const m = this.getOrCreateCacheMetrics(cacheName);
+		m.evictions++;
+		m.memoryUsage = Math.max(0, m.memoryUsage - memoryFreed);
+	}
+
+	updateCacheMemoryUsage(cacheName: string, memoryUsage: number): void {
+		const m = this.getOrCreateCacheMetrics(cacheName);
+		m.memoryUsage = memoryUsage;
+	}
+
+	getCacheHitRate(cacheName: string): number {
+		const m = this.cacheMetrics.get(cacheName);
+		if (!m) return 0;
+		const total = m.hits + m.misses;
+		return total === 0 ? 0 : (m.hits / total) * 100;
+	}
+
+	private getOrCreateCacheMetrics(cacheName: string) {
+		if (!this.cacheMetrics.has(cacheName)) {
+			this.cacheMetrics.set(cacheName, {
+				hits: 0,
+				misses: 0,
+				evictions: 0,
+				memoryUsage: 0
+			});
+		}
+		return this.cacheMetrics.get(cacheName)!;
+	}
+
+	// ==========================================
+	// Database Monitoring
+	// ==========================================
+
+	private dbQueryCount = 0;
+	private dbTotalQueryTime = 0;
+
+	recordDatabaseQuery(_operation: string, duration: number): void {
+		this.dbQueryCount++;
+		this.dbTotalQueryTime += duration;
+		if (duration > 100) {
+			console.warn(`Slow database query: ${_operation} took ${duration.toFixed(1)}ms`);
+		}
+	}
+
+	getDatabaseMetrics(): { queryCount: number; averageQueryTime: number } {
+		return {
+			queryCount: this.dbQueryCount,
+			averageQueryTime: this.dbQueryCount > 0 ? this.dbTotalQueryTime / this.dbQueryCount : 0
+		};
+	}
+
+	// ==========================================
+	// Memory Monitoring
+	// ==========================================
+
+	private memoryHistory: Array<{
+		usedJSHeapSize: number;
+		totalJSHeapSize: number;
+		jsHeapSizeLimit: number;
+		timestamp: number;
+	}> = [];
+
+	captureMemoryMetrics(): void {
+		if (typeof window === 'undefined') return;
+		const p = performance as Performance & {
+			memory?: {
+				usedJSHeapSize: number;
+				totalJSHeapSize: number;
+				jsHeapSizeLimit: number;
+			};
+		};
+		const memory = p.memory;
+		if (!memory) return;
+		this.memoryHistory.push({ ...memory, timestamp: Date.now() });
+		if (this.memoryHistory.length > 100) this.memoryHistory = this.memoryHistory.slice(-100);
+	}
+
+	getAverageMemoryUsage(minutes = 5): number {
+		const cutoff = Date.now() - minutes * 60 * 1000;
+		const recent = this.memoryHistory.filter((m) => m.timestamp >= cutoff);
+		if (recent.length === 0) return 0;
+		return recent.reduce((s, m) => s + m.usedJSHeapSize, 0) / recent.length / (1024 * 1024);
+	}
+
+	// ==========================================
+	// Alerts
+	// ==========================================
+
+	private alerts: Array<{
+		id: string;
+		metric: string;
+		value: number;
+		threshold: number;
+		severity: string;
+		timestamp: number;
+		message: string;
+	}> = [];
+
+	createAlert(data: {
+		metric: string;
+		value: number;
+		threshold: number;
+		severity: string;
+		message: string;
+	}): void {
+		const alert = {
+			id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+			...data,
+			timestamp: Date.now()
+		};
+		this.alerts.push(alert);
+		if (this.alerts.length > 50) this.alerts = this.alerts.slice(-50);
+		if (alert.severity === 'critical' || alert.severity === 'high') {
+			console.warn(`[Performance Alert] ${alert.message}`);
+		}
+	}
+
+	getAlerts(minutes = 15) {
+		const cutoff = Date.now() - minutes * 60 * 1000;
+		return this.alerts.filter((a) => a.timestamp >= cutoff);
+	}
+
+	// ==========================================
+	// Batch Progress Tracking (Sequential)
+	// ==========================================
+
+	private batchStartTime = 0;
+	private batchProcessed = 0;
+	private batchTotal = 0;
+	private batchAvgTime = 0;
+	private batchLastReport = 0;
+
+	startBatch(totalCount: number): void {
+		this.batchStartTime = performance.now();
+		this.batchProcessed = 0;
+		this.batchTotal = totalCount;
+		this.batchAvgTime = 0;
+		this.batchLastReport = this.batchStartTime;
+	}
+
+	recordBatchItem(timePerItem: number): void {
+		this.batchProcessed++;
+		this.batchAvgTime =
+			(this.batchAvgTime * (this.batchProcessed - 1) + timePerItem) / this.batchProcessed;
+		const now = performance.now();
+		if (now - this.batchLastReport > 2000) {
+			const elapsed = now - this.batchStartTime;
+			const rate = this.batchProcessed / (elapsed / 1000);
+			const remaining = Math.max(0, this.batchTotal - this.batchProcessed);
+			const eta = (this.batchAvgTime * remaining) / 1000 / 60;
+			if (import.meta.env.DEV)
+				console.log(
+					`⚡ Sequential Performance: ${this.batchProcessed}/${this.batchTotal} items | ${rate.toFixed(1)} items/sec | ETA: ${eta.toFixed(1)}min | Avg: ${this.batchAvgTime.toFixed(1)}ms/item`
+				);
+			this.batchLastReport = now;
+		}
+	}
+
+	finishBatch(): void {
+		const totalTime = performance.now() - this.batchStartTime;
+		const finalRate = this.batchProcessed / (totalTime / 1000);
+		if (import.meta.env.DEV)
+			console.log(
+				`🎯 Sequential Generation Complete: ${this.batchProcessed} items in ${(totalTime / 1000).toFixed(1)}s | Average: ${finalRate.toFixed(1)} items/sec`
+			);
+	}
+
+	// ==========================================
+	// Reset
+	// ==========================================
+
+	resetAllMetrics(): void {
+		this.cacheMetrics.clear();
+		this.dbQueryCount = 0;
+		this.dbTotalQueryTime = 0;
+		this.memoryHistory = [];
+		this.alerts = [];
+	}
+
 	/**
 	 * Log performance summary to console
 	 */
@@ -376,22 +576,26 @@ export class PerformanceMonitor {
 		const { summary } = report;
 
 		console.group('📊 Performance Summary');
-		console.log(`Total Operations: ${summary.totalOperations}`);
-		console.log(`Total Duration: ${summary.totalDuration.toFixed(2)}ms`);
-		console.log(`Average Operation Time: ${summary.averageOperationTime.toFixed(2)}ms`);
-		console.log(
-			`Slowest Operation: ${summary.slowestOperation} (${this.getStats(summary.slowestOperation)?.maxDuration.toFixed(2)}ms)`
-		);
-		console.log(
-			`Fastest Operation: ${summary.fastestOperation} (${this.getStats(summary.fastestOperation)?.minDuration.toFixed(2)}ms)`
-		);
+		if (import.meta.env.DEV) console.log(`Total Operations: ${summary.totalOperations}`);
+		if (import.meta.env.DEV) console.log(`Total Duration: ${summary.totalDuration.toFixed(2)}ms`);
+		if (import.meta.env.DEV)
+			console.log(`Average Operation Time: ${summary.averageOperationTime.toFixed(2)}ms`);
+		if (import.meta.env.DEV)
+			console.log(
+				`Slowest Operation: ${summary.slowestOperation} (${this.getStats(summary.slowestOperation)?.maxDuration.toFixed(2)}ms)`
+			);
+		if (import.meta.env.DEV)
+			console.log(
+				`Fastest Operation: ${summary.fastestOperation} (${this.getStats(summary.fastestOperation)?.minDuration.toFixed(2)}ms)`
+			);
 
 		if (Object.keys(report.operations).length > 0) {
 			console.group('Operation Details');
 			for (const [operation, stats] of Object.entries(report.operations)) {
-				console.log(
-					`${operation}: ${stats.count} calls, avg ${stats.averageDuration.toFixed(2)}ms`
-				);
+				if (import.meta.env.DEV)
+					console.log(
+						`${operation}: ${stats.count} calls, avg ${stats.averageDuration.toFixed(2)}ms`
+					);
 			}
 			console.groupEnd();
 		}
@@ -409,7 +613,7 @@ export const performanceMonitor = new PerformanceMonitor();
  * @param metadata - Optional metadata to include with the metric
  */
 export function timed(operationName?: string, metadata?: Record<string, unknown>) {
-	return function (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) {
+	return (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) => {
 		const originalMethod = descriptor.value;
 		const operation =
 			operationName ||
@@ -430,7 +634,10 @@ export function timed(operationName?: string, metadata?: Record<string, unknown>
 					return result;
 				}
 			} catch (error) {
-				performanceMonitor.stopTimer(timerId, { ...metadata, error: String(error) });
+				performanceMonitor.stopTimer(timerId, {
+					...metadata,
+					error: String(error)
+				});
 				throw error;
 			}
 		};
@@ -458,7 +665,10 @@ export function withTiming<T extends (...args: unknown[]) => unknown>(
 			performanceMonitor.stopTimer(timerId, metadata);
 			return result;
 		} catch (error) {
-			performanceMonitor.stopTimer(timerId, { ...metadata, error: String(error) });
+			performanceMonitor.stopTimer(timerId, {
+				...metadata,
+				error: String(error)
+			});
 			throw error;
 		}
 	}) as T;
@@ -482,7 +692,10 @@ export async function measureOperation<T>(
 		performanceMonitor.stopTimer(timerId, metadata);
 		return result;
 	} catch (error) {
-		performanceMonitor.stopTimer(timerId, { ...metadata, error: String(error) });
+		performanceMonitor.stopTimer(timerId, {
+			...metadata,
+			error: String(error)
+		});
 		throw error;
 	}
 }

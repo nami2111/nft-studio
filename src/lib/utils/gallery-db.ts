@@ -1,13 +1,13 @@
 /**
  * IndexedDB storage for gallery collections
- * Supports large collections (10K+ NFTs) that exceed localStorage quota
+ * Supports large collections (10K+ items) that exceed localStorage quota
  */
 
 import { openDB, type IDBPDatabase } from 'idb';
 import type { GalleryCollection } from '$lib/types/gallery';
 import { productionMonitor } from '$lib/monitoring/performance-monitor';
 
-const DB_NAME = 'nft-studio-gallery';
+const DB_NAME = 'gnstudio-gallery';
 const DB_VERSION = 2; // Incremented to trigger upgrade for new indices
 const COLLECTIONS_STORE = 'collections';
 
@@ -59,18 +59,19 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 				? collection.generatedAt.toISOString()
 				: collection.generatedAt,
 		totalSupply: collection.totalSupply,
-		// Store NFTs without imageData - metadata only
+		// Store items without imageData - metadata only
 		// Deep serialize metadata to remove any non-serializable properties
-		nfts: collection.nfts.map((nft) => ({
-			id: nft.id,
-			name: nft.name,
-			description: nft.description,
+		items: collection.items.map((item) => ({
+			id: item.id,
+			name: item.name,
+			description: item.description,
 			// Deep clone and serialize metadata
-			metadata: JSON.parse(JSON.stringify(nft.metadata)),
-			rarityScore: nft.rarityScore,
-			rarityRank: nft.rarityRank,
-			collectionId: nft.collectionId,
-			generatedAt: nft.generatedAt instanceof Date ? nft.generatedAt.toISOString() : nft.generatedAt
+			metadata: JSON.parse(JSON.stringify(item.metadata)),
+			rarityScore: item.rarityScore,
+			rarityRank: item.rarityRank,
+			collectionId: item.collectionId,
+			generatedAt:
+				item.generatedAt instanceof Date ? item.generatedAt.toISOString() : item.generatedAt
 			// imageData excluded to save space
 		}))
 	};
@@ -103,9 +104,9 @@ export async function getCollection(id: string): Promise<GalleryCollection | und
 	return {
 		...stored,
 		generatedAt: stored.generatedAt ? new Date(stored.generatedAt) : new Date(),
-		nfts: stored.nfts.map((nft: Record<string, unknown> & { generatedAt?: string | Date }) => ({
-			...nft,
-			generatedAt: nft.generatedAt ? new Date(nft.generatedAt) : new Date(),
+		items: stored.items.map((item: Record<string, unknown> & { generatedAt?: string | Date }) => ({
+			...item,
+			generatedAt: item.generatedAt ? new Date(item.generatedAt) : new Date(),
 			imageData: new ArrayBuffer(0) // Empty buffer, will be filled from cache if available
 		}))
 	} as GalleryCollection;
@@ -126,9 +127,9 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 	return storedCollections.map((stored) => ({
 		...stored,
 		generatedAt: stored.generatedAt ? new Date(stored.generatedAt) : new Date(),
-		nfts: stored.nfts.map((nft: Record<string, unknown> & { generatedAt?: string | Date }) => ({
-			...nft,
-			generatedAt: nft.generatedAt ? new Date(nft.generatedAt) : new Date(),
+		items: stored.items.map((item: Record<string, unknown> & { generatedAt?: string | Date }) => ({
+			...item,
+			generatedAt: item.generatedAt ? new Date(item.generatedAt) : new Date(),
 			imageData: new ArrayBuffer(0) // Empty buffer, will be filled from cache if available
 		}))
 	})) as GalleryCollection[];

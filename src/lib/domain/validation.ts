@@ -1,11 +1,17 @@
 /**
- * Validation utilities for NFT Studio using Zod schemas
+ * Validation utilities using Zod schemas
  * Provides comprehensive validation for project data, layers, traits, and files
  */
 
 import { z } from 'zod';
-import type { Project, Layer, Trait } from '$lib/types/project';
-import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
+import type { LayerId, ProjectId, TraitId } from '$lib/types/ids';
+import type { Layer, Project, Trait } from '$lib/types/project';
+
+const UNKNOWN_VALIDATION_ERROR = 'Unknown validation error';
+
+function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : UNKNOWN_VALIDATION_ERROR;
+}
 
 // Validation result interface
 export interface ValidationResult {
@@ -107,12 +113,16 @@ export const FilenameSchema = z
 	.regex(/^[a-zA-Z0-9\s\-_.]+$/);
 
 // Helper function for string sanitization
-export function sanitizeString(input: string): string {
-	return input
+export function sanitizeString(input: string, stripHtml = true): string {
+	let result = input
 		.trim()
 		.replace(/\0/g, '') // Remove null bytes
 		.replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
 		.slice(0, 100); // Limit length
+	if (stripHtml) {
+		result = result.replace(/<[^>]*>/g, ''); // Strip HTML tags
+	}
+	return result;
 }
 
 // Validation functions that return ValidationResult objects
@@ -130,7 +140,7 @@ export function validateProjectName(name: string): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -148,7 +158,7 @@ export function validateLayerName(name: string): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -166,7 +176,7 @@ export function validateTraitName(name: string): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -184,7 +194,7 @@ export function validateDimensions(width: number, height: number): ValidationRes
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -202,7 +212,7 @@ export function validateFilename(filename: string): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -223,7 +233,7 @@ export function validateFileSize(
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -242,7 +252,7 @@ export function validateFileType(
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -258,7 +268,7 @@ export function validateRarityWeight(weight: number): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -274,7 +284,7 @@ export function validateProject(project: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -290,7 +300,7 @@ export function validateLayer(layer: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -306,7 +316,7 @@ export function validateTrait(trait: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -322,7 +332,7 @@ export function validateImportedProject(project: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -332,8 +342,8 @@ export function validateImportedProject(project: unknown): ValidationResult {
 export function createValidatedProject(overrides: Partial<Project> = {}): Project {
 	const defaultProject: Project = {
 		id: crypto.randomUUID() as ProjectId,
-		name: 'My NFT Collection',
-		description: 'A collection of unique NFTs',
+		name: 'My Collection',
+		description: 'A collection of unique items',
 		outputSize: { width: 100, height: 100 },
 		layers: []
 	};
@@ -503,7 +513,7 @@ export function validateRulerRule(rule: unknown): ValidationResult {
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }
@@ -524,7 +534,7 @@ export function safeValidate<T>(
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Unknown validation error'
+			error: getErrorMessage(error)
 		};
 	}
 }

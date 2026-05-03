@@ -19,8 +19,8 @@ import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 export function createProject(): Project {
 	const project: Project = {
 		id: createProjectId(crypto.randomUUID()),
-		name: 'My NFT Collection',
-		description: 'A collection of unique NFTs',
+		name: 'My Collection',
+		description: 'A collection of unique items',
 		outputSize: {
 			width: 0,
 			height: 0

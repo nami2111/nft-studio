@@ -76,7 +76,7 @@
 		<div>
 			<Input
 				type="text"
-				placeholder="Search NFTs by name or description..."
+				placeholder="Search items by name or description..."
 				value={searchQuery}
 				oninput={handleSearch}
 				class="w-full"
@@ -95,7 +95,7 @@
 					<option value="">All Collections</option>
 					{#each collections as collection (collection.id)}
 						<option value={collection.id}>
-							{collection.name} ({collection.totalSupply} NFTs)
+							{collection.name} ({collection.totalSupply} items)
 						</option>
 					{/each}
 				</select>

@@ -112,7 +112,7 @@ export const generationState = $state<GenerationState>(createDefaultState());
 
 // Store management functions
 class GenerationStateManager {
-	private readonly STORAGE_KEY = 'nft-studio-generation-state';
+	private readonly STORAGE_KEY = 'gnstudio-generation-state';
 	private readonly STATE_VERSION = '1.0.0';
 	private saveTimeout: NodeJS.Timeout | null = null;
 	private autoSaveEnabled = true;
@@ -195,9 +195,10 @@ class GenerationStateManager {
 		// Save initial state
 		this.saveState();
 
-		console.log(
-			`🎯 Generation started: ${sessionId} (${config.collectionSize} items)${isLargeCollection ? ' with batch processing' : ''}`
-		);
+		if (import.meta.env.DEV)
+			console.log(
+				`🎯 Generation started: ${sessionId} (${config.collectionSize} items)${isLargeCollection ? ' with batch processing' : ''}`
+			);
 		return sessionId;
 	}
 
@@ -212,7 +213,7 @@ class GenerationStateManager {
 		generationState.statusText = reason || 'Generation paused';
 		generationState.saveTimestamp = Date.now();
 
-		console.log(`⏸️ Generation paused: ${generationState.sessionId}`);
+		if (import.meta.env.DEV) console.log(`⏸️ Generation paused: ${generationState.sessionId}`);
 	}
 
 	/**
@@ -232,7 +233,7 @@ class GenerationStateManager {
 		// Do NOT save - page refresh will clear anyway
 		// This keeps completion message only for current session
 
-		console.log(`✅ Generation completed: ${generationState.sessionId}`);
+		if (import.meta.env.DEV) console.log(`✅ Generation completed: ${generationState.sessionId}`);
 	}
 
 	/**
@@ -246,7 +247,7 @@ class GenerationStateManager {
 		// Reset state completely
 		this.resetState();
 
-		console.log(`🛑 Generation cancelled: ${sessionId}`);
+		if (import.meta.env.DEV) console.log(`🛑 Generation cancelled: ${sessionId}`);
 	}
 
 	/**
@@ -291,7 +292,7 @@ class GenerationStateManager {
 				if (percent < 5) {
 					generationState.statusText = 'Starting engine and preparing layers...';
 				} else if (percent < 20) {
-					generationState.statusText = `Generating first batch of NFTs (${generatedCount}/${totalCount})...`;
+					generationState.statusText = `Generating first batch of items (${generatedCount}/${totalCount})...`;
 				} else if (percent < 50) {
 					generationState.statusText = `Compositing layers for #${generatedCount + 1}...`;
 				} else if (percent < 80) {
@@ -641,7 +642,7 @@ class GenerationStateManager {
 				const data = JSON.parse(savedData);
 				if (data.version === this.STATE_VERSION) {
 					this.restoreState(data.state);
-					console.log('📂 Generation state restored from session');
+					if (import.meta.env.DEV) console.log('📂 Generation state restored from session');
 				}
 			}
 		} catch (error) {

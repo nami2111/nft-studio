@@ -43,7 +43,7 @@
 	onDestroy(() => {
 		isComponentDestroyed = true;
 
-		console.log('🧹 GenerationForm component destroyed');
+if (import.meta.env.DEV) console.log('🧹 GenerationForm component destroyed');
 
 		// Clean up UI resources only
 		previews.forEach((p) => {
@@ -56,15 +56,15 @@
 
 		// If generation is active, move to background mode instead of cancelling
 		if (generationState.isGenerating && !generationState.isBackground) {
-			console.log('🔄 Moving generation to background mode');
+if (import.meta.env.DEV) console.log('🔄 Moving generation to background mode');
 			pauseGeneration('Component unmounted - continuing in background');
 
 			// Set timeout to prevent infinite background generation
 			setTimeout(() => {
 				if (generationState.isGenerating && isComponentDestroyed) {
-					console.log('⏰ Background generation timeout - cancelling');
+if (import.meta.env.DEV) console.log('⏰ Background generation timeout - cancelling');
 					cancelGeneration();
-					console.log('Generation stopped due to timeout.');
+if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
 				}
 			}, 600000); // 10 minutes timeout
 		}
@@ -100,7 +100,7 @@
 					if (images.length > 1000) {
 						const percentage = Math.round((progress.processed / progress.total) * 100);
 						if (percentage % 10 === 0 || progress.processed === progress.total) {
-							console.log(
+if (import.meta.env.DEV) console.log(
 								`Export progress: ${percentage}% (${progress.processed}/${progress.total})`
 							);
 						}
@@ -112,7 +112,7 @@
 			generationState.statusText = 'Download started.';
 
 			showSuccess('Generation complete', {
-				description: `Your download has started (${images.length} NFTs). ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
+				description: `Your download has started (${images.length} items). ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
 			});
 
 			// Complete the generation in persistent store
@@ -209,7 +209,7 @@
 				metadataStandard: projectData.metadataStandard || MetadataStandard.ERC721
 			});
 
-			console.log(`🚀 Starting generation session: ${sessionId}`);
+if (import.meta.env.DEV) console.log(`🚀 Starting generation session: ${sessionId}`);
 
 			// Set up worker message handler that delegates to persistent store
 			const workerMessageHandler = async (
@@ -233,7 +233,7 @@
 							// Check if generation is complete
 							if (collectionSize && generationState.allImages.length >= collectionSize) {
 								// Package in background if possible, or wait for user to return
-								console.log('🎉 Generation completed in background');
+if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
 							}
 							break;
 						case 'error':
@@ -282,7 +282,7 @@
 							message.payload.metadata.length === 0 &&
 							!message.payload.isChunk
 						) {
-							console.log(
+if (import.meta.env.DEV) console.log(
 								'Generation complete, packaging:',
 								generationState.allImages.length,
 								'images,',

@@ -1,4 +1,4 @@
-// CSP Solver for NFT Generation - Ultra Optimized
+// CSP Solver for Collection Generation - Ultra Optimized
 // Enhanced with constraint ordering, early termination, and predictive caching
 // Delivers 40-60% performance improvement over standard AC-3
 
@@ -90,9 +90,6 @@ class ConstraintCache {
 // Module-level flag to prevent duplicate ruler logging
 let hasLoggedRulerInfo = false;
 
-// Debug flag for ruler violations (set to false in production to reduce spam)
-const DEBUG_RULER_VIOLATIONS = false;
-
 export class CSPSolver {
 	private context: SolverContext;
 	private impossibleCombinations = new Map<string, ImpossibleCombination>();
@@ -168,7 +165,6 @@ export class CSPSolver {
 
 		const startTime = Date.now();
 		const layerCount = this.context.layers.length;
-		// const requiredLayers = this.context.layers.filter((l) => !l.isOptional).length;
 
 		if (layerCount === 0) {
 			console.error(`[CSP SOLVE] CRITICAL: Solver has 0 layers!`);
@@ -447,22 +443,12 @@ export class CSPSolver {
 			if (rule) {
 				// Check forbidden list
 				if (rule.forbiddenTraitIds.includes(traitB.id)) {
-					if (DEBUG_RULER_VIOLATIONS) {
-						logger.info(
-							`❌ RULER VIOLATION: ${traitA.name} (${layerIdA}) forbids ${traitB.name} (${layerIdB}) - trait ${traitB.id} is forbidden`
-						);
-					}
 					this.rulerViolationCount++;
 					return false;
 				}
 				// Check allowed list (whitelist) - only if it's explicitly defined
 				// If allowedTraitIds is empty, it means "allow all" (except forbidden ones)
 				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitB.id)) {
-					if (DEBUG_RULER_VIOLATIONS) {
-						logger.info(
-							`❌ RULER VIOLATION: ${traitA.name} (${layerIdA}) only allows ${rule.allowedTraitIds.length} specific traits, rejecting ${traitB.name} (${layerIdB})`
-						);
-					}
 					this.rulerViolationCount++;
 					return false;
 				}
@@ -475,22 +461,12 @@ export class CSPSolver {
 			if (rule) {
 				// Check forbidden list
 				if (rule.forbiddenTraitIds.includes(traitA.id)) {
-					if (DEBUG_RULER_VIOLATIONS) {
-						logger.info(
-							`❌ RULER VIOLATION: ${traitB.name} (${layerIdB}) forbids ${traitA.name} (${layerIdA}) - trait ${traitA.id} is forbidden`
-						);
-					}
 					this.rulerViolationCount++;
 					return false;
 				}
 				// Check allowed list (whitelist) - only if it's explicitly defined
 				// If allowedTraitIds is empty, it means "allow all" (except forbidden ones)
 				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitA.id)) {
-					if (DEBUG_RULER_VIOLATIONS) {
-						logger.info(
-							`❌ RULER VIOLATION: ${traitB.name} (${layerIdB}) only allows ${rule.allowedTraitIds.length} specific traits, rejecting ${traitA.name} (${layerIdA})`
-						);
-					}
 					this.rulerViolationCount++;
 					return false;
 				}

@@ -1290,7 +1290,7 @@ Web Workers cannot survive page refreshes. Attempting to persist "background gen
   - `removeCollection()`: Deletes from both state and IndexedDB
   - `clearGallery()`: Clears IndexedDB and state
 - **Database Schema**:
-  - Database: `nft-studio-gallery`
+  - Database: `gnstudio-gallery`
   - Store: `collections` with indexes on `id`, `name`, `generatedAt`
   - Object structure: Collection with NFTs (metadata only, no imageData)
 

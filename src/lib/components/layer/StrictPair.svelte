@@ -332,21 +332,21 @@
 											<div class="mt-2 space-y-1">
 												{#if prediction1000.willBlock}
 													<div class="text-destructive/80 text-xs">
-														• 1,000 NFTs: {prediction1000.blockingCombinations[0]?.maxPossible} combinations
+														• 1,000 items: {prediction1000.blockingCombinations[0]?.maxPossible} combinations
 														available
 													</div>
 												{/if}
 
 												{#if prediction5000.willBlock}
 													<div class="text-destructive/80 text-xs">
-														• 5,000 NFTs: {prediction5000.blockingCombinations[0]?.maxPossible} combinations
+														• 5,000 items: {prediction5000.blockingCombinations[0]?.maxPossible} combinations
 														available
 													</div>
 												{/if}
 
 												{#if prediction10000.willBlock}
 													<div class="text-destructive/80 text-xs">
-														• 10,000 NFTs: {prediction10000.blockingCombinations[0]?.maxPossible} combinations
+														• 10,000 items: {prediction10000.blockingCombinations[0]?.maxPossible} combinations
 														available
 													</div>
 												{/if}
@@ -361,7 +361,7 @@
 														if (!prediction5000.willBlock) availableSizes.push(5000);
 														if (!prediction10000.willBlock) availableSizes.push(10000);
 														return availableSizes.length > 0
-															? `${Math.max(...availableSizes)} NFTs`
+															? `${Math.max(...availableSizes)} items`
 															: 'no generation possible';
 													})()}
 												</span>

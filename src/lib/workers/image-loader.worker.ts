@@ -88,28 +88,31 @@ async function loadBatchImages(requests: Array<{ id: string; src: string }>) {
 				const objectUrl = URL.createObjectURL(blob);
 				objectUrls.set(id, objectUrl);
 
-				return new Promise<{ id: string; objectUrl: string; width: number; height: number }>(
-					(resolve, reject) => {
-						const img = new Image();
-						img.onload = () => {
-							resolve({
-								id,
-								objectUrl,
-								width: img.naturalWidth,
-								height: img.naturalHeight
-							});
-							// Note: Don't remove from map here - cleanup happens later
-						};
-						img.onerror = () => {
-							if (objectUrls.has(id)) {
-								URL.revokeObjectURL(objectUrls.get(id)!);
-								objectUrls.delete(id);
-							}
-							reject(new Error('Failed to load image dimensions'));
-						};
-						img.src = objectUrl;
-					}
-				);
+				return new Promise<{
+					id: string;
+					objectUrl: string;
+					width: number;
+					height: number;
+				}>((resolve, reject) => {
+					const img = new Image();
+					img.onload = () => {
+						resolve({
+							id,
+							objectUrl,
+							width: img.naturalWidth,
+							height: img.naturalHeight
+						});
+						// Note: Don't remove from map here - cleanup happens later
+					};
+					img.onerror = () => {
+						if (objectUrls.has(id)) {
+							URL.revokeObjectURL(objectUrls.get(id)!);
+							objectUrls.delete(id);
+						}
+						reject(new Error('Failed to load image dimensions'));
+					};
+					img.src = objectUrl;
+				});
 			} catch (error) {
 				// Handle different error types
 				let errorMessage = 'Unknown error';
@@ -138,7 +141,7 @@ async function loadBatchImages(requests: Array<{ id: string; src: string }>) {
 	});
 }
 
-self.onmessage = async (
+self.onmessage = (
 	event: MessageEvent<{ id: string; src: string } | { batch: Array<{ id: string; src: string }> }>
 ) => {
 	const data = event.data;

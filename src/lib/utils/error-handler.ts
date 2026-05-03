@@ -1,26 +1,26 @@
 /**
- * Consolidated error handling utility for the NFT Studio application
+ * Consolidated error handling utility
  * This module provides a unified approach to error handling across the application
  */
 
-import { showError, AppError } from './error-handling';
-import type { ErrorOptions, ErrorContext } from './error-handling';
-
+import type { ErrorContext, ErrorOptions } from './error-handling';
+import { showError } from './error-handling';
+import { type RetryConfig, RetryConfigs, retryWithErrorHandling } from './retry';
 import {
-	ValidationError,
-	StorageError,
+	AppError,
 	FileError,
-	WorkerError,
 	GenerationError,
-	NetworkError,
-	WorkerInitializationError,
-	WorkerTimeoutError,
 	GenerationExecutionError,
 	GenerationValidationError,
 	getErrorInfo,
-	isRecoverableError
+	isRecoverableError,
+	NetworkError,
+	StorageError,
+	ValidationError,
+	WorkerError,
+	WorkerInitializationError,
+	WorkerTimeoutError
 } from './typed-errors';
-import { retryWithErrorHandling, RetryConfigs, type RetryConfig } from './retry';
 
 export interface ErrorHandlerOptions extends ErrorOptions {
 	context?: ErrorContext;
@@ -74,10 +74,20 @@ export async function handleError<T>(
 		} else if (error.message.includes('network') || error.message.includes('fetch')) {
 			appError = new NetworkError(error.message, enhancedContext);
 		} else {
-			appError = new AppError(error.message, 'UNHANDLED_ERROR', enhancedContext, true);
+			appError = new AppError(
+				error.message,
+				'UNHANDLED_ERROR',
+				enhancedContext as Record<string, unknown> | undefined,
+				true
+			);
 		}
 	} else {
-		appError = new AppError(String(error), 'UNKNOWN_ERROR', context, true);
+		appError = new AppError(
+			String(error),
+			'UNKNOWN_ERROR',
+			context as Record<string, unknown> | undefined,
+			true
+		);
 	}
 
 	// Log error if requested
@@ -106,7 +116,7 @@ export async function handleError<T>(
 /**
  * Wrapper for async operations with error handling
  */
-export async function withErrorHandling<T>(
+export async function withSafeOperation<T>(
 	operation: () => Promise<T>,
 	options: ErrorHandlerOptions = {}
 ): Promise<T> {
@@ -124,7 +134,7 @@ export async function withErrorHandling<T>(
 /**
  * Wrapper for sync operations with error handling
  */
-export function withErrorHandlingSync<T>(operation: () => T, options: ErrorHandlerOptions = {}): T {
+export function withSafeOperationSync<T>(operation: () => T, options: ErrorHandlerOptions = {}): T {
 	try {
 		return operation();
 	} catch (error: unknown) {
@@ -219,7 +229,7 @@ export async function handleWorkerError<T>(
 
 	return handleError<T>(workerError, {
 		title: 'Generation Error',
-		description: 'Failed to generate NFTs. Please try again.',
+		description: 'Failed to generate items. Please try again.',
 		...options
 	});
 }
@@ -241,7 +251,7 @@ export async function handleGenerationError<T>(
 
 	return handleError<T>(generationError, {
 		title: 'Generation Error',
-		description: 'Failed to generate NFTs. Please check your project configuration.',
+		description: 'Failed to generate items. Please check your project configuration.',
 		...options
 	});
 }
@@ -304,7 +314,7 @@ export async function recoverableOperation<T>(
 	const { enableRetry = true, retryConfig = RetryConfigs.default, ...handlerOptions } = options;
 
 	if (!enableRetry) {
-		return withErrorHandling(operation, handlerOptions);
+		return withSafeOperation(operation, handlerOptions);
 	}
 
 	// Define retry condition based on error recoverability
@@ -505,7 +515,7 @@ export async function recoverableGenerationOperation<T>(
 			...options.retryConfig
 		},
 		title: 'Generation Failed',
-		description: 'Failed to generate NFTs. Retrying...'
+		description: 'Failed to generate items. Retrying...'
 	});
 }
 

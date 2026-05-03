@@ -16,6 +16,7 @@ node_modules
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+*.tsbuildinfo
 
 static/workers
 
@@ -57,3 +58,5 @@ GEMINI.md
 QWEN.md
 AGENTS.md
 .mcp.json
+.pi-lens/
+/coverage

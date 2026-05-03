@@ -1,5 +1,5 @@
-import { MemoryMonitor } from '$lib/utils/memory-monitor';
 import type { Project } from '$lib/types/project';
+import { MemoryMonitor } from '$lib/utils/memory-monitor';
 
 export interface ExportOptions {
 	project: Project;
@@ -24,14 +24,14 @@ export class ExportService {
 
 			// Use optimized approach for large collections
 			if (images.length > 1000) {
-				await this.packageZipOptimized({
+				await ExportService.packageZipOptimized({
 					project,
 					images,
 					metadata,
 					onProgress
 				});
 			} else {
-				await this.packageZipStandard({
+				await ExportService.packageZipStandard({
 					project,
 					images,
 					metadata,
@@ -79,7 +79,7 @@ export class ExportService {
 		}
 
 		const content = await zip.generateAsync({ type: 'blob' });
-		await this.downloadZip(content, project);
+		ExportService.downloadZip(content, project);
 	}
 
 	/**
@@ -90,7 +90,7 @@ export class ExportService {
 
 		// For very large collections or collections with large files, create multiple ZIPs
 		if (images.length > 3000 || (images.length > 0 && images[0].imageData.byteLength > 500000)) {
-			await this.createMultipleZips(options);
+			await ExportService.createMultipleZips(options);
 			return;
 		}
 
@@ -146,7 +146,7 @@ export class ExportService {
 			compression: 'DEFLATE',
 			compressionOptions: { level: 6 }
 		});
-		await this.downloadZip(content, project);
+		ExportService.downloadZip(content, project);
 	}
 
 	/**
@@ -158,17 +158,19 @@ export class ExportService {
 		const { default: JSZip } = await import('jszip');
 		const MAX_ZIP_SIZE = 1 * 1024 * 1024 * 1024; // 1GB in bytes
 
-		// Calculate approximate size for each NFT (image + metadata)
-		const estimatedSizePerNFT = this.estimateSizePerNFT(images, metadata);
-		const estimatedTotalSize = images.length * estimatedSizePerNFT;
+		// Calculate approximate size for each item (image + metadata)
+		const estimatedSizePerItem = ExportService.estimateSizePerItem(images, metadata);
+		const estimatedTotalSize = images.length * estimatedSizePerItem;
 
 		// Calculate number of ZIP files needed based on size
 		const estimatedZipCount = Math.ceil(estimatedTotalSize / MAX_ZIP_SIZE);
 
-		console.log(
-			`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`
-		);
-		console.log(`Will create approximately ${estimatedZipCount} ZIP files`);
+		if (import.meta.env.DEV)
+			console.log(
+				`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`
+			);
+		if (import.meta.env.DEV)
+			console.log(`Will create approximately ${estimatedZipCount} ZIP files`);
 
 		let currentZip = new JSZip();
 		let currentZipImages = currentZip.folder('images');
@@ -199,7 +201,7 @@ export class ExportService {
 				// Download current ZIP
 				const zipIndex = currentZipIndex + 1;
 				const totalZips = Math.ceil(images.length / Math.max(1, processedItems)) || 1;
-				await this.downloadZipWithIndex(content, project, zipIndex, totalZips);
+				ExportService.downloadZipWithIndex(content, project, zipIndex, totalZips);
 
 				// Reset for next ZIP
 				currentZip = new JSZip();
@@ -219,7 +221,7 @@ export class ExportService {
 			onProgress?.({
 				processed: i + 1,
 				total: images.length,
-				message: `Processing NFT ${i + 1}/${images.length}...`
+				message: `Processing item ${i + 1}/${images.length}...`
 			});
 		}
 
@@ -232,17 +234,18 @@ export class ExportService {
 			});
 
 			const zipIndex = currentZipIndex + 1;
-			await this.downloadZipWithIndex(content, project, zipIndex, zipIndex);
+			ExportService.downloadZipWithIndex(content, project, zipIndex, zipIndex);
 		}
 
 		// Show summary message
-		console.log(`Created ${currentZipIndex + 1} ZIP files for large collection`);
+		if (import.meta.env.DEV)
+			console.log(`Created ${currentZipIndex + 1} ZIP files for large collection`);
 	}
 
 	/**
-	 * Estimate the average size per NFT (image + metadata)
+	 * Estimate the average size per item (image + metadata)
 	 */
-	private static estimateSizePerNFT(
+	private static estimateSizePerItem(
 		images: { imageData: ArrayBuffer }[],
 		metadata: { data: Record<string, unknown> }[]
 	): number {
@@ -256,19 +259,19 @@ export class ExportService {
 			totalSize += imageSize + metadataSize;
 		}
 
-		// Return average size per NFT
+		// Return average size per item
 		return totalSize / sampleSize || 1; // Default to 1 byte if no data
 	}
 
 	/**
 	 * Download ZIP file with index in filename
 	 */
-	private static async downloadZipWithIndex(
+	private static downloadZipWithIndex(
 		content: Blob,
 		project: Project,
 		index: number,
 		total: number
-	): Promise<void> {
+	): void {
 		const url = URL.createObjectURL(content);
 		const a = document.createElement('a');
 		a.href = url;
@@ -277,7 +280,7 @@ export class ExportService {
 		document.body.appendChild(a);
 		try {
 			a.click();
-			console.log(`Download initiated for part ${index} of ${total}`);
+			if (import.meta.env.DEV) console.log(`Download initiated for part ${index} of ${total}`);
 		} catch (error) {
 			console.error(`Download failed for part ${index}:`, error);
 			throw error;
@@ -290,7 +293,7 @@ export class ExportService {
 	/**
 	 * Handle ZIP download with error handling
 	 */
-	private static async downloadZip(content: Blob, project: Project): Promise<void> {
+	private static downloadZip(content: Blob, project: Project): void {
 		const url = URL.createObjectURL(content);
 		const a = document.createElement('a');
 		a.href = url;
@@ -300,7 +303,7 @@ export class ExportService {
 		document.body.appendChild(a);
 		try {
 			a.click();
-			console.log('Download initiated for:', a.download);
+			if (import.meta.env.DEV) console.log('Download initiated for:', a.download);
 		} catch (error) {
 			console.error('Download failed:', error);
 			throw error;

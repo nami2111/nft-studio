@@ -70,11 +70,11 @@
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a');
 			a.href = url;
-			a.download = `${project.name || 'nft-project'}.zip`;
+			a.download = `${project.name || 'gnstudio-project'}.zip`;
 			document.body.appendChild(a);
 			try {
 				a.click();
-				console.log('Project download initiated for:', a.download);
+if (import.meta.env.DEV) console.log('Project download initiated for:', a.download);
 			} catch (error) {
 				console.error('Download failed:', error);
 				throw error;

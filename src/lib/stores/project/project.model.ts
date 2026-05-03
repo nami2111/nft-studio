@@ -5,8 +5,8 @@ import { generateProjectId } from '$lib/types/ids';
 export function defaultProject(): Project {
 	return {
 		id: generateProjectId(),
-		name: 'My NFT Collection',
-		description: 'A collection of unique NFTs',
+		name: 'My Collection',
+		description: 'A collection of unique items',
 		outputSize: {
 			width: 0, // Will be set by first uploaded image
 			height: 0 // Will be set by first uploaded image

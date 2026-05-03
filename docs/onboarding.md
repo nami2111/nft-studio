@@ -1,6 +1,6 @@
-# NFT Studio Onboarding Guide
+# GNStudio Onboarding Guide
 
-Welcome to the NFT Studio development team! This guide will help you get set up and start contributing to the project.
+Welcome to the GNStudio development team! This guide will help you get set up and start contributing to the project.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ Before you begin, ensure you have the following installed:
 
 ```bash
 git clone <repository-url>
-cd nft-studio
+cd gnstudio
 ```
 
 ### 2. Install Dependencies
@@ -25,30 +25,34 @@ cd nft-studio
 pnpm install
 ```
 
-This will automatically run post-install scripts including copying auth workers to the static directory.
-
-### 3. Start the Development Server
+### 3. Run Full Check
 
 ```bash
-pnpm dev
+vp check
+```
+
+### 4. Start the Development Server
+
+```bash
+vp dev
 ```
 
 The application will be available at `http://localhost:5173`
 
 ## Application Modes
 
-NFT Studio provides two sophisticated modes for working with NFT collections:
+GNStudio provides two sophisticated modes for working with item collections:
 
 ### Generate Mode (`/app`)
 
-#### Professional NFT Creation Environment
+#### Professional Item Creation Environment
 
-- **Purpose**: Create new NFT collections from layers and traits with advanced controls
+- **Purpose**: Create new item collections from layers and traits with advanced controls
 - **Core Features**:
   - Advanced layer management with drag-and-drop reordering
   - Sophisticated trait system with Ruler Trait compatibility rules
   - Real-time Canvas preview with debounced updates (200ms)
-  - High-performance batch generation (up to 10,000 NFTs)
+  - High-performance batch generation (up to 10,000 items)
   - Intelligent worker pool with device optimization
 - **Advanced Capabilities**:
   - Ruler Traits for complex trait compatibility rules
@@ -61,7 +65,7 @@ NFT Studio provides two sophisticated modes for working with NFT collections:
 
 #### Interactive Collection Analysis & Management
 
-- **Purpose**: View, filter, and analyze existing NFT collections with professional tools
+- **Purpose**: View, filter, and analyze existing item collections with professional tools
 - **Core Features**:
   - Virtual scrolling gallery optimized for large collections
   - Interactive trait filtering with multi-dimensional selection
@@ -70,7 +74,7 @@ NFT Studio provides two sophisticated modes for working with NFT collections:
   - Responsive layouts (3-6 columns based on device)
 - **Advanced Capabilities**:
   - Click any trait to instantly filter the entire collection
-  - Natural numeric sorting for NFT names ("Foxinity #1", "#001", etc.)
+  - Natural numeric sorting for item names ("Foxinity #1", "#001", etc.)
   - Multi-collection support with independent statistics
   - Real-time search with performance optimization
   - Collection statistics and rarity analysis
@@ -88,7 +92,7 @@ For detailed information about Gallery Mode features and interactive filtering, 
 ## Project Structure
 
 ```bash
-nft-studio/
+gnstudio/
 ├── docs/                    # Comprehensive documentation
 │   ├── onboarding.md        # Developer onboarding guide
 │   ├── architecture-diagrams.md  # Detailed architecture documentation
@@ -154,36 +158,33 @@ nft-studio/
 
 ```bash
 # Run all tests
-pnpm test
+vp test
 
 # Run tests in watch mode
-pnpm test:watch
+vp test watch
 
 # Run tests with coverage
-pnpm test:coverage
+vp test run --coverage
 ```
 
 ### Code Quality Checks
 
 ```bash
-# Check for TypeScript and Svelte errors
-pnpm check
+# Format + lint + type check
+vp check
 
-# Lint code for style issues
-pnpm lint
+# Lint code with Oxlint
+vp lint
 
-# Format code according to project standards
-pnpm format
-
-# Standardize comments
-pnpm standardize-comments
+# Format code with Oxfmt
+vp fmt
 ```
 
 ### Building for Production
 
 ```bash
 # Build the application
-pnpm build
+vp run build
 
 # Preview the built application
 pnpm preview
@@ -215,14 +216,14 @@ Follow conventional commit format:
 ### Pull Request Process
 
 1. Ensure your branch is up to date with `main`
-2. Run all checks (`pnpm check`, `pnpm lint`, `pnpm test`)
+2. Run all checks (`vp check`)
 3. Create a PR with a clear description of changes
 4. Request review from team members
 5. Address feedback and merge after approval
 
 ## Project Architecture
 
-The NFT Studio follows a layered architecture:
+The GNStudio follows a layered architecture:
 
 1. **UI Layer**: Svelte components for user interaction
 2. **Domain Layer**: Business logic and data models
@@ -242,19 +243,16 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 
 ## Useful Scripts
 
-| Script                      | Purpose                          |
-| --------------------------- | -------------------------------- |
-| `pnpm dev`                  | Start development server         |
-| `pnpm build`                | Build for production             |
-| `pnpm check`                | Run TypeScript and Svelte checks |
-| `pnpm check:watch`          | Watch mode for type checking     |
-| `pnpm lint`                 | Check code style                 |
-| `pnpm format`               | Format code                      |
-| `pnpm test`                 | Run tests                        |
-| `pnpm test:watch`           | Run tests in watch mode          |
-| `pnpm test:coverage`        | Run tests with coverage          |
-| `pnpm standardize-comments` | Standardize comment formatting   |
-| `pnpm verify-lockfile`      | Verify package lock integrity    |
+| Script                   | Purpose                    |
+| ------------------------ | -------------------------- |
+| `vp dev`                 | Start development server   |
+| `vp run build`           | Build for production       |
+| `vp check`               | Format + lint + type check |
+| `vp lint`                | Lint with Oxlint           |
+| `vp fmt`                 | Format with Oxfmt          |
+| `vp test`                | Run tests                  |
+| `vp test watch`          | Run tests in watch mode    |
+| `vp test run --coverage` | Run tests with coverage    |
 
 ## Getting Help
 
@@ -310,11 +308,11 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 
 ### Main Application Interface
 
-- **Project Management**: Create, save, and load NFT projects
-- **Layer Management**: Add, remove, and reorder layers for your NFT collection
+- **Project Management**: Create, save, and load item projects
+- **Layer Management**: Add, remove, and reorder layers for your item collection
 - **Trait Management**: Upload and configure traits with rarity settings
-- **Preview Panel**: Real-time preview of generated NFTs
-- **Generation Controls**: Configure and start batch NFT generation
+- **Preview Panel**: Real-time preview of generated items
+- **Generation Controls**: Configure and start batch item generation
 
 ### Key Screens
 
@@ -329,7 +327,7 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 1. Start with project creation or loading
 2. Configure layers and upload traits
 3. Set output dimensions and project metadata
-4. Preview individual NFTs
+4. Preview individual items
 5. Generate complete collection
 6. Export as ZIP package
 

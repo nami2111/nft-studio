@@ -1,10 +1,10 @@
 /**
- * Persistence layer abstractions for NFT Studio.
+ * Persistence layer abstractions.
  * Provides smart storage management with quota monitoring and fallback strategies.
  */
 
-import { handleStorageError } from '$lib/utils/error-handler';
 import { arrayBufferToBase64, base64ToArrayBuffer } from '$lib/utils';
+import { handleStorageError } from '$lib/utils/error-handler';
 
 interface StorageProject {
 	id?: string;
@@ -95,7 +95,10 @@ export function loadFromLocalStorageSync<T>(key: string): T | null {
 		return restored;
 	} catch (error) {
 		handleStorageError(error, {
-			context: { component: 'LocalStorage', action: 'loadFromLocalStorageSync' },
+			context: {
+				component: 'LocalStorage',
+				action: 'loadFromLocalStorageSync'
+			},
 			silent: true
 		});
 		return null;
@@ -122,15 +125,17 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
 
 			const serialized = serializeArrayBuffers(compactValue);
 			localStorage.setItem(key, JSON.stringify(serialized));
-			console.info(`Saved compact version (${Math.round(compactSize / 1024)}KB) to localStorage`);
+			if (import.meta.env.DEV)
+				console.info(`Saved compact version (${Math.round(compactSize / 1024)}KB) to localStorage`);
 			return;
 		}
 
 		// For projects that are getting large, use compact mode proactively
 		if (estimatedSize > COMPACT_PROJECT_THRESHOLD) {
-			console.info(
-				`Project size ${Math.round(estimatedSize / 1024)}KB exceeds compact threshold, using compact mode`
-			);
+			if (import.meta.env.DEV)
+				console.info(
+					`Project size ${Math.round(estimatedSize / 1024)}KB exceeds compact threshold, using compact mode`
+				);
 			const compactValue = createCompactVersion(value);
 			const serialized = serializeArrayBuffers(compactValue);
 			localStorage.setItem(key, JSON.stringify(serialized));
@@ -181,7 +186,10 @@ export function removeFromLocalStorageSync(key: string): void {
 		localStorage.removeItem(key);
 	} catch (error) {
 		handleStorageError(error, {
-			context: { component: 'LocalStorage', action: 'removeFromLocalStorageSync' },
+			context: {
+				component: 'LocalStorage',
+				action: 'removeFromLocalStorageSync'
+			},
 			silent: true
 		});
 	}
@@ -207,7 +215,7 @@ export class LocalStorageStore<T> implements PersistenceStore<T> {
 export class IndexedDbStore<T> implements PersistenceStore<T> {
 	constructor(
 		public key: string,
-		private dbName: string = 'nft-studio',
+		private dbName: string = 'gnstudio-assets',
 		private storeName: string = 'store'
 	) {}
 
@@ -364,20 +372,15 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 		try {
 			// Get estimated size first
 			const estimatedSize = getStorageSize(value);
-			// console.log(`SmartStorage: Project size ${Math.round(estimatedSize / 1024)}KB`); // Disabled to reduce console spam
-
 			// Use IndexedDB for large projects (>2MB) or projects with significant image data
 			if (estimatedSize > LARGE_PROJECT_THRESHOLD) {
-				// console.log(`SmartStorage: Using IndexedDB for large project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
 				await this.indexedDbStore.save(value);
 			} else if (estimatedSize > COMPACT_PROJECT_THRESHOLD) {
 				// For medium-sized projects, try localStorage with compact mode first
-				// console.log(`SmartStorage: Using localStorage with compact mode for medium project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
 				const compactValue = createCompactVersion(value);
 				this.localStorageStore.save(compactValue);
 			} else {
 				// Use localStorage for smaller projects
-				// console.log(`SmartStorage: Using localStorage for small project (${Math.round(estimatedSize / 1024)}KB)`); // Disabled to reduce console spam
 				this.localStorageStore.save(value);
 			}
 		} catch (error) {

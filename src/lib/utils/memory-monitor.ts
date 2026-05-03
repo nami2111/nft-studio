@@ -139,7 +139,7 @@ export class MemoryMonitor {
 		if (typeof globalThis !== 'undefined' && 'gc' in globalThis) {
 			try {
 				(globalThis as unknown as { gc?: () => void }).gc?.();
-				console.log('🧹 Forced garbage collection');
+				if (import.meta.env.DEV) console.log('🧹 Forced garbage collection');
 			} catch (error) {
 				console.warn('Garbage collection not available or failed:', error);
 			}

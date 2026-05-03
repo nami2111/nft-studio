@@ -4,29 +4,29 @@
  * @module validation.test
  */
 
-import { describe, it, expect } from 'vite-plus/test';
+import { describe, expect, it } from 'vite-plus/test';
 import {
+	createValidatedLayer,
+	createValidatedProject,
+	createValidatedTrait,
+	ImportedProjectSchema,
+	LayerSchema,
+	ProjectSchema,
+	safeValidate,
 	sanitizeString,
-	validateProjectName,
-	validateLayerName,
-	validateTraitName,
+	TraitSchema,
 	validateDimensions,
 	validateFilename,
 	validateFileSize,
 	validateFileType,
-	validateRarityWeight,
-	validateProject,
-	validateLayer,
-	validateTrait,
 	validateImportedProject,
-	createValidatedProject,
-	createValidatedLayer,
-	createValidatedTrait,
-	safeValidate,
-	ProjectSchema,
-	LayerSchema,
-	TraitSchema,
-	ImportedProjectSchema
+	validateLayer,
+	validateLayerName,
+	validateProject,
+	validateProjectName,
+	validateRarityWeight,
+	validateTrait,
+	validateTraitName
 } from './validation';
 
 describe('Zod Validation Module', () => {
@@ -79,10 +79,10 @@ describe('Zod Validation Module', () => {
 			expect(result2.success).toBe(true);
 			expect((result2.data as string)?.length).toBe(100);
 
-			// Script tags? sanitizeString only removes control codes.
-			// Regex /^[a-zA-Z0-9\s\-_()#.]+$/ does NOT allow < >.
-			// So result3 MUST fail.
-			expect(result3.success).toBe(false);
+			// Script tags are now stripped by sanitizeString (stripHtml=true by default).
+			// '<script>alert(1)</script>' → 'alert(1)' → passes NameSchema regex.
+			expect(result3.success).toBe(true);
+			expect(result3.data as string).toBe('alert(1)');
 		});
 	});
 
@@ -344,8 +344,8 @@ describe('Zod Validation Module', () => {
 		it('creates a valid project with defaults', () => {
 			const project = createValidatedProject();
 			expect(validateProject(project).success).toBe(true);
-			expect(project.name).toBe('My NFT Collection');
-			expect(project.description).toBe('A collection of unique NFTs');
+			expect(project.name).toBe('My Collection');
+			expect(project.description).toBe('A collection of unique items');
 			expect(project.outputSize).toEqual({ width: 100, height: 100 });
 			expect(project.layers).toEqual([]);
 		});
@@ -392,7 +392,10 @@ describe('Zod Validation Module', () => {
 		});
 
 		it('applies overrides correctly', () => {
-			const trait = createValidatedTrait({ name: 'Custom Trait', rarityWeight: 5 });
+			const trait = createValidatedTrait({
+				name: 'Custom Trait',
+				rarityWeight: 5
+			});
 			expect(trait.name).toBe('Custom Trait');
 			expect(trait.rarityWeight).toBe(5);
 			expect(validateTrait(trait).success).toBe(true);
@@ -529,6 +532,40 @@ describe('Zod Validation Module', () => {
 				};
 				expect(ImportedProjectSchema.safeParse(importedProject).success).toBe(true);
 			});
+		});
+	});
+
+	describe('edge cases', () => {
+		it('sanitizeString with stripHtml=false preserves HTML-like content', () => {
+			expect(sanitizeString('<b>bold</b>', false)).toBe('<b>bold</b>');
+		});
+
+		it('safeValidate returns failure on invalid data', () => {
+			const result = safeValidate(ImportedProjectSchema, { invalid: true });
+			expect(result.success).toBe(false);
+		});
+
+		it('safeValidate returns parsed data on success', () => {
+			const result = safeValidate(ImportedProjectSchema, {
+				id: 'proj-1',
+				name: 'Test',
+				layers: []
+			});
+			expect(result.success).toBe(true);
+			expect(result.data).toBeDefined();
+		});
+
+		it('validateDimensions rejects negative values', () => {
+			expect(validateDimensions(-1, 100).success).toBe(false);
+			expect(validateDimensions(100, -1).success).toBe(false);
+		});
+
+		it('validateDimensions accepts 1x1 minimum', () => {
+			expect(validateDimensions(1, 1).success).toBe(true);
+		});
+
+		it('sanitizeString strips HTML tags by default', () => {
+			expect(sanitizeString('<script>alert(1)</script>')).toBe('alert(1)');
 		});
 	});
 });

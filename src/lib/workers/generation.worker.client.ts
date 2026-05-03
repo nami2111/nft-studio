@@ -1,22 +1,17 @@
+import type { StrictPairConfig } from '$lib/types/layer';
 import type {
-	TransferrableLayer,
-	TransferrableTrait,
+	CancelledMessage,
 	CompleteMessage,
 	ErrorMessage,
-	CancelledMessage,
-	ProgressMessage,
 	PreviewMessage,
-	BatchMessage
+	ProgressMessage,
+	TransferrableLayer,
+	TransferrableTrait
 } from '$lib/types/worker-messages';
-import type { StrictPairConfig } from '$lib/types/layer';
-import {
-	postMessageToPool,
-	initializeWorkerPool,
-	terminateWorkerPool,
-	setMessageCallback
-} from './worker.pool';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { CSPSolver } from './csp-solver';
+import { TraitBatchScheduler } from './trait-batch-scheduler';
+import { initializeWorkerPool, setMessageCallback, terminateWorkerPool } from './worker.pool';
 
 // Worker pool will be initialized on demand
 
@@ -85,7 +80,7 @@ export async function startGeneration(
 			traits: { layerId: string; trait: TransferrableTrait }[];
 		}[] = [];
 
-		console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
+		if (import.meta.env.DEV) console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
 		const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
 
 		for (let i = 0; i < collectionSize; i++) {
@@ -122,51 +117,24 @@ export async function startGeneration(
 		}
 
 		performanceMonitor.stopTimer(preSolveTimer);
-		console.log(`✅ Pre-solved ${solutions.length} combinations.`);
+		if (import.meta.env.DEV) console.log(`✅ Pre-solved ${solutions.length} combinations.`);
 
-		// 2. Chunk the solutions into batches and send to the pool
-		const BATCH_SIZE = 50;
-		const totalBatches = Math.ceil(solutions.length / BATCH_SIZE);
-		const batchPromises: Promise<unknown>[] = [];
-
-		console.log(`📦 Distributing ${totalBatches} batches to worker pool...`);
-
-		for (let b = 0; b < totalBatches; b++) {
-			const batchSolutions = solutions.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
-
-			const message: BatchMessage = {
-				type: 'batch',
-				// taskId will be assigned by workerPool.postMessageToPool
-				payload: {
-					solutions: batchSolutions,
-					layers,
-					collectionSize,
-					outputSize,
-					projectName,
-					projectDescription,
-					metadataStandard,
-					extraData
-				}
-			};
-
-			batchPromises.push(postMessageToPool(message));
-		}
-
-		// Wait for all batches to complete
-		await Promise.all(batchPromises);
-
-		// Send a final completion message to the UI
-		if (messageHandler) {
-			messageHandler({
-				type: 'complete',
-				payload: {
-					images: [],
-					metadata: [],
-					generatedCount: collectionSize,
-					totalCount: collectionSize
-				}
-			} as CompleteMessage);
-		}
+		// 2. Schedule solved traits as batches to the worker pool for rendering
+		const scheduler = new TraitBatchScheduler({
+			layers,
+			collectionSize,
+			outputSize,
+			projectName,
+			projectDescription,
+			metadataStandard,
+			extraData,
+			onMessage: messageHandler
+				? (data) => {
+						if (messageHandler) messageHandler(data);
+					}
+				: undefined
+		});
+		await scheduler.scheduleBatches(solutions);
 
 		performanceMonitor.stopTimer(timerId);
 	} catch (error) {

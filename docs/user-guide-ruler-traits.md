@@ -1,10 +1,10 @@
 # User Guide: Ruler Traits
 
-Ruler traits provide advanced control over trait compatibility during NFT generation. This guide covers how to create, configure, and use ruler traits to enforce specific trait combinations and create sophisticated collection structures.
+Ruler traits provide advanced control over trait compatibility during item generation. This guide covers how to create, configure, and use ruler traits to enforce specific trait combinations and create sophisticated collection structures.
 
 ## Overview
 
-Ruler traits are special traits that act as compatibility rules for your NFT collections. Instead of allowing random combinations, ruler traits ensure that only specific trait combinations are generated, enabling you to:
+Ruler traits are special traits that act as compatibility rules for your item collections. Instead of allowing random combinations, ruler traits ensure that only specific trait combinations are generated, enabling you to:
 
 - **Enforce thematic consistency** (e.g., forest backgrounds with nature accessories)
 - **Create ultra-rare combinations** (specific trait pairings)
@@ -21,7 +21,7 @@ Normal traits allow any combination during generation. Ruler traits add a layer 
 ### How Ruler Traits Work
 
 1. **Selection Control**: When a ruler trait is selected, only traits that pass its rules can be selected from other layers
-2. **Generation Rules**: During NFT generation, the system checks all selected traits against ruler trait rules
+2. **Generation Rules**: During item generation, the system checks all selected traits against ruler trait rules
 3. **Compatibility Validation**: Forbidden combinations are rejected, and only valid combinations are generated
 
 ## Creating Ruler Traits
@@ -95,7 +95,7 @@ You can create multiple compatibility rules for the same ruler trait:
 - **Allowed**: Royal Scepter, Magic Wand
 - **Forbidden**: All other accessories
 
-**Result**: Only royal accessories appear with golden crowns, creating ultra-rare NFTs
+**Result**: Only royal accessories appear with golden crowns, creating ultra-rare items
 
 ### Example 3: Narrative Collections
 
@@ -237,7 +237,7 @@ Each ruler rule contains:
 
 ### Performance Considerations
 
-- **Rule Evaluation**: Rules are checked during generation for each NFT
+- **Rule Evaluation**: Rules are checked during generation for each item
 - **Memory Usage**: Rule data is stored efficiently in browser storage
 - **Caching**: Rule results are cached for improved preview performance
 - **Scalability**: System handles hundreds of rules across multiple layers
@@ -269,7 +269,7 @@ Ruler traits work seamlessly with the rarity system:
 
 - **Normal Rarity**: Ruler traits have their own rarity like any other trait
 - **Rarity Impact**: Ruler rules affect the statistical distribution of traits
-- **Score Calculation**: Ruler trait scores included in overall NFT rarity scores
+- **Score Calculation**: Ruler trait scores included in overall item rarity scores
 
 ### Bulk Operations
 
@@ -308,6 +308,6 @@ Ruler traits work seamlessly with the rarity system:
 
 ## Conclusion
 
-Ruler traits provide powerful control over NFT generation, enabling you to create sophisticated, themed, and narratively-driven collections. By understanding how to effectively configure and manage ruler rules, you can achieve precise control over trait combinations while maintaining good generation performance.
+Ruler traits provide powerful control over item generation, enabling you to create sophisticated, themed, and narratively-driven collections. By understanding how to effectively configure and manage ruler rules, you can achieve precise control over trait combinations while maintaining good generation performance.
 
 Start with simple concepts and gradually build more complex rule systems as you become more familiar with the interface and capabilities. The preview system provides immediate feedback on rule effectiveness, making it easy to iterate and refine your ruler trait strategies.

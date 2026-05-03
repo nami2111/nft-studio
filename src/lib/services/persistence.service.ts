@@ -4,19 +4,22 @@
  * Implements differential persistence to optimize saving large projects
  */
 
+import { IndexedDbStore, SmartStorageStore } from '$lib/persistence/storage';
 import type { Project } from '$lib/types/project';
-import { SmartStorageStore, IndexedDbStore } from '$lib/persistence/storage';
 import { logger } from '$lib/utils/logger';
 
-const METADATA_KEY = 'nft-studio-project-metadata';
-const LAYER_ASSETS_PREFIX = 'nft-studio-layer-assets-';
-const LEGACY_STORAGE_KEY = 'nft-studio-project';
+const METADATA_KEY = 'gnstudio-project-metadata';
+const LAYER_ASSETS_PREFIX = 'gnstudio-layer-assets-';
+const LEGACY_STORAGE_KEY = 'gnstudio-project';
 
 export class PersistenceService {
 	private metaStorage = new SmartStorageStore<Record<string, unknown>>(METADATA_KEY);
 	private assetStorages = new Map<
 		string,
-		IndexedDbStore<{ layerId: string; traits: { id: string; imageData: ArrayBuffer }[] }>
+		IndexedDbStore<{
+			layerId: string;
+			traits: { id: string; imageData: ArrayBuffer }[];
+		}>
 	>();
 	private persistTimeout: ReturnType<typeof setTimeout> | null = null;
 	private lastSavedMetadata: string | null = null;
@@ -24,9 +27,10 @@ export class PersistenceService {
 	/**
 	 * Get or create an IndexedDbStore for a specific layer's assets
 	 */
-	private getAssetStorage(
-		layerId: string
-	): IndexedDbStore<{ layerId: string; traits: { id: string; imageData: ArrayBuffer }[] }> {
+	private getAssetStorage(layerId: string): IndexedDbStore<{
+		layerId: string;
+		traits: { id: string; imageData: ArrayBuffer }[];
+	}> {
 		const key = `${LAYER_ASSETS_PREFIX}${layerId}`;
 		if (!this.assetStorages.has(key)) {
 			this.assetStorages.set(key, new IndexedDbStore(key));
@@ -67,7 +71,10 @@ export class PersistenceService {
 			const assetPromises = project.layers.map(async (layer) => {
 				const assets = {
 					layerId: layer.id,
-					traits: layer.traits.map((t) => ({ id: t.id, imageData: t.imageData }))
+					traits: layer.traits.map((t) => ({
+						id: t.id,
+						imageData: t.imageData
+					}))
 				};
 				await this.getAssetStorage(layer.id).save(assets);
 			});
@@ -99,7 +106,8 @@ export class PersistenceService {
 				return null;
 			}
 
-			// Assemble the full project
+			// Reconstitute the project from metadata skeleton by hydrating image data.
+			// skeleton is a Record<string, unknown> from IndexedDB; cast needed for hydration.
 			const project = skeleton as unknown as Project;
 
 			const assetPromises = project.layers.map(async (layer) => {

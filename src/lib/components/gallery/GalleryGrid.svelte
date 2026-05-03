@@ -1,24 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { GalleryNFT } from '$lib/types/gallery';
+	import type { GalleryItem } from '$lib/types/gallery';
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import VirtualNFTGrid from './VirtualNFTGrid.svelte';
+	import VirtualItemGrid from './VirtualItemGrid.svelte';
 
 	interface Props {
-		selectedNFT?: GalleryNFT | null;
-		onselect?: (nft: GalleryNFT) => void;
+		selectedItem?: GalleryItem | null;
+		onselect?: (item: GalleryItem) => void;
 		class?: string;
 	}
 
-	const { selectedNFT = null, onselect, class: className = '' }: Props = $props();
+	const { selectedItem = null, onselect, class: className = '' }: Props = $props();
 
-	const nfts = $derived(galleryStore.filteredAndSortedNFTs);
+	const items = $derived(galleryStore.filteredAndSortedItems);
 	const isLoading = $derived(galleryStore.isLoading);
 	const error = $derived(galleryStore.error);
 
-	function handleNFTClick(nft: GalleryNFT) {
-		onselect?.(nft);
+	function handleItemClick(item: GalleryItem) {
+		onselect?.(item);
 	}
 
 	onMount(() => {
@@ -47,7 +47,7 @@
 			<div class="text-muted-foreground mb-2 text-lg">Failed to load gallery</div>
 			<div class="text-muted-foreground text-sm">{error}</div>
 		</div>
-	{:else if nfts.length === 0}
+	{:else if items.length === 0}
 		<!-- Empty State -->
 		<div class="flex flex-col items-center justify-center py-12 text-center">
 			<svg
@@ -61,17 +61,17 @@
 				<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1" />
 				<polyline points="21 15 16 10 5 21" stroke-width="1" />
 			</svg>
-			<div class="text-muted-foreground mb-2 text-lg">No NFTs in gallery</div>
-			<div class="text-muted-foreground text-sm">Generate some NFTs first to see them here</div>
+			<div class="text-muted-foreground mb-2 text-lg">No items in gallery</div>
+			<div class="text-muted-foreground text-sm">Generate some items first to see them here</div>
 		</div>
 	{:else}
 		<!-- Gallery Grid with Virtual Scrolling -->
-		<VirtualNFTGrid {nfts} {selectedNFT} onselect={handleNFTClick} class="min-h-[400px]" />
+		<VirtualItemGrid {items} {selectedItem} onselect={handleItemClick} class="min-h-[400px]" />
 
 		<!-- Gallery Stats -->
 		<div class="mt-8 border-t pt-4">
 			<div class="text-muted-foreground flex flex-wrap items-center justify-between gap-4 text-sm">
-				<div>Total NFTs: {nfts.length}</div>
+				<div>Total Items: {items.length}</div>
 				{#if galleryStore.selectedCollection}
 					<div>Collection: {galleryStore.selectedCollection.name}</div>
 				{/if}

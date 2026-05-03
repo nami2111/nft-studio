@@ -1,5 +1,5 @@
 /**
- * Utility functions and type helpers for the NFT Studio.
+ * Utility functions and type helpers.
  *
  * @module utils
  */

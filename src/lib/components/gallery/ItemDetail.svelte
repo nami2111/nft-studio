@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { GalleryNFT } from '$lib/types/gallery';
+	import type { GalleryItem } from '$lib/types/gallery';
 	import { Card } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 
 	interface Props {
-		selectedNFT?: GalleryNFT | null;
+		selectedItem?: GalleryItem | null;
 		class?: string;
 		hideCard?: boolean;
 		selectedTraits?: Record<string, string[]>;
@@ -14,7 +14,7 @@
 	}
 
 	const {
-		selectedNFT,
+		selectedItem,
 		class: className = '',
 		hideCard = false,
 		selectedTraits = {},
@@ -22,7 +22,7 @@
 	}: Props = $props();
 
 	const imageUrl = $derived(
-		selectedNFT ? imageUrlCache.get(selectedNFT.id, selectedNFT.imageData) : null
+		selectedItem ? imageUrlCache.get(selectedItem.id, selectedItem.imageData) : null
 	);
 
 	function getRarityColor(rank: number, total: number): string {
@@ -49,7 +49,7 @@
 	</Card>
 {/snippet}
 
-{#snippet nftImageIcon()}
+{#snippet imageIcon()}
 	<svg
 		class="text-muted-foreground h-10 w-10"
 		fill="none"
@@ -64,14 +64,14 @@
 {/snippet}
 
 {#snippet content()}
-	{#if selectedNFT}
+	{#if selectedItem}
 		<div class="space-y-6">
-			<!-- NFT Image -->
+			<!-- Item Image -->
 			<div class="bg-muted/30 ring-border relative aspect-square overflow-hidden rounded-xl ring-1">
 				{#if imageUrl}
 					<img
 						src={imageUrl}
-						alt={selectedNFT.name}
+						alt={selectedItem.name}
 						class="h-full w-full object-contain transition-transform hover:scale-105"
 					/>
 				{:else}
@@ -79,25 +79,25 @@
 				{/if}
 			</div>
 
-			<!-- NFT Name and Rarity -->
+			<!-- Item Name and Rarity -->
 			<div>
 				<div class="flex items-start justify-between gap-4">
 					<h2 class="text-foreground text-xl font-bold tracking-tight">
-						{selectedNFT.name}
+						{selectedItem.name}
 					</h2>
 					<Badge
 						variant="secondary"
 						class="{getRarityColor(
-							selectedNFT.rarityRank,
+							selectedItem.rarityRank,
 							100
 						)} shrink-0 text-xs font-bold uppercase transition-colors"
 					>
-						Rank #{selectedNFT.rarityRank}
+						Rank #{selectedItem.rarityRank}
 					</Badge>
 				</div>
-				{#if selectedNFT.description}
+				{#if selectedItem.description}
 					<p class="text-muted-foreground mt-2 text-sm leading-relaxed">
-						{selectedNFT.description}
+						{selectedItem.description}
 					</p>
 				{/if}
 			</div>
@@ -111,12 +111,12 @@
 					<div class="bg-muted/30 ring-border rounded-lg p-3 ring-1">
 						<div class="text-muted-foreground text-[10px] uppercase">Score</div>
 						<div class="text-lg font-bold tabular-nums">
-							{formatRarityScore(selectedNFT.rarityScore)}
+							{formatRarityScore(selectedItem.rarityScore)}
 						</div>
 					</div>
 					<div class="bg-muted/30 ring-border rounded-lg p-3 ring-1">
 						<div class="text-muted-foreground text-[10px] uppercase">Rank</div>
-						<div class="text-lg font-bold tabular-nums">#{selectedNFT.rarityRank}</div>
+						<div class="text-lg font-bold tabular-nums">#{selectedItem.rarityRank}</div>
 					</div>
 				</div>
 			</div>
@@ -125,7 +125,7 @@
 			<div class="space-y-3">
 				<h3 class="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Traits</h3>
 				<div class="grid gap-2">
-					{#each selectedNFT.metadata.traits as trait ((trait.layer || (trait as Record<string, unknown>).trait_type || '') + ':' + (trait.trait || (trait as Record<string, unknown>).value || ''))}
+					{#each selectedItem.metadata.traits as trait ((trait.layer || (trait as Record<string, unknown>).trait_type || '') + ':' + (trait.trait || (trait as Record<string, unknown>).value || ''))}
 						{@const layer =
 							trait.layer ||
 							((trait as Record<string, unknown>).trait_type as string) ||
@@ -167,7 +167,7 @@
 {/snippet}
 
 <div class={className}>
-	{#if selectedNFT}
+	{#if selectedItem}
 		{#if hideCard}
 			{@render content()}
 		{:else}
@@ -177,9 +177,9 @@
 		{/if}
 	{:else}
 		{@render emptyState(
-			nftImageIcon,
-			'No NFT Selected',
-			'Select an NFT from the gallery to view its details, traits, and rarity.'
+			imageIcon,
+			'No Item Selected',
+			'Select an item from the gallery to view its details, traits, and rarity.'
 		)}
 	{/if}
 </div>

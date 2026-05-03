@@ -7,9 +7,9 @@ import { galleryStore } from '$lib/stores/gallery.store.svelte';
 import { globalResourceManager } from '$lib/stores/resource-manager';
 import { SmartStorageStore } from '$lib/persistence/storage';
 
-const LOCAL_STORAGE_KEYS = ['nft-studio-project', 'nft-studio-gallery-selected-collection'];
+const LOCAL_STORAGE_KEYS = ['gnstudio-project', 'gnstudio-gallery-selected-collection'];
 
-const PROJECT_STORAGE_KEY = 'nft-studio-project';
+const PROJECT_STORAGE_KEY = 'gnstudio-project';
 
 let cleanupPerformed = false;
 

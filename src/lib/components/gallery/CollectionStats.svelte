@@ -10,11 +10,11 @@
 
 	// Derived stats
 	const rarestRank = $derived(
-		collection.nfts.length > 0 ? Math.min(...collection.nfts.map((n) => n.rarityRank)) : 0
+		collection.items.length > 0 ? Math.min(...collection.items.map((n) => n.rarityRank)) : 0
 	);
 	const avgScore = $derived(
-		collection.nfts.length > 0
-			? collection.nfts.reduce((sum, n) => sum + n.rarityScore, 0) / collection.nfts.length
+		collection.items.length > 0
+			? collection.items.reduce((sum, n) => sum + n.rarityScore, 0) / collection.items.length
 			: 0
 	);
 </script>
@@ -31,7 +31,7 @@
 		Collection Stats
 	</h3>
 	<div class="grid grid-cols-2 gap-4">
-		{@render statCell('Total NFTs', collection.totalSupply)}
+		{@render statCell('Total Items', collection.totalSupply)}
 		{@render statCell('Rarest Rank', '#' + rarestRank)}
 		{@render statCell('Avg Rarity Score', avgScore.toFixed(2))}
 		{@render statCell(

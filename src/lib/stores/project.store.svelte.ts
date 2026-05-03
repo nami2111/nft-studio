@@ -1,5 +1,5 @@
 /**
- * Modern Svelte 5 runes-based project store for NFT Studio
+ * Modern Svelte 5 runes-based project store
  * Focused on core state management and business logic
  *
  * @note The `project` export is intentionally a module-level singleton.
@@ -8,54 +8,27 @@
  * migrate to Svelte context (setContext/getContext).
  */
 
-import type { Project, Layer, Trait, ProjectDimensions } from '$lib/types/project';
-import type { LayerId, TraitId, ProjectId } from '$lib/types/ids';
-import type { StrictPairConfig } from '$lib/types/layer';
-import { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
-import { fileToArrayBuffer } from '$lib/utils';
-import { createLayerId, createTraitId } from '$lib/types/ids';
-import { globalResourceManager } from './resource-manager';
-import {
-	saveProjectToZip as saveProjectToZipImpl,
-	loadProjectFromZip as loadProjectFromZipImpl
-} from './file-operations';
-import { loadingStateManager } from './loading-state';
-import { performanceMonitor } from '$lib/utils/performance-monitor';
+import { SvelteMap } from 'svelte/reactivity';
 import { calculateAdaptiveDelay } from '$lib/config/performance.config';
+import type { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
+import type { LayerId, ProjectId, TraitId } from '$lib/types/ids';
+import { createLayerId, createTraitId } from '$lib/types/ids';
+import type { StrictPairConfig } from '$lib/types/layer';
+import type { Layer, Project, ProjectDimensions, Trait } from '$lib/types/project';
+import { fileToArrayBuffer } from '$lib/utils';
+import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { persistenceService } from '../services/persistence.service';
 import { validationService } from '../services/validation.service';
-import { SvelteMap } from 'svelte/reactivity';
+import {
+	loadProjectFromZip as loadProjectFromZipImpl,
+	saveProjectToZip as saveProjectToZipImpl
+} from './file-operations';
+import { loadingStateManager } from './loading-state';
+import { globalResourceManager } from './resource-manager';
 
-// Initialize project with a fresh default project
-// Note: Auto-load disabled - users must manually load saved projects via "Load Project" button
-// const persistedProject = persistenceService.loadMetadataSync();
+// Initialize project with a fresh default project.
+// Auto-load disabled: users must manually load saved projects via "Load Project" button.
 export const project = $state<Project>(validationService.createDefaultProject());
-
-// Background load disabled - app starts fresh on every page load
-// if (persistedProject) {
-// 	setTimeout(async () => {
-// 		try {
-// 			const fullProject = await persistenceService.loadProject();
-// 			if (fullProject) {
-// 				// Reconcile assets into the reactive project state
-// 				fullProject.layers.forEach((fullLayer) => {
-// 					const targetLayer = project.layers.find((l) => l.id === fullLayer.id);
-// 					if (targetLayer) {
-// 						fullLayer.traits.forEach((fullTrait) => {
-// 							const targetTrait = targetLayer.traits.find((t) => t.id === fullTrait.id);
-// 							if (targetTrait && (!targetTrait.imageData || targetTrait.imageData.byteLength === 0)) {
-// 								targetTrait.imageData = fullTrait.imageData;
-// 							}
-// 						});
-// 					}
-// 				});
-// 				console.info('Project assets loaded in background');
-// 			}
-// 		} catch (error) {
-// 			console.warn('Failed to load project assets in background:', error);
-// 		}
-// 	}, 100);
-// }
 
 // Export a simple store wrapper for components
 export const projectStore = {
@@ -354,7 +327,9 @@ async function processPendingTraitUpdates(): Promise<void> {
 			try {
 				const arrayBuffer = await fileToArrayBuffer(file);
 				trait.imageData = arrayBuffer;
-				const blob = new Blob([arrayBuffer], { type: file.type || 'image/png' });
+				const blob = new Blob([arrayBuffer], {
+					type: file.type || 'image/png'
+				});
 				trait.imageUrl = URL.createObjectURL(blob);
 				globalResourceManager.addObjectUrl(trait.imageUrl);
 				pendingTraitPromises.get(trait.id)?.resolve();

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Proper documentation is essential for maintaining a codebase that can be easily understood and contributed to. This guide outlines the standards for documenting code within the NFT Studio project.
+Proper documentation is essential for maintaining a codebase that can be easily understood and contributed to. This guide outlines the standards for documenting code within the GNStudio project.
 
 ## Documentation Types
 
@@ -23,7 +23,7 @@ Example:
  * Uses the configured rarity weights to determine how often each trait should appear.
  *
  * @param layers - The layers with their traits and rarity weights
- * @param count - The total number of NFTs to generate
+ * @param count - The total number of items to generate
  * @returns A map of layer IDs to trait distributions
  * @throws {ValidationError} If layer configuration is invalid
  *
@@ -86,12 +86,12 @@ Include practical examples for complex functions:
 
 ````typescript
 /**
- * Generates NFT metadata based on layer configurations.
+ * Generates item metadata based on layer configurations.
  *
  * @example
  * ```typescript
  * const metadata = await generateMetadata({
- *   name: 'My NFT Collection',
+ *   name: 'My Item Collection',
  *   layers: [backgroundLayer, characterLayer],
  *   count: 100
  * });
@@ -99,7 +99,7 @@ Include practical examples for complex functions:
  * // Result:
  * // {
  * //   "1": {
- * //     "name": "My NFT Collection #1",
+ * //     "name": "My Item Collection #1",
  * //     "attributes": [
  * //       {"trait_type": "Background", "value": "Blue"},
  * //       {"trait_type": "Character", "value": "Robot"}
@@ -115,4 +115,3 @@ Include practical examples for complex functions:
 - Update documentation when modifying code
 - Review documentation during code reviews
 - Remove outdated comments when refactoring
-- Use tools like `pnpm standardize-comments` to maintain consistency

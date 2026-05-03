@@ -29,7 +29,7 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 	const transferrableLayers = await Promise.all(
 		layers.map(async (layer) => {
 			const transferrableTraits = await Promise.all(
-				layer.traits.map(async (trait) => {
+				layer.traits.map((trait) => {
 					// Create a clean ArrayBuffer to ensure it's properly serializable
 					const cleanArrayBuffer = new ArrayBuffer(trait.imageData.byteLength);
 					const sourceView = new Uint8Array(trait.imageData);

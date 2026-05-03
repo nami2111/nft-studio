@@ -1,6 +1,6 @@
-# NFT Studio
+# GNStudio
 
-NFT Studio is a professional web application for creating and generating Non-Fungible Token collections. Built with SvelteKit 2, Svelte 5, TypeScript, and modern web technologies, it provides artists and creators with a comprehensive toolkit for building generative NFT collections through an intuitive, high-performance interface.
+GNStudio is a browser-based tool for designing and generating generative art collections. Built with SvelteKit 2, Svelte 5, TypeScript, and modern web technologies, it provides artists and creators with a comprehensive toolkit for building generative collections through an intuitive, high-performance interface.
 
 ## Features
 
@@ -9,11 +9,11 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 - **Advanced Layer Management**: Organize collections with multiple layers (background, character, accessories, etc.) with drag-and-drop reordering
 - **Sophisticated Trait System**: Define traits with customizable rarity weights (1-5 scale) and advanced compatibility rules
 - **Real-time Canvas Preview**: Instant visual feedback with debounced updates and intelligent caching
-- **High-Performance Generation**: Generate up to 10,000 unique NFTs using optimized Canvas API with sequential processing
+- **High-Performance Generation**: Generate up to 10,000 unique items using optimized Canvas API with sequential processing
 - **Smart Memory Management**: Three-tier caching system (ImageBitmap/ImageData/ArrayBuffer) with automatic cleanup
 - **Optimized Architecture**: Streamlined performance system with sequential processing, sprite sheet optimization, and memory reduction
 
-**Performance Achieved:** 1000 NFTs in ~128 seconds (7.8 items/sec) with 99.6% cache hit rate
+**Performance Achieved:** 1000 items in ~128 seconds (7.8 items/sec) with 99.6% cache hit rate
 
 ### Advanced Trait Features
 
@@ -27,7 +27,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 ### Gallery & Collection Management
 
 - **Virtual Scrolling Gallery**: Optimized for large collections with responsive layouts (3-6 columns based on device)
-- **Interactive Trait Filtering**: Click any trait in NFT details to instantly filter the entire collection
+- **Interactive Trait Filtering**: Click any trait in item details to instantly filter the entire collection
 - **Automatic Rarity Calculation**: Advanced rarity scoring system with natural numeric sorting
 - **Import/Export Support**: ZIP-based import for existing collections with automatic metadata parsing
 - **Multi-Collection Support**: Manage multiple collections with independent statistics and filtering
@@ -75,7 +75,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 ### Performance & Processing
 
 - **Image Processing**: Canvas API with Web Workers for background processing
-- **Worker Architecture**: Simplified single-worker architecture with sequential processing
+- **Worker Architecture**: Intelligent multi-worker pool with dynamic scaling, health checks, and work-stealing scheduling
 - **Three-Phase Optimization**: Bit-packed indexing, sprite sheet atlases, AC-3 CSP with sequential rendering
 - **Memory Management**: Three-tier caching (ImageBitmap/ImageData/ArrayBuffer) with LRU eviction
 - **Performance Monitoring**: Decorator-based timing with automatic metric collection
@@ -105,7 +105,7 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 
 ### Deployment & Analytics
 
-- **Platform**: ICP Blockchain deployment with Juno hosting
+- **Platform**: Static web hosting with Juno
 - **PWA Support**: Service worker, manifest file, offline capabilities
 - **Analytics**: Generation completion tracking and page visit analytics
 - **Static Hosting**: Ready for deployment to any static hosting service
@@ -122,8 +122,8 @@ NFT Studio is a professional web application for creating and generating Non-Fun
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/nami2111/nft-studio.git
-   cd nft-studio
+   git clone https://github.com/nami2111/gnstudio.git
+   cd gnstudio
    ```
 
 2. Install dependencies:
@@ -214,7 +214,7 @@ We maintain high code quality standards with a focus on maintainable architectur
 
 ## Architecture
 
-NFT Studio follows a sophisticated, performance-first architecture built on modern web technologies and Single Responsibility Principle (SRP) with Svelte 5 patterns:
+GNStudio follows a sophisticated, performance-first architecture built on modern web technologies and Single Responsibility Principle (SRP) with Svelte 5 patterns:
 
 ### Core Architecture Layers
 
@@ -239,7 +239,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 **Single-threaded processing with optimized performance**:
 
-- **Sequential Processing**: Simplified single-worker architecture for easier debugging and maintenance
+- **Multi-Worker Pool**: Dynamic scaling based on device capabilities, load, and task complexity
 - **Task Complexity Classification**: LOW to VERY_HIGH based on collection size and layer complexity
 - **Memory Optimization**: Sprite sheet packing and three-tier caching for efficient memory usage
 - **Health Monitoring**: Basic health checks for worker reliability
@@ -273,7 +273,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 - **Svelte 5 Runes**: `$state`, `$derived`, `$effect` for fine-grained reactivity
 - **Batch Processing**: 100ms debounced trait updates for improved performance
-- **Virtual Scrolling**: Efficient rendering of large NFT collections
+- **Virtual Scrolling**: Efficient rendering of large collections
 - **Progressive Loading**: Real-time preview updates during generation
 
 #### Modular Component System
@@ -307,16 +307,16 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 - **`/`** - Landing page with hero section and introduction
 - **`/app`** - Main application interface with project settings, layer management, and generation
-- **`/app/gallery`** - Gallery mode for viewing, filtering, and managing generated NFT collections
+- **`/app/gallery`** - Gallery mode for viewing, filtering, and managing generated collections
 
 ### Key Components
 
 - **Hero.svelte** - Landing page with feature highlights
 - **ProjectSettings.svelte** - Project configuration (name, dimensions, description)
 - **LayerManager.svelte** - Layer and trait management interface
-- **Preview.svelte** - Real-time NFT preview with trait selection
+- **Preview.svelte** - Real-time item preview with trait selection
 - **GenerationForm.svelte** - Collection generation controls and progress tracking
-- **GalleryImport.svelte** - Import interface for existing NFT collections
+- **GalleryImport.svelte** - Import interface for existing collections
 - **ModeSwitcher.svelte** - Navigation between Generate and Gallery modes
 
 ## Common Development Tasks
@@ -340,7 +340,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 **Sequential Processing:**
 
-- Simplified single-worker architecture for easier maintenance
+- Intelligent multi-worker pool with dynamic scaling and health checks
 - Sequential image processing with optimized performance
 - Sprite sheet optimization maintained for memory efficiency
 
@@ -349,7 +349,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 - Message types defined in `src/lib/types/worker-messages.ts`
 - Worker client: `src/lib/workers/generation.worker.client.ts`
 - Worker implementation: `src/lib/workers/generation.worker.ts`
-- Sequential processing with single worker for simplified architecture
+- Sequential item processing distributed across a dynamic multi-worker pool
 
 ### Testing
 
@@ -359,7 +359,7 @@ The state management system leverages Svelte 5's advanced runes with intelligent
 
 ## Environment Variables
 
-- `VITE_APP_SATELLITE_ID` - Juno deployment ID (optional, for ICP blockchain integration)
+- `VITE_APP_SATELLITE_ID` - Juno deployment ID (optional, for static hosting)
 
 ## File Naming Conventions
 
@@ -401,4 +401,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Custom modal system for consistent viewport-based positioning
 - Icons from [Lucide](https://lucide.dev/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
-- Deployed on [Juno](https://juno.build/) for ICP blockchain integration
+- Deployed on [Juno](https://juno.build/) for static web hosting

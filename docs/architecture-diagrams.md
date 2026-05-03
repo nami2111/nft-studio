@@ -1,8 +1,8 @@
 # Architecture Documentation
 
-## Overview of NFT Studio Architecture
+## Overview of GNStudio Architecture
 
-NFT Studio follows a sophisticated, performance-first architecture with clear separation of concerns and modern web development patterns. The system is designed to handle large-scale NFT generation while maintaining optimal user experience.
+GNStudio follows a sophisticated, performance-first architecture with clear separation of concerns and modern web development patterns. The system is designed to handle large-scale item generation while maintaining optimal user experience.
 
 ### Core Architecture Layers
 
@@ -23,9 +23,9 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
   - `TraitUpload.svelte`: Drag-and-drop file handling with progress tracking
 
 - **Gallery Components** (`gallery/`):
-  - `SimpleVirtualGrid.svelte`: High-performance virtual scrolling for NFT collections
+  - `SimpleVirtualGrid.svelte`: High-performance virtual scrolling for item collections
   - `GalleryImport.svelte`: ZIP import with automatic metadata parsing
-  - `NFTDetail.svelte`: Interactive NFT information panel with trait filtering
+  - `ItemDetail.svelte`: Interactive item information panel with trait filtering
   - `TraitFilter.svelte`: Multi-layer trait filtering system
 
 - **Preview & Generation System** (`generation/`):
@@ -82,7 +82,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
   - Integration with worker orchestration
 
 - **`rarity-calculator.ts`**: Advanced rarity calculation algorithms
-  - Natural numeric sorting for NFT names
+  - Natural numeric sorting for item names
   - Rarity score calculation and ranking systems
   - Statistical analysis of trait distributions
 
@@ -107,9 +107,21 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
   - Progressive generation with streaming updates
 
 - **`generation.worker.client.ts`**: Worker client interface
-  - Streaming vs chunked generation based on collection size
+  - CSP solver pre-computes all unique trait combinations upfront
+  - TraitBatchScheduler dispatches solved batches to the worker pool
   - Real-time progress reporting
   - Error handling with automatic retry logic
+
+- **`csp-solver.ts`**: Constraint Satisfaction Problem solver
+  - AC-3 arc consistency for domain pruning (60-80% search space reduction)
+  - MRV heuristic with optimized backtracking
+  - Bit-packed combination indexing for O(1) uniqueness checks
+  - Ruler trait constraint enforcement (forbidden/allowed)
+
+- **`trait-batch-scheduler.ts`**: Batch dispatch orchestrator
+  - Chunks pre-solved trait assignments into configurable batch sizes
+  - Dispatches to worker pool via postMessageToPool
+  - Sends completion message when all batches finish
 
 #### 5. Persistence Layer (`src/lib/persistence/`)
 
@@ -133,15 +145,20 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 ##### Performance Monitoring and Error Handling
 
-- **`performance-monitor.ts`**: Decorator-based performance tracking
-  - Automatic metric collection and reporting
-  - Function timing with configurable thresholds
-  - Memory usage monitoring and optimization
+- **`performance-monitor.ts`**: Unified performance monitoring
+  - Timer-based operation tracking with automatic metric collection
+  - Cache hit/miss/eviction monitoring with hit rate computation
+  - Database query timing and slow-query warnings
+  - Memory heap snapshot history with configurable time windows
+  - Alert creation with severity levels and threshold comparisons
+  - Batch progress tracking with ETA estimation
 
-- **`error-handler.ts` & `typed-errors.ts`**: Comprehensive error management
-  - Typed error hierarchy with recoverable/non-recoverable flags
-  - Rich error context propagation
-  - User-friendly error messaging with toast notifications
+- **`error-handler.ts`, `error-handling.ts` & `typed-errors.ts`**: Error management
+  - Single-source-of-truth error hierarchy in `typed-errors.ts` (AppError subclasses)
+  - Type guards for each error category (isValidationError, isStorageError, etc.)
+  - Centralized error processing with `handleError()`, `withSafeOperation()`
+  - Toast-based user-facing errors with `showError()`, `withToastErrorHandling()`
+  - Serialization support via `toJSON()` and `getErrorInfo()`
 
 - **`simple-debug.ts`**: Efficient debugging and logging
   - Performance-optimized logging for development
@@ -218,7 +235,7 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 
 **Multi-Dimensional Trait Filtering**:
 
-- Click any trait in NFT details to instantly filter collections
+- Click any trait in item details to instantly filter collections
 - Build complex filters by selecting multiple traits
 - Visual feedback with selected trait highlighting
 - Natural sorting with numeric pattern recognition
@@ -255,4 +272,4 @@ NFT Studio follows a sophisticated, performance-first architecture with clear se
 - **Lazy Loading**: Progressive content loading with intersection observers
 - **Memory Monitoring**: Real-time memory usage tracking and optimization
 
-This architecture provides a robust foundation for large-scale NFT generation while maintaining excellent user experience and developer productivity.
+This architecture provides a robust foundation for large-scale item generation while maintaining excellent user experience and developer productivity.

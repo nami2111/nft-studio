@@ -1,4 +1,4 @@
-# NFT Studio Coding Standards
+# GNStudio Coding Standards
 
 ## Commenting Guidelines
 
@@ -138,7 +138,7 @@ import type { ComponentProps } from 'svelte';
 
 // Project imports
 import type { Layer } from '$lib/types/layer';
-import { validateLayer } from '$lib/utils/validation';
+import { validateLayer, validateTrait } from '$lib/domain/validation';
 
 export interface LayerManagerProps {
 	layers: Layer[];
@@ -186,11 +186,11 @@ try {
 	return result;
 } catch (error) {
 	if (error instanceof ValidationError) {
-		showUserError('Please check your layer configuration');
-		logError('Layer validation failed', { error, layers });
+		showError(error, { description: 'Please check your layer configuration' });
+		logger.error('Layer validation failed', { error, layers });
 	} else {
-		showUserError('An unexpected error occurred');
-		logError('Layer processing failed', { error, layers });
+		showError(error, { description: 'An unexpected error occurred' });
+		logger.error('Layer processing failed', { error, layers });
 	}
 	throw error;
 }
@@ -207,15 +207,17 @@ try {
 Example:
 
 ```typescript
-describe('validateLayer', () => {
-	it('should return true for a valid layer', () => {
-		const layer = createValidLayer();
-		expect(validateLayer(layer)).toBe(true);
+describe('validateProjectName', () => {
+	it('should return success for a valid name', () => {
+		const result = validateProjectName('My Project');
+		expect(result.success).toBe(true);
+		expect(result.data).toBe('My Project');
 	});
 
-	it('should return false for a layer with no traits', () => {
-		const layer = createLayerWithNoTraits();
-		expect(validateLayer(layer)).toBe(false);
+	it('should return failure for an invalid name', () => {
+		const result = validateProjectName('!!!');
+		expect(result.success).toBe(false);
+		expect(result.error).toBeDefined();
 	});
 });
 ```

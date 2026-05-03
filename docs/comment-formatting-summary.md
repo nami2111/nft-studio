@@ -1,8 +1,12 @@
-# Comment and Formatting Standardization
+# Comment and Formatting Standardization (Historical)
+
+> **Note**: This document records historical work. The `pnpm standardize-comments` &&
+> script no longer exists. Current build commands use `vp` instead of `pnpm`.
+> See `docs/onboarding.md` for the current development workflow.
 
 ## Summary
 
-We've successfully improved the consistency of inline comments and formatting in the NFT Studio codebase. Here's what was accomplished:
+We've successfully improved the consistency of inline comments and formatting in the GNStudio codebase. Here's what was accomplished:
 
 ## Changes Made
 

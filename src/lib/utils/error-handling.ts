@@ -1,8 +1,19 @@
 /**
- * Centralized error handling utilities for the NFT Studio application
+ * Centralized error handling utilities
  */
 
 import { toast } from 'svelte-sonner';
+import {
+	AppError,
+	FileError as FileSystemError,
+	NetworkError,
+	StorageError,
+	ValidationError,
+	WorkerError
+} from './typed-errors';
+
+// Re-export unified error classes for backward compatibility
+export { AppError, FileSystemError, NetworkError, StorageError, ValidationError, WorkerError };
 
 export interface ErrorOptions {
 	title?: string;
@@ -22,67 +33,13 @@ export interface ErrorContext {
 	userAction?: string;
 }
 
-export class AppError extends Error {
-	public readonly code: string;
-	public readonly context?: ErrorContext;
-	public readonly recoverable: boolean;
-
-	constructor(
-		message: string,
-		code: string = 'APP_ERROR',
-		context?: ErrorContext,
-		recoverable: boolean = true
-	) {
-		super(message);
-		this.name = 'AppError';
-		this.code = code;
-		this.context = context;
-		this.recoverable = recoverable;
-	}
-}
-
-export class ValidationError extends AppError {
-	constructor(message: string, context?: ErrorContext) {
-		super(message, 'VALIDATION_ERROR', context, false);
-		this.name = 'ValidationError';
-	}
-}
-
-export class NetworkError extends AppError {
-	constructor(message: string, context?: ErrorContext) {
-		super(message, 'NETWORK_ERROR', context, true);
-		this.name = 'NetworkError';
-	}
-}
-
-export class WorkerError extends AppError {
-	constructor(message: string, context?: ErrorContext) {
-		super(message, 'WORKER_ERROR', context, true);
-		this.name = 'WorkerError';
-	}
-}
-
-export class StorageError extends AppError {
-	constructor(message: string, context?: ErrorContext) {
-		super(message, 'STORAGE_ERROR', context, true);
-		this.name = 'StorageError';
-	}
-}
-
-export class FileSystemError extends AppError {
-	constructor(message: string, context?: ErrorContext) {
-		super(message, 'FILE_SYSTEM_ERROR', context, true);
-		this.name = 'FileSystemError';
-	}
-}
-
 /**
  * Show user-friendly error message with toast notification
  */
 export function showError(error: unknown, options: ErrorOptions = {}): void {
 	let errorMessage = 'An unexpected error occurred';
 	let errorTitle = 'Error';
-	let errorContext: ErrorContext | undefined;
+	let errorContext: Record<string, unknown> | undefined;
 
 	if (error instanceof AppError) {
 		errorMessage = error.message;
@@ -103,9 +60,12 @@ export function showError(error: unknown, options: ErrorOptions = {}): void {
 	let description = options.description;
 	if (errorContext) {
 		const contextParts = [];
-		if (errorContext.component) contextParts.push(`Component: ${errorContext.component}`);
-		if (errorContext.action) contextParts.push(`Action: ${errorContext.action}`);
-		if (errorContext.userAction) contextParts.push(`User Action: ${errorContext.userAction}`);
+		const component = errorContext.component as string | undefined;
+		const action = errorContext.action as string | undefined;
+		const userAction = errorContext.userAction as string | undefined;
+		if (component) contextParts.push(`Component: ${component}`);
+		if (action) contextParts.push(`Action: ${action}`);
+		if (userAction) contextParts.push(`User Action: ${userAction}`);
 
 		if (contextParts.length > 0) {
 			description = description
@@ -165,7 +125,7 @@ export function showWarning(message: string, options: Omit<ErrorOptions, 'title'
 /**
  * Handle async errors with proper error boundary support
  */
-export async function withErrorHandling<T>(
+export async function withToastErrorHandling<T>(
 	fn: () => Promise<T>,
 	context?: ErrorContext,
 	options?: ErrorOptions & { fallback?: () => T }
@@ -179,7 +139,7 @@ export async function withErrorHandling<T>(
 				: new AppError(
 						error instanceof Error ? error.message : 'Unknown error',
 						'ASYNC_ERROR',
-						context,
+						context as Record<string, unknown> | undefined,
 						true
 					);
 
@@ -196,7 +156,7 @@ export async function withErrorHandling<T>(
 /**
  * Wrap a function with automatic error handling
  */
-export function wrapWithErrorHandling<T extends (...args: unknown[]) => unknown>(
+export function wrapWithToastErrorHandling<T extends (...args: unknown[]) => unknown>(
 	fn: T,
 	context?: ErrorContext,
 	options?: ErrorOptions & {
@@ -215,7 +175,7 @@ export function wrapWithErrorHandling<T extends (...args: unknown[]) => unknown>
 							: new AppError(
 									error instanceof Error ? error.message : 'Unknown error',
 									'ASYNC_ERROR',
-									context,
+									context as Record<string, unknown> | undefined,
 									true
 								);
 
@@ -237,7 +197,7 @@ export function wrapWithErrorHandling<T extends (...args: unknown[]) => unknown>
 					: new AppError(
 							error instanceof Error ? error.message : 'Unknown error',
 							'SYNC_ERROR',
-							context,
+							context as Record<string, unknown> | undefined,
 							true
 						);
 
@@ -294,7 +254,7 @@ export function createRetry<T>(
 		throw new AppError(
 			`Operation failed after ${maxRetries} attempts: ${finalError.message}`,
 			'RETRY_ERROR',
-			context,
+			context as Record<string, unknown> | undefined,
 			true
 		);
 	};

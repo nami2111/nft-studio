@@ -1,4 +1,4 @@
-// Lightweight IndexedDB persistence wrapper for NFT Studio
+// Lightweight IndexedDB persistence wrapper
 // Provides a simple CRUD interface around a single "current" project entry.
 import type { Project } from '$lib/types/project';
 
@@ -8,7 +8,7 @@ export async function openDatabase(): Promise<IDBDatabase> {
 		return Promise.reject(new Error('IndexedDB is not available in this environment.'));
 	}
 	return new Promise((resolve, reject) => {
-		const request = indexedDB.open('nft-studio', 1);
+		const request = indexedDB.open('gnstudio', 1);
 		request.onupgradeneeded = () => {
 			const db = request.result as IDBDatabase;
 			if (!db.objectStoreNames.contains('projects')) {

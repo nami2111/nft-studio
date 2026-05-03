@@ -1,5 +1,5 @@
 /**
- * Layer-related type definitions for NFT Studio
+ * Layer-related type definitions
  * Uses branded types for compile-time safety
  */
 

@@ -54,18 +54,21 @@ export class RetryOperation<T> {
 	async execute(): Promise<RetryResult<T>> {
 		const startTime = Date.now();
 		let lastError: unknown;
+		let actualAttempts = 0;
 
 		for (let attempt = 1; attempt <= this.config.maxAttempts; attempt++) {
+			actualAttempts = attempt;
 			try {
 				const data = await this.operation();
 
-				console.log(`Operation succeeded on attempt ${attempt}`, {
-					...this.context,
-					additionalData: {
-						attempts: attempt,
-						durationMs: Date.now() - startTime
-					}
-				});
+				if (import.meta.env.DEV)
+					console.log(`Operation succeeded on attempt ${attempt}`, {
+						...this.context,
+						additionalData: {
+							attempts: attempt,
+							durationMs: Date.now() - startTime
+						}
+					});
 
 				return {
 					success: true,
@@ -139,13 +142,13 @@ export class RetryOperation<T> {
 		return {
 			success: false,
 			error: finalError,
-			attempts: this.config.maxAttempts,
+			attempts: actualAttempts,
 			totalDurationMs: Date.now() - startTime
 		};
 	}
 
 	private calculateDelay(attempt: number): number {
-		let delayMs = this.config.initialDelayMs * Math.pow(this.config.backoffFactor, attempt - 1);
+		let delayMs = this.config.initialDelayMs * this.config.backoffFactor ** (attempt - 1);
 		delayMs = Math.min(delayMs, this.config.maxDelayMs);
 
 		// Add jitter to prevent thundering herd
@@ -335,13 +338,13 @@ export async function retryWithErrorHandling<T>(
 /**
  * Create a wrapped function with automatic retry
  */
-export function withRetry<T extends (...args: Parameters<T>) => Promise<ReturnType<T>>>(
+export function withRetry<T extends (...args: any[]) => any>(
 	fn: T,
 	config?: Partial<RetryConfig>,
 	context?: ErrorContext
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
-	return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
-		const operation = () => fn(...args);
+): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
+	return async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
+		const operation = () => Promise.resolve(fn(...args));
 		const result = await retry(operation, config, {
 			...context,
 			additionalData: {

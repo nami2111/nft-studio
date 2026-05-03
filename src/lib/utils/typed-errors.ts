@@ -1,12 +1,12 @@
 /**
- * Typed error classes for NFT Studio application
+ * Typed error classes
  * Provides specific error types for different error scenarios
  */
 
-import type { ProjectId, LayerId, TraitId, TaskId } from '$lib/types/ids';
+import type { LayerId, ProjectId, TaskId, TraitId } from '$lib/types/ids';
 
 // Base error class for all application errors
-export abstract class AppError extends Error {
+export class AppError extends Error {
 	public readonly code: string;
 	public readonly context?: Record<string, unknown>;
 	public readonly timestamp: Date;
