@@ -3,7 +3,6 @@
     // import { initSatellite } from '@junobuild/core';
     import { Toaster } from "$lib/components/ui/sonner";
     import ErrorBoundary from "$lib/components/layout/ErrorBoundary.svelte";
-    import ModeSwitcher from "$lib/components/shared/ModeSwitcher.svelte";
     import { cleanupAllResources } from "$lib/stores";
 
     interface Props {
@@ -80,37 +79,6 @@
         <div
             class="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 lg:px-8 xl:max-w-screen-2xl 2xl:max-w-[1800px]"
         >
-            <!-- Figma-style header bar -->
-            <div
-                class="bg-card mb-3 rounded-lg border-2 shadow-sm sm:mb-4 md:mb-6"
-            >
-                <div class="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4">
-                    <div
-                        class="flex flex-wrap items-center justify-between gap-3"
-                    >
-                        <div class="flex items-center">
-                            <div class="flex space-x-1.5 sm:space-x-2">
-                                <div
-                                    class="h-2.5 w-2.5 rounded-full bg-red-500 sm:h-3 sm:w-3"
-                                ></div>
-                                <div
-                                    class="h-2.5 w-2.5 rounded-full bg-yellow-500 sm:h-3 sm:w-3"
-                                ></div>
-                                <div
-                                    class="h-2.5 w-2.5 rounded-full bg-green-500 sm:h-3 sm:w-3"
-                                ></div>
-                            </div>
-                            <div
-                                class="ml-2 text-xs font-semibold sm:ml-3 sm:text-sm md:ml-4 md:text-base"
-                            >
-                                GNStudio
-                            </div>
-                        </div>
-                        <ModeSwitcher />
-                    </div>
-                </div>
-            </div>
-
             <ErrorBoundary>
                 {@render children?.()}
             </ErrorBoundary>
