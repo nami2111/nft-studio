@@ -5,7 +5,6 @@
     import ErrorBoundary from "$lib/components/layout/ErrorBoundary.svelte";
     import ModeSwitcher from "$lib/components/shared/ModeSwitcher.svelte";
     import { cleanupAllResources } from "$lib/stores";
-    import "../../app.css";
 
     interface Props {
         children?: Snippet;
