@@ -7,12 +7,12 @@ import type {
 	GenerationWorkerMessage,
 	OutgoingWorkerMessage,
 	PreviewMessage,
-	ProgressMessage,
-} from "$lib/types/worker-messages";
-import { performanceMonitor } from "$lib/utils/performance-monitor";
+	ProgressMessage
+} from '$lib/types/worker-messages';
+import { performanceMonitor } from '$lib/utils/performance-monitor';
 
 function debugLog(...args: unknown[]) {
-	if (import.meta.env.DEV) console.log("[worker.pool]", ...args);
+	if (import.meta.env.DEV) console.log('[worker.pool]', ...args);
 }
 
 // Task complexity levels
@@ -20,16 +20,16 @@ enum TaskComplexity {
 	LOW = 1,
 	MEDIUM = 2,
 	HIGH = 3,
-	VERY_HIGH = 4,
+	VERY_HIGH = 4
 }
 
 // Worker health status
 enum WorkerHealth {
-	HEALTHY = "healthy",
-	UNRESPONSIVE = "unresponsive",
-	ERROR = "error",
-	DEGRADED = "degraded",
-	REMOVED = "removed",
+	HEALTHY = 'healthy',
+	UNRESPONSIVE = 'unresponsive',
+	ERROR = 'error',
+	DEGRADED = 'degraded',
+	REMOVED = 'removed'
 }
 
 // Worker pool configuration
@@ -85,12 +85,7 @@ let workerPool: WorkerPool | null = null;
 // Callback for forwarding messages to clients
 let messageCallback:
 	| ((
-			data:
-				| CompleteMessage
-				| ErrorMessage
-				| CancelledMessage
-				| ProgressMessage
-				| PreviewMessage,
+			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
 	  ) => void)
 	| null = null;
 
@@ -98,7 +93,7 @@ let messageCallback:
  * Clone serializable data, preserving ArrayBuffers and other transferable objects
  */
 function cloneSerializableData(obj: unknown): unknown {
-	if (obj === null || typeof obj !== "object") {
+	if (obj === null || typeof obj !== 'object') {
 		return obj;
 	}
 
@@ -129,13 +124,11 @@ function cloneSerializableData(obj: unknown): unknown {
 	}
 
 	// Handle plain objects
-	if (typeof obj === "object" && obj !== null) {
+	if (typeof obj === 'object' && obj !== null) {
 		const cloned: Record<string, unknown> = {};
 		for (const key in obj) {
 			if (Object.hasOwn(obj, key)) {
-				cloned[key] = cloneSerializableData(
-					(obj as Record<string, unknown>)[key],
-				);
+				cloned[key] = cloneSerializableData((obj as Record<string, unknown>)[key]);
 			}
 		}
 		return cloned;
@@ -147,13 +140,8 @@ function cloneSerializableData(obj: unknown): unknown {
 // Set message callback for client components to receive worker messages
 export function setMessageCallback(
 	callback: (
-		data:
-			| CompleteMessage
-			| ErrorMessage
-			| CancelledMessage
-			| ProgressMessage
-			| PreviewMessage,
-	) => void,
+		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+	) => void
 ): void {
 	messageCallback = callback;
 }
@@ -164,7 +152,7 @@ export function setMessageCallback(
 function getDeviceCapabilities() {
 	const coreCount = navigator.hardwareConcurrency || 4;
 	let memoryGB = 8;
-	if ("deviceMemory" in navigator) {
+	if ('deviceMemory' in navigator) {
 		// @ts-expect-error - deviceMemory not in all browsers
 		memoryGB = navigator.deviceMemory || 8;
 	}
@@ -178,7 +166,7 @@ function getDeviceCapabilities() {
 function calculateTaskComplexity(
 	layers: unknown[],
 	collectionSize: number,
-	_size: { width: number; height: number },
+	_size: { width: number; height: number }
 ): TaskComplexity {
 	const layerCount = Array.isArray(layers) ? layers.length : 1;
 	const totalPixels = _size.width * _size.height;
@@ -233,10 +221,7 @@ function calculateTaskComplexity(
 /**
  * Calculate optimal worker count based on device capabilities and current load
  */
-function calculateOptimalWorkerCount(
-	taskComplexity?: TaskComplexity,
-	queueLength = 0,
-): number {
+function calculateOptimalWorkerCount(taskComplexity?: TaskComplexity, queueLength = 0): number {
 	const { coreCount, memoryGB, isMobile } = getDeviceCapabilities();
 
 	// Base worker count on CPU cores
@@ -270,10 +255,7 @@ function calculateOptimalWorkerCount(
 /**
  * Estimate task duration based on complexity and device capabilities
  */
-function estimateTaskDuration(
-	_complexity: TaskComplexity,
-	collectionSize: number,
-): number {
+function estimateTaskDuration(_complexity: TaskComplexity, collectionSize: number): number {
 	const { coreCount, memoryGB, isMobile } = getDeviceCapabilities();
 
 	// Base time estimates (in milliseconds)
@@ -281,7 +263,7 @@ function estimateTaskDuration(
 		[TaskComplexity.LOW]: 100,
 		[TaskComplexity.MEDIUM]: 500,
 		[TaskComplexity.HIGH]: 2000,
-		[TaskComplexity.VERY_HIGH]: 5000,
+		[TaskComplexity.VERY_HIGH]: 5000
 	};
 
 	let baseTime = baseTimes[_complexity] * (collectionSize / 100); // Scale by collection size
@@ -311,23 +293,21 @@ function checkWorkerHealth(workerIndex: number): void {
 		const pingTimeout = setTimeout(() => {
 			console.warn(`Worker ${workerIndex} unresponsive to health check`);
 			workerPool!.workerHealth[workerIndex] = WorkerHealth.UNRESPONSIVE;
-			handleWorkerFailure(workerIndex, "Worker unresponsive");
+			handleWorkerFailure(workerIndex, 'Worker unresponsive');
 		}, 10000); // 10 second timeout for better stability
 
-		worker.postMessage({ type: "ping", pingId });
+		worker.postMessage({ type: 'ping', pingId });
 
 		// Set up temporary message handler for ping response
 		const handlePingResponse = (event: MessageEvent) => {
 			if (event.data?.pingResponse === pingId) {
 				clearTimeout(pingTimeout);
-				worker.removeEventListener("message", handlePingResponse);
+				worker.removeEventListener('message', handlePingResponse);
 
 				// Ensure workerIndex is still valid
 				if (workerIndex >= 0 && workerIndex < workerPool!.workerStats.length) {
 					// Update health status
-					if (
-						workerPool!.workerHealth[workerIndex] === WorkerHealth.UNRESPONSIVE
-					) {
+					if (workerPool!.workerHealth[workerIndex] === WorkerHealth.UNRESPONSIVE) {
 						workerPool!.workerHealth[workerIndex] = WorkerHealth.HEALTHY;
 						debugLog(`Worker ${workerIndex} recovered from unresponsive state`);
 					} else {
@@ -340,11 +320,11 @@ function checkWorkerHealth(workerIndex: number): void {
 			}
 		};
 
-		worker.addEventListener("message", handlePingResponse);
+		worker.addEventListener('message', handlePingResponse);
 	} catch (error) {
 		console.error(`Health check failed for worker ${workerIndex}:`, error);
 		workerPool!.workerHealth[workerIndex] = WorkerHealth.ERROR;
-		handleWorkerFailure(workerIndex, "Health check error");
+		handleWorkerFailure(workerIndex, 'Health check error');
 	}
 }
 
@@ -364,7 +344,7 @@ function handleWorkerFailure(workerIndex: number, reason: string): void {
 	const maxRestarts = workerPool.config.maxRestarts || 3;
 
 	console.error(
-		`Worker ${workerIndex} failed: ${reason}. Restart count: ${workerStats.restartCount}`,
+		`Worker ${workerIndex} failed: ${reason}. Restart count: ${workerStats.restartCount}`
 	);
 
 	if (workerStats.restartCount < maxRestarts) {
@@ -379,7 +359,7 @@ function handleWorkerFailure(workerIndex: number, reason: string): void {
 	} else {
 		// Worker has exceeded restart limit
 		console.error(
-			`Worker ${workerIndex} exceeded max restarts (${maxRestarts}), marking as failed`,
+			`Worker ${workerIndex} exceeded max restarts (${maxRestarts}), marking as failed`
 		);
 		workerPool!.workerHealth[workerIndex] = WorkerHealth.ERROR;
 		workerPool!.workerStatus[workerIndex] = false;
@@ -402,9 +382,7 @@ async function restartWorker(workerIndex: number): Promise<void> {
 	}
 
 	try {
-		const newWorker = await createWorker(
-			workerPool.config.workerInitializationTimeout || 10000,
-		);
+		const newWorker = await createWorker(workerPool.config.workerInitializationTimeout || 10000);
 
 		// Replace worker in pool
 		workerPool.workers[workerIndex] = newWorker;
@@ -457,14 +435,14 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 		let worker: Worker;
 
 		try {
-			worker = new Worker(new URL("./generation.worker.ts", import.meta.url), {
-				type: "module",
+			worker = new Worker(new URL('./generation.worker.ts', import.meta.url), {
+				type: 'module'
 			});
 		} catch (creationError) {
 			reject(
 				new Error(
-					`Worker creation failed: ${creationError instanceof Error ? creationError.message : "Unknown error"}`,
-				),
+					`Worker creation failed: ${creationError instanceof Error ? creationError.message : 'Unknown error'}`
+				)
 			);
 			return;
 		}
@@ -472,13 +450,13 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 		// Set up timeout for worker initialization
 		const timeoutId = setTimeout(() => {
 			worker.terminate();
-			reject(new Error("Worker initialization timeout"));
+			reject(new Error('Worker initialization timeout'));
 		}, timeoutMs);
 
 		// Handle worker errors
 		worker.onerror = (error: ErrorEvent) => {
 			clearTimeout(timeoutId);
-			let errorMessage = "Unknown worker error";
+			let errorMessage = 'Unknown worker error';
 			if (error.message) {
 				errorMessage = error.message;
 			} else if (error.filename && error.lineno) {
@@ -489,7 +467,7 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 
 		// Worker is ready when it sends a "ready" message
 		worker.onmessage = (e: MessageEvent) => {
-			if (e.data?.type === "ready") {
+			if (e.data?.type === 'ready') {
 				clearTimeout(timeoutId);
 				// Don't set onmessage to null - let the caller handle it
 				resolve(worker);
@@ -497,7 +475,7 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 		};
 
 		// Send initialization message to worker
-		worker.postMessage({ type: "initialize" });
+		worker.postMessage({ type: 'initialize' });
 	});
 }
 
@@ -511,7 +489,7 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	const { type } = data;
 
 	// Handle "ready" messages separately - these are initialization messages
-	if (type === "ready") {
+	if (type === 'ready') {
 		// Worker is ready, no need to forward to client
 		return;
 	}
@@ -522,7 +500,7 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	}
 
 	// Handle ping responses - these are internal messages for health checks
-	if (type === "pingResponse") {
+	if (type === 'pingResponse') {
 		// This will be handled by the health check system
 		return;
 	}
@@ -539,24 +517,19 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	// Forward all other messages to client components
 	if (messageCallback) {
 		messageCallback(
-			data as
-				| CompleteMessage
-				| ErrorMessage
-				| CancelledMessage
-				| ProgressMessage
-				| PreviewMessage,
+			data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
 		);
 	}
 
 	// For preview messages, just forward to client without affecting worker status
-	if (type === "preview") {
+	if (type === 'preview') {
 		// Preview messages are forwarded but don't affect worker state
 		return;
 	}
 
 	// Generation uses streaming/chunking and emits many "complete" messages.
 	// Only treat a "complete" message as terminal when it contains no payload data.
-	if (type === "complete") {
+	if (type === 'complete') {
 		const complete = data as CompleteMessage;
 		const imagesCount = complete.payload?.images?.length ?? 0;
 		const metadataCount = complete.payload?.metadata?.length ?? 0;
@@ -566,37 +539,28 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	}
 
 	// For terminal messages (complete, error, cancelled), resolve/reject promises and clean up
-	if (type === "complete" || type === "error" || type === "cancelled") {
+	if (type === 'complete' || type === 'error' || type === 'cancelled') {
 		// Find and resolve/reject the corresponding task using taskId from message
-		const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string })
-			.taskId;
+		const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
 		let foundTask = false;
 
 		if (messageTaskId) {
 			// Try to find task by taskId first
 			const task = workerPool.activeTasks.get(messageTaskId);
 			if (task) {
-				if (type === "complete") {
+				if (type === 'complete') {
 					if (task._resolve) task._resolve(data);
 					// Update worker performance stats
-					updateWorkerPerformance(
-						workerIndex,
-						task.complexity,
-						Date.now() - task.timestamp,
-					);
-				} else if (type === "error") {
+					updateWorkerPerformance(workerIndex, task.complexity, Date.now() - task.timestamp);
+				} else if (type === 'error') {
 					if (task._reject)
-						task._reject(
-							new Error(
-								(data as ErrorMessage).payload?.message || "Worker error",
-							),
-						);
+						task._reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
 					// Update worker error count with bounds checking
 					if (workerIndex >= 0 && workerIndex < workerPool.workerStats.length) {
 						workerPool.workerStats[workerIndex].errorCount++;
 					}
-				} else if (type === "cancelled") {
-					if (task._reject) task._reject(new Error("Generation cancelled"));
+				} else if (type === 'cancelled') {
+					if (task._reject) task._reject(new Error('Generation cancelled'));
 				}
 				workerPool.activeTasks.delete(messageTaskId);
 				foundTask = true;
@@ -607,29 +571,18 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 		if (!foundTask) {
 			for (const [taskId, task] of workerPool.activeTasks.entries()) {
 				if (task.assignedWorker === workerIndex) {
-					if (type === "complete") {
+					if (type === 'complete') {
 						if (task._resolve) task._resolve(data);
-						updateWorkerPerformance(
-							workerIndex,
-							task.complexity,
-							Date.now() - task.timestamp,
-						);
-					} else if (type === "error") {
+						updateWorkerPerformance(workerIndex, task.complexity, Date.now() - task.timestamp);
+					} else if (type === 'error') {
 						if (task._reject)
-							task._reject(
-								new Error(
-									(data as ErrorMessage).payload?.message || "Worker error",
-								),
-							);
+							task._reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
 						// Update error count with bounds checking
-						if (
-							workerIndex >= 0 &&
-							workerIndex < workerPool.workerStats.length
-						) {
+						if (workerIndex >= 0 && workerIndex < workerPool.workerStats.length) {
 							workerPool.workerStats[workerIndex].errorCount++;
 						}
-					} else if (type === "cancelled") {
-						if (task._reject) task._reject(new Error("Generation cancelled"));
+					} else if (type === 'cancelled') {
+						if (task._reject) task._reject(new Error('Generation cancelled'));
 					}
 
 					// Remove the task from active tasks
@@ -650,10 +603,7 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 		}
 
 		// Mark worker as available when task completes (for terminal messages)
-		if (
-			foundTask &&
-			(type === "complete" || type === "error" || type === "cancelled")
-		) {
+		if (foundTask && (type === 'complete' || type === 'error' || type === 'cancelled')) {
 			if (workerPool) {
 				workerPool.workerStatus[workerIndex] = true;
 			}
@@ -670,7 +620,7 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 function updateWorkerPerformance(
 	workerIndex: number,
 	complexity: TaskComplexity,
-	taskDuration: number,
+	taskDuration: number
 ): void {
 	if (!workerPool) return;
 
@@ -692,7 +642,7 @@ function updateWorkerPerformance(
 	}
 
 	debugLog(
-		`Worker ${workerIndex} completed ${TaskComplexity[complexity]} task in ${taskDuration}ms (avg: ${Math.round(stats.averageTaskTime)}ms)`,
+		`Worker ${workerIndex} completed ${TaskComplexity[complexity]} task in ${taskDuration}ms (avg: ${Math.round(stats.averageTaskTime)}ms)`
 	);
 }
 
@@ -740,14 +690,13 @@ function performDynamicScaling(): void {
 	if (!workerPool) return;
 
 	const currentWorkerCount = workerPool.workers.filter(
-		(w) => w !== (null as unknown as Worker),
+		(w) => w !== (null as unknown as Worker)
 	).length;
 	const queueLength = workerPool.taskQueue.length;
 	const activeTaskCount = workerPool.activeTasks.size;
 
 	// Calculate optimal worker count based on current load
-	const maxWorkers =
-		workerPool.config.maxWorkers || calculateOptimalWorkerCount();
+	const maxWorkers = workerPool.config.maxWorkers || calculateOptimalWorkerCount();
 
 	// Only scale if within bounds
 	if (currentWorkerCount >= maxWorkers) {
@@ -763,17 +712,14 @@ function performDynamicScaling(): void {
 	if (queueLength > highQueueThreshold && currentWorkerCount < maxWorkers) {
 		const workersToAdd = Math.min(2, maxWorkers - currentWorkerCount);
 		addWorkers(workersToAdd).catch((error) => {
-			console.error("Failed to add workers during dynamic scaling:", error);
+			console.error('Failed to add workers during dynamic scaling:', error);
 		});
 		return;
 	}
 
 	// Remove workers if queue is consistently low
 	if (queueLength < lowQueueThreshold && activeTaskCount < lowActiveThreshold) {
-		const workersToRemove = Math.min(
-			2,
-			currentWorkerCount - (workerPool.config.minWorkers || 1),
-		);
+		const workersToRemove = Math.min(2, currentWorkerCount - (workerPool.config.minWorkers || 1));
 		if (workersToRemove > 0) {
 			removeIdleWorkers(workersToRemove);
 		}
@@ -803,9 +749,7 @@ async function addSingleWorker(): Promise<void> {
 	if (!workerPool) return;
 
 	try {
-		const newWorker = await createWorker(
-			workerPool.config.workerInitializationTimeout || 5000,
-		);
+		const newWorker = await createWorker(workerPool.config.workerInitializationTimeout || 5000);
 		const workerIndex = workerPool.workers.length;
 
 		workerPool.workers.push(newWorker);
@@ -817,7 +761,7 @@ async function addSingleWorker(): Promise<void> {
 			errorCount: 0,
 			averageTaskTime: 0,
 			lastActivity: Date.now(),
-			restartCount: 0,
+			restartCount: 0
 		});
 
 		// Set up message handler
@@ -830,7 +774,7 @@ async function addSingleWorker(): Promise<void> {
 
 		debugLog(`Added worker ${workerIndex} successfully`);
 	} catch (error) {
-		console.error("Failed to add worker:", error);
+		console.error('Failed to add worker:', error);
 	}
 }
 
@@ -865,14 +809,14 @@ function removeWorker(workerIndex: number): void {
 	// Reject any removed tasks
 	for (const task of removedTasks) {
 		if (task._reject) {
-			task._reject(new Error("Task cancelled due to worker removal"));
+			task._reject(new Error('Task cancelled due to worker removal'));
 		}
 		workerPool.activeTasks.delete(task.id);
 	}
 
 	debugLog(
 		`Worker ${workerIndex} removed successfully. ` +
-			`Cleaned up ${removedTasks.length} queued tasks and freed resources.`,
+			`Cleaned up ${removedTasks.length} queued tasks and freed resources.`
 	);
 }
 
@@ -885,11 +829,7 @@ function removeIdleWorkers(count: number): void {
 	debugLog(`Attempting to remove ${count} idle worker(s)`);
 
 	let removedCount = 0;
-	for (
-		let i = workerPool.workers.length - 1;
-		i >= 0 && removedCount < count;
-		i--
-	) {
+	for (let i = workerPool.workers.length - 1; i >= 0 && removedCount < count; i--) {
 		// Ensure bounds checking for workerStats access
 		if (i < 0 || i >= workerPool.workerStats.length) {
 			continue;
@@ -911,7 +851,7 @@ function removeIdleWorkers(count: number): void {
 			// 60 seconds idle
 			// Check if any tasks are assigned to this worker
 			const hasActiveTasks = Array.from(workerPool.activeTasks.values()).some(
-				(task) => task.assignedWorker === i,
+				(task) => task.assignedWorker === i
 			);
 
 			if (!hasActiveTasks) {
@@ -949,14 +889,14 @@ function processNextTask(): void {
 		// Create a clean message object without any potential non-cloneable data
 		const baseMessage = {
 			type: task.message.type,
-			taskId: task.id, // Include task ID for tracking
+			taskId: task.id // Include task ID for tracking
 		};
 
 		// Only include payload if it exists (not all message types have payload)
 		// Create a deep copy of the payload to ensure it's clean of any non-serializable references
 		// We need to handle ArrayBuffers specially since JSON serialization loses them
 		let messageToSend: { type: string; taskId: string; payload?: unknown };
-		if ("payload" in task.message) {
+		if ('payload' in task.message) {
 			// For deep cloning that preserves ArrayBuffers, we need a custom approach
 			// Create a structured clone by serializing and deserializing only the non-ArrayBuffer parts
 			const cleanPayload = cloneSerializableData(task.message.payload);
@@ -966,9 +906,7 @@ function processNextTask(): void {
 		}
 
 		workerPool.workers[bestWorker].postMessage(messageToSend);
-		debugLog(
-			`Task ${task.id} assigned to worker ${bestWorker} (complexity: ${task.complexity})`,
-		);
+		debugLog(`Task ${task.id} assigned to worker ${bestWorker} (complexity: ${task.complexity})`);
 
 		// Perform dynamic scaling after task assignment
 		performDynamicScaling();
@@ -977,7 +915,7 @@ function processNextTask(): void {
 		// Mark worker as available and reject task
 		workerPool.workerStatus[bestWorker] = true;
 		if (task._reject) {
-			task._reject(new Error("Failed to send task to worker"));
+			task._reject(new Error('Failed to send task to worker'));
 		}
 		workerPool.activeTasks.delete(task.id);
 		// Process next task
@@ -988,13 +926,11 @@ function processNextTask(): void {
 /**
  * Initialize the worker pool with enhanced features
  */
-export async function initializeWorkerPool(
-	config?: WorkerPoolConfig,
-): Promise<void> {
-	const timerId = performanceMonitor.startTimer("worker.initializeWorkerPool");
+export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<void> {
+	const timerId = performanceMonitor.startTimer('worker.initializeWorkerPool');
 	try {
 		if (workerPool) {
-			console.warn("Worker pool already initialized");
+			console.warn('Worker pool already initialized');
 			return;
 		}
 
@@ -1002,16 +938,9 @@ export async function initializeWorkerPool(
 
 		// Calculate worker count based on device capabilities
 		const baseWorkers = Math.max(1, coreCount - 1);
-		const maxWorkers = Math.min(
-			config?.maxWorkers || baseWorkers + 2,
-			memoryGB >= 16 ? 8 : 6,
-		);
-		const minWorkers = Math.max(
-			1,
-			config?.minWorkers || Math.floor(maxWorkers / 2),
-		);
-		const workerInitializationTimeout =
-			config?.workerInitializationTimeout || 5000;
+		const maxWorkers = Math.min(config?.maxWorkers || baseWorkers + 2, memoryGB >= 16 ? 8 : 6);
+		const minWorkers = Math.max(1, config?.minWorkers || Math.floor(maxWorkers / 2));
+		const workerInitializationTimeout = config?.workerInitializationTimeout || 5000;
 		const healthCheckInterval = config?.healthCheckInterval || 30000;
 
 		workerPool = {
@@ -1028,11 +957,11 @@ export async function initializeWorkerPool(
 				minWorkers,
 				taskComplexityBasedScaling: true,
 				healthCheckInterval,
-				maxRestarts: config?.maxRestarts || 3,
+				maxRestarts: config?.maxRestarts || 3
 			},
 			workerInitializationPromises: [],
 			healthCheckInterval: null,
-			scalingInterval: null,
+			scalingInterval: null
 		};
 
 		// Initialize worker arrays
@@ -1044,7 +973,7 @@ export async function initializeWorkerPool(
 				errorCount: 0,
 				averageTaskTime: 0,
 				lastActivity: Date.now(),
-				restartCount: 0,
+				restartCount: 0
 			});
 		}
 
@@ -1064,9 +993,7 @@ export async function initializeWorkerPool(
 						handleWorkerMessage(e, workerPool!.workers.length - 1);
 					};
 
-					debugLog(
-						`Worker ${workerPool!.workers.length - 1} initialized successfully`,
-					);
+					debugLog(`Worker ${workerPool!.workers.length - 1} initialized successfully`);
 
 					// Process any queued tasks now that we have an available worker
 					processNextTask();
@@ -1084,11 +1011,9 @@ export async function initializeWorkerPool(
 		await Promise.allSettled(workerPromises);
 
 		const successfulWorkers = workerPool.workers.filter(
-			(worker) => worker !== (null as unknown as Worker),
+			(worker) => worker !== (null as unknown as Worker)
 		).length;
-		debugLog(
-			`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers`,
-		);
+		debugLog(`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers`);
 
 		performanceMonitor.stopTimer(timerId);
 
@@ -1123,14 +1048,14 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 		maxWorkers: warmUpWorkers,
 		minWorkers: warmUpWorkers,
 		taskComplexityBasedScaling: true,
-		healthCheckInterval: config?.healthCheckInterval ?? 30000,
+		healthCheckInterval: config?.healthCheckInterval ?? 30000
 	};
 
 	try {
 		await initializeWorkerPool(warmUpConfig);
 		debugLog(`Worker pool warmed up with ${warmUpWorkers} workers ready`);
 	} catch (error) {
-		console.error("Worker warm-up failed:", error);
+		console.error('Worker warm-up failed:', error);
 		// Non-critical error - workers will be initialized on first use
 	}
 }
@@ -1151,9 +1076,7 @@ function startBackgroundProcesses(healthCheckInterval: number): void {
 		performDynamicScaling();
 	}, 60000); // Every minute
 
-	debugLog(
-		"Background processes started: health checks and dynamic scaling enabled",
-	);
+	debugLog('Background processes started: health checks and dynamic scaling enabled');
 }
 
 /**
@@ -1162,13 +1085,10 @@ function startBackgroundProcesses(healthCheckInterval: number): void {
 function performHealthChecks(): void {
 	if (!workerPool) return;
 
-	debugLog("Running health checks on all workers");
+	debugLog('Running health checks on all workers');
 
 	for (let i = 0; i < workerPool.workers.length; i++) {
-		if (
-			!workerPool.workers[i] ||
-			workerPool.workerHealth[i] === WorkerHealth.ERROR
-		) {
+		if (!workerPool.workers[i] || workerPool.workerHealth[i] === WorkerHealth.ERROR) {
 			continue;
 		}
 
@@ -1183,18 +1103,11 @@ function performHealthChecks(): void {
 		checkWorkerHealth(i);
 	}
 }
-export function postMessageToPool<T>(
-	message: GenerationWorkerMessage,
-): Promise<T> {
-	const timerId = performanceMonitor.startTimer(
-		"worker.postMessageToPool",
-		message.type,
-	);
-	debugLog("WorkerPool: postMessageToPool called with message:", message);
+export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<T> {
+	const timerId = performanceMonitor.startTimer('worker.postMessageToPool', message.type);
+	debugLog('WorkerPool: postMessageToPool called with message:', message);
 	if (!workerPool) {
-		throw new Error(
-			"Worker pool not initialized. Call initializeWorkerPool() first.",
-		);
+		throw new Error('Worker pool not initialized. Call initializeWorkerPool() first.');
 	}
 
 	performanceMonitor.stopTimer(timerId);
@@ -1208,29 +1121,21 @@ export function postMessageToPool<T>(
 		// Narrow the message type to extract payload fields for complexity calculation.
 		// The TS union excludes 'start' but it can arrive at runtime, so narrowing is needed.
 		const msg = message as { type: string; payload?: Record<string, unknown> };
-		if (msg.type === "start" && msg.payload) {
+		if (msg.type === 'start' && msg.payload) {
 			const p = msg.payload as {
 				layers: unknown[];
 				collectionSize: number;
 				outputSize: { width: number; height: number };
 			};
-			complexity = calculateTaskComplexity(
-				p.layers,
-				p.collectionSize,
-				p.outputSize,
-			);
+			complexity = calculateTaskComplexity(p.layers, p.collectionSize, p.outputSize);
 			estimatedDuration = estimateTaskDuration(complexity, p.collectionSize);
-		} else if (msg.type === "batch" && msg.payload) {
+		} else if (msg.type === 'batch' && msg.payload) {
 			const p = msg.payload as {
 				layers: unknown[];
 				solutions: unknown[];
 				outputSize: { width: number; height: number };
 			};
-			complexity = calculateTaskComplexity(
-				p.layers,
-				p.solutions.length,
-				p.outputSize,
-			);
+			complexity = calculateTaskComplexity(p.layers, p.solutions.length, p.outputSize);
 			estimatedDuration = estimateTaskDuration(complexity, p.solutions.length);
 		}
 
@@ -1244,7 +1149,7 @@ export function postMessageToPool<T>(
 			estimatedDuration,
 			// Store functions separately to avoid cloning issues
 			_resolve: resolve,
-			_reject: reject,
+			_reject: reject
 		};
 
 		// Add to queue
@@ -1280,18 +1185,18 @@ export function terminateWorkerPool(): void {
 
 	// Clear all pending tasks
 	for (const task of workerPool.taskQueue) {
-		task.reject(new Error("Worker pool terminated"));
+		task.reject(new Error('Worker pool terminated'));
 	}
 
 	// Clear active tasks
 	for (const task of workerPool.activeTasks.values()) {
-		task.reject(new Error("Worker pool terminated"));
+		task.reject(new Error('Worker pool terminated'));
 	}
 
 	// Clear the pool
 	workerPool = null;
 
-	debugLog("Worker pool terminated");
+	debugLog('Worker pool terminated');
 }
 
 /**
@@ -1319,7 +1224,7 @@ export function getWorkerPoolStatus(): {
 	if (!workerPool) return null;
 
 	const availableWorkers = workerPool.workerStatus.filter(
-		(status, index) => workerPool!.workers[index] && status,
+		(status, index) => workerPool!.workers[index] && status
 	).length;
 
 	// Count tasks by complexity
@@ -1327,7 +1232,7 @@ export function getWorkerPoolStatus(): {
 		low: 0,
 		medium: 0,
 		high: 0,
-		veryHigh: 0,
+		veryHigh: 0
 	};
 
 	workerPool.taskQueue.forEach((task) => {
@@ -1348,9 +1253,8 @@ export function getWorkerPoolStatus(): {
 	});
 
 	return {
-		totalWorkers: workerPool.workers.filter(
-			(worker) => worker !== (null as unknown as Worker),
-		).length,
+		totalWorkers: workerPool.workers.filter((worker) => worker !== (null as unknown as Worker))
+			.length,
 		availableWorkers,
 		queuedTasks: workerPool.taskQueue.length,
 		activeTasks: workerPool.activeTasks.size,
@@ -1359,9 +1263,9 @@ export function getWorkerPoolStatus(): {
 			taskCount: stats.taskCount,
 			errorCount: stats.errorCount,
 			averageTaskTime: Math.round(stats.averageTaskTime),
-			workerCount: 1,
+			workerCount: 1
 		})),
-		complexityBreakdown,
+		complexityBreakdown
 	};
 }
 
@@ -1385,12 +1289,7 @@ export function cleanupOldTasks(thresholdMs: number = 3000): void {
 }
 
 // Export helper functions for testing
-export {
-	calculateTaskComplexity,
-	getDeviceCapabilities,
-	TaskComplexity,
-	WorkerHealth,
-};
+export { calculateTaskComplexity, getDeviceCapabilities, TaskComplexity, WorkerHealth };
 
 /**
  * Get optimal worker count based on collection size
