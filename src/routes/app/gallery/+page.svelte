@@ -27,21 +27,13 @@
 		galleryStore.filterOptions.selectedTraits || {}
 	);
 
-	// Sync local filter state to store (using untrack to prevent loops)
+	// Sync local filter state to store (snapshot avoids subscribing to store internals)
 	$effect(() => {
-		const search = searchQuery;
+		const search = $state.snapshot(searchQuery);
+		const sort = $state.snapshot(selectedSort);
 		const traits = $state.snapshot(selectedTraits);
 		untrack(() => {
-			galleryStore.setFilterOptions({
-				search,
-				selectedTraits: traits
-			});
-		});
-	});
-
-	$effect(() => {
-		const sort = selectedSort;
-		untrack(() => {
+			galleryStore.setFilterOptions({ search, selectedTraits: traits });
 			galleryStore.setSortOption(sort);
 		});
 	});
