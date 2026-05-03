@@ -895,9 +895,7 @@ function removeIdleWorkers(count: number): void {
 			continue;
 		}
 
-		// const worker = workerPool.workers[i];
 		const isHealthy = workerPool.workerHealth[i] === WorkerHealth.HEALTHY;
-		// const isActive = !workerPool.workerStatus[i]; // false means busy
 		const lastActivity = workerPool.workerStats[i].lastActivity;
 		const idleTime = Date.now() - lastActivity;
 
@@ -1323,10 +1321,6 @@ export function getWorkerPoolStatus(): {
 	const availableWorkers = workerPool.workerStatus.filter(
 		(status, index) => workerPool!.workers[index] && status,
 	).length;
-
-	// const healthyWorkers = workerPool.workerHealth.filter(
-	//     (health, index) => workerPool!.workers[index] && health === WorkerHealth.HEALTHY
-	// ).length;
 
 	// Count tasks by complexity
 	const complexityBreakdown = {
