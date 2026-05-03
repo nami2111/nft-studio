@@ -10,11 +10,11 @@
 
 	// Derived stats
 	const rarestRank = $derived(
-		collection.nfts.length > 0 ? Math.min(...collection.nfts.map((n) => n.rarityRank)) : 0
+		collection.items.length > 0 ? Math.min(...collection.items.map((n) => n.rarityRank)) : 0
 	);
 	const avgScore = $derived(
-		collection.nfts.length > 0
-			? collection.nfts.reduce((sum, n) => sum + n.rarityScore, 0) / collection.nfts.length
+		collection.items.length > 0
+			? collection.items.reduce((sum, n) => sum + n.rarityScore, 0) / collection.items.length
 			: 0
 	);
 </script>

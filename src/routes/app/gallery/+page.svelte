@@ -270,7 +270,7 @@
 						<!-- Item Grid -->
 						<div class="relative min-h-0 flex-1 pb-32">
 							<SimpleVirtualGrid
-								nfts={filteredItems}
+								items={filteredItems}
 								{selectedItem}
 								onselect={selectItem}
 								columns={3}
@@ -333,7 +333,7 @@
 							</div>
 							<div class="relative min-h-0 flex-1">
 								<SimpleVirtualGrid
-									nfts={filteredItems}
+									items={filteredItems}
 									{selectedItem}
 									onselect={selectItem}
 									columns={4}
@@ -376,7 +376,7 @@
 							</div>
 							<div class="relative min-h-0 flex-1">
 								<SimpleVirtualGrid
-									nfts={filteredItems}
+									items={filteredItems}
 									{selectedItem}
 									onselect={selectItem}
 									columns={5}
@@ -429,7 +429,7 @@
 												Format
 											</div>
 											<div class="text-xl font-black">
-												{selectedCollection.nfts[0]?.imageFormat?.toUpperCase() || 'PNG'}
+												{selectedCollection.items[0]?.imageFormat?.toUpperCase() || 'PNG'}
 											</div>
 										</div>
 									</div>
@@ -484,7 +484,7 @@
 							<!-- Grid with Virtual Scrolling -->
 							<div class="scrollbar-gutter-stable bg-muted/5 relative min-h-0 flex-1">
 								<SimpleVirtualGrid
-									nfts={filteredItems}
+									items={filteredItems}
 									{selectedItem}
 									onselect={selectItem}
 									columns={6}
