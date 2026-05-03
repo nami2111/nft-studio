@@ -90,8 +90,8 @@
 		font-family: var(--font-sans);
 		font-size: var(--font-size-base);
 		line-height: var(--line-height-normal);
-		/* Performance optimization: Use transform for animations when possible */
-		will-change: scroll-position;
+		/* Note: will-change creates stacking contexts and GPU layers.
+		   Apply to specific elements only when needed for animations/scrolling. */
 	}
 
 	body {
