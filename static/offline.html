@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>You're offline — GNStudio</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo,
+          Consolas, "DejaVu Sans Mono", monospace;
+        background: #ffffff;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 1rem;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+      }
+      .card {
+        text-align: center;
+        max-width: 28rem;
+        padding: 2rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        color: #3b82f6;
+      }
+      p {
+        font-size: 0.9375rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+        opacity: 0.85;
+      }
+      .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ef4444;
+        margin-right: 0.4rem;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1><span class="status-dot"></span>Connection Lost</h1>
+      <p>
+        You're currently offline. GNStudio requires an internet connection to
+        load the application.
+      </p>
+      <p>Check your connection and try again.</p>
+    </div>
+  </body>
+</html>
