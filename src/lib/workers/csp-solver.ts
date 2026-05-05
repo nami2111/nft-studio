@@ -109,6 +109,7 @@ export class CSPSolver {
 	private maxCacheSize = 1000;
 	private constraintOrdering: Arc[] = []; // Pre-ordered constraints for faster processing
 	private layerTraitIdToIndex = new Map<string, Map<string, number>>(); // layerId -> traitId -> numericId (0-255)
+	private layerIdsSorted: string[] = []; // Pre-sorted layer IDs for fast getAssignmentKey
 
 	constructor(
 		layers: TransferrableLayer[],
@@ -152,6 +153,9 @@ export class CSPSolver {
 				hasLoggedRulerInfo = true;
 			}
 		}
+
+		// Pre-sort layer IDs for fast getAssignmentKey
+		this.layerIdsSorted = layers.map((l) => l.id).sort((a, b) => a.localeCompare(b));
 
 		// Initialize AC-3 domains and constraints
 		this.initializeDomains();
@@ -546,12 +550,16 @@ export class CSPSolver {
 
 	/**
 	 * Get current partial assignment as cache key
+	 * Uses pre-sorted layer IDs for O(n) string building instead of O(n log n) sort + JSON.stringify.
 	 */
 	private getAssignmentKey(): string {
-		const assignment = Array.from(this.context.selectedTraits.entries()).sort(([a], [b]) =>
-			a.localeCompare(b)
-		);
-		return JSON.stringify(assignment);
+		let key = '';
+		for (const layerId of this.layerIdsSorted) {
+			const trait = this.context.selectedTraits.get(layerId);
+			key += trait ? trait.id : '_';
+			key += ';';
+		}
+		return key;
 	}
 
 	/**

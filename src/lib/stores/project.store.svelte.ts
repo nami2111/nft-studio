@@ -44,6 +44,7 @@ export const projectStore = {
 // Enhanced state setters with automatic persistence
 export function updateProject(updates: Partial<Project>): void {
 	Object.assign(project, updates);
+	persistenceService.markDirty(); // metadata dirty
 	persistenceService.schedulePersist(project);
 }
 
@@ -51,6 +52,7 @@ export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void {
 	const layerIndex = project.layers.findIndex((l) => l.id === layerId);
 	if (layerIndex !== -1) {
 		Object.assign(project.layers[layerIndex], updates);
+		persistenceService.markDirty(layerId);
 		persistenceService.schedulePersist(project);
 	}
 }
@@ -61,6 +63,7 @@ export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial
 		const traitIndex = layer.traits.findIndex((t) => t.id === traitId);
 		if (traitIndex !== -1) {
 			Object.assign(layer.traits[traitIndex], updates);
+			persistenceService.markDirty(layerId);
 			persistenceService.schedulePersist(project);
 		}
 	}
@@ -83,17 +86,19 @@ function processBatchQueue(): void {
 	const updates = [...batchQueue];
 	batchQueue = [];
 
-	// Apply all updates
+	// Apply all updates and track dirty layers
 	for (const update of updates) {
 		switch (update.type) {
 			case 'project':
 				Object.assign(project, update.updates);
+				persistenceService.markDirty();
 				break;
 			case 'layer':
 				if (update.layerId) {
 					const layerIndex = project.layers.findIndex((l) => l.id === update.layerId);
 					if (layerIndex !== -1) {
 						Object.assign(project.layers[layerIndex], update.updates);
+						persistenceService.markDirty(update.layerId);
 					}
 				}
 				break;
@@ -104,6 +109,7 @@ function processBatchQueue(): void {
 						const traitIndex = layer.traits.findIndex((t) => t.id === update.traitId);
 						if (traitIndex !== -1) {
 							Object.assign(layer.traits[traitIndex], update.updates);
+							persistenceService.markDirty(update.layerId);
 						}
 					}
 				}
@@ -208,47 +214,56 @@ export function projectNeedsZipLoad(): boolean {
 export function updateProjectName(name: string): void {
 	validationService.validateProjectName(name);
 	project.name = name;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectDescription(description: string): void {
 	project.description = description;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectMetadataStandard(standard: MetadataStandard): void {
 	project.metadataStandard = standard;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectSymbol(symbol: string): void {
 	project.symbol = symbol;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectSellerFee(fee: number): void {
 	project.sellerFeeBasisPoints = fee;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectExternalUrl(url: string): void {
 	project.externalUrl = url;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectAnimationUrl(url: string): void {
 	project.animationUrl = url;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectCreators(creators: { address: string; share: number }[]): void {
 	project.creators = creators;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
 export function updateProjectDimensions(dimensions: ProjectDimensions): void {
 	validationService.validateDimensions(dimensions);
 	project.outputSize = dimensions;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
@@ -264,6 +279,7 @@ export function addLayer(name: string): void {
 	};
 
 	project.layers.push(newLayer);
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
@@ -285,6 +301,7 @@ export function removeLayer(layerId: LayerId): void {
 		layer.order = index;
 	});
 
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
@@ -293,6 +310,7 @@ export function updateLayerName(layerId: LayerId, name: string): void {
 	const layer = project.layers.find((layer: Layer) => layer.id === layerId);
 	if (!layer) return;
 	layer.name = name;
+	persistenceService.markDirty(layerId);
 	persistenceService.schedulePersist(project);
 }
 
@@ -306,6 +324,7 @@ export function reorderLayers(layerIds: LayerId[]): void {
 		}
 	});
 	project.layers = newLayers;
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 
@@ -385,6 +404,7 @@ export function addTrait(layerId: LayerId, file: File): Promise<void> {
 
 	pendingTraitUpdates.set(newTrait.id, { trait: newTrait, layer, file });
 	scheduleBatchUpdate();
+	persistenceService.markDirty(layerId);
 	persistenceService.schedulePersist(project);
 
 	return loadPromise;
@@ -401,6 +421,7 @@ export function removeTrait(layerId: LayerId, traitId: TraitId): void {
 	if (trait.imageUrl) globalResourceManager.removeObjectUrl(trait.imageUrl);
 
 	layer.traits.splice(traitIndex, 1);
+	persistenceService.markDirty(layerId);
 	persistenceService.schedulePersist(project);
 }
 
@@ -411,6 +432,7 @@ export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string
 	if (!trait) return;
 	validationService.validateTraitName(name);
 	trait.name = name;
+	persistenceService.markDirty(layerId);
 	persistenceService.schedulePersist(project);
 }
 
@@ -421,6 +443,7 @@ export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeig
 	if (!trait) return;
 	validationService.validateRarityWeight(rarityWeight);
 	trait.rarityWeight = rarityWeight;
+	persistenceService.markDirty(layerId);
 	persistenceService.schedulePersist(project);
 }
 
@@ -508,6 +531,7 @@ export function hasPersistedData(): boolean {
 export function updateStrictPairConfig(projectId: ProjectId, config: StrictPairConfig): void {
 	if (project.id !== projectId) throw new Error('Project ID mismatch');
 	project.strictPairConfig = { ...config };
+	persistenceService.markDirty();
 	persistenceService.schedulePersist(project);
 }
 export function getStrictPairConfig() {

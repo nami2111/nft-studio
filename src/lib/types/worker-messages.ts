@@ -111,6 +111,31 @@ export interface BatchMessage extends BaseWorkerMessage {
 	};
 }
 
+// Initialize layers once in the worker (used with enableLayerRef)
+export interface InitLayersMessage extends BaseWorkerMessage {
+	type: 'init-layers';
+	payload: {
+		layers: TransferrableLayer[];
+	};
+}
+
+// Batch generation by trait references (lightweight, no imageData duplication)
+export interface BatchRefMessage extends BaseWorkerMessage {
+	type: 'batch-ref';
+	payload: {
+		solutions: {
+			index: number;
+			traitRefs: { layerId: string; traitId: string }[];
+		}[];
+		collectionSize: number;
+		outputSize: { width: number; height: number };
+		projectName: string;
+		projectDescription: string;
+		metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
+		extraData?: Record<string, unknown>;
+	};
+}
+
 // Messages that can be sent from workers to the main thread
 export type OutgoingWorkerMessage =
 	| ReadyMessage
@@ -122,9 +147,10 @@ export type OutgoingWorkerMessage =
 	| { type: 'pingResponse'; pingResponse: string };
 
 // Messages that can be sent to workers
-// Messages that can be sent to workers
 export type IncomingMessage =
 	| BatchMessage
+	| InitLayersMessage
+	| BatchRefMessage
 	| { type: 'cancel' }
 	| ReadyMessage
 	| { type: 'preview'; payload: Record<string, unknown> }
@@ -134,6 +160,8 @@ export type IncomingMessage =
 // Worker pool message types
 export type GenerationWorkerMessage =
 	| BatchMessage
+	| InitLayersMessage
+	| BatchRefMessage
 	| {
 			type: 'cancel';
 	  };

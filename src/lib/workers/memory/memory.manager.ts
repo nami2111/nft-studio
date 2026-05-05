@@ -29,7 +29,7 @@ export class OptimizedMemoryManager {
 
 	returnCanvas(canvas: OffscreenCanvas): void {
 		if (this.canvasPool.length < this.maxPoolSize) {
-			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			const ctx = canvas.getContext('2d');
 			if (ctx) {
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 			}
@@ -38,7 +38,7 @@ export class OptimizedMemoryManager {
 	}
 
 	getContext(canvas: OffscreenCanvas): OffscreenCanvasRenderingContext2D {
-		const ctx = canvas.getContext('2d', { willReadFrequently: true });
+		const ctx = canvas.getContext('2d');
 		if (!ctx) {
 			throw new Error('Failed to get 2D context');
 		}

@@ -1,4 +1,5 @@
 import type { Project } from '$lib/types/project';
+import { isFlagEnabled } from '$lib/config/feature-flags';
 import { MemoryMonitor } from '$lib/utils/memory-monitor';
 
 export interface ExportOptions {
@@ -9,6 +10,41 @@ export interface ExportOptions {
 	onProgress?: (progress: { processed: number; total: number; message: string }) => void;
 }
 
+interface ZipWorkerMessage {
+	type: 'zip-project';
+	taskId: string;
+	payload: {
+		projectData: string;
+		imageFiles: Array<{ path: string; data: ArrayBuffer }>;
+	};
+}
+
+function runZipWorker(message: ZipWorkerMessage): Promise<ArrayBuffer> {
+	return new Promise((resolve, reject) => {
+		const worker = new Worker(new URL('../workers/zip.worker.ts', import.meta.url), {
+			type: 'module'
+		});
+
+		worker.postMessage(message);
+
+		worker.onmessage = (e: MessageEvent) => {
+			const data = e.data;
+			if (data.type === 'zip-complete') {
+				worker.terminate();
+				resolve(data.payload.buffer as ArrayBuffer);
+			} else if (data.type === 'zip-error') {
+				worker.terminate();
+				reject(new Error(data.payload?.error || 'ZIP worker error'));
+			}
+		};
+
+		worker.onerror = (err) => {
+			worker.terminate();
+			reject(new Error(err.message || 'ZIP worker failed'));
+		};
+	});
+}
+
 export class ExportService {
 	/**
 	 * Package files into a ZIP with memory-efficient batch processing
@@ -16,10 +52,23 @@ export class ExportService {
 	static async packageZip(options: ExportOptions): Promise<void> {
 		const { project, images, metadata, onProgress } = options;
 
+		// Use ZIP worker offloading when enabled and collection is large enough
+		const useZipWorker = isFlagEnabled('enableZipWorkerOffloading') && images.length > 500;
+
 		try {
 			// Start memory monitoring for large exports
 			if (images.length > 500) {
 				MemoryMonitor.start();
+			}
+
+			if (useZipWorker) {
+				await ExportService.packageZipWithWorker({
+					project,
+					images,
+					metadata,
+					onProgress
+				});
+				return;
 			}
 
 			// Use optimized approach for large collections
@@ -44,6 +93,74 @@ export class ExportService {
 		} finally {
 			// Stop memory monitoring
 			MemoryMonitor.stop();
+		}
+	}
+
+	/**
+	 * Offload ZIP creation to a dedicated web worker.
+	 */
+	private static async packageZipWithWorker(options: ExportOptions): Promise<void> {
+		const { project, images, metadata, onProgress } = options;
+
+		const imageFiles = images.map((img) => ({
+			path: `images/${img.name}`,
+			data: img.imageData
+		}));
+
+		// Add metadata as JSON files
+		for (const meta of metadata) {
+			const encoded = new TextEncoder().encode(JSON.stringify(meta.data, null, 2));
+			imageFiles.push({
+				path: `metadata/${meta.name}`,
+				data: encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength)
+			});
+		}
+
+		onProgress?.({
+			processed: 0,
+			total: images.length + metadata.length,
+			message: 'Offloading ZIP creation to worker...'
+		});
+
+		const projectData = JSON.stringify({
+			name: project.name,
+			description: project.description,
+			outputSize: project.outputSize
+		});
+
+		const buffer = await runZipWorker({
+			type: 'zip-project',
+			taskId: `zip-${Date.now()}`,
+			payload: {
+				projectData,
+				imageFiles
+			}
+		});
+
+		const blob = new Blob([buffer], { type: 'application/zip' });
+		ExportService.downloadBlob(blob, `${project.name || 'collection'}.zip`);
+
+		onProgress?.({
+			processed: images.length + metadata.length,
+			total: images.length + metadata.length,
+			message: 'ZIP created and download started'
+		});
+	}
+
+	private static downloadBlob(blob: Blob, filename: string): void {
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		try {
+			a.click();
+		} catch (error) {
+			console.error('Download failed:', error);
+			throw error;
+		} finally {
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
 		}
 	}
 

@@ -8,6 +8,7 @@ import type {
 	TransferrableLayer,
 	TransferrableTrait
 } from '$lib/types/worker-messages';
+import type { InitLayersMessage, BatchRefMessage } from '$lib/types/worker-messages';
 import { PerformanceMonitor } from '$lib/utils/performance-monitor';
 // Refactored Cache & Optimization Imports
 import { WorkerArrayBufferCache } from './cache/array-buffer.cache';
@@ -20,6 +21,10 @@ const perfMonitor = new PerformanceMonitor();
 const imageBitmapCache = new Map<string, ImageBitmap>();
 const memoryManager = new OptimizedMemoryManager();
 const predictiveTraitLoader = new PredictiveTraitLoader();
+
+// Layer reference cache for enableLayerRef mode
+const layerMap = new Map<string, TransferrableLayer>();
+const traitMap = new Map<string, TransferrableTrait>();
 
 // Serial task execution queue
 let currentTaskQueue: Promise<void> = Promise.resolve();
@@ -141,7 +146,7 @@ async function generateIsolatedItem(
 	extraData?: Record<string, unknown>
 ): Promise<QueuedGeneratedItem | undefined> {
 	const canvas = memoryManager.getCanvas(targetWidth, targetHeight);
-	const ctx = canvas.getContext('2d', { willReadFrequently: true });
+	const ctx = canvas.getContext('2d');
 
 	if (!ctx) {
 		console.error(`Item ${index}: Failed to get 2D context`);
@@ -290,20 +295,41 @@ async function handleBatchGeneration(
 
 		const transferrables = imageBuffers.map((img) => img.buffer) as unknown as Transferable[];
 		(self as unknown as Worker).postMessage(message, transferrables);
-
-		self.postMessage({
-			type: 'complete',
-			taskId,
-			payload: {
-				images: [],
-				metadata: [],
-				isChunk: true
-			}
-		});
 	} catch (error) {
 		console.error('Batch processing error:', error);
 		throw error;
 	}
+}
+
+/**
+ * Handle init-layers message to populate local reference maps.
+ */
+function handleInitLayers(message: InitLayersMessage): void {
+	const { layers } = message.payload;
+	layerMap.clear();
+	traitMap.clear();
+	for (const layer of layers) {
+		layerMap.set(layer.id, layer);
+		for (const trait of layer.traits) {
+			traitMap.set(`${layer.id}:${trait.id}`, trait);
+		}
+	}
+}
+
+/**
+ * Resolve trait references using the local layer/trait maps.
+ */
+function resolveTraitRefs(
+	refs: { layerId: string; traitId: string }[]
+): { layerId: string; trait: TransferrableTrait }[] {
+	const resolved: { layerId: string; trait: TransferrableTrait }[] = [];
+	for (const ref of refs) {
+		const trait = traitMap.get(`${ref.layerId}:${ref.traitId}`);
+		if (trait) {
+			resolved.push({ layerId: ref.layerId, trait });
+		}
+	}
+	return resolved;
 }
 
 // Message Listener with serialization
@@ -326,6 +352,44 @@ self.addEventListener('message', (e: MessageEvent) => {
 				try {
 					await handleBatchGeneration(
 						solutions,
+						layers,
+						collectionSize,
+						outputSize,
+						projectName,
+						projectDescription,
+						message.taskId,
+						metadataStandard,
+						extraData
+					);
+				} catch (error) {
+					self.postMessage({
+						type: 'error',
+						taskId: message.taskId,
+						payload: {
+							message: error instanceof Error ? error.message : 'Batch error'
+						}
+					});
+				}
+			} else if (message.type === 'init-layers') {
+				handleInitLayers(message as InitLayersMessage);
+			} else if (message.type === 'batch-ref') {
+				const {
+					solutions,
+					collectionSize,
+					outputSize,
+					projectName,
+					projectDescription,
+					metadataStandard,
+					extraData
+				} = (message as BatchRefMessage).payload;
+				const resolvedSolutions = solutions.map((s) => ({
+					index: s.index,
+					traits: resolveTraitRefs(s.traitRefs)
+				}));
+				const layers = Array.from(layerMap.values());
+				try {
+					await handleBatchGeneration(
+						resolvedSolutions,
 						layers,
 						collectionSize,
 						outputSize,

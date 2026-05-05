@@ -8,6 +8,7 @@ import type {
 	TransferrableLayer,
 	TransferrableTrait
 } from '$lib/types/worker-messages';
+import { isFlagEnabled } from '$lib/config/feature-flags';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { CSPSolver } from './csp-solver';
 import { TraitBatchScheduler } from './trait-batch-scheduler';
@@ -28,6 +29,170 @@ setMessageCallback((data) => {
 		messageHandler(data);
 	}
 });
+
+function stripLayersForSolver(
+	layers: TransferrableLayer[]
+): { id: string; name: string; order: number; isOptional?: boolean; traits: unknown[] }[] {
+	return layers.map((layer) => ({
+		id: layer.id,
+		name: layer.name,
+		order: layer.order,
+		isOptional: layer.isOptional,
+		traits: layer.traits.map((trait) => ({
+			id: trait.id,
+			name: trait.name,
+			rarityWeight: trait.rarityWeight,
+			type: trait.type,
+			rulerRules: trait.rulerRules
+		}))
+	}));
+}
+
+async function solveOnMainThread(
+	layers: TransferrableLayer[],
+	collectionSize: number,
+	strictPairConfig?: StrictPairConfig
+): Promise<{ index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[]> {
+	const usedCombinations = new Map<string, Set<bigint>>();
+
+	const activeStrictPairConfig = strictPairConfig
+		? { ...strictPairConfig }
+		: { enabled: true, layerCombinations: [] };
+	if (
+		!activeStrictPairConfig.layerCombinations ||
+		activeStrictPairConfig.layerCombinations.length === 0
+	) {
+		activeStrictPairConfig.enabled = true;
+		activeStrictPairConfig.layerCombinations = [
+			{
+				id: '__global__',
+				layerIds: layers.map((l) => l.id),
+				active: true,
+				description: 'Global Uniqueness'
+			}
+		];
+	}
+
+	const solver = new CSPSolver(layers, usedCombinations, activeStrictPairConfig);
+	const solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[] =
+		[];
+
+	if (import.meta.env.DEV) console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
+	const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
+
+	for (let i = 0; i < collectionSize; i++) {
+		const solutionMap = solver.solve();
+		if (!solutionMap) {
+			throw new Error(`Exhausted all possible valid unique combinations at item ${i + 1}.`);
+		}
+
+		solver.markCombinationAsUsed();
+
+		const sortedTraits = Array.from(solutionMap.entries())
+			.map(([layerId, trait]) => {
+				const layer = layers.find((l) => l.id === layerId);
+				return {
+					layerId,
+					trait: { ...trait },
+					order: layer?.order || 0
+				};
+			})
+			.sort((a, b) => a.order - b.order)
+			.map(({ layerId, trait }) => ({ layerId, trait }));
+
+		if (sortedTraits.length === 0) {
+			console.error(`❌ Item ${i}: Solver returned Map but mapped traits are empty!`);
+		}
+
+		solutions.push({
+			index: i,
+			traits: sortedTraits
+		});
+	}
+
+	performanceMonitor.stopTimer(preSolveTimer);
+	if (import.meta.env.DEV) console.log(`✅ Pre-solved ${solutions.length} combinations.`);
+	return solutions;
+}
+
+async function solveInWorker(
+	layers: TransferrableLayer[],
+	collectionSize: number,
+	strictPairConfig?: StrictPairConfig
+): Promise<{ index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[]> {
+	return new Promise((resolve, reject) => {
+		const worker = new Worker(new URL('./csp-solver.worker.ts', import.meta.url), {
+			type: 'module'
+		});
+
+		const solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[] =
+			[];
+		const strippedLayers = stripLayersForSolver(layers);
+
+		const activeStrictPairConfig = strictPairConfig
+			? { ...strictPairConfig }
+			: { enabled: true, layerCombinations: [] };
+		if (
+			!activeStrictPairConfig.layerCombinations ||
+			activeStrictPairConfig.layerCombinations.length === 0
+		) {
+			activeStrictPairConfig.enabled = true;
+			activeStrictPairConfig.layerCombinations = [
+				{
+					id: '__global__',
+					layerIds: layers.map((l) => l.id),
+					active: true,
+					description: 'Global Uniqueness'
+				}
+			];
+		}
+
+		worker.postMessage({
+			type: 'solve',
+			payload: {
+				layers: strippedLayers,
+				collectionSize,
+				strictPairConfig: activeStrictPairConfig
+			}
+		});
+
+		worker.onmessage = (e: MessageEvent) => {
+			const data = e.data;
+			if (data.type === 'chunk') {
+				for (const s of data.payload.solutions as {
+					index: number;
+					traits: { layerId: string; traitId: string; traitName: string }[];
+				}[]) {
+					const resolvedTraits = s.traits.map((t) => {
+						const layer = layers.find((l) => l.id === t.layerId);
+						const trait = layer?.traits.find((tr) => tr.id === t.traitId);
+						return {
+							layerId: t.layerId,
+							trait: trait
+								? { ...trait }
+								: ({ id: t.traitId, name: t.traitName } as TransferrableTrait)
+						};
+					});
+					solutions.push({ index: s.index, traits: resolvedTraits });
+				}
+			} else if (data.type === 'complete') {
+				worker.terminate();
+				resolve(solutions);
+			} else if (data.type === 'error') {
+				worker.terminate();
+				reject(new Error(data.payload?.message || 'Solver worker error'));
+			} else if (data.type === 'cancelled') {
+				worker.terminate();
+				reject(new Error('Solver cancelled'));
+			}
+		};
+
+		worker.onerror = (err) => {
+			worker.terminate();
+			reject(new Error(err.message || 'Solver worker failed'));
+		};
+	});
+}
 
 export async function startGeneration(
 	layers: TransferrableLayer[],
@@ -51,73 +216,18 @@ export async function startGeneration(
 	messageHandler = onMessage || null;
 
 	try {
-		// 1. Solve for the entire collection upfront on the main thread
-		// This is fast and ensures absolute uniqueness across parallel workers
-		const usedCombinations = new Map<string, Set<bigint>>();
+		let solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[];
 
-		// Ensure we have at least a global uniqueness rule
-		const activeStrictPairConfig = strictPairConfig
-			? { ...strictPairConfig }
-			: { enabled: true, layerCombinations: [] };
-		if (
-			!activeStrictPairConfig.layerCombinations ||
-			activeStrictPairConfig.layerCombinations.length === 0
-		) {
-			activeStrictPairConfig.enabled = true;
-			activeStrictPairConfig.layerCombinations = [
-				{
-					id: '__global__',
-					layerIds: layers.map((l) => l.id),
-					active: true,
-					description: 'Global Uniqueness'
-				}
-			];
-		}
-
-		const solver = new CSPSolver(layers, usedCombinations, activeStrictPairConfig);
-		const solutions: {
-			index: number;
-			traits: { layerId: string; trait: TransferrableTrait }[];
-		}[] = [];
-
-		if (import.meta.env.DEV) console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
-		const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
-
-		for (let i = 0; i < collectionSize; i++) {
-			const solutionMap = solver.solve();
-			if (!solutionMap) {
-				throw new Error(`Exhausted all possible valid unique combinations at item ${i + 1}.`);
+		if (isFlagEnabled('enableWorkerCspSolver')) {
+			try {
+				solutions = await solveInWorker(layers, collectionSize, strictPairConfig);
+			} catch (workerError) {
+				console.warn('CSP solver worker failed, falling back to main thread:', workerError);
+				solutions = await solveOnMainThread(layers, collectionSize, strictPairConfig);
 			}
-
-			// Record for next iteration's uniqueness check
-			solver.markCombinationAsUsed();
-
-			// Map and sort traits by layer order for correct rendering
-			// CLONE trais to ensure no reactive proxy leakage
-			const sortedTraits = Array.from(solutionMap.entries())
-				.map(([layerId, trait]) => {
-					const layer = layers.find((l) => l.id === layerId);
-					return {
-						layerId,
-						trait: { ...trait }, // Shallow clone the trait object
-						order: layer?.order || 0
-					};
-				})
-				.sort((a, b) => a.order - b.order)
-				.map(({ layerId, trait }) => ({ layerId, trait }));
-
-			if (sortedTraits.length === 0) {
-				console.error(`❌ Item ${i}: Solver returned Map but mapped traits are empty!`);
-			}
-
-			solutions.push({
-				index: i,
-				traits: sortedTraits
-			});
+		} else {
+			solutions = await solveOnMainThread(layers, collectionSize, strictPairConfig);
 		}
-
-		performanceMonitor.stopTimer(preSolveTimer);
-		if (import.meta.env.DEV) console.log(`✅ Pre-solved ${solutions.length} combinations.`);
 
 		// 2. Schedule solved traits as batches to the worker pool for rendering
 		const scheduler = new TraitBatchScheduler({
@@ -151,10 +261,10 @@ export async function startGeneration(
 	}
 }
 
-export function cancelGeneration(): void {
-	// Terminate all workers in the pool
-	terminateWorkerPool();
+export async function cancelGeneration(): Promise<void> {
+	// Terminate all workers in the pool and await cleanup
+	await terminateWorkerPool();
 
 	// Re-initialize for future use
-	initializeWorkerPool();
+	await initializeWorkerPool();
 }

@@ -7,6 +7,8 @@
 
 import type {
 	BatchMessage,
+	InitLayersMessage,
+	BatchRefMessage,
 	CancelledMessage,
 	CompleteMessage,
 	ErrorMessage,
@@ -14,7 +16,8 @@ import type {
 	ProgressMessage,
 	TransferrableLayer
 } from '$lib/types/worker-messages';
-import { postMessageToPool } from './worker.pool';
+import { isFlagEnabled } from '$lib/config/feature-flags';
+import { getWorkerPoolStatus, postMessageToPool } from './worker.pool';
 
 export interface BatchConfig {
 	layers: TransferrableLayer[];
@@ -35,6 +38,21 @@ export interface Solution {
 		layerId: string;
 		trait: import('$lib/types/worker-messages').TransferrableTrait;
 	}[];
+}
+
+function calculateAdaptiveBatchSize(
+	collectionSize: number,
+	workerCount: number,
+	outputSize: { width: number; height: number }
+): number {
+	const base = collectionSize > 10000 ? 80 : collectionSize > 1000 ? 50 : 25;
+	const byWorkers = Math.ceil(collectionSize / Math.max(1, workerCount * 2));
+	let size = Math.max(10, Math.min(150, Math.min(base, byWorkers)));
+	// Reduce batch size for high-resolution images
+	if (outputSize.width * outputSize.height > 2_000_000) {
+		size = Math.max(10, Math.floor(size / 2));
+	}
+	return size;
 }
 
 /**
@@ -62,30 +80,72 @@ export class TraitBatchScheduler {
 			extraData
 		} = this.config;
 
-		const totalBatches = Math.ceil(solutions.length / batchSize);
+		const effectiveBatchSize = isFlagEnabled('enableAdaptiveBatchSize')
+			? calculateAdaptiveBatchSize(
+					collectionSize,
+					getWorkerPoolStatus()?.totalWorkers || navigator.hardwareConcurrency || 4,
+					outputSize
+				)
+			: batchSize;
+
+		const useLayerRef = isFlagEnabled('enableLayerRef');
+
+		// If using layer references, send init-layers once before any batch-ref messages
+		if (useLayerRef) {
+			const initMessage: InitLayersMessage = {
+				type: 'init-layers',
+				payload: { layers }
+			};
+			await postMessageToPool(initMessage);
+		}
+
+		const totalBatches = Math.ceil(solutions.length / effectiveBatchSize);
 		const batchPromises: Promise<unknown>[] = [];
 
 		if (import.meta.env.DEV)
-			console.log(`📦 Distributing ${totalBatches} batches to worker pool...`);
+			console.log(
+				`📦 Distributing ${totalBatches} batches to worker pool (batchSize=${effectiveBatchSize}, layerRef=${useLayerRef})...`
+			);
 
 		for (let b = 0; b < totalBatches; b++) {
-			const batchSolutions = solutions.slice(b * batchSize, (b + 1) * batchSize);
+			const batchSolutions = solutions.slice(b * effectiveBatchSize, (b + 1) * effectiveBatchSize);
 
-			const message: BatchMessage = {
-				type: 'batch',
-				payload: {
-					solutions: batchSolutions,
-					layers,
-					collectionSize,
-					outputSize,
-					projectName,
-					projectDescription,
-					metadataStandard,
-					extraData
-				}
-			};
-
-			batchPromises.push(postMessageToPool(message));
+			if (useLayerRef) {
+				const message: BatchRefMessage = {
+					type: 'batch-ref',
+					payload: {
+						solutions: batchSolutions.map((s) => ({
+							index: s.index,
+							traitRefs: s.traits.map((t) => ({
+								layerId: t.layerId,
+								traitId: t.trait.id
+							}))
+						})),
+						collectionSize,
+						outputSize,
+						projectName,
+						projectDescription,
+						metadataStandard,
+						extraData
+					}
+				};
+				batchPromises.push(postMessageToPool(message));
+			} else {
+				const message: BatchMessage = {
+					type: 'batch',
+					payload: {
+						solutions: batchSolutions,
+						layers,
+						collectionSize,
+						outputSize,
+						projectName,
+						projectDescription,
+						metadataStandard,
+						extraData
+					}
+				};
+				batchPromises.push(postMessageToPool(message));
+			}
 		}
 
 		await Promise.all(batchPromises);

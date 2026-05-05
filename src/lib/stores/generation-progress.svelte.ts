@@ -11,6 +11,13 @@ import type { Layer, StrictPairConfig } from '$lib/types/layer';
 import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
 import { MetadataStandard } from '$lib/domain/metadata/strategies';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { isFlagEnabled } from '$lib/config/feature-flags';
+import {
+	streamMetadata,
+	streamBatch,
+	clearSession,
+	getSessionStorageSize
+} from '$lib/utils/streaming-storage';
 
 // Generation state interface
 export interface GenerationState {
@@ -244,6 +251,13 @@ class GenerationStateManager {
 
 		const sessionId = generationState.sessionId;
 
+		// Clear streaming store if enabled
+		if (sessionId && isFlagEnabled('enableStreamingStorage')) {
+			clearSession(sessionId).catch((err) =>
+				console.warn('Failed to clear streaming session:', err)
+			);
+		}
+
 		// Reset state completely
 		this.resetState();
 
@@ -326,8 +340,22 @@ class GenerationStateManager {
 	 */
 	addImages(images: { name: string; imageData: ArrayBuffer }[]): void {
 		if (!generationState.isGenerating) return;
+		if (generationState.isPaused) return; // Do not accumulate while paused
 
-		generationState.allImages.push(...images);
+		if (isFlagEnabled('enableStreamingStorage') && generationState.sessionId) {
+			// Stream to IndexedDB asynchronously; do not block UI
+			streamBatch(
+				generationState.sessionId,
+				generationState.allImages.length,
+				images,
+				[] // metadata is handled separately
+			).catch((err) => {
+				console.warn('Streaming storage failed, falling back to memory:', err);
+				generationState.allImages.push(...images);
+			});
+		} else {
+			generationState.allImages.push(...images);
+		}
 		generationState.lastUpdate = Date.now();
 
 		// Check memory usage
@@ -339,8 +367,25 @@ class GenerationStateManager {
 	 */
 	addMetadata(metadata: { name: string; data: Record<string, unknown> }[]): void {
 		if (!generationState.isGenerating) return;
+		if (generationState.isPaused) return; // Do not accumulate while paused
 
-		generationState.allMetadata.push(...metadata);
+		if (isFlagEnabled('enableStreamingStorage') && generationState.sessionId) {
+			// Stream to IndexedDB asynchronously
+			const promises = metadata.map((meta, i) =>
+				streamMetadata(
+					generationState.sessionId!,
+					generationState.allMetadata.length + i,
+					meta.name,
+					meta.data
+				)
+			);
+			Promise.all(promises).catch((err) => {
+				console.warn('Streaming metadata failed, falling back to memory:', err);
+				generationState.allMetadata.push(...metadata);
+			});
+		} else {
+			generationState.allMetadata.push(...metadata);
+		}
 		generationState.lastUpdate = Date.now();
 	}
 
@@ -462,12 +507,28 @@ class GenerationStateManager {
 	/**
 	 * Get current memory usage estimate
 	 */
-	getMemoryUsage(): number {
+	async getMemoryUsage(): Promise<number> {
 		// Calculate memory usage from accumulated data
 		let totalBytes = 0;
 
-		// Images memory
-		totalBytes += generationState.allImages.reduce((sum, img) => sum + img.imageData.byteLength, 0);
+		if (isFlagEnabled('enableStreamingStorage') && generationState.sessionId) {
+			// Use streamed storage size instead of in-memory arrays
+			try {
+				totalBytes = await getSessionStorageSize(generationState.sessionId);
+			} catch {
+				// Fallback to in-memory estimate
+				totalBytes += generationState.allImages.reduce(
+					(sum, img) => sum + img.imageData.byteLength,
+					0
+				);
+			}
+		} else {
+			// Images memory
+			totalBytes += generationState.allImages.reduce(
+				(sum, img) => sum + img.imageData.byteLength,
+				0
+			);
+		}
 
 		// Metadata memory (rough estimate)
 		totalBytes += generationState.allMetadata.reduce(
@@ -489,20 +550,26 @@ class GenerationStateManager {
 	 * Check memory usage and add warnings if needed
 	 */
 	private checkMemoryUsage(): void {
-		const currentUsage = this.getMemoryUsage();
-		const maxUsage = 500 * 1024 * 1024; // 500MB limit
+		// getMemoryUsage is now async, but we don't want to block here.
+		// Fire-and-forget with a safe fallback.
+		const check = async () => {
+			const currentUsage = await this.getMemoryUsage();
+			const maxUsage = 500 * 1024 * 1024; // 500MB limit
 
-		// Only show memory warnings if batch processing was not enabled upfront
-		if (currentUsage > maxUsage && !generationState.isBatchProcessing) {
-			// This should rarely happen now since we enable batch processing for large collections upfront
-			if (currentUsage > maxUsage * 0.8) {
-				generationState.statusText = 'Memory usage high - consider reducing collection size.';
-			}
+			// Only show memory warnings if batch processing was not enabled upfront
+			if (currentUsage > maxUsage && !generationState.isBatchProcessing) {
+				if (currentUsage > maxUsage * 0.8) {
+					generationState.statusText = 'Memory usage high - consider reducing collection size.';
+				}
 
-			if (currentUsage > maxUsage) {
-				generationState.statusText = `Memory usage very high: ${Math.round(currentUsage / 1024 / 1024)}MB. Consider much smaller collection sizes.`;
+				if (currentUsage > maxUsage) {
+					generationState.statusText = `Memory usage very high: ${Math.round(currentUsage / 1024 / 1024)}MB. Consider much smaller collection sizes.`;
+				}
 			}
-		}
+		};
+		check().catch(() => {
+			// Ignore async errors in memory check
+		});
 	}
 
 	/**
@@ -596,6 +663,13 @@ class GenerationStateManager {
 				console.warn('Failed to revoke ObjectURL:', error);
 			}
 		});
+
+		// Clear streaming store session data
+		if (generationState.sessionId && isFlagEnabled('enableStreamingStorage')) {
+			clearSession(generationState.sessionId).catch((err) =>
+				console.warn('Failed to clear streaming session on cleanup:', err)
+			);
+		}
 	}
 
 	/**
@@ -623,7 +697,11 @@ class GenerationStateManager {
 
 			sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(stateData));
 		} catch (error) {
-			console.error('Failed to save generation state:', error);
+			if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+				this.addWarning('Session state too large; progress not saved');
+			} else {
+				console.error('Failed to save generation state:', error);
+			}
 		}
 	}
 
@@ -731,8 +809,8 @@ class GenerationStateManager {
 	/**
 	 * Get human-readable memory usage
 	 */
-	getMemorySummary(): string {
-		const bytes = this.getMemoryUsage();
+	async getMemorySummary(): Promise<string> {
+		const bytes = await this.getMemoryUsage();
 		if (bytes < 1024) return `${bytes} B`;
 		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
 		if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
@@ -752,13 +830,27 @@ class GenerationStateManager {
 		itemsGenerated: number;
 		totalItems: number;
 	} {
+		// Synchronous fallback for memory summary (best-effort)
+		let memoryUsage = 'Unknown';
+		if (!isFlagEnabled('enableStreamingStorage')) {
+			const bytes =
+				generationState.allImages.reduce((sum, img) => sum + img.imageData.byteLength, 0) +
+				generationState.allMetadata.reduce(
+					(sum, meta) => sum + JSON.stringify(meta.data).length * 2,
+					0
+				);
+			memoryUsage =
+				bytes < 1024 * 1024
+					? `${(bytes / 1024).toFixed(2)} KB`
+					: `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+		}
 		return {
 			sessionId: generationState.sessionId,
 			isGenerating: generationState.isGenerating,
 			isPaused: generationState.isPaused,
 			progress: generationState.progress,
 			statusText: generationState.statusText,
-			memoryUsage: this.getMemorySummary(),
+			memoryUsage,
 			itemsGenerated: generationState.currentIndex,
 			totalItems: generationState.totalItems
 		};

@@ -89,54 +89,6 @@ let messageCallback:
 	  ) => void)
 	| null = null;
 
-/**
- * Clone serializable data, preserving ArrayBuffers and other transferable objects
- */
-function cloneSerializableData(obj: unknown): unknown {
-	if (obj === null || typeof obj !== 'object') {
-		return obj;
-	}
-
-	// Handle ArrayBuffer specifically
-	if (obj instanceof ArrayBuffer) {
-		const newBuffer = new ArrayBuffer(obj.byteLength);
-		const sourceView = new Uint8Array(obj);
-		const destView = new Uint8Array(newBuffer);
-		destView.set(sourceView);
-		return newBuffer;
-	}
-
-	// Handle TypedArray (like Uint8Array, Int32Array, etc.)
-	if (ArrayBuffer.isView(obj)) {
-		// Create a new instance of the same type with copied data
-		const TypedArrayConstructor = Object.getPrototypeOf(obj).constructor;
-		return new TypedArrayConstructor(obj);
-	}
-
-	// Handle Date
-	if (obj instanceof Date) {
-		return new Date(obj.getTime());
-	}
-
-	// Handle Array
-	if (Array.isArray(obj)) {
-		return obj.map((item) => cloneSerializableData(item));
-	}
-
-	// Handle plain objects
-	if (typeof obj === 'object' && obj !== null) {
-		const cloned: Record<string, unknown> = {};
-		for (const key in obj) {
-			if (Object.hasOwn(obj, key)) {
-				cloned[key] = cloneSerializableData((obj as Record<string, unknown>)[key]);
-			}
-		}
-		return cloned;
-	}
-
-	return obj;
-}
-
 // Set message callback for client components to receive worker messages
 export function setMessageCallback(
 	callback: (
@@ -528,14 +480,11 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	}
 
 	// Generation uses streaming/chunking and emits many "complete" messages.
-	// Only treat a "complete" message as terminal when it contains no payload data.
+	// Every complete message is treated as terminal for its task; the scheduler handles finalization.
+	// (Previously we ignored non-empty complete messages, but that was to support a duplicate empty marker
+	// which has been removed from the worker.)
 	if (type === 'complete') {
-		const complete = data as CompleteMessage;
-		const imagesCount = complete.payload?.images?.length ?? 0;
-		const metadataCount = complete.payload?.metadata?.length ?? 0;
-		if (imagesCount > 0 || metadataCount > 0) {
-			return;
-		}
+		// Terminal for this task
 	}
 
 	// For terminal messages (complete, error, cancelled), resolve/reject promises and clean up
@@ -571,6 +520,15 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 		if (!foundTask) {
 			for (const [taskId, task] of workerPool.activeTasks.entries()) {
 				if (task.assignedWorker === workerIndex) {
+					// Verify message taskId matches if present (prevents resolving wrong task)
+					const msgTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
+					if (msgTaskId && msgTaskId !== taskId) {
+						// Mismatch: mark worker available but don't resolve this task
+						workerPool.workerStatus[workerIndex] = true;
+						processNextTask();
+						return;
+					}
+
 					if (type === 'complete') {
 						if (task._resolve) task._resolve(data);
 						updateWorkerPerformance(workerIndex, task.complexity, Date.now() - task.timestamp);
@@ -665,17 +623,26 @@ function findBestWorkerForTask(): number | null {
 		return null;
 	}
 
-	// Work stealing: select the worker with the fewest completed tasks (least loaded)
-	// This helps distribute work evenly across workers
+	// Use live active task count instead of historical taskCount for accurate load balancing
 	let bestWorker = availableWorkers[0];
-	let bestScore = workerPool.workerStats[bestWorker].taskCount;
+	let bestActiveCount = Array.from(workerPool.activeTasks.values()).filter(
+		(t) => t.assignedWorker === bestWorker
+	).length;
+	let bestAvgTime = workerPool.workerStats[bestWorker].averageTaskTime;
 
 	for (let i = 1; i < availableWorkers.length; i++) {
 		const workerIndex = availableWorkers[i];
-		const score = workerPool.workerStats[workerIndex].taskCount;
-		if (score < bestScore) {
-			bestScore = score;
+		const activeCount = Array.from(workerPool.activeTasks.values()).filter(
+			(t) => t.assignedWorker === workerIndex
+		).length;
+		if (
+			activeCount < bestActiveCount ||
+			(activeCount === bestActiveCount &&
+				workerPool.workerStats[workerIndex].averageTaskTime < bestAvgTime)
+		) {
+			bestActiveCount = activeCount;
 			bestWorker = workerIndex;
+			bestAvgTime = workerPool.workerStats[workerIndex].averageTaskTime;
 		}
 	}
 
@@ -708,8 +675,12 @@ function performDynamicScaling(): void {
 	const lowQueueThreshold = 5;
 	const lowActiveThreshold = 2;
 
-	// Add workers if queue is growing
-	if (queueLength > highQueueThreshold && currentWorkerCount < maxWorkers) {
+	// Add workers if queue is growing OR if all current workers are busy and queue has items
+	if (
+		(queueLength > highQueueThreshold ||
+			(queueLength > 0 && activeTaskCount >= currentWorkerCount)) &&
+		currentWorkerCount < maxWorkers
+	) {
 		const workersToAdd = Math.min(2, maxWorkers - currentWorkerCount);
 		addWorkers(workersToAdd).catch((error) => {
 			console.error('Failed to add workers during dynamic scaling:', error);
@@ -893,13 +864,10 @@ function processNextTask(): void {
 		};
 
 		// Only include payload if it exists (not all message types have payload)
-		// Create a deep copy of the payload to ensure it's clean of any non-serializable references
-		// We need to handle ArrayBuffers specially since JSON serialization loses them
+		// Use native structuredClone for fast, correct deep cloning (supports ArrayBuffers, Maps, Sets, etc.)
 		let messageToSend: { type: string; taskId: string; payload?: unknown };
 		if ('payload' in task.message) {
-			// For deep cloning that preserves ArrayBuffers, we need a custom approach
-			// Create a structured clone by serializing and deserializing only the non-ArrayBuffer parts
-			const cleanPayload = cloneSerializableData(task.message.payload);
+			const cleanPayload = structuredClone(task.message.payload);
 			messageToSend = { ...baseMessage, payload: cleanPayload };
 		} else {
 			messageToSend = baseMessage;
@@ -923,6 +891,8 @@ function processNextTask(): void {
 	}
 }
 
+const TASK_TIMEOUT_MS = 120000; // 2 minutes
+
 /**
  * Initialize the worker pool with enhanced features
  */
@@ -944,12 +914,19 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 		const healthCheckInterval = config?.healthCheckInterval || 30000;
 
 		workerPool = {
-			workers: [],
+			workers: Array.from<unknown, Worker>({ length: maxWorkers }, () => null as unknown as Worker),
 			taskQueue: [],
 			activeTasks: new Map(),
-			workerStatus: [],
-			workerHealth: [],
-			workerStats: [],
+			workerStatus: Array.from({ length: maxWorkers }, () => false),
+			workerHealth: Array.from({ length: maxWorkers }, () => WorkerHealth.HEALTHY),
+			workerStats: Array.from({ length: maxWorkers }, () => ({
+				startTime: Date.now(),
+				taskCount: 0,
+				errorCount: 0,
+				averageTaskTime: 0,
+				lastActivity: Date.now(),
+				restartCount: 0
+			})),
 			config: {
 				maxWorkers,
 				maxConcurrentTasks: config?.maxConcurrentTasks || maxWorkers,
@@ -964,56 +941,37 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 			scalingInterval: null
 		};
 
-		// Initialize worker arrays
-		for (let i = 0; i < maxWorkers; i++) {
-			workerPool.workerHealth.push(WorkerHealth.HEALTHY);
-			workerPool.workerStats.push({
-				startTime: Date.now(),
-				taskCount: 0,
-				errorCount: 0,
-				averageTaskTime: 0,
-				lastActivity: Date.now(),
-				restartCount: 0
-			});
-		}
-
-		// Create the workers with proper error handling
+		// Create only minWorkers initially (lazy init)
+		const initialWorkers = minWorkers;
 		const workerPromises: Promise<Worker>[] = [];
-		for (let i = 0; i < maxWorkers; i++) {
-			const workerPromise = createWorker(workerInitializationTimeout);
-			workerPromises.push(workerPromise);
-
-			workerPromise
-				.then((worker) => {
-					workerPool!.workers.push(worker);
-					workerPool!.workerStatus.push(true); // Mark as available
-
-					// Set up message handler for each worker
-					worker.onmessage = (e: MessageEvent) => {
-						handleWorkerMessage(e, workerPool!.workers.length - 1);
-					};
-
-					debugLog(`Worker ${workerPool!.workers.length - 1} initialized successfully`);
-
-					// Process any queued tasks now that we have an available worker
-					processNextTask();
-				})
-				.catch((error) => {
-					console.error(`Failed to initialize worker ${i}:`, error);
-					// Add a placeholder to maintain index consistency
-					workerPool!.workers.push(null as unknown as Worker);
-					workerPool!.workerStatus.push(false); // Mark as unavailable
-					workerPool!.workerHealth[i] = WorkerHealth.ERROR; // Mark as failed
-				});
+		for (let i = 0; i < initialWorkers; i++) {
+			workerPromises.push(createWorker(workerInitializationTimeout));
 		}
 
-		// Wait for all workers to initialize
-		await Promise.allSettled(workerPromises);
+		const results = await Promise.allSettled(workerPromises);
+		results.forEach((result, i) => {
+			if (result.status === 'fulfilled') {
+				workerPool!.workers[i] = result.value;
+				workerPool!.workerStatus[i] = true;
+				result.value.onmessage = (e: MessageEvent) => {
+					handleWorkerMessage(e, i);
+				};
+				debugLog(`Worker ${i} initialized successfully`);
+				processNextTask();
+			} else {
+				workerPool!.workers[i] = null as unknown as Worker;
+				workerPool!.workerStatus[i] = false;
+				workerPool!.workerHealth[i] = WorkerHealth.ERROR;
+				console.error(`Failed to initialize worker ${i}:`, result.reason);
+			}
+		});
 
 		const successfulWorkers = workerPool.workers.filter(
 			(worker) => worker !== (null as unknown as Worker)
 		).length;
-		debugLog(`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers`);
+		debugLog(
+			`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers (${initialWorkers} eagerly)`
+		);
 
 		performanceMonitor.stopTimer(timerId);
 
@@ -1061,7 +1019,7 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 }
 
 /**
- * Start background processes for health checks and dynamic scaling
+ * Start background processes for health checks, dynamic scaling, and task timeout monitoring
  */
 function startBackgroundProcesses(healthCheckInterval: number): void {
 	if (!workerPool) return;
@@ -1074,9 +1032,47 @@ function startBackgroundProcesses(healthCheckInterval: number): void {
 	// Dynamic scaling interval - adjust worker count based on load
 	workerPool.scalingInterval = setInterval(() => {
 		performDynamicScaling();
-	}, 60000); // Every minute
+	}, 15000); // Every 15 seconds for faster warm-up
 
-	debugLog('Background processes started: health checks and dynamic scaling enabled');
+	// Task timeout monitoring
+	setInterval(() => {
+		if (!workerPool) return;
+		const now = Date.now();
+		for (const [taskId, task] of workerPool.activeTasks.entries()) {
+			if (now - task.timestamp > TASK_TIMEOUT_MS) {
+				console.error(`Task ${taskId} timed out after ${TASK_TIMEOUT_MS}ms`);
+				if (task.assignedWorker !== undefined) {
+					handleWorkerFailure(task.assignedWorker, 'Task timeout');
+				}
+				if (task._reject) {
+					task._reject(new Error('Task timeout'));
+				}
+				workerPool.activeTasks.delete(taskId);
+			}
+		}
+
+		// Drain detection: if all workers are in ERROR state and queue has items, reject everything
+		const allError =
+			workerPool.workers.length > 0 &&
+			workerPool.workers.every(
+				(_, i) =>
+					workerPool!.workerHealth[i] === WorkerHealth.ERROR ||
+					workerPool!.workers[i] === (null as unknown as Worker)
+			);
+		if (allError && workerPool.taskQueue.length > 0) {
+			console.error('All workers failed; draining task queue');
+			for (const task of workerPool.taskQueue) {
+				if (task._reject) {
+					task._reject(new Error('All workers failed'));
+				}
+			}
+			workerPool.taskQueue = [];
+		}
+	}, 30000); // Check every 30 seconds
+
+	debugLog(
+		'Background processes started: health checks, dynamic scaling, and timeout monitoring enabled'
+	);
 }
 
 /**
@@ -1163,9 +1159,10 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 }
 
 /**
- * Terminate all workers in the pool and cleanup background processes
+ * Terminate all workers in the pool and cleanup background processes.
+ * Returns a Promise that resolves after all workers are terminated and tasks rejected.
  */
-export function terminateWorkerPool(): void {
+export async function terminateWorkerPool(): Promise<void> {
 	if (!workerPool) return;
 
 	// Clear background intervals
