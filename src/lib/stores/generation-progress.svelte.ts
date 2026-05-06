@@ -299,23 +299,9 @@ class GenerationStateManager {
 			if (batchMatch) {
 				const current = parseInt(batchMatch[1]);
 				const total = parseInt(batchMatch[2]);
-				generationState.batchProgress = { current, total };
 
-				// Generate more descriptive message
-				const percent = Math.round(progress);
-				if (percent < 5) {
-					generationState.statusText = 'Starting engine and preparing layers...';
-				} else if (percent < 20) {
-					generationState.statusText = `Generating first batch of items (${generatedCount}/${totalCount})...`;
-				} else if (percent < 50) {
-					generationState.statusText = `Compositing layers for #${generatedCount + 1}...`;
-				} else if (percent < 80) {
-					generationState.statusText = `Processing collection... almost halfway through!`;
-				} else if (percent < 95) {
-					generationState.statusText = `Finalizing composition and metadata...`;
-				} else {
-					generationState.statusText = `Wrapping up generation...`;
-				}
+				generationState.batchProgress = { current, total };
+				generationState.statusText = `Generating item ${generatedCount}/${totalCount}`;
 			} else {
 				generationState.statusText = statusText;
 			}

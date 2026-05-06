@@ -87,23 +87,21 @@ if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
         const projectData = project;
 
         try {
+            generationState.statusText = `Packaging ${images.length} items into ZIP...`;
+
             await ExportService.packageZip({
                 project: projectData,
                 images,
                 metadata,
                 startTime: generationState.startTime ?? undefined,
                 onProgress: (progress) => {
-                    // Update status with progress information
-                    generationState.statusText = `${progress.message} (${progress.processed}/${progress.total})`;
+                    const percentage = Math.round((progress.processed / progress.total) * 100);
+                    generationState.statusText = percentage < 100
+                        ? `Packaging ZIP (${percentage}%) — ${progress.message}`
+                        : progress.message;
 
-                    // Show user-friendly progress for large collections
-                    if (images.length > 1000) {
-                        const percentage = Math.round((progress.processed / progress.total) * 100);
-                        if (percentage % 10 === 0 || progress.processed === progress.total) {
-if (import.meta.env.DEV) console.log(
-                                `Export progress: ${percentage}% (${progress.processed}/${progress.total})`
-                            );
-                        }
+                    if (import.meta.env.DEV && (percentage % 10 === 0 || progress.processed === progress.total)) {
+                        console.log(`Export progress: ${percentage}% (${progress.processed}/${progress.total})`);
                     }
                 }
             });

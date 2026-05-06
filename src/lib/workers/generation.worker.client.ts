@@ -13,6 +13,7 @@ import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { CSPSolver } from './csp-solver';
 import { TraitBatchScheduler } from './trait-batch-scheduler';
 import { initializeWorkerPool, setMessageCallback, terminateWorkerPool } from './worker.pool';
+import { generationState } from '$lib/stores/generation-progress.svelte';
 
 // Worker pool will be initialized on demand
 
@@ -80,7 +81,13 @@ async function solveOnMainThread(
 	if (import.meta.env.DEV) console.log(`🚀 Pre-solving ${collectionSize} unique combinations...`);
 	const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
 
+	generationState.statusText = `Solving trait combinations (0/${collectionSize})...`;
+
 	for (let i = 0; i < collectionSize; i++) {
+		// Update status text every 50 solutions to give user feedback
+		if (i % 50 === 0 && i > 0) {
+			generationState.statusText = `Solving trait combinations (${i}/${collectionSize})...`;
+		}
 		const solutionMap = solver.solve();
 		if (!solutionMap) {
 			throw new Error(`Exhausted all possible valid unique combinations at item ${i + 1}.`);
