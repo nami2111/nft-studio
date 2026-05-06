@@ -41,6 +41,12 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 						rarityWeight: trait.rarityWeight,
 						type: trait.type,
 						rulerRules: trait.rulerRules
+							? trait.rulerRules.map((r) => ({
+									layerId: r.layerId,
+									allowedTraitIds: [...r.allowedTraitIds],
+									forbiddenTraitIds: [...r.forbiddenTraitIds]
+								}))
+							: undefined
 					};
 
 					return transferrableTrait;

@@ -93,7 +93,20 @@ async function solveOnMainThread(
 				const layer = layers.find((l) => l.id === layerId);
 				return {
 					layerId,
-					trait: { ...trait },
+					trait: {
+						id: trait.id,
+						name: trait.name,
+						imageData: trait.imageData,
+						rarityWeight: trait.rarityWeight,
+						type: trait.type,
+						rulerRules: trait.rulerRules
+							? trait.rulerRules.map((r) => ({
+									layerId: r.layerId,
+									allowedTraitIds: [...r.allowedTraitIds],
+									forbiddenTraitIds: [...r.forbiddenTraitIds]
+								}))
+							: undefined
+					},
 					order: layer?.order || 0
 				};
 			})
@@ -169,7 +182,20 @@ async function solveInWorker(
 						return {
 							layerId: t.layerId,
 							trait: trait
-								? { ...trait }
+								? {
+										id: trait.id,
+										name: trait.name,
+										imageData: trait.imageData,
+										rarityWeight: trait.rarityWeight,
+										type: trait.type,
+										rulerRules: trait.rulerRules
+											? trait.rulerRules.map((r) => ({
+													layerId: r.layerId,
+													allowedTraitIds: [...r.allowedTraitIds],
+													forbiddenTraitIds: [...r.forbiddenTraitIds]
+												}))
+											: undefined
+									}
 								: ({ id: t.traitId, name: t.traitName } as TransferrableTrait)
 						};
 					});
