@@ -40,6 +40,19 @@ export interface Solution {
 	}[];
 }
 
+/** Strip imageData from layers payload — workers only need layer names for metadata, never access trait buffers from the layers array. */
+function stripImageDataFromLayers(
+	layers: import('$lib/types/worker-messages').TransferrableLayer[]
+): import('$lib/types/worker-messages').TransferrableLayer[] {
+	return layers.map((layer) => ({
+		...layer,
+		traits: layer.traits.map((trait) => {
+			const { imageData: _, ...meta } = trait;
+			return meta as import('$lib/types/worker-messages').TransferrableTrait;
+		})
+	}));
+}
+
 function calculateAdaptiveBatchSize(
 	collectionSize: number,
 	workerCount: number,
@@ -135,7 +148,7 @@ export class TraitBatchScheduler {
 					type: 'batch',
 					payload: {
 						solutions: batchSolutions,
-						layers,
+						layers: stripImageDataFromLayers(layers),
 						collectionSize,
 						outputSize,
 						projectName,

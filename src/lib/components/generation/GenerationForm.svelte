@@ -32,6 +32,7 @@
     let collectionSize = $state<number | null>(100);
     let isComponentDestroyed = $state(false);
     let isPackaging = $state(false);
+    let isStreamingZip = $state(false);
 
     // Derived state from persistent store
     const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
@@ -113,8 +114,12 @@ if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
                 description: `Your download has started (${images.length} items). ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
             });
 
-            // Complete the generation in persistent store
+			// Complete the generation in persistent store
             completeGeneration();
+
+            // Free memory from accumulated image/metadata data
+            generationState.allImages = [];
+            generationState.allMetadata = [];
         } catch (error) {
             console.error('Export error details:', error);
 
@@ -136,6 +141,9 @@ if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
             generationState.error = error instanceof Error ? error.message : 'Packaging failed';
         } finally {
             isPackaging = false;
+            // Free memory from accumulated data regardless of outcome
+            generationState.allImages = [];
+            generationState.allMetadata = [];
         }
     }
 
@@ -209,6 +217,10 @@ if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
 
 if (import.meta.env.DEV) console.log(`🚀 Starting generation session: ${sessionId}`);
 
+            // Start streaming ZIP worker to receive batches during generation
+            ExportService.startStreamingZip(sessionId, projectData.name || 'collection');
+            isStreamingZip = true;
+
             // Set up worker message handler that delegates to persistent store
             const workerMessageHandler = async (
                 data: ProgressMessage | CompleteMessage | ErrorMessage | CancelledMessage | PreviewMessage
@@ -223,21 +235,50 @@ if (import.meta.env.DEV) console.log(`🚀 Starting generation session: ${sessio
                             updateProgress(message);
                             break;
                         case 'complete':
-                            if (message.payload.images) addImages(message.payload.images);
-                            if (message.payload.metadata)
-                                addMetadata(
-                                    message.payload.metadata as { name: string; data: Record<string, unknown> }[]
-                                );
-                            // Check if generation is complete
-                            if (collectionSize && generationState.allImages.length >= collectionSize) {
-                                // Package in background if possible, or wait for user to return
+                            // Handle streamed/chunked image data
+                            if (message.payload.images && message.payload.images.length > 0) {
+                                if (message.payload.isChunk && isStreamingZip) {
+                                    const streamImages = message.payload.images.map((img) => ({
+                                        name: img.name,
+                                        data: img.imageData
+                                    }));
+                                    ExportService.addStreamingChunk(
+                                        streamImages,
+                                        message.payload.metadata || []
+                                    );
+                                    message.payload.images.length = 0;
+                                } else {
+                                    addImages(message.payload.images);
+                                }
+                            }
+
+                            // Finalize ZIP when scheduler sends terminal complete (isChunk absent)
+                            if (!message.payload.isChunk) {
+                                if (isStreamingZip && collectionSize) {
+                                    try {
+                                        await ExportService.finalizeStreamingZip(
+                                            projectData.name || 'collection'
+                                        );
+                                    } catch (err) {
+                                        console.error('Background ZIP finalization failed:', err);
+                                    }
+                                    isStreamingZip = false;
+                                }
 if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                             }
                             break;
                         case 'error':
+                            if (isStreamingZip) {
+                                ExportService.cancelStreamingZip();
+                                isStreamingZip = false;
+                            }
                             handleError(message);
                             break;
                         case 'cancelled':
+                            if (isStreamingZip) {
+                                ExportService.cancelStreamingZip();
+                                isStreamingZip = false;
+                            }
                             completeGeneration(); // Mark as complete but cancelled
                             break;
                     }
@@ -264,9 +305,27 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                     case 'complete':
                         // Handle streamed/chunked image data
                         if (message.payload.images && message.payload.images.length > 0) {
-                            addImages(message.payload.images);
+                            if (message.payload.isChunk && isStreamingZip) {
+                                // Stream to ZIP worker — transfer ownership, don't accumulate
+                                const streamImages = message.payload.images.map((img) => ({
+                                    name: img.name,
+                                    data: img.imageData
+                                }));
+                                ExportService.addStreamingChunk(
+                                    streamImages,
+                                    message.payload.metadata || []
+                                );
+                                // Images transferred to ZIP — clear reference
+                                message.payload.images.length = 0;
+                            } else {
+                                addImages(message.payload.images);
+                            }
                         }
-                        if (message.payload.metadata && message.payload.metadata.length > 0) {
+                        if (
+                            !message.payload.isChunk &&
+                            message.payload.metadata &&
+                            message.payload.metadata.length > 0
+                        ) {
                             addMetadata(
                                 message.payload.metadata as { name: string; data: Record<string, unknown> }[]
                             );
@@ -274,23 +333,50 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
 
                         // Package when the scheduler sends the terminal complete (isChunk is absent/undefined)
                         if (!message.payload.isChunk) {
-                            if (import.meta.env.DEV)
-                                console.log(
-                                    'Generation complete, packaging:',
-                                    generationState.allImages.length,
-                                    'images,',
-                                    generationState.allMetadata.length,
-                                    'metadata'
+                            if (isStreamingZip) {
+                                // Finalize streaming ZIP instead of packaging from memory
+                                generationState.statusText = 'Finalizing ZIP...';
+                                await ExportService.finalizeStreamingZip(
+                                    projectData.name || 'collection',
+                                    (progress) => {
+                                        generationState.statusText =
+                                            progress.message;
+                                    }
                                 );
+                                isStreamingZip = false;
+                                showSuccess('Generation complete', {
+                                    description: `Your download has started.`
+                                });
+                                completeGeneration();
+                                generationState.allImages = [];
+                                generationState.allMetadata = [];
+                            } else {
+                                if (import.meta.env.DEV)
+                                    console.log(
+                                        'Generation complete, packaging:',
+                                        generationState.allImages.length,
+                                        'images,',
+                                        generationState.allMetadata.length,
+                                        'metadata'
+                                    );
 
-                            await packageZip(generationState.allImages, generationState.allMetadata);
+                                await packageZip(generationState.allImages, generationState.allMetadata);
+                            }
                         }
                         break;
                     case 'cancelled':
+                        if (isStreamingZip) {
+                            ExportService.cancelStreamingZip();
+                            isStreamingZip = false;
+                        }
                         completeGeneration();
                         showInfo('Generation has been cancelled.');
                         break;
                     case 'error':
+                        if (isStreamingZip) {
+                            ExportService.cancelStreamingZip();
+                            isStreamingZip = false;
+                        }
                         handleError(message);
                         showError(new Error(message.payload.message), {
                             title: 'Generation Error',
@@ -324,6 +410,11 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                 workerMessageHandler
             );
         } catch (error) {
+            // Cancel streaming ZIP if active
+            if (isStreamingZip) {
+                ExportService.cancelStreamingZip();
+                isStreamingZip = false;
+            }
             showError(error, {
                 title: 'Generation Failed',
                 description: 'An unknown error occurred during generation. Please try again.'
@@ -333,6 +424,11 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
     }
 
     function handleCancel() {
+        // Cancel streaming ZIP if active
+        if (isStreamingZip) {
+            ExportService.cancelStreamingZip();
+            isStreamingZip = false;
+        }
         // Cancel generation and clean up all resources
         cancelGeneration();
         showInfo('Generation has been cancelled.');

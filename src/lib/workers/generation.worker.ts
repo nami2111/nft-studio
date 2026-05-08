@@ -18,7 +18,58 @@ import { PredictiveTraitLoader } from './optimization/predictive.loader';
 // Global worker instances
 const workerArrayBufferCache = new WorkerArrayBufferCache();
 const perfMonitor = new PerformanceMonitor();
+
+// Bounded LRU cache for ImageBitmaps (max 64 entries to bound GPU memory)
+const IMAGE_BITMAP_CACHE_MAX = 64;
 const imageBitmapCache = new Map<string, ImageBitmap>();
+const imageBitmapCacheOrder: string[] = []; // access order (oldest first)
+
+function getImageBitmap(key: string): ImageBitmap | undefined {
+	const bitmap = imageBitmapCache.get(key);
+	if (bitmap) {
+		// Move to end (most recently used)
+		const idx = imageBitmapCacheOrder.indexOf(key);
+		if (idx > -1) {
+			imageBitmapCacheOrder.splice(idx, 1);
+			imageBitmapCacheOrder.push(key);
+		}
+	}
+	return bitmap;
+}
+
+function setImageBitmap(key: string, bitmap: ImageBitmap): void {
+	if (imageBitmapCache.has(key)) {
+		// Update existing - move to end
+		const idx = imageBitmapCacheOrder.indexOf(key);
+		if (idx > -1) {
+			imageBitmapCacheOrder.splice(idx, 1);
+		}
+		imageBitmapCacheOrder.push(key);
+		return;
+	}
+
+	if (imageBitmapCache.size >= IMAGE_BITMAP_CACHE_MAX) {
+		// Evict oldest
+		const oldestKey = imageBitmapCacheOrder.shift();
+		if (oldestKey) {
+			const oldBitmap = imageBitmapCache.get(oldestKey);
+			if (oldBitmap) oldBitmap.close();
+			imageBitmapCache.delete(oldestKey);
+		}
+	}
+
+	imageBitmapCache.set(key, bitmap);
+	imageBitmapCacheOrder.push(key);
+}
+
+function clearImageBitmapCache(): void {
+	for (const bitmap of imageBitmapCache.values()) {
+		bitmap.close();
+	}
+	imageBitmapCache.clear();
+	imageBitmapCacheOrder.length = 0;
+}
+
 const memoryManager = new OptimizedMemoryManager();
 const predictiveTraitLoader = new PredictiveTraitLoader();
 
@@ -45,7 +96,7 @@ async function createImageBitmapFromBuffer(
 
 	const cacheKey = `${traitName}_${buffer.byteLength}_${options?.resizeWidth || 0}_${options?.resizeHeight || 0}`;
 
-	const cachedBitmap = imageBitmapCache.get(cacheKey);
+	const cachedBitmap = getImageBitmap(cacheKey);
 	if (cachedBitmap) return cachedBitmap;
 
 	const cachedBuffer = workerArrayBufferCache.get(cacheKey);
@@ -69,22 +120,12 @@ async function createImageBitmapFromBuffer(
 		}
 
 		const bitmap = await createImageBitmap(blob, imageBitmapOptions);
-		imageBitmapCache.set(cacheKey, bitmap);
+		setImageBitmap(cacheKey, bitmap);
 		return bitmap;
 	} catch (error) {
 		console.error(`Failed to create ImageBitmap for ${traitName}:`, error);
 		throw error;
 	}
-}
-
-/**
- * Cleanup ImageBitmap cache
- */
-function clearImageBitmapCache() {
-	for (const bitmap of imageBitmapCache.values()) {
-		bitmap.close();
-	}
-	imageBitmapCache.clear();
 }
 
 /**
