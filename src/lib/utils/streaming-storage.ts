@@ -151,6 +151,17 @@ export async function iterateImages(
 }
 
 /**
+ * Get all metadata for a session as a single array.
+ */
+export async function getAllMetadata(sessionId: string): Promise<StreamedMetadata[]> {
+	const out: StreamedMetadata[] = [];
+	await iterateMetadata(sessionId, (batch) => {
+		out.push(...batch);
+	});
+	return out;
+}
+
+/**
  * Iterate over all metadata for a session in index order, invoking a callback for each batch.
  */
 export async function iterateMetadata(

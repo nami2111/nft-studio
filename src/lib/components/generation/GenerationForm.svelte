@@ -25,6 +25,7 @@
     import { onDestroy } from 'svelte';
     import { MetadataStandard } from '$lib/domain/metadata/strategies';
     import { ExportService } from '$lib/services/export.service';
+    import { isFlagEnabled } from '$lib/config/feature-flags';
     import GenerationProgress from './GenerationProgress.svelte';
     import GenerationControls from './GenerationControls.svelte';
 
@@ -87,12 +88,18 @@ if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
         const projectData = project;
 
         try {
-            generationState.statusText = `Packaging ${images.length} items into ZIP...`;
+            const itemCount =
+                isFlagEnabled('enableStreamingStorage') && generationState.sessionId
+                    ? Math.max(images.length, generationState.streamedImageCount)
+                    : images.length;
+
+            generationState.statusText = `Packaging ${itemCount} items into ZIP...`;
 
             await ExportService.packageZip({
                 project: projectData,
                 images,
                 metadata,
+                sessionId: generationState.sessionId ?? undefined,
                 startTime: generationState.startTime ?? undefined,
                 onProgress: (progress) => {
                     const percentage = Math.round((progress.processed / progress.total) * 100);
@@ -106,19 +113,16 @@ if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
                 }
             });
 
-            // Update persistent state
             generationState.statusText = 'Download started.';
 
             showSuccess('Generation complete', {
-                description: `Your download has started (${images.length} items). ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
+                description: `Your download has started (${itemCount} items). ${itemCount > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
             });
 
-            // Complete the generation in persistent store
             completeGeneration();
         } catch (error) {
             console.error('Export error details:', error);
 
-            // Handle memory allocation errors specifically
             if (error instanceof Error && error.message.includes('Array buffer allocation failed')) {
                 showError(error, {
                     title: 'Memory Limit Exceeded',
@@ -229,9 +233,13 @@ if (import.meta.env.DEV) console.log(`🚀 Starting generation session: ${sessio
                                     message.payload.metadata as { name: string; data: Record<string, unknown> }[]
                                 );
                             // Check if generation is complete
-                            if (collectionSize && generationState.allImages.length >= collectionSize) {
+                            const totalGenerated =
+                                isFlagEnabled('enableStreamingStorage') && generationState.sessionId
+                                    ? generationState.streamedImageCount
+                                    : generationState.allImages.length;
+                            if (collectionSize && totalGenerated >= collectionSize) {
                                 // Package in background if possible, or wait for user to return
-if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
+                                if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                             }
                             break;
                         case 'error':
@@ -283,7 +291,17 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                                     'metadata'
                                 );
 
-                            await packageZip(generationState.allImages, generationState.allMetadata);
+                            const streaming =
+                                isFlagEnabled('enableStreamingStorage') && generationState.sessionId;
+                            if (streaming) {
+                                // Use streamed counters (arrays are empty because data went to IndexedDB)
+                                await packageZip(
+                                    [],
+                                    []
+                                );
+                            } else {
+                                await packageZip(generationState.allImages, generationState.allMetadata);
+                            }
                         }
                         break;
                     case 'cancelled':

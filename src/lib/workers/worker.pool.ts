@@ -860,9 +860,9 @@ function sanitizeForClone(value: unknown, depth = 0): unknown {
 	if (typeof value === 'function') return undefined;
 	if (typeof value === 'symbol') return undefined;
 
-	// ArrayBuffer — safe for structuredClone but we re-slice to be defensive
+	// ArrayBuffer — return as-is so structuredClone can transfer it without duplicating
 	if (value instanceof ArrayBuffer) {
-		return value.byteLength > 0 ? value.slice(0) : value;
+		return value;
 	}
 	if (typeof SharedArrayBuffer !== 'undefined' && value instanceof SharedArrayBuffer) {
 		return value;
