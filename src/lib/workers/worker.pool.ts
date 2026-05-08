@@ -978,6 +978,7 @@ function processNextTask(): void {
 
 	// Assign task to worker
 	task.assignedWorker = bestWorker;
+	task.timestamp = Date.now();
 	workerPool.activeTasks.set(task.id, task);
 	workerPool.workerStatus[bestWorker] = false; // Mark as busy
 
