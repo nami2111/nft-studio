@@ -80,26 +80,29 @@ export async function streamBatch(
 	images: StreamedImage[],
 	metadata: StreamedMetadata[]
 ): Promise<void> {
+	// Eagerly clone image buffers and metadata so callers can safely transfer originals
+	const imageRecords = images.map((img, i) => ({
+		key: imageKey(sessionId, startIndex + i),
+		name: img.name,
+		imageData: img.imageData.slice()
+	}));
+	const metadataRecords = metadata.map((meta, i) => ({
+		key: metadataKey(sessionId, startIndex + i),
+		name: meta.name,
+		data: structuredClone(meta.data)
+	}));
+
 	const db = await initDB();
 	const tx = db.transaction([IMAGES_STORE, METADATA_STORE], 'readwrite');
 	const imageStore = tx.objectStore(IMAGES_STORE);
 	const metaStore = tx.objectStore(METADATA_STORE);
 
-	for (let i = 0; i < images.length; i++) {
-		const img = images[i];
-		const meta = metadata[i];
-		imageStore.put({
-			key: imageKey(sessionId, startIndex + i),
-			name: img.name,
-			imageData: img.imageData
-		});
-		if (meta) {
-			metaStore.put({
-				key: metadataKey(sessionId, startIndex + i),
-				name: meta.name,
-				data: meta.data
-			});
-		}
+	for (const record of imageRecords) {
+		imageStore.put(record);
+	}
+
+	for (const record of metadataRecords) {
+		metaStore.put(record);
 	}
 
 	await tx.done;

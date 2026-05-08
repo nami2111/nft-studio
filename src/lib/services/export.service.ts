@@ -94,7 +94,7 @@ function startZipStreamWorker(taskId: string): void {
 		const data = e.data;
 		if (data.type === 'zip-complete') {
 			const { buffer, partIndex, isFinal } = data.payload;
-			if (buffer && partIndex) {
+			if (buffer != null && partIndex != null) {
 				downloadZipBuffer(buffer, `${zipStreamProjectName}_part_${partIndex}.zip`);
 			}
 
@@ -310,6 +310,9 @@ export class ExportService {
 			message: 'Offloading ZIP creation to worker...'
 		});
 
+		// Capture total before clearing arrays so progress reports correctly
+		const totalItems = images.length + metadata.length;
+
 		// Clear source arrays - buffers are transferred to worker
 		images.length = 0;
 		metadata.length = 0;
@@ -336,8 +339,8 @@ export class ExportService {
 		ExportService.downloadBlob(blob, `${project.name || 'collection'}.zip`);
 
 		onProgress?.({
-			processed: images.length + metadata.length,
-			total: images.length + metadata.length,
+			processed: totalItems,
+			total: totalItems,
 			message: 'ZIP created and download started'
 		});
 	}

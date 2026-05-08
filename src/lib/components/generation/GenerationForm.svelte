@@ -25,6 +25,7 @@
     import { onDestroy } from 'svelte';
     import { MetadataStandard } from '$lib/domain/metadata/strategies';
     import { ExportService } from '$lib/services/export.service';
+    import { isFlagEnabled } from '$lib/config/feature-flags';
     import GenerationProgress from './GenerationProgress.svelte';
     import GenerationControls from './GenerationControls.svelte';
 
@@ -114,7 +115,7 @@ if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
                 description: `Your download has started (${images.length} items). ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
             });
 
-			// Complete the generation in persistent store
+            // Complete the generation in persistent store
             completeGeneration();
 
             // Free memory from accumulated image/metadata data
@@ -238,6 +239,14 @@ if (import.meta.env.DEV) console.log(`🚀 Starting generation session: ${sessio
                             // Handle streamed/chunked image data
                             if (message.payload.images && message.payload.images.length > 0) {
                                 if (message.payload.isChunk && isStreamingZip) {
+                                    if (isFlagEnabled('enableStreamingStorage')) {
+                                        addImages(message.payload.images);
+                                        if (message.payload.metadata?.length) {
+                                            addMetadata(
+                                                message.payload.metadata as { name: string; data: Record<string, unknown> }[]
+                                            );
+                                        }
+                                    }
                                     const streamImages = message.payload.images.map((img) => ({
                                         name: img.name,
                                         data: img.imageData
@@ -306,6 +315,14 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                         // Handle streamed/chunked image data
                         if (message.payload.images && message.payload.images.length > 0) {
                             if (message.payload.isChunk && isStreamingZip) {
+                                if (isFlagEnabled('enableStreamingStorage')) {
+                                    addImages(message.payload.images);
+                                    if (message.payload.metadata?.length) {
+                                        addMetadata(
+                                            message.payload.metadata as { name: string; data: Record<string, unknown> }[]
+                                        );
+                                    }
+                                }
                                 // Stream to ZIP worker — transfer ownership, don't accumulate
                                 const streamImages = message.payload.images.map((img) => ({
                                     name: img.name,

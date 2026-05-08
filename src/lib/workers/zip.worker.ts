@@ -28,7 +28,6 @@ type IncomingZipMessage = ZipMessage | ZipChunkMessage;
 
 const MAX_ZIP_RAW_SIZE = 700 * 1024 * 1024;
 
-let currentZip: JSZip | null = null;
 let currentTaskId: string | null = null;
 let totalFilesAdded = 0;
 
@@ -62,7 +61,7 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 			partIndex = volumeIndex;
 		}
 
-		if (content && partIndex > 0) {
+		if (content) {
 			(self as unknown as Worker).postMessage(
 				{
 					type: 'zip-complete',
@@ -73,7 +72,7 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 						isFinal
 					}
 				},
-				content ? ([content] as unknown as Transferable[]) : []
+				[content] as unknown as Transferable[]
 			);
 		} else if (isFinal) {
 			// Final with no files - send empty completion to resolve main thread
@@ -146,8 +145,7 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 	} else if (type === 'zip-chunk') {
 		const { imageFiles, isFinal } = payload;
 
-		if (!currentZip || currentTaskId !== taskId) {
-			currentZip = null;
+		if (currentTaskId !== taskId) {
 			currentTaskId = taskId;
 			pendingFiles = [];
 			pendingSize = 0;
@@ -171,16 +169,15 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 				}
 			});
 
-			if (pendingSize >= MAX_ZIP_RAW_SIZE) {
-				await flushVolume(false);
-			}
-
 			if (isFinal) {
 				await flushVolume(true);
-				currentZip = null;
 				currentTaskId = null;
 				pendingFiles = [];
 				pendingSize = 0;
+				volumeIndex = 0;
+				totalFilesAdded = 0;
+			} else if (pendingSize >= MAX_ZIP_RAW_SIZE) {
+				await flushVolume(false);
 			}
 		} catch (error) {
 			(self as unknown as Worker).postMessage({
@@ -190,10 +187,11 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 					error: error instanceof Error ? error.message : String(error)
 				}
 			});
-			currentZip = null;
 			currentTaskId = null;
 			pendingFiles = [];
 			pendingSize = 0;
+			volumeIndex = 0;
+			totalFilesAdded = 0;
 		}
 	}
 };

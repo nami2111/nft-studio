@@ -42,6 +42,10 @@ export interface GenerationState {
 	allMetadata: { name: string; data: Record<string, unknown> }[];
 	previews: { index: number; url: string }[];
 
+	// Streaming storage counters (avoid relying on allImages.length when streaming)
+	streamedImageCount: number;
+	streamedMetadataCount: number;
+
 	// Critical generation logic state
 	usedCombinations: Map<string, Set<string>>; // Strict pair tracking
 	strictPairConfig: StrictPairConfig | null;
@@ -94,6 +98,8 @@ const createDefaultState = (): GenerationState => ({
 	allImages: [],
 	allMetadata: [],
 	previews: [],
+	streamedImageCount: 0,
+	streamedMetadataCount: 0,
 	usedCombinations: new SvelteMap(),
 	strictPairConfig: null,
 	projectConfig: null,
@@ -330,9 +336,11 @@ class GenerationStateManager {
 
 		if (isFlagEnabled('enableStreamingStorage') && generationState.sessionId) {
 			// Stream to IndexedDB asynchronously; do not block UI
+			const startIndex = generationState.streamedImageCount;
+			generationState.streamedImageCount += images.length;
 			streamBatch(
 				generationState.sessionId,
-				generationState.allImages.length,
+				startIndex,
 				images,
 				[] // metadata is handled separately
 			).catch((err) => {
@@ -357,13 +365,10 @@ class GenerationStateManager {
 
 		if (isFlagEnabled('enableStreamingStorage') && generationState.sessionId) {
 			// Stream to IndexedDB asynchronously
+			const startIndex = generationState.streamedMetadataCount;
+			generationState.streamedMetadataCount += metadata.length;
 			const promises = metadata.map((meta, i) =>
-				streamMetadata(
-					generationState.sessionId!,
-					generationState.allMetadata.length + i,
-					meta.name,
-					meta.data
-				)
+				streamMetadata(generationState.sessionId!, startIndex + i, meta.name, meta.data)
 			);
 			Promise.all(promises).catch((err) => {
 				console.warn('Streaming metadata failed, falling back to memory:', err);
