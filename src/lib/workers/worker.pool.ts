@@ -65,6 +65,7 @@ interface WorkerPool {
 	activeTasks: Map<string, WorkerTask>;
 	workerStatus: boolean[]; // true = available, false = busy
 	workerHealth: WorkerHealth[]; // Track health status of each worker
+	workerTaskCount: number[]; // Track active task count per worker (O(1) lookup)
 	workerStats: {
 		startTime: number;
 		taskCount: number;
@@ -373,6 +374,11 @@ function reassignWorkerTasks(failedWorkerIndex: number): void {
 		}
 	}
 
+	// PERF-3: Reset task count for failed worker
+	if (failedWorkerIndex >= 0 && failedWorkerIndex < workerPool.workerTaskCount.length) {
+		workerPool.workerTaskCount[failedWorkerIndex] = 0;
+	}
+
 	// Add tasks back to queue with updated timestamps
 	reassignedTasks.forEach((task) => {
 		task.timestamp = Date.now();
@@ -512,6 +518,9 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 					if (task._reject) task._reject(new Error('Generation cancelled'));
 				}
 				workerPool.activeTasks.delete(messageTaskId);
+				if (workerIndex >= 0 && workerIndex < workerPool.workerTaskCount.length) {
+					workerPool.workerTaskCount[workerIndex]--;
+				}
 				foundTask = true;
 			}
 		}
@@ -545,6 +554,9 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 
 					// Remove the task from active tasks
 					workerPool.activeTasks.delete(taskId);
+					if (workerIndex >= 0 && workerIndex < workerPool.workerTaskCount.length) {
+						workerPool.workerTaskCount[workerIndex]--;
+					}
 					foundTask = true;
 					break;
 				}
@@ -605,44 +617,26 @@ function updateWorkerPerformance(
 }
 
 /**
- * Find the least loaded worker using work stealing algorithm
- * Selects the worker with the fewest active tasks for optimal load balancing
+ * Find the least loaded worker using O(1) task count lookup
+ * Selects the available worker with the fewest active tasks for optimal load balancing
  */
 function findBestWorkerForTask(): number | null {
 	if (!workerPool) return null;
 
-	// Find all available workers
-	const availableWorkers: number[] = [];
+	let bestWorker: number | null = null;
+	let bestCount = Infinity;
+	let bestAvgTime = Infinity;
+
 	for (let i = 0; i < workerPool.workers.length; i++) {
-		if (workerPool.workers[i] && workerPool.workerStatus[i]) {
-			availableWorkers.push(i);
-		}
-	}
+		if (!workerPool.workers[i] || !workerPool.workerStatus[i]) continue;
 
-	if (availableWorkers.length === 0) {
-		return null;
-	}
+		const taskCount = workerPool.workerTaskCount[i];
+		const avgTime = workerPool.workerStats[i].averageTaskTime;
 
-	// Use live active task count instead of historical taskCount for accurate load balancing
-	let bestWorker = availableWorkers[0];
-	let bestActiveCount = Array.from(workerPool.activeTasks.values()).filter(
-		(t) => t.assignedWorker === bestWorker
-	).length;
-	let bestAvgTime = workerPool.workerStats[bestWorker].averageTaskTime;
-
-	for (let i = 1; i < availableWorkers.length; i++) {
-		const workerIndex = availableWorkers[i];
-		const activeCount = Array.from(workerPool.activeTasks.values()).filter(
-			(t) => t.assignedWorker === workerIndex
-		).length;
-		if (
-			activeCount < bestActiveCount ||
-			(activeCount === bestActiveCount &&
-				workerPool.workerStats[workerIndex].averageTaskTime < bestAvgTime)
-		) {
-			bestActiveCount = activeCount;
-			bestWorker = workerIndex;
-			bestAvgTime = workerPool.workerStats[workerIndex].averageTaskTime;
+		if (taskCount < bestCount || (taskCount === bestCount && avgTime < bestAvgTime)) {
+			bestWorker = i;
+			bestCount = taskCount;
+			bestAvgTime = avgTime;
 		}
 	}
 
@@ -726,6 +720,7 @@ async function addSingleWorker(): Promise<void> {
 		workerPool.workers.push(newWorker);
 		workerPool.workerStatus.push(true);
 		workerPool.workerHealth.push(WorkerHealth.HEALTHY);
+		workerPool.workerTaskCount.push(0);
 		workerPool.workerStats.push({
 			startTime: Date.now(),
 			taskCount: 0,
@@ -766,6 +761,7 @@ function removeWorker(workerIndex: number): void {
 	// Update status arrays
 	workerPool.workerStatus[workerIndex] = false;
 	workerPool.workerHealth[workerIndex] = WorkerHealth.REMOVED;
+	workerPool.workerTaskCount[workerIndex] = 0;
 
 	// Clear any queued tasks assigned to this worker
 	const removedTasks: WorkerTask[] = [];
@@ -981,6 +977,7 @@ function processNextTask(): void {
 	task.timestamp = Date.now();
 	workerPool.activeTasks.set(task.id, task);
 	workerPool.workerStatus[bestWorker] = false; // Mark as busy
+	workerPool.workerTaskCount[bestWorker]++; // PERF-3: O(1) task count increment
 
 	// Post message to worker (only send the message, not the task with functions)
 	try {
@@ -991,11 +988,25 @@ function processNextTask(): void {
 		};
 
 		// Only include payload if it exists (not all message types have payload)
-		// Use safeStructuredClone which handles class instances with # private fields
+		// PERF-4: Skip safeStructuredClone for batch-ref messages (plain objects only).
+		// For batch/init-layers, structuredClone handles Transferable ArrayBuffers natively.
 		let messageToSend: { type: string; taskId: string; payload?: unknown };
 		if ('payload' in task.message) {
-			const cleanPayload = safeStructuredClone(task.message.payload);
-			messageToSend = { ...baseMessage, payload: cleanPayload };
+			const payload = task.message.payload;
+			if (task.message.type === 'batch-ref') {
+				// batch-ref payloads are plain objects (traitRefs, strings, numbers) —
+				// no class instances or private fields. structuredClone is safe and fast.
+				messageToSend = { ...baseMessage, payload: structuredClone(payload) };
+			} else {
+				// batch/init-layers payloads contain TransferrableTrait with imageData ArrayBuffers.
+				// structuredClone handles these natively via Transferable; fall back to
+				// safeStructuredClone only if it fails.
+				try {
+					messageToSend = { ...baseMessage, payload: structuredClone(payload) };
+				} catch {
+					messageToSend = { ...baseMessage, payload: safeStructuredClone(payload) };
+				}
+			}
 		} else {
 			messageToSend = baseMessage;
 		}
@@ -1046,6 +1057,7 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 			activeTasks: new Map(),
 			workerStatus: Array.from({ length: maxWorkers }, () => false),
 			workerHealth: Array.from({ length: maxWorkers }, () => WorkerHealth.HEALTHY),
+			workerTaskCount: Array.from({ length: maxWorkers }, () => 0),
 			workerStats: Array.from({ length: maxWorkers }, () => ({
 				startTime: Date.now(),
 				taskCount: 0,
