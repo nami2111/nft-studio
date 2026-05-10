@@ -25,7 +25,6 @@ interface ImpossibleCombination {
 	partialAssignment: string;
 	reason: string;
 	constraintHash: string; // Hash of constraints for fast lookup
-	predictedDeadEnd: boolean;
 }
 
 // Enhanced Arc data structure with constraint weights
@@ -42,7 +41,6 @@ interface Domain {
 	availableTraits: TransferrableTrait[];
 	originalSize: number;
 	constraintInfluence: Map<string, number>; // layerId -> influence score
-	predictedElimination: Set<string>; // Traits likely to be eliminated
 }
 
 // PERF-2: Domain change frame for efficient trail-based backtracking.
@@ -111,7 +109,6 @@ export class CSPSolver {
 		backtracks: 0,
 		ac3Iterations: 0,
 		earlyTerminations: 0,
-		predictedDeadEnds: 0,
 		constraintCacheHits: 0
 	};
 	private maxCacheSize = 1000;
@@ -255,8 +252,7 @@ export class CSPSolver {
 				layerId: layer.id,
 				availableTraits: [...layer.traits],
 				originalSize: layer.traits.length,
-				constraintInfluence: new Map<string, number>(),
-				predictedElimination: new Set<string>()
+				constraintInfluence: new Map<string, number>()
 			});
 		}
 	}
@@ -550,7 +546,7 @@ export class CSPSolver {
 		// PERF-2: Identify which neighbor domains we'll need to restore on backtrack.
 		// Only save domains for directly constrained neighbors, not all L layers.
 		// This reduces snapshot cost from O(L×D) to O(N×D_neighbor) where N << L.
-		const neighborIds = this.constraints.get(nextLayer.id);
+		const neighborIds = this.constraints.get(nextLayer.id) || null;
 
 		for (const trait of candidates) {
 			// PERF-2: Start a new domain change frame.
@@ -645,10 +641,7 @@ export class CSPSolver {
 	 *
 	 * @returns true if all neighbor domains remain non-empty after pruning
 	 */
-	private forwardCheckNeighbors(
-		assignedLayerId: string,
-		neighborIds: Set<string> | null
-	): boolean {
+	private forwardCheckNeighbors(assignedLayerId: string, neighborIds: Set<string> | null): boolean {
 		if (!neighborIds || neighborIds.size === 0) {
 			return true; // No neighbors to check
 		}
@@ -665,9 +658,8 @@ export class CSPSolver {
 			const beforeLen = neighborDomain.availableTraits.length;
 
 			// Revise: keep only traits consistent with the newly assigned trait
-			neighborDomain.availableTraits = neighborDomain.availableTraits.filter(
-				(neighborTrait) =>
-					this.isConsistent(assignedTrait, assignedLayerId, neighborTrait, neighborId)
+			neighborDomain.availableTraits = neighborDomain.availableTraits.filter((neighborTrait) =>
+				this.isConsistent(assignedTrait, assignedLayerId, neighborTrait, neighborId)
 			);
 
 			// Dead end: neighbor has no valid traits left
@@ -764,35 +756,6 @@ export class CSPSolver {
 	}
 
 	/**
-	 * Create a snapshot of current domains for backtracking
-	 * (Kept as legacy; primary path uses trail-based restoration)
-	 */
-	private snapshotDomains(): Map<string, Domain> {
-		const snapshot = new Map<string, Domain>();
-		for (const [layerId, domain] of this.domains) {
-			snapshot.set(layerId, {
-				layerId: domain.layerId,
-				availableTraits: [...domain.availableTraits],
-				originalSize: domain.originalSize,
-				constraintInfluence: new Map(domain.constraintInfluence),
-				predictedElimination: new Set(domain.predictedElimination)
-			});
-		}
-		return snapshot;
-	}
-
-	/**
-	 * Restore domains from snapshot (backtracking)
-	 * (Kept as legacy; primary path uses trail-based restoration)
-	 */
-	private restoreDomains(snapshot: Map<string, Domain>): void {
-		this.domains.clear();
-		for (const [layerId, domain] of snapshot) {
-			this.domains.set(layerId, domain);
-		}
-	}
-
-	/**
 	 * Assign a trait to a layer (removes it from domain)
 	 */
 	private assignTrait(layerId: string, trait: TransferrableTrait): void {
@@ -819,14 +782,10 @@ export class CSPSolver {
 		// Generate constraint hash for faster lookup
 		const constraintHash = this.generateConstraintHash(key);
 
-		// BUG-2 fix: Replaced broken predictDeadEnd() with domain-emptiness heuristic.
-		const predictedDeadEnd = this.predictDeadEnd();
-
 		this.impossibleCombinations.set(key, {
 			partialAssignment: key,
 			reason,
-			constraintHash,
-			predictedDeadEnd
+			constraintHash
 		});
 	}
 
@@ -841,22 +800,6 @@ export class CSPSolver {
 			hash = hash & hash;
 		}
 		return hash.toString(36);
-	}
-
-	/**
-	 * BUG-2 fix: Replaced the broken regex-based dead-end prediction.
-	 * New heuristic: a dead end is likely if any unassigned layer has an empty
-	 * remaining domain after constraint propagation.
-	 */
-	private predictDeadEnd(): boolean {
-		for (const layer of this.context.layers) {
-			if (this.context.selectedTraits.has(layer.id)) continue;
-			const domain = this.domains.get(layer.id);
-			if (!domain || domain.availableTraits.length === 0) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	/**
@@ -949,19 +892,6 @@ export class CSPSolver {
 	}
 
 	/**
-	 * Generate numeric hash for combination (same algorithm as worker)
-	 */
-	private generateNumericHash(combinationKey: string): number {
-		let hash = 0;
-		for (let i = 0; i < combinationKey.length; i++) {
-			const char = combinationKey.charCodeAt(i);
-			hash = (hash << 5) - hash + char;
-			hash = hash & hash;
-		}
-		return hash >>> 0;
-	}
-
-	/**
 	 * Mark the current combination as used to prevent duplicates
 	 *
 	 * BUG-1 fix: Stores string key directly when bit-packing is not possible,
@@ -1046,7 +976,6 @@ export class CSPSolver {
 			backtracks: 0,
 			ac3Iterations: 0,
 			earlyTerminations: 0,
-			predictedDeadEnds: 0,
 			constraintCacheHits: 0
 		};
 		this.constraintOrdering = [];
