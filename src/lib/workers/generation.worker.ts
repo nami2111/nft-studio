@@ -13,7 +13,6 @@ import { PerformanceMonitor } from '$lib/utils/performance-monitor';
 // Refactored Cache & Optimization Imports
 import { WorkerArrayBufferCache } from './cache/array-buffer.cache';
 import { OptimizedMemoryManager } from './memory/memory.manager';
-import { PredictiveTraitLoader } from './optimization/predictive.loader';
 
 // Global worker instances
 const workerArrayBufferCache = new WorkerArrayBufferCache();
@@ -71,7 +70,6 @@ function clearImageBitmapCache(): void {
 }
 
 const memoryManager = new OptimizedMemoryManager();
-const predictiveTraitLoader = new PredictiveTraitLoader();
 
 // Layer reference cache for enableLayerRef mode
 const layerMap = new Map<string, TransferrableLayer>();
@@ -197,8 +195,6 @@ async function generateIsolatedItem(
 
 	try {
 		const generationStartTime = performance.now();
-		const traitIds = solutionTraits.map((st) => st.trait.id);
-		predictiveTraitLoader.recordCombination(traitIds);
 
 		ctx.clearRect(0, 0, targetWidth, targetHeight);
 		await compositeTraitsDirect(solutionTraits, ctx, targetWidth, targetHeight, index);
