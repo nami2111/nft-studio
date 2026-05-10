@@ -54,7 +54,7 @@ async function solveOnMainThread(
 	collectionSize: number,
 	strictPairConfig?: StrictPairConfig
 ): Promise<{ index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[]> {
-	const usedCombinations = new Map<string, Set<bigint>>();
+	const usedCombinations = new Map<string, Set<bigint | string>>();
 
 	const activeStrictPairConfig = strictPairConfig
 		? { ...strictPairConfig }

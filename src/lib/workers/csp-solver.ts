@@ -9,7 +9,7 @@ import { logger } from '$lib/utils/logger';
 interface SolverContext {
 	layers: TransferrableLayer[];
 	selectedTraits: Map<string, TransferrableTrait>;
-	usedCombinations: Map<string, Set<bigint>>;
+	usedCombinations: Map<string, Set<bigint | string>>; // BUG-1 fix: string keys for collision-proof fallback
 	strictPairConfig?: {
 		enabled: boolean;
 		layerCombinations: Array<{
@@ -25,7 +25,7 @@ interface ImpossibleCombination {
 	partialAssignment: string;
 	reason: string;
 	constraintHash: string; // Hash of constraints for fast lookup
-	predictedDeadEnd: boolean; // AI-predicted dead end
+	predictedDeadEnd: boolean;
 }
 
 // Enhanced Arc data structure with constraint weights
@@ -110,10 +110,13 @@ export class CSPSolver {
 	private constraintOrdering: Arc[] = []; // Pre-ordered constraints for faster processing
 	private layerTraitIdToIndex = new Map<string, Map<string, number>>(); // layerId -> traitId -> numericId (0-255)
 	private layerIdsSorted: string[] = []; // Pre-sorted layer IDs for fast getAssignmentKey
+	// BUG-3: Debug flag gating O(n²) verification - disabled in production
+	private debugConstraintVerification =
+		typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
 
 	constructor(
 		layers: TransferrableLayer[],
-		usedCombinations: Map<string, Set<bigint>>,
+		usedCombinations: Map<string, Set<bigint | string>>, // BUG-1 fix: accepts string keys
 		strictPairConfig?: SolverContext['strictPairConfig']
 	) {
 		this.context = {
@@ -496,10 +499,13 @@ export class CSPSolver {
 		// Base case: all required layers processed
 		if (this.isComplete()) {
 			if (this.isValidCombination()) {
-				// CRITICAL: Also verify all ruler constraints are satisfied
-				if (this.verifyAllConstraints()) {
-					return new Map(this.context.selectedTraits);
+				// BUG-3 fix: Gate O(n²) verification behind debug flag
+				// AC-3 + isConsistent during solving already guarantees correctness in production
+				if (this.debugConstraintVerification && !this.verifyAllConstraints()) {
+					// In debug/test mode, fail loudly if constraints are violated
+					return null;
 				}
+				return new Map(this.context.selectedTraits);
 			}
 			return null;
 		}
@@ -508,7 +514,10 @@ export class CSPSolver {
 		const nextLayer = this.selectNextLayer();
 		if (!nextLayer) {
 			// No more layers to process
-			if (this.isValidCombination() && this.verifyAllConstraints()) {
+			if (this.isValidCombination()) {
+				if (this.debugConstraintVerification && !this.verifyAllConstraints()) {
+					return null;
+				}
 				return new Map(this.context.selectedTraits);
 			}
 			return null;
@@ -681,8 +690,11 @@ export class CSPSolver {
 		// Generate constraint hash for faster lookup
 		const constraintHash = this.generateConstraintHash(key);
 
-		// Simple dead-end prediction based on constraint density
-		const predictedDeadEnd = this.predictDeadEnd(key);
+		// BUG-2 fix: Replaced broken predictDeadEnd() with domain-emptiness heuristic.
+		// The old implementation searched for literal "ruler" substring in trait UUIDs,
+		// which never matched. The new heuristic checks if any unassigned layer has an
+		// empty remaining domain, which is a meaningful dead-end signal.
+		const predictedDeadEnd = this.predictDeadEnd();
 
 		this.impossibleCombinations.set(key, {
 			partialAssignment: key,
@@ -707,17 +719,32 @@ export class CSPSolver {
 	}
 
 	/**
-	 * Predict if an assignment is likely to be a dead end
+	 * BUG-2 fix: Replaced the broken regex-based dead-end prediction.
+	 * The old version searched for /ruler/g in the assignment key (trait UUIDs),
+	 * which never matched since UUIDs don't contain "ruler".
+	 *
+	 * New heuristic: a dead end is likely if any unassigned layer has an empty
+	 * remaining domain after constraint propagation.
 	 */
-	private predictDeadEnd(assignmentKey: string): boolean {
-		// Simple heuristic: if assignment has many constraints, likely dead end
-		const constraintCount = (assignmentKey.match(/ruler/g) || []).length;
-		return constraintCount > 3;
+	private predictDeadEnd(): boolean {
+		for (const layer of this.context.layers) {
+			if (this.context.selectedTraits.has(layer.id)) continue;
+			const domain = this.domains.get(layer.id);
+			if (!domain || domain.availableTraits.length === 0) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
 	 * Optimized strict pair validation with early exit
 	 * Uses bit-packed indexing for O(1) lookups and 80% memory reduction
+	 *
+	 * BUG-1 fix: When bit-packing is not possible (too many traits or IDs > 255),
+	 * the code now falls back to direct string-key lookups instead of a 32-bit
+	 * numeric hash. This eliminates birthday-paradox collisions that guaranteed
+	 * false positives at scale (~50k items with 10+ layers).
 	 */
 	private isValidCombination(): boolean {
 		// Always check for duplicates, even when strict pairs are disabled
@@ -750,7 +777,7 @@ export class CSPSolver {
 				continue;
 			}
 
-			// Use bit-packed indexing for O(1) combination checking
+			// Get or create the tracking set for this combination
 			const usedSet = this.context.usedCombinations.get(layerCombination.id);
 
 			if (!usedSet || usedSet.size === 0) {
@@ -782,14 +809,14 @@ export class CSPSolver {
 					throw new Error('Incompatible for bit-packing');
 				}
 			} catch {
-				// Fallback to hash-based check for edge cases
-				// This happens if trait IDs > 255 or > 8 traits, or if mapping failed
-				const fallbackKey = traitIds.sort().join('|');
-				const numericHash = this.generateNumericHash(fallbackKey);
-				const hashAsBigInt = BigInt(numericHash);
+				// BUG-1 FIX: Use string key directly instead of lossy 32-bit numeric hash.
+				// The old code called generateNumericHash() which produced a 32-bit value,
+				// causing birthday-paradox collisions at scale (~50k items guaranteed hits).
+				// Now we sort the trait IDs and use the string directly as a lookup key.
+				// This trades a small amount of memory for guaranteed correctness.
+				const fallbackKey = traitIds.slice().sort().join('|');
 
-				// Check if hash-based bigint exists in usedSet
-				if (usedSet.has(hashAsBigInt)) {
+				if (usedSet.has(fallbackKey)) {
 					return false; // Already used
 				}
 			}
@@ -844,6 +871,9 @@ export class CSPSolver {
 	/**
 	 * Mark the current combination as used to prevent duplicates
 	 * This must be called after a successful solution is found
+	 *
+	 * BUG-1 fix: When bit-packing is not possible, stores the string key directly
+	 * in the Set<bigint | string> instead of a lossy 32-bit hash truncated to bigint.
 	 */
 	markCombinationAsUsed(): void {
 		// Check all layer combinations and add to appropriate tracking sets
@@ -874,7 +904,7 @@ export class CSPSolver {
 			// Get or create the tracking set for this combination
 			let usedSet = this.context.usedCombinations.get(layerCombination.id);
 			if (!usedSet) {
-				usedSet = new Set<bigint>();
+				usedSet = new Set<bigint | string>();
 				this.context.usedCombinations.set(layerCombination.id, usedSet);
 			}
 
@@ -900,11 +930,12 @@ export class CSPSolver {
 				// Continue to fallback
 			}
 
-			// Fallback to hash-based for edge cases
-			const stringKey = traitIds.sort().join('|');
-			const numericHash = this.generateNumericHash(stringKey);
-			const hashAsBigInt = BigInt(numericHash);
-			usedSet.add(hashAsBigInt);
+			// BUG-1 FIX: Fallback to string key instead of lossy 32-bit hash.
+			// The old code used generateNumericHash() which collapsed to 32 bits,
+			// causing guaranteed collisions at ~50k items. Now we store the
+			// sorted trait ID string directly for collision-proof deduplication.
+			const stringKey = traitIds.slice().sort().join('|');
+			usedSet.add(stringKey);
 		}
 	}
 

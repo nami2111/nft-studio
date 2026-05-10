@@ -57,7 +57,7 @@ self.addEventListener('message', (e: MessageEvent<SolveRequest | { type: 'cancel
 	const { layers, collectionSize, strictPairConfig } = message.payload;
 	isCancelled = false;
 
-	const usedCombinations = new Map<string, Set<bigint>>();
+	const usedCombinations = new Map<string, Set<bigint | string>>();
 	const solver = new CSPSolver(
 		layers as unknown as TransferrableLayer[],
 		usedCombinations,
