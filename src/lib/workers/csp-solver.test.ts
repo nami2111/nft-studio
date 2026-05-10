@@ -96,8 +96,8 @@ describe('CSPSolver', () => {
 	it('returns null when there is no valid combination', () => {
 		// Single trait for each layer, but usedCombinations already has it
 		const layers = [makeLayer('L1', 'BG', [makeTrait('T1', 'Blue')])];
-		const usedCombinations = new Map<string, Set<bigint>>();
-		usedCombinations.set('__global__', new Set<bigint>());
+		const usedCombinations = new Map<string, Set<bigint | string>>();
+		usedCombinations.set('__global__', new Set<bigint | string>());
 
 		const solver = new CSPSolver(layers, usedCombinations, makeStrictPairConfig(['L1']));
 
@@ -265,20 +265,16 @@ describe('CSPSolver', () => {
 		for (let i = 0; i < 10; i++) {
 			const lid = `L${i}`;
 			layerIds.push(lid);
-			const traits = [
-				makeTrait(`T${i}a`, `Trait${i}A`),
-				makeTrait(`T${i}b`, `Trait${i}B`)
-			];
+			const traits = [makeTrait(`T${i}a`, `Trait${i}A`), makeTrait(`T${i}b`, `Trait${i}B`)];
 			layers.push(makeLayer(lid, `Layer${i}`, traits));
 			expectedTraits.push({ layerId: lid, traitName: `Trait${i}A` });
 		}
 
 		const usedCombinations = new Map<string, Set<bigint | string>>();
-		const solver = new CSPSolver(
-			layers as unknown as TransferrableLayer[],
-			usedCombinations,
-			{ enabled: true, layerCombinations: [{ id: '__global__', layerIds, active: true }] }
-		);
+		const solver = new CSPSolver(layers as unknown as TransferrableLayer[], usedCombinations, {
+			enabled: true,
+			layerCombinations: [{ id: '__global__', layerIds, active: true }]
+		});
 
 		// Solve first time
 		const r1 = solver.solve();
@@ -318,13 +314,14 @@ describe('CSPSolver', () => {
 				makeTrait('T8', 'H'),
 				makeTrait('T9', 'I')
 			]),
-			makeLayer('L3', 'Mouth', [
-				makeTrait('T10', 'J'),
-				makeTrait('T11', 'K')
-			])
+			makeLayer('L3', 'Mouth', [makeTrait('T10', 'J'), makeTrait('T11', 'K')])
 		] as TransferrableLayer[];
 		const usedCombinations = new Map<string, Set<bigint | string>>();
-		const solver = new CSPSolver(layers, usedCombinations, makeStrictPairConfig(['L1', 'L2', 'L3']));
+		const solver = new CSPSolver(
+			layers,
+			usedCombinations,
+			makeStrictPairConfig(['L1', 'L2', 'L3'])
+		);
 
 		// 4 × 5 × 2 = 40 possible unique combinations
 		// With 32-bit hashing, P(collision) ≈ 50% at ~77k items (birthday paradox)
@@ -350,22 +347,14 @@ describe('CSPSolver', () => {
 		expect(comboSet!.size).toBe(40);
 	});
 
-	// BUG-2 fix: predictDeadEnd uses domain-emptiness instead of broken regex
-	it('predictDeadEnd returns true when any unassigned layer has empty domain', () => {
+	// BUG-2 fix: Dead-end prediction uses domain-emptiness instead of broken regex
+	it('detects dead ends when any unassigned layer has empty domain', () => {
 		// This test creates a scenario where constraint propagation leaves
 		// an unassigned layer with no available traits
 		const layers = [
-			makeLayer('L1', 'BG', [
-				makeTrait('T1', 'Blue'),
-				makeTrait('T2', 'Red')
-			]),
-			makeLayer('L2', 'Eyes', [
-				makeTrait('T3', 'Green'),
-				makeTrait('T4', 'Brown')
-			]),
-			makeLayer('L3', 'Accessory', [
-				makeTrait('T5', 'Hat')
-			])
+			makeLayer('L1', 'BG', [makeTrait('T1', 'Blue'), makeTrait('T2', 'Red')]),
+			makeLayer('L2', 'Eyes', [makeTrait('T3', 'Green'), makeTrait('T4', 'Brown')]),
+			makeLayer('L3', 'Accessory', [makeTrait('T5', 'Hat')])
 		];
 		// Start with usedCombinations that makes L1's only remaining option impossible
 		// by pre-populating with some combinations so the solver's AC-3 prunes domains
@@ -387,8 +376,8 @@ describe('CSPSolver', () => {
 		expect(r2).not.toBeNull();
 		solver.markCombinationAsUsed();
 
-		// The predictDeadEnd method is internal, but its effect is observable
-		// through the caching behavior. After marking enough combos, the
+		// The dead-end detection is internal, but its effect is observable
+		// through the caching behavior. After marking combos, the
 		// impossible combination cache should contain entries.
 		expect(solver.getPerformanceStats().cacheHits).toBeGreaterThanOrEqual(0);
 	});
