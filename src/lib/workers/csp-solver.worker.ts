@@ -77,7 +77,7 @@ self.addEventListener('message', (e: MessageEvent<SolveRequest | { type: 'cancel
 		self.postMessage({
 			type: 'cancelled',
 			payload: {
-				solvedCount: activeSolvedCount,
+				generatedCount: activeSolvedCount,
 				totalCount: activeCollectionSize
 			}
 		});
@@ -107,7 +107,7 @@ self.addEventListener('message', (e: MessageEvent<SolveRequest | { type: 'cancel
 				self.postMessage({
 					type: 'cancelled',
 					payload: {
-						solvedCount: activeSolvedCount,
+						generatedCount: activeSolvedCount,
 						totalCount: collectionSize
 					}
 				});
