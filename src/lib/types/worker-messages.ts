@@ -41,7 +41,7 @@ export interface ProgressMessage extends BaseWorkerMessage {
 		generatedCount: number;
 		totalCount: number;
 		statusText: string;
-		memoryUsage?: {
+		memoryUsage?: number | {
 			used: number;
 			available: number;
 			units: string;
@@ -136,6 +136,19 @@ export interface BatchRefMessage extends BaseWorkerMessage {
 	};
 }
 
+// Intermediate chunk of generation results streamed from worker before final completion.
+// This allows incremental flushing within a single batch task — images are transferred
+// via Transferables and the task stays active until a 'complete' message arrives.
+export interface GenerationChunkMessage extends BaseWorkerMessage {
+	type: 'chunk';
+	payload: {
+		images: { name: string; imageData: ArrayBuffer }[];
+		metadata: { name: string; data: object }[];
+		generatedCount: number;
+		totalCount: number;
+	};
+}
+
 // Messages that can be sent from workers to the main thread
 export type OutgoingWorkerMessage =
 	| ReadyMessage
@@ -144,6 +157,7 @@ export type OutgoingWorkerMessage =
 	| ErrorMessage
 	| CancelledMessage
 	| PreviewMessage
+	| GenerationChunkMessage
 	| { type: 'pingResponse'; pingResponse: string };
 
 // Messages that can be sent to workers
