@@ -103,13 +103,15 @@ export class TraitBatchScheduler {
 
 		const useLayerRef = isFlagEnabled('enableLayerRef');
 
-		// If using layer references, send init-layers once before any batch-ref messages
+		// If using layer references, send init-layers to ALL workers before any batch-ref messages.
+		// This populates layer/trait maps on every worker so batch-ref can land on any of them.
 		if (useLayerRef) {
 			const initMessage: InitLayersMessage = {
 				type: 'init-layers',
 				payload: { layers }
 			};
-			await postMessageToPool(initMessage);
+			const workerCount = getWorkerPoolStatus()?.totalWorkers || navigator.hardwareConcurrency || 4;
+			await Promise.all(Array.from({ length: workerCount }, () => postMessageToPool(initMessage)));
 		}
 
 		const totalBatches = Math.ceil(solutions.length / effectiveBatchSize);
@@ -128,7 +130,10 @@ export class TraitBatchScheduler {
 			const windowEnd = Math.min(b + WINDOW_SIZE, totalBatches);
 
 			for (let w = b; w < windowEnd; w++) {
-				const batchSolutions = solutions.slice(w * effectiveBatchSize, (w + 1) * effectiveBatchSize);
+				const batchSolutions = solutions.slice(
+					w * effectiveBatchSize,
+					(w + 1) * effectiveBatchSize
+				);
 
 				if (useLayerRef) {
 					const message: BatchRefMessage = {
