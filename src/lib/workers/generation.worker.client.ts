@@ -88,6 +88,13 @@ async function solveOnMainThread(
 		if (i % 50 === 0 && i > 0) {
 			generationState.statusText = `Solving trait combinations (${i}/${collectionSize})...`;
 		}
+
+		// FIND-4: Yield to event loop every 50 iterations so Svelte can flush
+		// reactive updates and the UI shows the current status text.
+		if (i > 0 && i % 50 === 0) {
+			await new Promise((r) => setTimeout(r, 0));
+		}
+
 		const solutionMap = solver.solve();
 		if (!solutionMap) {
 			throw new Error(`Exhausted all possible valid unique combinations at item ${i + 1}.`);
