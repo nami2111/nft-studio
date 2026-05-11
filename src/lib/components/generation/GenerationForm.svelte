@@ -290,6 +290,19 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                             }
                             completeGeneration(); // Mark as complete but cancelled
                             break;
+                        case 'chunk':
+                            if (message.payload.images && message.payload.images.length > 0 && isStreamingZip) {
+                                const streamImages = message.payload.images.map((img) => ({
+                                    name: img.name,
+                                    data: img.imageData
+                                }));
+                                ExportService.addStreamingChunk(
+                                    streamImages,
+                                    message.payload.metadata || []
+                                );
+                                message.payload.images.length = 0;
+                            }
+                            break;
                     }
                     return;
                 }
@@ -399,6 +412,19 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                             title: 'Generation Error',
                             description: 'An error occurred during generation. Please try again.'
                         });
+                        break;
+                    case 'chunk':
+                        if (message.payload.images && message.payload.images.length > 0 && isStreamingZip) {
+                            const streamImages = message.payload.images.map((img) => ({
+                                name: img.name,
+                                data: img.imageData
+                            }));
+                            ExportService.addStreamingChunk(
+                                streamImages,
+                                message.payload.metadata || []
+                            );
+                            message.payload.images.length = 0;
+                        }
                         break;
                     default:
                         console.warn('Unknown message type from worker:', (message as { type: string }).type);
