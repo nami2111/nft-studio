@@ -10,7 +10,9 @@ export class OptimizedMemoryManager {
 
 	constructor() {
 		this.deviceMemoryGB = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
-		this.maxPoolSize = Math.min(this.deviceMemoryGB * 2, 10); // 2 canvases per GB, max 10
+		// FIND-6: Sequential processing means at most 1 canvas in use at a time per worker.
+		// Pool size of 2-3 is sufficient for edge cases (e.g., concurrency within microtasks).
+		this.maxPoolSize = this.deviceMemoryGB >= 8 ? 3 : 2;
 		if (import.meta.env.DEV)
 			console.log(`🎯 Memory Manager: Max pool size ${this.maxPoolSize} canvases`);
 	}
