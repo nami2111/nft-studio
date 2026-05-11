@@ -415,11 +415,20 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 		}
 	}
 
-	// Forward all other messages to client components
+	// Forward all other messages to client components.
+	// Skip internal task responses (e.g. init-layers) that the client shouldn't see.
 	if (messageCallback) {
-		messageCallback(
-			data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-		);
+		const taskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
+		let isInternal = false;
+		if (taskId && workerPool.activeTasks.has(taskId)) {
+			const task = workerPool.activeTasks.get(taskId);
+			isInternal = task?.message?.type === 'init-layers';
+		}
+		if (!isInternal) {
+			messageCallback(
+				data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+			);
+		}
 	}
 
 	// For preview messages, just forward to client without affecting worker status
@@ -941,9 +950,11 @@ function processNextTask(): void {
 		if ('payload' in task.message) {
 			const payload = task.message.payload;
 			if (task.message.type === 'batch-ref') {
-				// batch-ref payloads are plain objects (traitRefs, strings, numbers) —
-				// no class instances or private fields. structuredClone is safe and fast.
-				messageToSend = { ...baseMessage, payload: structuredClone(payload) };
+				try {
+					messageToSend = { ...baseMessage, payload: structuredClone(payload) };
+				} catch {
+					messageToSend = { ...baseMessage, payload: safeStructuredClone(payload) };
+				}
 			} else {
 				// batch/init-layers payloads contain TransferrableTrait with imageData ArrayBuffers.
 				// structuredClone handles these natively via Transferable; fall back to
