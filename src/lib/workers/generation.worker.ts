@@ -8,7 +8,7 @@ import type {
 	TransferrableLayer,
 	TransferrableTrait
 } from '$lib/types/worker-messages';
-import type { InitLayersMessage, BatchRefMessage } from '$lib/types/worker-messages';
+import type { GenerationChunkMessage, InitLayersMessage, BatchRefMessage } from '$lib/types/worker-messages';
 import { PerformanceMonitor } from '$lib/utils/performance-monitor';
 // Refactored Cache & Optimization Imports
 import { WorkerArrayBufferCache } from './cache/array-buffer.cache';
@@ -213,16 +213,17 @@ async function generateIsolatedItem(
 	metadataStandard: MetadataStandard = MetadataStandard.ERC721,
 	extraData?: Record<string, unknown>
 ): Promise<QueuedGeneratedItem | undefined> {
-	const canvas = memoryManager.getCanvas(targetWidth, targetHeight);
-	const ctx = canvas.getContext('2d');
-
-	if (!ctx) {
-		console.error(`Item ${index}: Failed to get 2D context`);
-		memoryManager.returnCanvas(canvas);
-		return undefined;
-	}
+	let canvas: OffscreenCanvas | undefined;
 
 	try {
+		canvas = memoryManager.getCanvas(targetWidth, targetHeight);
+
+		const ctx = canvas.getContext('2d');
+		if (!ctx) {
+			console.error(`Item ${index}: Failed to get 2D context`);
+			return undefined;
+		}
+
 		const generationStartTime = performance.now();
 
 		ctx.clearRect(0, 0, targetWidth, targetHeight);
@@ -260,7 +261,9 @@ async function generateIsolatedItem(
 		console.error(`Error in generateIsolatedItem for index ${index}:`, error);
 		return undefined;
 	} finally {
-		memoryManager.returnCanvas(canvas);
+		if (canvas) {
+			memoryManager.returnCanvas(canvas);
+		}
 	}
 }
 
@@ -289,8 +292,9 @@ async function handleBatchGeneration(
 ) {
 	perfMonitor.startBatch(solutions.length);
 
-	const chunkImages: { name: string; blob: Blob }[] = [];
-	const chunkMetadata: { name: string; data: object }[] = [];
+	const CHUNK_FLUSH_SIZE = 10;
+	let chunkImages: { name: string; blob: Blob }[] = [];
+	let chunkMetadata: { name: string; data: object }[] = [];
 	let processedInChunk = 0;
 	const TOTAL_IN_BATCH = solutions.length;
 
@@ -317,6 +321,14 @@ async function handleBatchGeneration(
 				processedInChunk++;
 			}
 
+			// FIND-2: Flush intermediate results every CHUNK_FLUSH_SIZE items.
+			// This avoids holding all blobs + array buffers simultaneously.
+			if (chunkImages.length >= CHUNK_FLUSH_SIZE) {
+				await flushGenerationChunk(chunkImages, chunkMetadata, taskId, false);
+				chunkImages = [];
+				chunkMetadata = [];
+			}
+
 			if (processedInChunk % 10 === 0) {
 				self.postMessage({
 					type: 'progress',
@@ -331,39 +343,65 @@ async function handleBatchGeneration(
 			}
 		}
 
-		const imageBuffers = await Promise.all(
-			chunkImages.map(async (img) => ({
-				name: img.name,
-				buffer: await img.blob.arrayBuffer()
-			}))
-		);
-
 		perfMonitor.finishBatch();
 		clearImageBitmapCache();
 
-		const message: CompleteMessage = {
-			type: 'complete',
-			taskId,
-			payload: {
-				images: imageBuffers.map((img) => ({
-					name: img.name,
-					imageData: img.buffer
-				})),
-				metadata: chunkMetadata as {
-					name: string;
-					data: Record<string, unknown>;
-				}[],
-				generatedCount: 0,
-				totalCount: 0,
-				isChunk: true
-			}
-		};
-
-		const transferrables = imageBuffers.map((img) => img.buffer) as unknown as Transferable[];
-		(self as unknown as Worker).postMessage(message, transferrables);
+		// Flush remaining items as final complete message (terminates the task)
+		await flushGenerationChunk(chunkImages, chunkMetadata, taskId, true);
 	} catch (error) {
 		console.error('Batch processing error:', error);
 		throw error;
+	}
+}
+
+/**
+ * Flush accumulated chunk images as a postMessage with Transferable ArrayBuffers.
+ * If isFinal, sends as 'complete' (task-terminating); otherwise as 'chunk' (intermediate).
+ * The worker pool forwards 'chunk' messages without resolving the task,
+ * so streaming intermediate results does not trigger premature completion.
+ */
+async function flushGenerationChunk(
+	images: { name: string; blob: Blob }[],
+	metadata: { name: string; data: object }[],
+	taskId: TaskId | undefined,
+	isFinal: boolean
+): Promise<void> {
+	// Skip only when there's nothing to send and it's not the final flush
+	if (images.length === 0 && !isFinal) return;
+
+	const imageBuffers = await Promise.all(
+		images.map(async (img) => ({
+			name: img.name,
+			buffer: await img.blob.arrayBuffer()
+		}))
+	);
+
+	const payload = {
+		images: imageBuffers.map((img) => ({
+			name: img.name,
+			imageData: img.buffer
+		})),
+		metadata: metadata as { name: string; data: Record<string, unknown> }[],
+		generatedCount: images.length,
+		totalCount: images.length
+	};
+
+	const transferrables = imageBuffers.map((img) => img.buffer) as unknown as Transferable[];
+
+	if (isFinal) {
+		const message: CompleteMessage = {
+			type: 'complete',
+			taskId,
+			payload: { ...payload, isChunk: true }
+		};
+		(self as unknown as Worker).postMessage(message, transferrables);
+	} else {
+		const message: GenerationChunkMessage = {
+			type: 'chunk',
+			taskId,
+			payload
+		};
+		(self as unknown as Worker).postMessage(message, transferrables);
 	}
 }
 
