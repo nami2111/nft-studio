@@ -47,6 +47,7 @@ src/lib/wasm/target/
 .clinerules/
 .knowledge/
 .crush/
+.pi/
 .crushignore
 .geminiignore
 CRUSH.md
