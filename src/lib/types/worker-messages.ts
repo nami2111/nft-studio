@@ -41,11 +41,13 @@ export interface ProgressMessage extends BaseWorkerMessage {
 		generatedCount: number;
 		totalCount: number;
 		statusText: string;
-		memoryUsage?: number | {
-			used: number;
-			available: number;
-			units: string;
-		};
+		memoryUsage?:
+			| number
+			| {
+					used: number;
+					available: number;
+					units: string;
+			  };
 	};
 }
 
