@@ -43,6 +43,7 @@ src/lib/wasm/target/
 .claude
 .kilocode/
 .roo/
+.kilo/
 .clinerules/
 .knowledge/
 .crush/
