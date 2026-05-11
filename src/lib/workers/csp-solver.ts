@@ -24,7 +24,6 @@ interface SolverContext {
 interface ImpossibleCombination {
 	partialAssignment: string;
 	reason: string;
-	constraintHash: string; // Hash of constraints for fast lookup
 }
 
 // Enhanced Arc data structure with constraint weights
@@ -102,6 +101,7 @@ export class CSPSolver {
 	private rulerViolationCount = 0;
 	private domains = new Map<string, Domain>(); // Enhanced domains with constraint influence
 	private constraints = new Map<string, Set<string>>(); // LayerId -> Set of constrained layerIds
+	private reverseConstraints = new Map<string, Set<string>>(); // LayerId -> Set of layers that constrain this layer
 	private constraintCache = new ConstraintCache(); // Smart constraint caching
 	private performanceStats = {
 		cacheHits: 0,
@@ -267,7 +267,6 @@ export class CSPSolver {
 
 			for (const trait of layer.traits) {
 				if (trait.type === 'ruler' && trait.rulerRules) {
-					// Ruler rules constrain specific layers
 					for (const rule of trait.rulerRules) {
 						constrainedLayers.add(rule.layerId);
 					}
@@ -275,6 +274,15 @@ export class CSPSolver {
 			}
 
 			this.constraints.set(layer.id, constrainedLayers);
+
+			// Build reverse constraint index: for each layer that this layer constrains,
+			// record that this layer is a reverse constraint of that layer.
+			for (const targetId of constrainedLayers) {
+				if (!this.reverseConstraints.has(targetId)) {
+					this.reverseConstraints.set(targetId, new Set());
+				}
+				this.reverseConstraints.get(targetId)!.add(layer.id);
+			}
 		}
 
 		// Pre-order constraints by restrictiveness for faster AC-3
@@ -378,11 +386,22 @@ export class CSPSolver {
 					return false;
 				}
 
-				// Add all arcs (neighbor -> fromLayerId) back to queue
+				// Add all arcs (neighbor -> fromLayerId) back to queue for forward neighbors
 				const neighbors = this.constraints.get(arc.fromLayerId) || new Set();
 				for (const neighborId of neighbors) {
 					if (neighborId !== arc.toLayerId) {
 						queue.push(this.createArc(neighborId, arc.fromLayerId));
+					}
+				}
+
+				// FIND-1: Also add reverse arcs — layers that constrain fromLayerId.
+				// When domain[A] shrinks, we must re-check all arcs (Z, A) where Z
+				// constrains A (Z has ruler rules mentioning A), because values in
+				// domain[Z] may have lost support in the reduced domain[A].
+				const reverseNeighbors = this.reverseConstraints.get(arc.fromLayerId) || new Set();
+				for (const revId of reverseNeighbors) {
+					if (revId !== arc.toLayerId) {
+						queue.push(this.createArc(revId, arc.fromLayerId));
 					}
 				}
 			}
@@ -779,27 +798,10 @@ export class CSPSolver {
 			}
 		}
 
-		// Generate constraint hash for faster lookup
-		const constraintHash = this.generateConstraintHash(key);
-
 		this.impossibleCombinations.set(key, {
 			partialAssignment: key,
-			reason,
-			constraintHash
+			reason
 		});
-	}
-
-	/**
-	 * Generate hash of constraints for fast lookup
-	 */
-	private generateConstraintHash(assignmentKey: string): string {
-		let hash = 0;
-		for (let i = 0; i < assignmentKey.length; i++) {
-			const char = assignmentKey.charCodeAt(i);
-			hash = (hash << 5) - hash + char;
-			hash = hash & hash;
-		}
-		return hash.toString(36);
 	}
 
 	/**
