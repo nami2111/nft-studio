@@ -58,7 +58,7 @@ export interface GenerationState {
 	} | null;
 
 	// Memory and performance
-	memoryUsage: { used: number; available: number; units: string } | null;
+	memoryUsage: number | { used: number; available: number; units: string } | null;
 	lastMemoryCheck: number | null;
 
 	// Error handling
