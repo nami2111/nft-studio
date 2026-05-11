@@ -88,83 +88,77 @@
 
 ## 🟡 P2 — Moderate Bugs & Tech Debt
 
-### [BUG-4] Inconsistent Progress Counts in Batch Processing
+### [BUG-4] ~~Inconsistent Progress Counts in Batch Processing~~ ✅ SKIPPED (No Real Bug)
 
 **File**: `src/lib/workers/generation.worker.ts`
-**Lines**: 295–306
-**Problem**: Progress message uses both global `generatedCount` and local `processedInChunk` inconsistently.
-**Fix**: Add `chunkGeneratedCount`/`chunkTotalCount` or standardize on one.
-**Acceptance**: Progress bar and text consistent during batch processing
+**Analysis**: `generatedCount` is globally accurate for progress bar. The `processedInChunk` is supplementary text for status detail. No misalignment in user-facing UI.
 
 ---
 
-### [BUG-5] ImageBitmap Cache Key Omits `resizeQuality`
+### [BUG-5] ImageBitmap Cache Key Omits `resizeQuality` ✅ FIXED
 
 **File**: `src/lib/workers/generation.worker.ts`
-**Line**: 97
-**Problem**: Stale cached bitmaps returned if `resizeQuality` changes.
-**Fix**: Include `options?.resizeQuality || 'default'` in cache key.
+**Line**: 95
+**Fix applied**: Included `options?.resizeQuality || 'default'` in cache key to prevent stale bitmaps if quality settings change.
 **Acceptance**: Cache key matches on all resize parameters
 
 ---
 
-### [TECH-DEBT-1] `calculateOptimalWorkerCount()` Is Dead Code
+### [TECH-DEBT-1] `calculateOptimalWorkerCount()` Is Dead Code ✅ REMOVED
 
 **File**: `src/lib/workers/worker.pool.ts`
-**Lines**: 176–205
-**Problem**: Computed but never called.
-**Fix**: Refactor `initializeWorkerPool()` to use it, or remove.
-**Acceptance**: Single source of truth for worker count
+**Problem**: `calculateOptimalWorkerCount()` (lines 177–206) and `estimateTaskDuration()` were never called or are no longer referenced.
+**Fix applied**: Removed both functions. Also removed unused `estimatedDuration` field from task creation in `postMessageToPool()`. `performDynamicScaling()` now computes its `maxWorkers` fallback inline.
+**Acceptance**: Dead code eliminated; TypeScript compiles clean.
 
 ---
 
-### [TECH-DEBT-2] Blob → ArrayBuffer → Blob Round-Trip
+### [TECH-DEBT-2] Blob → ArrayBuffer → Blob Round-Trip ~~⬜~~ → ❌ SKIP (Architecturally Required)
 
 **Files**: `generation.worker.ts:206, 309–313`, `export.service.ts:446–448`
-**Problem**: Images created as Blobs, converted to ArrayBuffers for transfer, then JSZip expects Blobs.
-**Fix**: Keep ArrayBuffers throughout or add Blob support to JSZip.
-**Acceptance**: Zero unnecessary conversions
+**Analysis**: The Blob→ArrayBuffer conversion at the worker→main thread boundary is required by `postMessage` Transferable protocol. JSZip already accepts ArrayBuffers. No unnecessary conversion exists.
+**Decision**: No change needed.
 
 ---
 
-### [TECH-DEBT-3] `MemoryManager` Discards Wrong-Sized Canvases
+### [TECH-DEBT-3] `MemoryManager` Discards Wrong-Sized Canvases ✅ FIXED
 
 **File**: `src/lib/workers/memory/memory.manager.ts`
-**Lines**: 19–28
-**Problem**: Pool has 1000×1000 but caller needs 500×500 → new canvas while old one occupies slot.
-**Fix**: Resize existing canvas or implement size-bucketed pools.
-**Acceptance**: Better pool hit rate
+**Problem**: Pool had 1000×1000 but caller needs 500×500 → new canvas allocated while old one wastes slot.
+**Fix applied**: Replaced single flat pool with size-bucketed pool (`Map<string, OffscreenCanvas[]>`). Canvases now keyed by `widthxheight` — wrong-size canvases never returned from pool. Also removed unused `ctxPool` field.
+**Acceptance**: Pool hit rate approaches 100% for same-size reuses.
 
 ---
 
-### [TECH-DEBT-4] No Cancellation Support for CSP Solver Worker
+### [TECH-DEBT-4] No Cancellation Support for CSP Solver Worker ✅ FIXED
 
-**File**: `src/lib/workers/csp-solver.worker.ts`
-**Problem**: No partial result reporting on cancel.
-**Fix**: Flush partial solutions before returning "cancelled".
-**Acceptance**: Cancelled generation returns items solved so far
+**File**: `src/lib/workers/csp-solver.worker.ts`, `src/lib/workers/generation.worker.client.ts`
+**Problem**: Cancelling generation discarded all already-solved items.
+**Fix applied**: CSP worker flushes accumulated solutions via `chunk` message before sending `cancelled`. Client resolves (not rejects) with partial results on cancel.
+**Acceptance**: Cancelled generation returns items solved so far.
 
 ---
 
 ## 🔵 P3 — Minor Improvements
 
-### [MINOR-1] Add Cache Metrics to ImageBitmap Cache
+### [MINOR-1] Add Cache Metrics to ImageBitmap Cache ✅ FIXED
 
 **File**: `generation.worker.ts:23–71`
-**Fix**: Add `hits`/`misses` counters, expose via `PerformanceMonitor`.
+**Fix applied**: Added `bitmapCacheHits`/`bitmapCacheMisses` counters. Metrics reported via `perfMonitor.addCacheMetrics('imageBitmap', ...)` in `clearImageBitmapCache()`.
 
 ---
 
-### [MINOR-2] Worker Health Check Skips During Generation
+### [MINOR-2] Worker Health Check Skips During Generation ✅ FIXED
 
-**File**: `worker.pool.ts:1219–1224`
-**Fix**: Track `lastActivity` timestamps; detect degraded workers.
+**File**: `worker.pool.ts:1219–1237`
+**Fix applied**: Added degradation detection — workers active >5 minutes are marked `DEGRADED`. Status resets when worker becomes idle and passes health check.
 
 ---
 
-### [MINOR-3] Consistent Naming: "solved" vs "generated"
+### [MINOR-3] Consistent Naming: "solved" vs "generated" ✅ FIXED
 
-**Fix**: Standardize on `generatedCount` throughout.
+**File**: `csp-solver.worker.ts:116`
+**Fix applied**: Changed `solvedCount` → `generatedCount` in CSP worker progress messages to match naming convention everywhere else.
 
 ---
 
