@@ -8,7 +8,11 @@ import type {
 	TransferrableLayer,
 	TransferrableTrait
 } from '$lib/types/worker-messages';
-import type { GenerationChunkMessage, InitLayersMessage, BatchRefMessage } from '$lib/types/worker-messages';
+import type {
+	GenerationChunkMessage,
+	InitLayersMessage,
+	BatchRefMessage
+} from '$lib/types/worker-messages';
 import { PerformanceMonitor } from '$lib/utils/performance-monitor';
 // Refactored Cache & Optimization Imports
 import { WorkerArrayBufferCache } from './cache/array-buffer.cache';
@@ -476,6 +480,11 @@ self.addEventListener('message', (e: MessageEvent) => {
 				}
 			} else if (message.type === 'init-layers') {
 				handleInitLayers(message as InitLayersMessage);
+				self.postMessage({
+					type: 'complete',
+					taskId: message.taskId,
+					payload: { initialized: true }
+				});
 			} else if (message.type === 'batch-ref') {
 				const {
 					solutions,
