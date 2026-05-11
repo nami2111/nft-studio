@@ -604,11 +604,7 @@ function performDynamicScaling(): void {
 	const cores = navigator.hardwareConcurrency || 4;
 	const memGB = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
 	const maxWorkers =
-		configuredMaxWorkers ??
-		Math.min(
-			Math.max(1, cores - 1) + 2,
-			memGB >= 16 ? 8 : 6
-		);
+		configuredMaxWorkers ?? Math.min(Math.max(1, cores - 1) + 2, memGB >= 16 ? 8 : 6);
 
 	// Only scale if within bounds
 	if (currentWorkerCount >= maxWorkers) {

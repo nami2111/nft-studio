@@ -329,8 +329,11 @@ describe('CSPSolver', () => {
 		const successCount = 40;
 		let lastResult: Map<string, TransferrableTrait> | null = null;
 		for (let i = 0; i < successCount; i++) {
-const result = solver.solve();
-		expect(result, `Solver should find combo ${i + 1}/40 but returned null — possible hash collision`).not.toBeNull();
+			const result = solver.solve();
+			expect(
+				result,
+				`Solver should find combo ${i + 1}/40 but returned null — possible hash collision`
+			).not.toBeNull();
 			if (result) {
 				lastResult = result;
 			}

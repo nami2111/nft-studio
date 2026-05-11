@@ -106,7 +106,11 @@ let currentTaskQueue: Promise<void> = Promise.resolve();
 async function createImageBitmapFromBuffer(
 	buffer: ArrayBuffer,
 	traitName: string,
-	options?: { resizeWidth?: number; resizeHeight?: number; resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high' }
+	options?: {
+		resizeWidth?: number;
+		resizeHeight?: number;
+		resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high';
+	}
 ): Promise<ImageBitmap> {
 	if (!buffer || buffer.byteLength === 0) {
 		throw new Error(

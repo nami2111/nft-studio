@@ -171,7 +171,7 @@
 | Memory during generation      | Unbounded growth       | Stable with streaming | ✅ PERF-2 done    |
 | Worker dispatch overhead      | O(W×T) per task        | O(W) per task         | ✅ PERF-3 done    |
 | Task dispatch clone overhead  | Deep recursive clone   | Structured path only  | ✅ PERF-4 done    |
-| Cache eviction complexity     | O(n log n)             | O(n × k) ≈ O(n)      | ✅ PERF-6 done    |
+| Cache eviction complexity     | O(n log n)             | O(n × k) ≈ O(n)       | ✅ PERF-6 done    |
 | Dead code                     | ~50 lines              | 0 lines               | ✅ Completed      |
 
 ---
