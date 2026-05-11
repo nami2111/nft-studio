@@ -113,55 +113,63 @@ export class TraitBatchScheduler {
 		}
 
 		const totalBatches = Math.ceil(solutions.length / effectiveBatchSize);
-		const batchPromises: Promise<unknown>[] = [];
 
 		if (import.meta.env.DEV)
 			console.log(
 				`📦 Distributing ${totalBatches} batches to worker pool (batchSize=${effectiveBatchSize}, layerRef=${useLayerRef})...`
 			);
 
-		for (let b = 0; b < totalBatches; b++) {
-			const batchSolutions = solutions.slice(b * effectiveBatchSize, (b + 1) * effectiveBatchSize);
+		// FIND-3: Process batches in windows to prevent unbounded queue growth.
+		// Each window awaits completion before dispatching the next window,
+		// allowing solution data from processed batches to be GC'd.
+		const WINDOW_SIZE = 4;
+		for (let b = 0; b < totalBatches; b += WINDOW_SIZE) {
+			const windowPromises: Promise<unknown>[] = [];
+			const windowEnd = Math.min(b + WINDOW_SIZE, totalBatches);
 
-			if (useLayerRef) {
-				const message: BatchRefMessage = {
-					type: 'batch-ref',
-					payload: {
-						solutions: batchSolutions.map((s) => ({
-							index: s.index,
-							traitRefs: s.traits.map((t) => ({
-								layerId: t.layerId,
-								traitId: t.trait.id
-							}))
-						})),
-						collectionSize,
-						outputSize,
-						projectName,
-						projectDescription,
-						metadataStandard,
-						extraData
-					}
-				};
-				batchPromises.push(postMessageToPool(message));
-			} else {
-				const message: BatchMessage = {
-					type: 'batch',
-					payload: {
-						solutions: batchSolutions,
-						layers: stripImageDataFromLayers(layers),
-						collectionSize,
-						outputSize,
-						projectName,
-						projectDescription,
-						metadataStandard,
-						extraData
-					}
-				};
-				batchPromises.push(postMessageToPool(message));
+			for (let w = b; w < windowEnd; w++) {
+				const batchSolutions = solutions.slice(w * effectiveBatchSize, (w + 1) * effectiveBatchSize);
+
+				if (useLayerRef) {
+					const message: BatchRefMessage = {
+						type: 'batch-ref',
+						payload: {
+							solutions: batchSolutions.map((s) => ({
+								index: s.index,
+								traitRefs: s.traits.map((t) => ({
+									layerId: t.layerId,
+									traitId: t.trait.id
+								}))
+							})),
+							collectionSize,
+							outputSize,
+							projectName,
+							projectDescription,
+							metadataStandard,
+							extraData
+						}
+					};
+					windowPromises.push(postMessageToPool(message));
+				} else {
+					const message: BatchMessage = {
+						type: 'batch',
+						payload: {
+							solutions: batchSolutions,
+							layers: stripImageDataFromLayers(layers),
+							collectionSize,
+							outputSize,
+							projectName,
+							projectDescription,
+							metadataStandard,
+							extraData
+						}
+					};
+					windowPromises.push(postMessageToPool(message));
+				}
 			}
-		}
 
-		await Promise.all(batchPromises);
+			await Promise.all(windowPromises);
+		}
 
 		// Send completion message to the UI
 		if (this.config.onMessage) {
