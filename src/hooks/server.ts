@@ -15,7 +15,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const CSP_HEADER = `
 		default-src 'self';
 		script-src 'self' 'nonce-${nonce}';
-		worker-src 'self';
+		worker-src 'self' blob:;
 		style-src 'self' 'nonce-${nonce}';
 		img-src 'self' data: blob:;
 		font-src 'self' data:;
