@@ -216,7 +216,9 @@ async function solveInWorker(
 				reject(new Error(data.payload?.message || 'Solver worker error'));
 			} else if (data.type === 'cancelled') {
 				worker.terminate();
-				reject(new Error('Solver cancelled'));
+				// Resolve with any partial solutions collected so far,
+				// so the caller gets whatever was solved before cancellation.
+				resolve(solutions);
 			}
 		};
 

@@ -1,9 +1,8 @@
 /**
- * Optimized memory pooling for sequential processing
+ * Optimized memory pooling for sequential processing with size-bucketed caches.
  */
 export class OptimizedMemoryManager {
-	private canvasPool: OffscreenCanvas[] = [];
-	private ctxPool: OffscreenCanvasRenderingContext2D[] = [];
+	private canvasPools = new Map<string, OffscreenCanvas[]>();
 	private objectUrlSet = new Set<string>(); // Track ObjectURLs for cleanup
 
 	private maxPoolSize: number;
@@ -16,24 +15,35 @@ export class OptimizedMemoryManager {
 			console.log(`🎯 Memory Manager: Max pool size ${this.maxPoolSize} canvases`);
 	}
 
-	getCanvas(width: number, height: number): OffscreenCanvas {
-		// Try to reuse a canvas from the pool
-		let canvas = this.canvasPool.pop();
+	private poolKey(width: number, height: number): string {
+		return `${width}x${height}`;
+	}
 
-		if (!canvas || canvas.width !== width || canvas.height !== height) {
-			canvas = new OffscreenCanvas(width, height);
+	getCanvas(width: number, height: number): OffscreenCanvas {
+		// Try to reuse a same-size canvas from the bucketed pool
+		const key = this.poolKey(width, height);
+		const pool = this.canvasPools.get(key);
+		if (pool && pool.length > 0) {
+			return pool.pop()!;
 		}
 
-		return canvas;
+		return new OffscreenCanvas(width, height);
 	}
 
 	returnCanvas(canvas: OffscreenCanvas): void {
-		if (this.canvasPool.length < this.maxPoolSize) {
+		const key = this.poolKey(canvas.width, canvas.height);
+
+		if (!this.canvasPools.has(key)) {
+			this.canvasPools.set(key, []);
+		}
+
+		const pool = this.canvasPools.get(key)!;
+		if (pool.length < this.maxPoolSize) {
 			const ctx = canvas.getContext('2d');
 			if (ctx) {
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 			}
-			this.canvasPool.push(canvas);
+			pool.push(canvas);
 		}
 	}
 
@@ -57,8 +67,12 @@ export class OptimizedMemoryManager {
 	}
 
 	get poolStats() {
+		const totalPooled = Array.from(this.canvasPools.values()).reduce(
+			(sum, pool) => sum + pool.length,
+			0
+		);
 		return {
-			pooledCanvases: this.canvasPool.length,
+			pooledCanvases: totalPooled,
 			maxPoolSize: this.maxPoolSize,
 			trackedUrls: this.objectUrlSet.size
 		};

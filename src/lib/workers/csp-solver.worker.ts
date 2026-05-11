@@ -44,11 +44,43 @@ interface SolveRequest {
 
 let isCancelled = false;
 
+// Module-level state so the cancel handler can access the active solve context
+let activeSolutions: {
+	index: number;
+	traits: { layerId: string; traitId: string; traitName: string }[];
+}[] = [];
+let activeSolvedCount = 0;
+let activeCollectionSize = 0;
+const CHUNK_SIZE = 100;
+
+/**
+ * Flush any buffered solutions to the client before cancellation,
+ * so partial results are not lost.
+ */
+function flushPartialSolutions(): void {
+	if (activeSolutions.length > 0) {
+		(self as unknown as Worker).postMessage({
+			type: 'chunk',
+			payload: { solutions: activeSolutions.splice(0) }
+		});
+	}
+}
+
 self.addEventListener('message', (e: MessageEvent<SolveRequest | { type: 'cancel' }>) => {
 	const message = e.data;
 
 	if (message.type === 'cancel') {
 		isCancelled = true;
+		// Flush accumulated solutions before returning, so the client
+		// can recover partial results instead of losing everything.
+		flushPartialSolutions();
+		self.postMessage({
+			type: 'cancelled',
+			payload: {
+				solvedCount: activeSolvedCount,
+				totalCount: activeCollectionSize
+			}
+		});
 		return;
 	}
 
@@ -64,16 +96,21 @@ self.addEventListener('message', (e: MessageEvent<SolveRequest | { type: 'cancel
 		strictPairConfig
 	);
 
-	const solutions: {
-		index: number;
-		traits: { layerId: string; traitId: string; traitName: string }[];
-	}[] = [];
-	const CHUNK_SIZE = 100;
+	activeCollectionSize = collectionSize;
+	activeSolvedCount = 0;
+	activeSolutions = [];
 
 	try {
 		for (let i = 0; i < collectionSize; i++) {
 			if (isCancelled) {
-				self.postMessage({ type: 'cancelled' });
+				flushPartialSolutions();
+				self.postMessage({
+					type: 'cancelled',
+					payload: {
+						solvedCount: activeSolvedCount,
+						totalCount: collectionSize
+					}
+				});
 				return;
 			}
 
@@ -89,6 +126,7 @@ self.addEventListener('message', (e: MessageEvent<SolveRequest | { type: 'cancel
 			}
 
 			solver.markCombinationAsUsed();
+			activeSolvedCount++;
 
 			const sortedTraits = Array.from(solutionMap.entries())
 				.map(([layerId, trait]) => {
@@ -103,33 +141,33 @@ self.addEventListener('message', (e: MessageEvent<SolveRequest | { type: 'cancel
 				.sort((a, b) => a.order - b.order)
 				.map(({ layerId, traitId, traitName }) => ({ layerId, traitId, traitName }));
 
-			solutions.push({
+			activeSolutions.push({
 				index: i,
 				traits: sortedTraits
 			});
 
 			// Stream progress in chunks
-			if (solutions.length >= CHUNK_SIZE) {
+			if (activeSolutions.length >= CHUNK_SIZE) {
 				self.postMessage({
 					type: 'progress',
 					payload: {
-						solvedCount: i + 1,
+						generatedCount: i + 1,
 						totalCount: collectionSize
 					}
 				});
 				// Send chunk of solutions
 				self.postMessage({
 					type: 'chunk',
-					payload: { solutions: solutions.splice(0, CHUNK_SIZE) }
+					payload: { solutions: activeSolutions.splice(0, CHUNK_SIZE) }
 				});
 			}
 		}
 
 		// Send any remaining solutions
-		if (solutions.length > 0) {
+		if (activeSolutions.length > 0) {
 			self.postMessage({
 				type: 'chunk',
-				payload: { solutions }
+				payload: { solutions: activeSolutions.splice(0) }
 			});
 		}
 
@@ -144,5 +182,8 @@ self.addEventListener('message', (e: MessageEvent<SolveRequest | { type: 'cancel
 				message: error instanceof Error ? error.message : 'Solver worker error'
 			}
 		});
+	} finally {
+		activeSolutions = [];
+		activeSolvedCount = 0;
 	}
 });

@@ -22,16 +22,21 @@ const perfMonitor = new PerformanceMonitor();
 const IMAGE_BITMAP_CACHE_MAX = 64;
 const imageBitmapCache = new Map<string, ImageBitmap>();
 const imageBitmapCacheOrder: string[] = []; // access order (oldest first)
+let bitmapCacheHits = 0;
+let bitmapCacheMisses = 0;
 
 function getImageBitmap(key: string): ImageBitmap | undefined {
 	const bitmap = imageBitmapCache.get(key);
 	if (bitmap) {
+		bitmapCacheHits++;
 		// Move to end (most recently used)
 		const idx = imageBitmapCacheOrder.indexOf(key);
 		if (idx > -1) {
 			imageBitmapCacheOrder.splice(idx, 1);
 			imageBitmapCacheOrder.push(key);
 		}
+	} else {
+		bitmapCacheMisses++;
 	}
 	return bitmap;
 }
@@ -65,8 +70,25 @@ function clearImageBitmapCache(): void {
 	for (const bitmap of imageBitmapCache.values()) {
 		bitmap.close();
 	}
+	const totalOps = bitmapCacheHits + bitmapCacheMisses;
+	if (totalOps > 0) {
+		perfMonitor.addCacheMetrics('imageBitmap', {
+			hits: bitmapCacheHits,
+			misses: bitmapCacheMisses,
+			sets: imageBitmapCacheOrder.length + imageBitmapCache.size,
+			evictions: 0,
+			currentEntries: imageBitmapCache.size,
+			maxEntries: IMAGE_BITMAP_CACHE_MAX,
+			currentSize: imageBitmapCache.size,
+			maxSize: IMAGE_BITMAP_CACHE_MAX,
+			memoryUsage: imageBitmapCache.size * 1024 * 1024, // approximate
+			hitRate: bitmapCacheHits / totalOps
+		});
+	}
 	imageBitmapCache.clear();
 	imageBitmapCacheOrder.length = 0;
+	bitmapCacheHits = 0;
+	bitmapCacheMisses = 0;
 }
 
 const memoryManager = new OptimizedMemoryManager();
@@ -84,7 +106,7 @@ let currentTaskQueue: Promise<void> = Promise.resolve();
 async function createImageBitmapFromBuffer(
 	buffer: ArrayBuffer,
 	traitName: string,
-	options?: { resizeWidth?: number; resizeHeight?: number }
+	options?: { resizeWidth?: number; resizeHeight?: number; resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high' }
 ): Promise<ImageBitmap> {
 	if (!buffer || buffer.byteLength === 0) {
 		throw new Error(
@@ -92,7 +114,8 @@ async function createImageBitmapFromBuffer(
 		);
 	}
 
-	const cacheKey = `${traitName}_${buffer.byteLength}_${options?.resizeWidth || 0}_${options?.resizeHeight || 0}`;
+	const resizeQuality = options?.resizeQuality || 'default';
+	const cacheKey = `${traitName}_${buffer.byteLength}_${options?.resizeWidth || 0}_${options?.resizeHeight || 0}_${resizeQuality}`;
 
 	const cachedBitmap = getImageBitmap(cacheKey);
 	if (cachedBitmap) return cachedBitmap;
@@ -114,7 +137,9 @@ async function createImageBitmapFromBuffer(
 		if (options?.resizeWidth && options?.resizeHeight) {
 			imageBitmapOptions.resizeWidth = options.resizeWidth;
 			imageBitmapOptions.resizeHeight = options.resizeHeight;
-			imageBitmapOptions.resizeQuality = 'high';
+			if (resizeQuality !== 'default') {
+				imageBitmapOptions.resizeQuality = resizeQuality as ImageBitmapOptions['resizeQuality'];
+			}
 		}
 
 		const bitmap = await createImageBitmap(blob, imageBitmapOptions);

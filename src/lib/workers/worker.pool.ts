@@ -172,63 +172,6 @@ function calculateTaskComplexity(
 }
 
 /**
- * Calculate optimal worker count based on device capabilities and current load
- */
-function calculateOptimalWorkerCount(taskComplexity?: TaskComplexity, queueLength = 0): number {
-	const { coreCount, memoryGB, isMobile } = getDeviceCapabilities();
-
-	// Base worker count on CPU cores
-	let optimalWorkers = Math.max(1, coreCount - 1); // Leave one core for UI
-
-	// Adjust for memory (more memory = more workers allowed)
-	if (memoryGB >= 16) {
-		optimalWorkers = Math.min(optimalWorkers + 2, 8); // Cap at 8
-	} else if (memoryGB >= 8) {
-		optimalWorkers = Math.min(optimalWorkers + 1, 6); // Cap at 6
-	}
-
-	// Mobile devices get fewer workers
-	if (isMobile) {
-		optimalWorkers = Math.min(optimalWorkers, Math.max(2, coreCount - 2));
-	}
-
-	// Adjust based on task complexity
-	if (taskComplexity === TaskComplexity.VERY_HIGH && queueLength > 10) {
-		// Reduce workers for very high complexity to prevent memory issues
-		optimalWorkers = Math.max(1, Math.floor(optimalWorkers * 0.5));
-	} else if (taskComplexity === TaskComplexity.LOW && queueLength > 50) {
-		// Increase workers for many simple tasks
-		optimalWorkers = Math.min(optimalWorkers + 2, coreCount);
-	}
-
-	// Clamp to reasonable bounds
-	return Math.max(1, Math.min(optimalWorkers, isMobile ? 4 : 10));
-}
-
-/**
- * Estimate task duration based on complexity and device capabilities
- */
-function estimateTaskDuration(_complexity: TaskComplexity, collectionSize: number): number {
-	const { coreCount, memoryGB, isMobile } = getDeviceCapabilities();
-
-	// Base time estimates (in milliseconds)
-	const baseTimes = {
-		[TaskComplexity.LOW]: 100,
-		[TaskComplexity.MEDIUM]: 500,
-		[TaskComplexity.HIGH]: 2000,
-		[TaskComplexity.VERY_HIGH]: 5000
-	};
-
-	let baseTime = baseTimes[_complexity] * (collectionSize / 100); // Scale by collection size
-	baseTime *= 16 / memoryGB; // Adjust for memory (more memory = faster)
-	baseTime *= 4 / coreCount; // Adjust for cores (more cores = faster)
-	if (isMobile) baseTime *= 1.5; // Mobile devices are slower
-
-	// TODO: Consider resolution in future (currently using collection size as primary factor)
-	return Math.max(100, baseTime);
-}
-
-/**
  * Perform health check on a specific worker
  */
 function checkWorkerHealth(workerIndex: number): void {
@@ -656,8 +599,16 @@ function performDynamicScaling(): void {
 	const queueLength = workerPool.taskQueue.length;
 	const activeTaskCount = workerPool.activeTasks.size;
 
-	// Calculate optimal worker count based on current load
-	const maxWorkers = workerPool.config.maxWorkers || calculateOptimalWorkerCount();
+	// Use configured max workers or fall back to device-based default
+	const configuredMaxWorkers = workerPool.config?.maxWorkers;
+	const cores = navigator.hardwareConcurrency || 4;
+	const memGB = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
+	const maxWorkers =
+		configuredMaxWorkers ??
+		Math.min(
+			Math.max(1, cores - 1) + 2,
+			memGB >= 16 ? 8 : 6
+		);
 
 	// Only scale if within bounds
 	if (currentWorkerCount >= maxWorkers) {
@@ -1232,7 +1183,26 @@ function performHealthChecks(): void {
 		// false "unresponsive" detections and mid-generation worker restarts.
 		const isBusy = !workerPool.workerStatus[i];
 		if (isBusy) {
+			// Even while busy, check for degraded workers that have been active too long.
+			// This prevents hung workers from going undetected during large generations.
+			const lastActivity = workerPool.workerStats[i].lastActivity;
+			const activeDuration = Date.now() - lastActivity;
+			if (activeDuration > 300000) {
+				// Worker has been continuously active for >5 minutes — mark as degraded
+				if (workerPool.workerHealth[i] !== WorkerHealth.DEGRADED) {
+					workerPool.workerHealth[i] = WorkerHealth.DEGRADED;
+					debugLog(
+						`Worker ${i} marked DEGRADED (active for ${(activeDuration / 1000).toFixed(0)}s without completion)`
+					);
+				}
+			}
 			continue;
+		}
+
+		// Reset DEGRADED status when worker becomes idle and passes health check
+		if (workerPool.workerHealth[i] === WorkerHealth.DEGRADED) {
+			debugLog(`Worker ${i} recovered from DEGRADED state`);
+			workerPool.workerHealth[i] = WorkerHealth.HEALTHY;
 		}
 
 		checkWorkerHealth(i);
@@ -1251,7 +1221,6 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 
 		// Calculate task complexity
 		let complexity = TaskComplexity.MEDIUM; // Default
-		let estimatedDuration = 500; // Default 500ms
 
 		// Narrow the message type to extract payload fields for complexity calculation.
 		// The TS union excludes 'start' but it can arrive at runtime, so narrowing is needed.
@@ -1263,7 +1232,6 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 				outputSize: { width: number; height: number };
 			};
 			complexity = calculateTaskComplexity(p.layers, p.collectionSize, p.outputSize);
-			estimatedDuration = estimateTaskDuration(complexity, p.collectionSize);
 		} else if (msg.type === 'batch' && msg.payload) {
 			const p = msg.payload as {
 				layers: unknown[];
@@ -1271,7 +1239,6 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 				outputSize: { width: number; height: number };
 			};
 			complexity = calculateTaskComplexity(p.layers, p.solutions.length, p.outputSize);
-			estimatedDuration = estimateTaskDuration(complexity, p.solutions.length);
 		}
 
 		const task: WorkerTask<T> = {
@@ -1281,7 +1248,6 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 			reject,
 			timestamp: Date.now(),
 			complexity,
-			estimatedDuration,
 			// Store functions separately to avoid cloning issues
 			_resolve: resolve,
 			_reject: reject
