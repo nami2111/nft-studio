@@ -13,7 +13,7 @@ import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { getErrorInfo } from '$lib/utils/typed-errors';
 import { CSPSolver } from './csp-solver';
 import { TraitBatchScheduler } from './trait-batch-scheduler';
-import { initializeWorkerPool, setMessageCallback, terminateWorkerPool } from './worker.pool';
+import { initializeWorkerPool, setMessageCallback, terminateWorkerPool } from './pool';
 import { generationState } from '$lib/stores/generation-progress.svelte';
 
 // Worker pool will be initialized on demand
