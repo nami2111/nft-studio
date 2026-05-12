@@ -23,51 +23,38 @@ const workerArrayBufferCache = new WorkerArrayBufferCache();
 const perfMonitor = new PerformanceMonitor();
 
 // Bounded LRU cache for ImageBitmaps (max 64 entries to bound GPU memory)
+// Uses Map insertion-order semantics for O(1) LRU tracking.
 const IMAGE_BITMAP_CACHE_MAX = 64;
 const imageBitmapCache = new Map<string, ImageBitmap>();
-const imageBitmapCacheOrder: string[] = []; // access order (oldest first)
 let bitmapCacheHits = 0;
 let bitmapCacheMisses = 0;
 
 function getImageBitmap(key: string): ImageBitmap | undefined {
-	const bitmap = imageBitmapCache.get(key);
-	if (bitmap) {
-		bitmapCacheHits++;
-		// Move to end (most recently used)
-		const idx = imageBitmapCacheOrder.indexOf(key);
-		if (idx > -1) {
-			imageBitmapCacheOrder.splice(idx, 1);
-			imageBitmapCacheOrder.push(key);
-		}
-	} else {
+	if (!imageBitmapCache.has(key)) {
 		bitmapCacheMisses++;
+		return undefined;
 	}
+	bitmapCacheHits++;
+	const bitmap = imageBitmapCache.get(key)!;
+	// Move to end (most recently used) — delete + re-set preserves insertion order
+	imageBitmapCache.delete(key);
+	imageBitmapCache.set(key, bitmap);
 	return bitmap;
 }
 
 function setImageBitmap(key: string, bitmap: ImageBitmap): void {
 	if (imageBitmapCache.has(key)) {
-		// Update existing - move to end
-		const idx = imageBitmapCacheOrder.indexOf(key);
-		if (idx > -1) {
-			imageBitmapCacheOrder.splice(idx, 1);
-		}
-		imageBitmapCacheOrder.push(key);
-		return;
-	}
-
-	if (imageBitmapCache.size >= IMAGE_BITMAP_CACHE_MAX) {
-		// Evict oldest
-		const oldestKey = imageBitmapCacheOrder.shift();
-		if (oldestKey) {
+		imageBitmapCache.delete(key);
+	} else if (imageBitmapCache.size >= IMAGE_BITMAP_CACHE_MAX) {
+		// Evict oldest (first key in Map insertion order)
+		const oldestKey = imageBitmapCache.keys().next().value;
+		if (oldestKey !== undefined) {
 			const oldBitmap = imageBitmapCache.get(oldestKey);
 			if (oldBitmap) oldBitmap.close();
 			imageBitmapCache.delete(oldestKey);
 		}
 	}
-
 	imageBitmapCache.set(key, bitmap);
-	imageBitmapCacheOrder.push(key);
 }
 
 function clearImageBitmapCache(): void {
@@ -79,18 +66,17 @@ function clearImageBitmapCache(): void {
 		perfMonitor.addCacheMetrics('imageBitmap', {
 			hits: bitmapCacheHits,
 			misses: bitmapCacheMisses,
-			sets: imageBitmapCacheOrder.length + imageBitmapCache.size,
+			sets: imageBitmapCache.size,
 			evictions: 0,
 			currentEntries: imageBitmapCache.size,
 			maxEntries: IMAGE_BITMAP_CACHE_MAX,
 			currentSize: imageBitmapCache.size,
 			maxSize: IMAGE_BITMAP_CACHE_MAX,
-			memoryUsage: imageBitmapCache.size * 1024 * 1024, // approximate
+			memoryUsage: imageBitmapCache.size * 1024 * 1024,
 			hitRate: bitmapCacheHits / totalOps
 		});
 	}
 	imageBitmapCache.clear();
-	imageBitmapCacheOrder.length = 0;
 	bitmapCacheHits = 0;
 	bitmapCacheMisses = 0;
 }
