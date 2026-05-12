@@ -23,7 +23,15 @@ import {
 	loadProjectFromZip as loadProjectFromZipImpl,
 	saveProjectToZip as saveProjectToZipImpl
 } from './file-operations';
-import { loadingStateManager } from './loading-state';
+import {
+	startLoading,
+	stopLoading,
+	getLoadingState,
+	startDetailedLoading,
+	updateDetailedLoading,
+	stopDetailedLoading,
+	getDetailedLoadingState
+} from './loading-state.svelte';
 import { globalResourceManager } from './resource-manager';
 
 // Initialize project with a fresh default project.
@@ -447,28 +455,16 @@ export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeig
 	persistenceService.schedulePersist(project);
 }
 
-// Loading state delegation
-export function startLoading(op: string) {
-	loadingStateManager.startLoading(op);
-}
-export function stopLoading(op: string) {
-	loadingStateManager.stopLoading(op);
-}
-export function getLoadingState(op: string) {
-	return loadingStateManager.getLoadingState(op);
-}
-export function startDetailedLoading(op: string, total = 100) {
-	loadingStateManager.startDetailedLoading(op, total);
-}
-export function updateDetailedLoading(op: string, p: number, m?: string) {
-	loadingStateManager.updateDetailedLoading(op, p, m);
-}
-export function stopDetailedLoading(op: string, s = true) {
-	loadingStateManager.stopDetailedLoading(op, s);
-}
-export function getDetailedLoadingState(op: string) {
-	return loadingStateManager.getDetailedLoadingState(op);
-}
+// Loading state delegation — re-export rune-based functions for convenience
+export {
+	startLoading,
+	stopLoading,
+	getLoadingState,
+	startDetailedLoading,
+	updateDetailedLoading,
+	stopDetailedLoading,
+	getDetailedLoadingState
+};
 
 // Project persistence
 export async function saveProjectToZip(): Promise<ArrayBuffer> {
