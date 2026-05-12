@@ -874,3 +874,12 @@ export const resetState = generationStateManager.resetState.bind(generationState
 export const getMemorySummary =
 	generationStateManager.getMemorySummary.bind(generationStateManager);
 export const getSummary = generationStateManager.getSummary.bind(generationStateManager);
+
+/**
+ * Clean up generation state and release resources.
+ * Call this when a generation session is truly done (e.g., app unmount, explicit user cleanup).
+ * Does NOT affect background generation — call cancelGeneration() first if needed.
+ */
+export function cleanupGenerationState(): void {
+	generationStateManager.resetState();
+}
