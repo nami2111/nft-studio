@@ -44,7 +44,7 @@ export function sanitizeForClone(value: unknown, depth = 0): unknown {
 	if (value instanceof Date) return value;
 	if (value instanceof RegExp) return value;
 	if (value instanceof Blob) return value;
-	if (value instanceof ImageData) return value;
+	if (typeof ImageData !== 'undefined' && value instanceof ImageData) return value;
 	if (value instanceof Map) {
 		const out = new Map();
 		for (const [k, v] of value) {
