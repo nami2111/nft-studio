@@ -17,7 +17,7 @@ import type {
 	TransferrableLayer
 } from '$lib/types/worker-messages';
 import { isFlagEnabled } from '$lib/config/feature-flags';
-import { getWorkerPoolStatus, postMessageToPool } from './worker.pool';
+import { getWorkerPoolStatus, postMessageToPool } from './pool';
 
 export interface BatchConfig {
 	layers: TransferrableLayer[];
