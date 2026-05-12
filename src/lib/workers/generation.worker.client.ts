@@ -10,6 +10,7 @@ import type {
 } from '$lib/types/worker-messages';
 import { isFlagEnabled } from '$lib/config/feature-flags';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
+import { getErrorInfo } from '$lib/utils/typed-errors';
 import { CSPSolver } from './csp-solver';
 import { TraitBatchScheduler } from './trait-batch-scheduler';
 import { initializeWorkerPool, setMessageCallback, terminateWorkerPool } from './worker.pool';
@@ -264,7 +265,10 @@ export async function startGeneration(
 			try {
 				solutions = await solveInWorker(layers, collectionSize, strictPairConfig);
 			} catch (workerError) {
-				console.warn('CSP solver worker failed, falling back to main thread:', workerError);
+				console.warn(
+					'CSP solver worker failed, falling back to main thread:',
+					getErrorInfo(workerError)
+				);
 				solutions = await solveOnMainThread(layers, collectionSize, strictPairConfig);
 			}
 		} else {
@@ -291,7 +295,7 @@ export async function startGeneration(
 		performanceMonitor.stopTimer(timerId);
 	} catch (error) {
 		performanceMonitor.stopTimer(timerId, { error: String(error) });
-		console.error('Generation failure:', error);
+		console.error('Generation failure:', getErrorInfo(error));
 		if (messageHandler) {
 			messageHandler({
 				type: 'error',
