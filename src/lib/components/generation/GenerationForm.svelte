@@ -9,6 +9,7 @@
         PreviewMessage
     } from '$lib/types/worker-messages';
     import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
+    import { GenerationExecutionError, getErrorInfo } from '$lib/utils/typed-errors';
     import {
         generationState,
         startGeneration,
@@ -122,7 +123,7 @@ if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
             generationState.allImages = [];
             generationState.allMetadata = [];
         } catch (error) {
-            console.error('Export error details:', error);
+            console.error('[GenerationForm] Export failed:', getErrorInfo(error));
 
             // Handle memory allocation errors specifically
             if (error instanceof Error && error.message.includes('Array buffer allocation failed')) {
@@ -269,7 +270,7 @@ if (import.meta.env.DEV) console.log(`🚀 Starting generation session: ${sessio
                                             projectData.name || 'collection'
                                         );
                                     } catch (err) {
-                                        console.error('Background ZIP finalization failed:', err);
+                                        console.error('[GenerationForm] Background ZIP finalization failed:', getErrorInfo(err));
                                     }
                                     isStreamingZip = false;
                                 }
@@ -408,7 +409,7 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                             isStreamingZip = false;
                         }
                         handleError(message);
-                        showError(new Error(message.payload.message), {
+                        showError(new GenerationExecutionError(message.payload.message), {
                             title: 'Generation Error',
                             description: 'An error occurred during generation. Please try again.'
                         });
