@@ -50,7 +50,7 @@ function stripLayersForSolver(
 	}));
 }
 
-async function solveOnMainThread(
+export async function solveOnMainThread(
 	layers: TransferrableLayer[],
 	collectionSize: number,
 	strictPairConfig?: StrictPairConfig
