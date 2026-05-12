@@ -58,8 +58,8 @@ class ConstraintCache {
 	accessCount = 0;
 	private hits = 0;
 
-	get(traitId: string, targetLayerId: string): Set<string> | undefined {
-		const cacheKey = `${traitId}_${targetLayerId}`;
+	get(fromTraitId: string, fromLayerId: string, targetLayerId: string): Set<string> | undefined {
+		const cacheKey = `${fromLayerId}_${fromTraitId}_${targetLayerId}`;
 		this.accessCount++;
 		const result = this.compatiblePairs.get(cacheKey);
 		if (result) {
@@ -69,8 +69,13 @@ class ConstraintCache {
 		return result;
 	}
 
-	set(traitId: string, targetLayerId: string, compatibleTraits: Set<string>): void {
-		const cacheKey = `${traitId}_${targetLayerId}`;
+	set(
+		fromTraitId: string,
+		fromLayerId: string,
+		targetLayerId: string,
+		compatibleTraits: Set<string>
+	): void {
+		const cacheKey = `${fromLayerId}_${fromTraitId}_${targetLayerId}`;
 		this.compatiblePairs.set(cacheKey, new Set(compatibleTraits));
 	}
 
@@ -371,10 +376,16 @@ export class CSPSolver {
 			const arc = queue.shift()!;
 			this.performanceStats.ac3Iterations++;
 
-			// Early termination check: if too many revisions, might be infinite loop
-			if (this.performanceStats.ac3Iterations > this.context.layers.length * 100) {
+			// Adaptive iteration limit based on problem complexity.
+			// Simple problems converge in O(layers × traits), complex ruler constraints need more.
+			const totalTraits = this.context.layers.reduce((sum, l) => sum + l.traits.length, 0);
+			const iterationLimit = Math.max(this.context.layers.length * totalTraits * 2, 10000);
+
+			if (this.performanceStats.ac3Iterations > iterationLimit) {
+				// Reset cache instead of abrupt break — may recover from false loop detection
+				this.constraintCache.clear();
+				this.performanceStats.ac3Iterations = 0;
 				this.performanceStats.earlyTerminations++;
-				break;
 			}
 
 			// If domain was revised (values removed), add affected arcs back to queue
@@ -425,7 +436,11 @@ export class CSPSolver {
 		// Filter traits that have no support in toDomain with smart caching
 		fromDomain.availableTraits = fromDomain.availableTraits.filter((fromTrait) => {
 			// Check constraint cache first for performance
-			const cachedCompatible = this.constraintCache.get(fromTrait.id, arc.toLayerId);
+			const cachedCompatible = this.constraintCache.get(
+				fromTrait.id,
+				arc.fromLayerId,
+				arc.toLayerId
+			);
 			if (cachedCompatible !== undefined) {
 				this.performanceStats.constraintCacheHits++;
 				// Use cached compatible traits
@@ -445,7 +460,12 @@ export class CSPSolver {
 						this.isConsistent(fromTrait, arc.fromLayerId, toTrait, arc.toLayerId)
 					)
 					.map((toTrait) => toTrait.id);
-				this.constraintCache.set(fromTrait.id, arc.toLayerId, new Set(compatibleIds));
+				this.constraintCache.set(
+					fromTrait.id,
+					arc.fromLayerId,
+					arc.toLayerId,
+					new Set(compatibleIds)
+				);
 			}
 
 			return hasCompatible;
