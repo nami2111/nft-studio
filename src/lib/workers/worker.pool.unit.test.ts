@@ -5,7 +5,7 @@ import {
 	TaskComplexity,
 	WorkerHealth,
 	getDeviceCapabilities
-} from './worker.pool';
+} from './pool';
 
 describe('Enhanced Worker Pool Core Functions', () => {
 	it('should calculate task complexity correctly', () => {
