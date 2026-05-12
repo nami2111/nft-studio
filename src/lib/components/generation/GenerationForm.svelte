@@ -229,86 +229,79 @@ if (import.meta.env.DEV) console.log(`🚀 Starting generation session: ${sessio
             ) => {
                 const message = data;
 
-                // Skip processing if component was destroyed and generation is in background
-                if (isComponentDestroyed && generationState.isBackground) {
-                    // Still update persistent store but don't update UI
+                const isBackgroundMode = isComponentDestroyed && generationState.isBackground;
+
+                // Shared handlers — extracted to eliminate duplication between foreground/background paths
+                function cancelStreaming(): void {
+                    if (isStreamingZip) {
+                        ExportService.cancelStreamingZip();
+                        isStreamingZip = false;
+                    }
+                }
+
+                function handleChunk(images: { name: string; imageData: ArrayBuffer }[], metadata: { name: string; data: Record<string, unknown> }[]): void {
+                    if (images.length > 0 && isStreamingZip) {
+                        ExportService.addStreamingChunk(
+                            images.map((img) => ({ name: img.name, data: img.imageData })),
+                            metadata
+                        );
+                        images.length = 0;
+                    }
+                }
+
+                function handleStreamedImages(msg: CompleteMessage): void {
+                    if (msg.payload.images && msg.payload.images.length > 0) {
+                        if (msg.payload.isChunk && isStreamingZip) {
+                            if (isFlagEnabled('enableStreamingStorage')) {
+                                addImages(msg.payload.images);
+                                if (msg.payload.metadata?.length) {
+                                    addMetadata(msg.payload.metadata as { name: string; data: Record<string, unknown> }[]);
+                                }
+                            }
+                            ExportService.addStreamingChunk(
+                                msg.payload.images.map((img) => ({ name: img.name, data: img.imageData })),
+                                msg.payload.metadata || []
+                            );
+                            msg.payload.images.length = 0;
+                        } else {
+                            addImages(msg.payload.images);
+                        }
+                    }
+                }
+
+                // Background mode — update store but skip UI feedback
+                if (isBackgroundMode) {
                     switch (message.type) {
                         case 'progress':
                             updateProgress(message);
                             break;
                         case 'complete':
-                            // Handle streamed/chunked image data
-                            if (message.payload.images && message.payload.images.length > 0) {
-                                if (message.payload.isChunk && isStreamingZip) {
-                                    if (isFlagEnabled('enableStreamingStorage')) {
-                                        addImages(message.payload.images);
-                                        if (message.payload.metadata?.length) {
-                                            addMetadata(
-                                                message.payload.metadata as { name: string; data: Record<string, unknown> }[]
-                                            );
-                                        }
-                                    }
-                                    const streamImages = message.payload.images.map((img) => ({
-                                        name: img.name,
-                                        data: img.imageData
-                                    }));
-                                    ExportService.addStreamingChunk(
-                                        streamImages,
-                                        message.payload.metadata || []
-                                    );
-                                    message.payload.images.length = 0;
-                                } else {
-                                    addImages(message.payload.images);
+                            handleStreamedImages(message);
+                            if (!message.payload.isChunk && isStreamingZip && collectionSize) {
+                                try {
+                                    await ExportService.finalizeStreamingZip(projectData.name || 'collection');
+                                } catch (err) {
+                                    console.error('[GenerationForm] Background ZIP finalization failed:', getErrorInfo(err));
                                 }
-                            }
-
-                            // Finalize ZIP when scheduler sends terminal complete (isChunk absent)
-                            if (!message.payload.isChunk) {
-                                if (isStreamingZip && collectionSize) {
-                                    try {
-                                        await ExportService.finalizeStreamingZip(
-                                            projectData.name || 'collection'
-                                        );
-                                    } catch (err) {
-                                        console.error('[GenerationForm] Background ZIP finalization failed:', getErrorInfo(err));
-                                    }
-                                    isStreamingZip = false;
-                                }
-if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
+                                isStreamingZip = false;
                             }
                             break;
                         case 'error':
-                            if (isStreamingZip) {
-                                ExportService.cancelStreamingZip();
-                                isStreamingZip = false;
-                            }
+                            cancelStreaming();
                             handleError(message);
                             break;
                         case 'cancelled':
-                            if (isStreamingZip) {
-                                ExportService.cancelStreamingZip();
-                                isStreamingZip = false;
-                            }
-                            completeGeneration(); // Mark as complete but cancelled
+                            cancelStreaming();
+                            completeGeneration();
                             break;
                         case 'chunk':
-                            if (message.payload.images && message.payload.images.length > 0 && isStreamingZip) {
-                                const streamImages = message.payload.images.map((img) => ({
-                                    name: img.name,
-                                    data: img.imageData
-                                }));
-                                ExportService.addStreamingChunk(
-                                    streamImages,
-                                    message.payload.metadata || []
-                                );
-                                message.payload.images.length = 0;
-                            }
+                            handleChunk(message.payload.images, message.payload.metadata || []);
                             break;
                     }
                     return;
                 }
 
-                // Process messages for active component
+                // Foreground mode — process messages with full UI feedback
                 switch (message.type) {
                     case 'progress':
                         updateProgress(message);
@@ -326,88 +319,40 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                         break;
                     }
                     case 'complete':
-                        // Handle streamed/chunked image data
-                        if (message.payload.images && message.payload.images.length > 0) {
-                            if (message.payload.isChunk && isStreamingZip) {
-                                if (isFlagEnabled('enableStreamingStorage')) {
-                                    addImages(message.payload.images);
-                                    if (message.payload.metadata?.length) {
-                                        addMetadata(
-                                            message.payload.metadata as { name: string; data: Record<string, unknown> }[]
-                                        );
-                                    }
-                                }
-                                // Stream to ZIP worker — transfer ownership, don't accumulate
-                                const streamImages = message.payload.images.map((img) => ({
-                                    name: img.name,
-                                    data: img.imageData
-                                }));
-                                ExportService.addStreamingChunk(
-                                    streamImages,
-                                    message.payload.metadata || []
-                                );
-                                // Images transferred to ZIP — clear reference
-                                message.payload.images.length = 0;
-                            } else {
-                                addImages(message.payload.images);
-                            }
-                        }
-                        if (
-                            !message.payload.isChunk &&
-                            message.payload.metadata &&
-                            message.payload.metadata.length > 0
-                        ) {
-                            addMetadata(
-                                message.payload.metadata as { name: string; data: Record<string, unknown> }[]
-                            );
+                        handleStreamedImages(message);
+
+                        if (!message.payload.isChunk && message.payload.metadata?.length) {
+                            addMetadata(message.payload.metadata as { name: string; data: Record<string, unknown> }[]);
                         }
 
-                        // Package when the scheduler sends the terminal complete (isChunk is absent/undefined)
                         if (!message.payload.isChunk) {
                             if (isStreamingZip) {
-                                // Finalize streaming ZIP instead of packaging from memory
                                 generationState.statusText = 'Finalizing ZIP...';
                                 await ExportService.finalizeStreamingZip(
                                     projectData.name || 'collection',
-                                    (progress) => {
-                                        generationState.statusText =
-                                            progress.message;
-                                    }
+                                    (progress) => { generationState.statusText = progress.message; }
                                 );
                                 isStreamingZip = false;
                                 showSuccess('Generation complete', {
-                                    description: `Your download has started.`
+                                    description: 'Your download has started.'
                                 });
                                 completeGeneration();
                                 generationState.allImages = [];
                                 generationState.allMetadata = [];
                             } else {
                                 if (import.meta.env.DEV)
-                                    console.log(
-                                        'Generation complete, packaging:',
-                                        generationState.allImages.length,
-                                        'images,',
-                                        generationState.allMetadata.length,
-                                        'metadata'
-                                    );
-
+                                    console.log('Generation complete, packaging:', generationState.allImages.length, 'images,', generationState.allMetadata.length, 'metadata');
                                 await packageZip(generationState.allImages, generationState.allMetadata);
                             }
                         }
                         break;
                     case 'cancelled':
-                        if (isStreamingZip) {
-                            ExportService.cancelStreamingZip();
-                            isStreamingZip = false;
-                        }
+                        cancelStreaming();
                         completeGeneration();
                         showInfo('Generation has been cancelled.');
                         break;
                     case 'error':
-                        if (isStreamingZip) {
-                            ExportService.cancelStreamingZip();
-                            isStreamingZip = false;
-                        }
+                        cancelStreaming();
                         handleError(message);
                         showError(new GenerationExecutionError(message.payload.message), {
                             title: 'Generation Error',
@@ -415,17 +360,7 @@ if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
                         });
                         break;
                     case 'chunk':
-                        if (message.payload.images && message.payload.images.length > 0 && isStreamingZip) {
-                            const streamImages = message.payload.images.map((img) => ({
-                                name: img.name,
-                                data: img.imageData
-                            }));
-                            ExportService.addStreamingChunk(
-                                streamImages,
-                                message.payload.metadata || []
-                            );
-                            message.payload.images.length = 0;
-                        }
+                        handleChunk(message.payload.images, message.payload.metadata || []);
                         break;
                     default:
                         console.warn('Unknown message type from worker:', (message as { type: string }).type);
