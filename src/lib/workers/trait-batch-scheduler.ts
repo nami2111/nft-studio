@@ -19,6 +19,23 @@ import type {
 import { isFlagEnabled } from '$lib/config/feature-flags';
 import { getWorkerPoolStatus, postMessageToPool } from './pool';
 
+const BATCH_CONFIG = {
+	WINDOW_SIZE: 4,
+	DEFAULT_BATCH_SIZE: 50,
+	ADAPTIVE: {
+		LARGE_THRESHOLD: 10000,
+		MEDIUM_THRESHOLD: 1000,
+		LARGE_BASE: 80,
+		MEDIUM_BASE: 50,
+		SMALL_BASE: 25,
+		MIN_SIZE: 10,
+		MAX_SIZE: 150,
+		HIGH_RES_PIXEL_THRESHOLD: 2_000_000,
+		RESOLUTION_REDUCTION_FACTOR: 2,
+		DEFAULT_CONCURRENCY: 4
+	}
+} as const;
+
 export interface BatchConfig {
 	layers: TransferrableLayer[];
 	collectionSize: number;
@@ -58,12 +75,18 @@ function calculateAdaptiveBatchSize(
 	workerCount: number,
 	outputSize: { width: number; height: number }
 ): number {
-	const base = collectionSize > 10000 ? 80 : collectionSize > 1000 ? 50 : 25;
+	const { ADAPTIVE } = BATCH_CONFIG;
+	const base =
+		collectionSize > ADAPTIVE.LARGE_THRESHOLD
+			? ADAPTIVE.LARGE_BASE
+			: collectionSize > ADAPTIVE.MEDIUM_THRESHOLD
+				? ADAPTIVE.MEDIUM_BASE
+				: ADAPTIVE.SMALL_BASE;
 	const byWorkers = Math.ceil(collectionSize / Math.max(1, workerCount * 2));
-	let size = Math.max(10, Math.min(150, Math.min(base, byWorkers)));
+	let size = Math.max(ADAPTIVE.MIN_SIZE, Math.min(ADAPTIVE.MAX_SIZE, Math.min(base, byWorkers)));
 	// Reduce batch size for high-resolution images
-	if (outputSize.width * outputSize.height > 2_000_000) {
-		size = Math.max(10, Math.floor(size / 2));
+	if (outputSize.width * outputSize.height > ADAPTIVE.HIGH_RES_PIXEL_THRESHOLD) {
+		size = Math.max(ADAPTIVE.MIN_SIZE, Math.floor(size / ADAPTIVE.RESOLUTION_REDUCTION_FACTOR));
 	}
 	return size;
 }
@@ -82,7 +105,10 @@ export class TraitBatchScheduler {
 	 * Chunk solutions into batches and dispatch them to the worker pool.
 	 * Resolves when all batches complete.
 	 */
-	async scheduleBatches(solutions: Solution[], batchSize = 50): Promise<void> {
+	async scheduleBatches(
+		solutions: Solution[],
+		batchSize = BATCH_CONFIG.DEFAULT_BATCH_SIZE
+	): Promise<void> {
 		const {
 			layers,
 			collectionSize,
@@ -96,7 +122,9 @@ export class TraitBatchScheduler {
 		const effectiveBatchSize = isFlagEnabled('enableAdaptiveBatchSize')
 			? calculateAdaptiveBatchSize(
 					collectionSize,
-					getWorkerPoolStatus()?.totalWorkers || navigator.hardwareConcurrency || 4,
+					getWorkerPoolStatus()?.totalWorkers ||
+						navigator.hardwareConcurrency ||
+						BATCH_CONFIG.ADAPTIVE.DEFAULT_CONCURRENCY,
 					outputSize
 				)
 			: batchSize;
@@ -110,7 +138,10 @@ export class TraitBatchScheduler {
 				type: 'init-layers',
 				payload: { layers }
 			};
-			const workerCount = getWorkerPoolStatus()?.totalWorkers || navigator.hardwareConcurrency || 4;
+			const workerCount =
+				getWorkerPoolStatus()?.totalWorkers ||
+				navigator.hardwareConcurrency ||
+				BATCH_CONFIG.ADAPTIVE.DEFAULT_CONCURRENCY;
 			await Promise.all(Array.from({ length: workerCount }, () => postMessageToPool(initMessage)));
 		}
 
@@ -124,10 +155,9 @@ export class TraitBatchScheduler {
 		// FIND-3: Process batches in windows to prevent unbounded queue growth.
 		// Each window awaits completion before dispatching the next window,
 		// allowing solution data from processed batches to be GC'd.
-		const WINDOW_SIZE = 4;
-		for (let b = 0; b < totalBatches; b += WINDOW_SIZE) {
+		for (let b = 0; b < totalBatches; b += BATCH_CONFIG.WINDOW_SIZE) {
 			const windowPromises: Promise<unknown>[] = [];
-			const windowEnd = Math.min(b + WINDOW_SIZE, totalBatches);
+			const windowEnd = Math.min(b + BATCH_CONFIG.WINDOW_SIZE, totalBatches);
 
 			for (let w = b; w < windowEnd; w++) {
 				const batchSolutions = solutions.slice(
