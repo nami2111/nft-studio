@@ -5,19 +5,15 @@
  */
 
 export interface FeatureFlags {
-	/** Phase 2: Stream generated images/metadata to IndexedDB instead of accumulating in memory */
+	/** Stream generated images/metadata to IndexedDB instead of accumulating in memory */
 	enableStreamingStorage: boolean;
-	/** Phase 2: Transfer layers once by reference (ID-based batching) instead of full layers per batch */
+	/** Transfer layers once by reference (ID-based batching) instead of full layers per batch */
 	enableLayerRef: boolean;
-	/** Phase 3: Offload CSP solver to a dedicated Web Worker */
+	/** Offload CSP solver to a dedicated Web Worker */
 	enableWorkerCspSolver: boolean;
-	/** Phase 3: Use adaptive batch sizing based on collection size, worker count, and resolution */
+	/** Use adaptive batch sizing based on collection size, worker count, and resolution */
 	enableAdaptiveBatchSize: boolean;
-	/** Phase 4: Use SharedArrayBuffer-based shared cache across workers (requires COOP/COEP) */
-	enableSharedWorkerCache: boolean;
-	/** Phase 4: Persist gallery image data in IndexedDB so images survive refresh */
-	enableGalleryImagePersistence: boolean;
-	/** Phase 4: Offload ZIP packaging to a dedicated Web Worker */
+	/** Offload ZIP packaging to a dedicated Web Worker */
 	enableZipWorkerOffloading: boolean;
 }
 
@@ -35,8 +31,6 @@ const defaultFlags: FeatureFlags = {
 	enableLayerRef: import.meta.env?.VITE_ENABLE_LAYER_REF !== 'false',
 	enableWorkerCspSolver: readEnvFlag('VITE_ENABLE_WORKER_CSP_SOLVER'),
 	enableAdaptiveBatchSize: readEnvFlag('VITE_ENABLE_ADAPTIVE_BATCH_SIZE'),
-	enableSharedWorkerCache: readEnvFlag('VITE_ENABLE_SHARED_WORKER_CACHE'),
-	enableGalleryImagePersistence: readEnvFlag('VITE_ENABLE_GALLERY_IMAGE_PERSISTENCE'),
 	enableZipWorkerOffloading: readEnvFlag('VITE_ENABLE_ZIP_WORKER_OFFLOADING')
 };
 
