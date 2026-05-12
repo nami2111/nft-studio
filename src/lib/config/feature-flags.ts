@@ -29,7 +29,7 @@ function readEnvFlag(name: string): boolean {
 const defaultFlags: FeatureFlags = {
 	enableStreamingStorage: readEnvFlag('VITE_ENABLE_STREAMING_STORAGE'),
 	enableLayerRef: import.meta.env?.VITE_ENABLE_LAYER_REF !== 'false',
-	enableWorkerCspSolver: readEnvFlag('VITE_ENABLE_WORKER_CSP_SOLVER'),
+	enableWorkerCspSolver: import.meta.env?.VITE_ENABLE_WORKER_CSP_SOLVER !== 'false',
 	enableAdaptiveBatchSize: readEnvFlag('VITE_ENABLE_ADAPTIVE_BATCH_SIZE'),
 	enableZipWorkerOffloading: readEnvFlag('VITE_ENABLE_ZIP_WORKER_OFFLOADING')
 };
