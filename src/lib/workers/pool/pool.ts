@@ -417,8 +417,10 @@ function handleWorkerFailure(workerIndex: number, reason: string): void {
 		workerStats.restartCount++;
 		restartWorker(workerIndex).catch((error) => {
 			console.error(`Failed to restart worker ${workerIndex}:`, error);
-			workerPool!.workerHealth[workerIndex] = WorkerHealth.ERROR;
-			workerPool!.workerStatus[workerIndex] = false;
+			if (workerPool && workerIndex >= 0 && workerIndex < workerPool.workerHealth.length) {
+				workerPool.workerHealth[workerIndex] = WorkerHealth.ERROR;
+				workerPool.workerStatus[workerIndex] = false;
+			}
 		});
 	} else {
 		console.error(
@@ -910,6 +912,18 @@ export function getOptimalWorkerCount(collectionSize: number): number {
 }
 
 // Export for testing
-export { calculateTaskComplexity, getDeviceCapabilities, TaskComplexity, WorkerHealth };
+export {
+	calculateTaskComplexity,
+	getDeviceCapabilities,
+	TaskComplexity,
+	WorkerHealth,
+	handleWorkerFailure,
+	reassignWorkerTasks,
+	performDynamicScaling,
+	processNextTask,
+	addWorkers,
+	removeIdleWorkers,
+	restartWorker
+};
 
 export { setMessageCallback };
