@@ -13,7 +13,7 @@
 
     onMount(async () => {
         try {
-            const { warmUpWorkers } = await import("$lib/workers/worker.pool");
+            const { warmUpWorkers } = await import("$lib/workers/pool");
             await warmUpWorkers({
                 minWorkers: 1,
                 maxWorkers: 1,
