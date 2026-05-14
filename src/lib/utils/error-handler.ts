@@ -361,6 +361,109 @@ export async function recoverableOperation<T>(
 	}
 }
 
+// Retry condition helpers
+
+function isStorageRetryable(error: unknown): boolean {
+	if (error instanceof StorageError) return true;
+	if (error instanceof Error && error.name === 'QuotaExceededError') return true;
+	if (
+		error instanceof Error &&
+		(error.message.includes('storage') ||
+			error.message.includes('quota') ||
+			error.message.includes('unavailable'))
+	)
+		return true;
+	return false;
+}
+
+function isFileRetryable(error: unknown): boolean {
+	if (error instanceof FileError) return true;
+	if (error instanceof Error && error.message.includes('busy')) return true;
+	if (
+		error instanceof Error &&
+		(error.message.includes('access denied') || error.message.includes('permission denied'))
+	)
+		return true;
+	return false;
+}
+
+function isWorkerRetryable(error: unknown): boolean {
+	if (error instanceof WorkerInitializationError) return true;
+	if (error instanceof WorkerTimeoutError) return true;
+	if (error instanceof WorkerError) return true;
+	if (error instanceof Error && error.message.includes('Worker is not defined')) return false;
+	return false;
+}
+
+function isGenerationRetryable(error: unknown): boolean {
+	if (error instanceof GenerationExecutionError) return true;
+	if (
+		error instanceof Error &&
+		(error.message.includes('memory') || error.message.includes('out of memory'))
+	)
+		return true;
+	if (error instanceof GenerationValidationError) return false;
+	return false;
+}
+
+// Retry policy presets
+
+const STORAGE_RETRY: ErrorHandlerOptions = {
+	title: 'Storage Operation Failed',
+	description: 'Failed to access storage. Retrying...',
+	retryConfig: {
+		...RetryConfigs.default,
+		maxAttempts: 5,
+		initialDelayMs: 500,
+		maxDelayMs: 5000,
+		backoffFactor: 2,
+		jitter: false,
+		retryCondition: isStorageRetryable
+	}
+};
+
+const FILE_RETRY: ErrorHandlerOptions = {
+	title: 'File Operation Failed',
+	description: 'Failed to process file. Retrying...',
+	retryConfig: {
+		...RetryConfigs.file,
+		retryCondition: isFileRetryable
+	}
+};
+
+const WORKER_RETRY: ErrorHandlerOptions = {
+	title: 'Worker Operation Failed',
+	description: 'Failed to execute worker operation. Retrying...',
+	retryConfig: {
+		...RetryConfigs.server,
+		maxAttempts: 3,
+		initialDelayMs: 2000,
+		maxDelayMs: 10000,
+		retryCondition: isWorkerRetryable
+	}
+};
+
+const GENERATION_RETRY: ErrorHandlerOptions = {
+	title: 'Generation Failed',
+	description: 'Failed to generate items. Retrying...',
+	retryConfig: {
+		...RetryConfigs.server,
+		maxAttempts: 2,
+		initialDelayMs: 5000,
+		maxDelayMs: 15000,
+		retryCondition: isGenerationRetryable
+	}
+};
+
+const NETWORK_RETRY: ErrorHandlerOptions = {
+	title: 'Network Operation Failed',
+	description: 'Failed to complete network operation. Retrying...',
+	retryConfig: {
+		...RetryConfigs.network,
+		retryCondition: (error: unknown) => RetryConfigs.network.retryCondition?.(error) || false
+	}
+};
+
 /**
  * Recoverable storage operations with specialized retry logic
  */
@@ -369,38 +472,9 @@ export async function recoverableStorageOperation<T>(
 	options: ErrorHandlerOptions = {}
 ): Promise<T> {
 	return recoverableOperation(operation, {
+		...STORAGE_RETRY,
 		...options,
-		retryConfig: {
-			...RetryConfigs.default,
-			maxAttempts: 5,
-			initialDelayMs: 500,
-			maxDelayMs: 5000,
-			backoffFactor: 2,
-			jitter: false, // Storage operations don't need jitter
-			retryCondition: (error: unknown) => {
-				// Retry on storage-related issues
-				if (error instanceof StorageError) {
-					return true;
-				}
-				// Retry on quota exceeded errors
-				if (error instanceof Error && error.name === 'QuotaExceededError') {
-					return true;
-				}
-				// Retry on general storage unavailable errors
-				if (
-					error instanceof Error &&
-					(error.message.includes('storage') ||
-						error.message.includes('quota') ||
-						error.message.includes('unavailable'))
-				) {
-					return true;
-				}
-				return false;
-			},
-			...options.retryConfig
-		},
-		title: 'Storage Operation Failed',
-		description: 'Failed to access storage. Retrying...'
+		retryConfig: { ...STORAGE_RETRY.retryConfig, ...options.retryConfig }
 	});
 }
 
@@ -412,31 +486,9 @@ export async function recoverableFileOperation<T>(
 	options: ErrorHandlerOptions = {}
 ): Promise<T> {
 	return recoverableOperation(operation, {
+		...FILE_RETRY,
 		...options,
-		retryConfig: {
-			...RetryConfigs.file,
-			retryCondition: (error: unknown) => {
-				// Retry on file-related issues
-				if (error instanceof FileError) {
-					return true;
-				}
-				// Retry on file system temporary unavailability
-				if (error instanceof Error && error.message.includes('busy')) {
-					return true;
-				}
-				// Retry on file access denied (might be temporary)
-				if (
-					error instanceof Error &&
-					(error.message.includes('access denied') || error.message.includes('permission denied'))
-				) {
-					return true;
-				}
-				return false;
-			},
-			...options.retryConfig
-		},
-		title: 'File Operation Failed',
-		description: 'Failed to process file. Retrying...'
+		retryConfig: { ...FILE_RETRY.retryConfig, ...options.retryConfig }
 	});
 }
 
@@ -448,35 +500,9 @@ export async function recoverableWorkerOperation<T>(
 	options: ErrorHandlerOptions = {}
 ): Promise<T> {
 	return recoverableOperation(operation, {
+		...WORKER_RETRY,
 		...options,
-		retryConfig: {
-			...RetryConfigs.server,
-			maxAttempts: 3,
-			initialDelayMs: 2000,
-			maxDelayMs: 10000,
-			retryCondition: (error: unknown) => {
-				// Retry on worker initialization errors
-				if (error instanceof WorkerInitializationError) {
-					return true;
-				}
-				// Retry on worker timeout errors
-				if (error instanceof WorkerTimeoutError) {
-					return true;
-				}
-				// Retry on general worker errors that might be temporary
-				if (error instanceof WorkerError) {
-					return true;
-				}
-				// Retry on worker not defined errors (happens in test environments)
-				if (error instanceof Error && error.message.includes('Worker is not defined')) {
-					return false; // Don't retry this, it's an environment issue
-				}
-				return false;
-			},
-			...options.retryConfig
-		},
-		title: 'Worker Operation Failed',
-		description: 'Failed to execute worker operation. Retrying...'
+		retryConfig: { ...WORKER_RETRY.retryConfig, ...options.retryConfig }
 	});
 }
 
@@ -488,34 +514,9 @@ export async function recoverableGenerationOperation<T>(
 	options: ErrorHandlerOptions = {}
 ): Promise<T> {
 	return recoverableOperation(operation, {
+		...GENERATION_RETRY,
 		...options,
-		retryConfig: {
-			...RetryConfigs.server,
-			maxAttempts: 2, // Generation is expensive, limit retries
-			initialDelayMs: 5000,
-			maxDelayMs: 15000,
-			retryCondition: (error: unknown) => {
-				// Retry on generation execution errors
-				if (error instanceof GenerationExecutionError) {
-					return true;
-				}
-				// Retry on memory issues that might be temporary
-				if (
-					error instanceof Error &&
-					(error.message.includes('memory') || error.message.includes('out of memory'))
-				) {
-					return true;
-				}
-				// Don't retry on validation errors
-				if (error instanceof GenerationValidationError) {
-					return false;
-				}
-				return false;
-			},
-			...options.retryConfig
-		},
-		title: 'Generation Failed',
-		description: 'Failed to generate items. Retrying...'
+		retryConfig: { ...GENERATION_RETRY.retryConfig, ...options.retryConfig }
 	});
 }
 
@@ -527,16 +528,8 @@ export async function recoverableNetworkOperation<T>(
 	options: ErrorHandlerOptions = {}
 ): Promise<T> {
 	return recoverableOperation(operation, {
+		...NETWORK_RETRY,
 		...options,
-		retryConfig: {
-			...RetryConfigs.network,
-			retryCondition: (error: unknown) => {
-				// Use existing network retry conditions
-				return RetryConfigs.network.retryCondition?.(error) || false;
-			},
-			...options.retryConfig
-		},
-		title: 'Network Operation Failed',
-		description: 'Failed to complete network operation. Retrying...'
+		retryConfig: { ...NETWORK_RETRY.retryConfig, ...options.retryConfig }
 	});
 }
