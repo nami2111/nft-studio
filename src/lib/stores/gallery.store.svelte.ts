@@ -16,7 +16,8 @@ import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-cal
 import {
 	initGalleryDB,
 	saveCollection,
-	getAllCollections,
+	saveItemImage,
+	getItemImage as fetchItemImage,
 	deleteCollection,
 	clearAllCollections,
 	getStorageEstimate
@@ -30,7 +31,6 @@ import { productionMonitor } from '$lib/monitoring/performance-monitor';
 class GalleryStore {
 	// LRU cache for filtered results - tracks access for efficient eviction
 	private filteredCache = new Map<string, GalleryItem[]>();
-	private lastFilterKey = '';
 	private readonly MAX_CACHE_ENTRIES = PERF_CONFIG.cache.galleryFilter.maxEntries;
 
 	// Debounce timer for saves
@@ -141,6 +141,8 @@ class GalleryStore {
 		filterOptions: {},
 		sortOption: 'newest',
 		isLoading: false,
+		streamProgress: 0,
+		streamMessage: '',
 		error: null
 	});
 
@@ -171,6 +173,14 @@ class GalleryStore {
 
 	get error() {
 		return this._state.error;
+	}
+
+	get streamProgress() {
+		return this._state.streamProgress;
+	}
+
+	get streamMessage() {
+		return this._state.streamMessage;
 	}
 
 	get allTraits() {
@@ -331,7 +341,6 @@ class GalleryStore {
 			}
 		}
 		this.filteredCache.set(filterKey, filtered);
-		this.lastFilterKey = filterKey;
 		// Update cache memory usage in production monitor
 		productionMonitor.updateCacheMemoryUsage('galleryFilter', this.filteredCache.size * 1024);
 
@@ -398,6 +407,11 @@ class GalleryStore {
 		this._state.error = error;
 	}
 
+	setStreamProgress(progress: number, message: string) {
+		this._state.streamProgress = progress;
+		this._state.streamMessage = message;
+	}
+
 	// Collection management
 	addCollection(collection: GalleryCollection) {
 		this._state.collections.push(collection);
@@ -443,28 +457,6 @@ class GalleryStore {
 		}
 	}
 
-	// Item management
-	addItemToCollection(collectionId: string, item: GalleryItem) {
-		const collection = this._state.collections.find((c) => c.id === collectionId);
-		if (collection) {
-			collection.items.push(item);
-			collection.totalSupply = collection.items.length;
-			this.debouncedSaveToIndexedDB();
-		}
-	}
-
-	removeItemFromCollection(collectionId: string, nftId: string) {
-		const collection = this._state.collections.find((c) => c.id === collectionId);
-		if (collection) {
-			collection.items = collection.items.filter((n) => n.id !== nftId);
-			collection.totalSupply = collection.items.length;
-			if (this._state.selectedItem?.id === nftId) {
-				this._state.selectedItem = null;
-			}
-			this.debouncedSaveToIndexedDB();
-		}
-	}
-
 	// Database operations
 	private debouncedSaveToIndexedDB() {
 		// Clear any pending save
@@ -493,6 +485,17 @@ class GalleryStore {
 			const savePromises = this._state.collections.map((collection) => saveCollection(collection));
 			await Promise.all(savePromises);
 
+			// Free RAM: null out imageData for all items now that images are on disk
+			untrack(() => {
+				for (const collection of this._state.collections) {
+					for (const item of collection.items) {
+						if (item.imageData instanceof ArrayBuffer) {
+							item.imageData = new ArrayBuffer(0);
+						}
+					}
+				}
+			});
+
 			// Save selected collection ID to localStorage (small, safe)
 			if (this._state.selectedCollection) {
 				localStorage.setItem(
@@ -518,88 +521,91 @@ class GalleryStore {
 			this.setError('Failed to save gallery data');
 		}
 	}
-
-	async loadFromIndexedDB() {
-		try {
-			this.setLoading(true);
-
-			// Load all collections from IndexedDB
-			const collections = await getAllCollections();
-			this._state.collections = collections;
-
-			// Set cache strategy based on total item count
-			const totalItems = collections.reduce((sum, collection) => sum + collection.items.length, 0);
-			imageUrlCache.setCollectionSize(totalItems);
-
-			// Restore selected collection if it exists (stored in localStorage)
-			const selectedCollectionId = localStorage.getItem('gnstudio-gallery-selected-collection');
-			if (selectedCollectionId) {
-				const selectedCollection = collections.find((c) => c.id === selectedCollectionId);
-				if (selectedCollection) {
-					this._state.selectedCollection = selectedCollection;
-				}
-			}
-
-			// Log storage usage for monitoring
-			const estimate = await getStorageEstimate();
-			if (estimate.quota > 0) {
-				const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
-				// Only log storage when usage changes significantly (>1MB)
-				const usage = parseFloat(usageMB);
-				if (!this._lastLoggedUsage || Math.abs(usage - this._lastLoggedUsage) > 1) {
-					this._lastLoggedUsage = usage;
-				}
-			}
-		} catch (error) {
-			console.error('Failed to load gallery data:', error);
-			this.setError('Failed to load gallery data');
-		} finally {
-			this.setLoading(false);
-		}
-	}
-
-	// Import generated items from generation system
-	importGeneratedItems(
-		items: Array<{
+	/**
+	 * Import collection from external data (ZIP file, etc.) — streaming import.
+	 * Creates a collection with metadata-only items (no imageData), calculates rarity,
+	 * and stores in $state. Caller streams images individually via streamItemImage().
+	 */
+	createStreamingCollection(
+		metadataItems: Array<{
 			name: string;
-			imageData: ArrayBuffer;
-			metadata: Record<string, unknown>;
-			index: number;
+			traits: Array<{ layer: string; trait: string; rarity: number }>;
+			description?: string;
+			imageFormat?: string;
 		}>,
-		projectName: string,
-		projectDescription: string
-	) {
+		collectionName: string,
+		collectionDescription: string = 'Imported collection'
+	): GalleryCollection {
+		let finalName = collectionName;
+		let counter = 1;
+		while (this._state.collections.some((c) => c.name === finalName)) {
+			finalName = `${collectionName} (${counter})`;
+			counter++;
+		}
+
 		const collectionId = `collection-${Date.now()}`;
 
 		const collection: GalleryCollection = {
 			id: collectionId,
-			name: `${projectName} Collection`,
-			description: projectDescription,
-			projectName,
-			items: items.map((item, index) => ({
+			name: finalName,
+			description: collectionDescription,
+			projectName: finalName,
+			items: metadataItems.map((item, index) => ({
 				id: `item-${collectionId}-${index}`,
 				name: item.name,
-				imageData: item.imageData,
-				metadata: item.metadata as GalleryItem['metadata'],
-				rarityScore: 0, // Will be calculated
-				rarityRank: 0, // Will be calculated
-				collectionId: collectionId,
+				imageData: new ArrayBuffer(0),
+				imageFormat: item.imageFormat || 'png',
+				metadata: {
+					traits: item.traits,
+					description: item.description || ''
+				},
+				rarityScore: 0,
+				rarityRank: 0,
+				collectionId,
 				generatedAt: new Date()
 			})),
 			generatedAt: new Date(),
-			totalSupply: items.length
+			totalSupply: metadataItems.length
 		};
 
-		// Set cache strategy based on collection size
-		imageUrlCache.setCollectionSize(items.length);
+		imageUrlCache.setCollectionSize(metadataItems.length);
 
-		// Calculate rarity using proper algorithm
 		const updatedCollection = updateCollectionWithRarity(collection, RarityMethod.TRAIT_RARITY);
 		this.addCollection(updatedCollection);
 		return updatedCollection;
 	}
 
-	// Import collection from external data (ZIP file, etc.)
+	/**
+	 * Stream a single item image directly to IndexedDB during import.
+	 * Updates the item's imageFormat in $state.
+	 */
+	async streamItemImage(
+		collectionId: string,
+		itemId: string,
+		imageData: ArrayBuffer,
+		imageFormat: string
+	): Promise<void> {
+		await saveItemImage(itemId, collectionId, imageData);
+		const collection = this._state.collections.find((c) => c.id === collectionId);
+		if (collection) {
+			const item = collection.items.find((i) => i.id === itemId);
+			if (item) {
+				item.imageFormat = imageFormat;
+			}
+		}
+	}
+
+	/**
+
+	 * Fetch a single item's image data from IndexedDB on demand.
+	 */
+	async getItemImage(itemId: string): Promise<ArrayBuffer | null> {
+		return fetchItemImage(itemId);
+	}
+
+	/**
+	 * Import collection from external data (ZIP file, etc.)
+	 */
 	importCollection(
 		items: Array<{
 			name: string;
@@ -651,108 +657,6 @@ class GalleryStore {
 		return updatedCollection;
 	}
 
-	// Merge items into existing collection
-	mergeIntoCollection(
-		collectionId: string,
-		items: Array<{
-			name: string;
-			imageData: ArrayBuffer | string;
-			metadata: Record<string, unknown>;
-			index: number;
-			isBlobUrl?: boolean;
-			imageFormat?: string;
-		}>
-	) {
-		const collection = this._state.collections.find((c) => c.id === collectionId);
-		if (!collection) {
-			throw new Error('Collection not found');
-		}
-
-		const newItems = items.map((item, index) => ({
-			id: `item-${collectionId}-${collection.items.length + index}`,
-			name: item.name,
-			imageData: item.imageData,
-			imageFormat: item.imageFormat || 'png', // Default to png if not provided
-			metadata: item.metadata as GalleryItem['metadata'],
-			rarityScore: Math.random() * 100, // Placeholder - will be calculated properly
-			rarityRank: collection.items.length + index + 1, // Placeholder - will be calculated properly
-			collectionId: collectionId,
-			generatedAt: new Date()
-		}));
-
-		collection.items.push(...newItems);
-		collection.totalSupply = collection.items.length;
-
-		// Update cache strategy based on new collection size
-		imageUrlCache.setCollectionSize(collection.items.length);
-
-		this.debouncedSaveToIndexedDB();
-
-		return collection;
-	}
-
-	// Validate imported data
-	validateImportData(
-		items: Array<{
-			name: string;
-			imageData: ArrayBuffer | string;
-			metadata?: Record<string, unknown>;
-		}>
-	): {
-		isValid: boolean;
-		errors: string[];
-	} {
-		const errors: string[] = [];
-
-		if (items.length === 0) {
-			errors.push('No items found in import data');
-		}
-
-		if (items.length > 10000) {
-			errors.push('Too many items (max 10,000 per collection)');
-		}
-
-		// Check for duplicate names
-		const names = items.map((n) => n.name.toLowerCase());
-		const uniqueNames = new Set(names);
-		if (names.length !== uniqueNames.size) {
-			errors.push('Duplicate item names found');
-		}
-
-		// Validate each item
-		items.forEach((item, index) => {
-			if (!item.name || item.name.trim() === '') {
-				errors.push(`Item ${index + 1} has no name`);
-			}
-
-			if (!item.imageData) {
-				errors.push(`Item ${index + 1} has no image data`);
-			} else if (typeof item.imageData === 'string') {
-				// Blob URL validation
-				if (!item.imageData.startsWith('blob:')) {
-					errors.push(`Item ${index + 1} has invalid blob URL`);
-				}
-			} else if (item.imageData instanceof ArrayBuffer) {
-				// ArrayBuffer validation
-				if (item.imageData.byteLength === 0) {
-					errors.push(`Item ${index + 1} has no image data`);
-				}
-				// Check for reasonable image size (between 1KB and 10MB)
-				if (item.imageData.byteLength < 1024) {
-					errors.push(`Item ${index + 1} image is too small`);
-				}
-				if (item.imageData.byteLength > 10 * 1024 * 1024) {
-					errors.push(`Item ${index + 1} image is too large`);
-				}
-			}
-		});
-
-		return {
-			isValid: errors.length === 0,
-			errors
-		};
-	}
-
 	// Utility methods
 	async clearGallery() {
 		this._state.collections = [];
@@ -774,29 +678,3 @@ class GalleryStore {
 
 // Create singleton instance
 export const galleryStore = new GalleryStore();
-
-// Lazy initialization flag
-let _isInitialized = false;
-
-/**
- * Initialize gallery store lazily on first access
- * Call this function early in the app lifecycle (e.g., in +layout.svelte)
- */
-export function initializeGalleryStore(): void {
-	if (!_isInitialized) {
-		_isInitialized = true;
-		galleryStore.loadFromIndexedDB();
-	}
-}
-
-/**
- * Get gallery store with lazy initialization
- * Use this function to get the store and ensure it's initialized
- */
-export function getGalleryStore() {
-	if (!_isInitialized) {
-		_isInitialized = true;
-		galleryStore.loadFromIndexedDB();
-	}
-	return galleryStore;
-}

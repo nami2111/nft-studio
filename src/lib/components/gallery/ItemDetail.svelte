@@ -4,11 +4,14 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
+	import { getRarityColor } from '$lib/utils/gallery-helpers';
+	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 
 	interface Props {
 		selectedItem?: GalleryItem | null;
 		class?: string;
 		hideCard?: boolean;
+		totalSupply?: number;
 		selectedTraits?: Record<string, string[]>;
 		ontraitclick?: (layer: string, value: string) => void;
 	}
@@ -17,22 +20,34 @@
 		selectedItem,
 		class: className = '',
 		hideCard = false,
+		totalSupply = 100,
 		selectedTraits = {},
 		ontraitclick
 	}: Props = $props();
 
-	const imageUrl = $derived(
-		selectedItem ? imageUrlCache.get(selectedItem.id, selectedItem.imageData) : null
-	);
+	let imageUrl = $state<string | null>(null);
 
-	function getRarityColor(rank: number, total: number): string {
-		const percentage = (rank / total) * 100;
-		if (percentage <= 5) return 'bg-red-500 text-white';
-		if (percentage <= 10) return 'bg-orange-500 text-white';
-		if (percentage <= 25) return 'bg-yellow-500 text-black';
-		if (percentage <= 50) return 'bg-green-500 text-white';
-		return 'bg-blue-500 text-white';
-	}
+	$effect(() => {
+		const item = selectedItem;
+		if (!item) {
+			imageUrl = null;
+			return;
+		}
+
+		const data = item.imageData;
+		if (data && (typeof data === 'string' || data.byteLength > 0)) {
+			imageUrl = imageUrlCache.get(item.id, data);
+			return;
+		}
+
+		// Empty imageData — fetch from IndexedDB
+		imageUrl = null;
+		galleryStore.getItemImage(item.id).then((buffer) => {
+			if (buffer && buffer.byteLength > 0) {
+				imageUrl = imageUrlCache.get(item.id, buffer);
+			}
+		});
+	});
 
 	function formatRarityScore(score: number): string {
 		return score.toFixed(2);
@@ -89,7 +104,7 @@
 						variant="secondary"
 						class="{getRarityColor(
 							selectedItem.rarityRank,
-							100
+							totalSupply
 						)} shrink-0 text-xs font-bold uppercase transition-colors"
 					>
 						Rank #{selectedItem.rarityRank}
