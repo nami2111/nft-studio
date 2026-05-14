@@ -71,20 +71,7 @@ export interface GalleryState {
 	filterOptions: GalleryFilterOptions;
 	sortOption: GallerySortOption;
 	isLoading: boolean;
+	streamProgress: number;
+	streamMessage: string;
 	error: string | null;
-}
-
-/**
- * Gallery statistics interface
- */
-export interface GalleryStats {
-	totalItems: number;
-	totalCollections: number;
-	rarestItems: GalleryItem[];
-	mostCommonTraits: Array<{
-		layer: string;
-		trait: string;
-		count: number;
-		percentage: number;
-	}>;
 }

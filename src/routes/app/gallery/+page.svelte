@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import GalleryImport from '$lib/components/gallery/GalleryImport.svelte';
-	import { onDestroy, onMount, untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { GalleryItem, GalleryCollection, GallerySortOption } from '$lib/types/gallery';
 
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
 	import CollectionStats from '$lib/components/gallery/CollectionStats.svelte';
 	import ItemDetail from '$lib/components/gallery/ItemDetail.svelte';
-	import { Button } from '$components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button';
+	import { clearAllCollections } from '$lib/utils/gallery-db';
 
 	const isLoading = $derived(galleryStore.isLoading);
 	const collections = $derived(galleryStore.collections);
@@ -59,20 +60,9 @@
 		}
 	});
 
-	// Track Object URLs for cleanup
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
-	const objectUrls = new Set<string>();
-
-	// Clean up Object URLs when component is destroyed
-	onDestroy(() => {
-		objectUrls.forEach((url) => URL.revokeObjectURL(url));
-		objectUrls.clear();
-	});
-
 	function forceClearCache() {
-		if (import.meta.env.DEV) console.log('Force clearing gallery cache...');
-		galleryStore.clearGallery();
 		imageUrlCache.clear();
+		galleryStore.clearGallery();
 		window.location.reload();
 	}
 
@@ -111,7 +101,7 @@
 	}
 
 	onMount(() => {
-		// DANGER: Removed galleryStore.clearGallery() which was deleting all user data!
+		clearAllCollections();
 	});
 
 	// Toggle dropdown and calculate position
@@ -145,17 +135,8 @@
 <svelte:document onclick={handleClickOutside} />
 
 <div class="bg-background flex min-h-[100dvh] flex-col overflow-visible">
-	{#if isLoading}
-		<!-- Loading State -->
-		<div class="flex min-h-[60vh] items-center justify-center px-4">
-			<div class="text-center">
-				<div class="text-muted-foreground mb-2 text-lg">Loading gallery...</div>
-				<div class="bg-muted mx-auto h-2 w-48 max-w-sm animate-pulse rounded-full"></div>
-			</div>
-		</div>
-	{:else}
-		<!-- Gallery Header -->
-		<header
+	<!-- Gallery Header -->
+	<header
 			class="bg-background/95 supports-[backdrop-filter]:bg-background/60 flex-none border-b backdrop-blur"
 		>
 			<div class="mx-auto max-w-screen-2xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
@@ -191,11 +172,12 @@
 
 		<main class="flex-1 overflow-visible">
 			<!-- Main Content -->
-			{#if collections.length === 0}
-				<!-- Empty State with Import -->
+			{#if isLoading || collections.length === 0}
+				<!-- Loading / Import in progress OR empty state -->
 				<div class="flex min-h-[calc(100dvh-200px)] items-center justify-center px-4 pb-24">
 					<div class="w-full max-w-4xl text-center">
-						<svg
+						{#if !isLoading}
+							<svg
 							class="text-muted-foreground mx-auto h-16 w-16"
 							fill="none"
 							stroke="currentColor"
@@ -210,6 +192,7 @@
 						<p class="text-muted-foreground mb-6">
 								Generate in Generate Mode or import existing collections to get started.
 						</p>
+						{/if}
 						<GalleryImport />
 					</div>
 				</div>
@@ -299,6 +282,7 @@
 									hideCard
 									{selectedTraits}
 									ontraitclick={toggleTraitFilter}
+									totalSupply={selectedCollection?.totalSupply}
 								/>
 							</div>
 						{/if}
@@ -343,6 +327,7 @@
 								class="p-4"
 								{selectedTraits}
 								ontraitclick={toggleTraitFilter}
+								totalSupply={selectedCollection?.totalSupply}
 							/>
 						</aside>
 					{/if}
@@ -386,6 +371,7 @@
 							class="p-5"
 							{selectedTraits}
 							ontraitclick={toggleTraitFilter}
+							totalSupply={selectedCollection?.totalSupply}
 						/>
 						</aside>
 					{/if}
@@ -527,83 +513,11 @@
 								class="p-6"
 								{selectedTraits}
 								ontraitclick={toggleTraitFilter}
+								totalSupply={selectedCollection?.totalSupply}
 							/>
 						</div>
 					</aside>
 				</div>
 			{/if}
 		</main>
-	{/if}
-
-	<!-- Portal for mobile/tablet dropdown - placed at root level -->
-	{#if sortDropdownOpen}
-		<div
-			class="fixed inset-0 z-9999"
-			role="button"
-			tabindex="0"
-			onmousedown={() => (sortDropdownOpen = false)}
-			onkeydown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') {
-					sortDropdownOpen = false;
-				}
-			}}
-		>
-			<!-- Backdrop to close dropdown when clicking outside -->
-		</div>
-		<div
-			class="border-border fixed z-10000 rounded-md border shadow-lg"
-			style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; width: {dropdownPosition.width}px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);"
-		>
-			<button
-				type="button"
-				onclick={() => {
-					selectedSort = 'name-asc';
-					sortDropdownOpen = false;
-				}}
-				class="hover:bg-muted w-full rounded-t-md px-3 py-2 text-left text-sm {selectedSort ===
-				'name-asc'
-					? 'bg-primary text-primary-foreground'
-					: ''}"
-			>
-				Name (A-Z)
-			</button>
-			<button
-				type="button"
-				onclick={() => {
-					selectedSort = 'name-desc';
-					sortDropdownOpen = false;
-				}}
-				class="hover:bg-muted w-full px-3 py-2 text-left text-sm {selectedSort === 'name-desc'
-					? 'bg-primary text-primary-foreground'
-					: ''}"
-			>
-				Name (Z-A)
-			</button>
-			<button
-				type="button"
-				onclick={() => {
-					selectedSort = 'rarity-asc';
-					sortDropdownOpen = false;
-				}}
-				class="hover:bg-muted w-full px-3 py-2 text-left text-sm {selectedSort === 'rarity-asc'
-					? 'bg-primary text-primary-foreground'
-					: ''}"
-			>
-				Rarity (Low to High)
-			</button>
-			<button
-				type="button"
-				onclick={() => {
-					selectedSort = 'rarity-desc';
-					sortDropdownOpen = false;
-				}}
-				class="hover:bg-muted w-full rounded-b-md px-3 py-2 text-left text-sm {selectedSort ===
-				'rarity-desc'
-					? 'bg-primary text-primary-foreground'
-					: ''}"
-			>
-				Rarity (High to Low)
-			</button>
-		</div>
-	{/if}
 </div>

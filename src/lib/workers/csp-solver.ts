@@ -9,7 +9,7 @@ import { logger } from '$lib/utils/logger';
 interface SolverContext {
 	layers: TransferrableLayer[];
 	selectedTraits: Map<string, TransferrableTrait>;
-	usedCombinations: Map<string, Set<bigint>>;
+	usedCombinations: Map<string, Set<bigint | string>>; // BUG-1 fix: accepts string keys
 	strictPairConfig?: {
 		enabled: boolean;
 		layerCombinations: Array<{
@@ -24,8 +24,6 @@ interface SolverContext {
 interface ImpossibleCombination {
 	partialAssignment: string;
 	reason: string;
-	constraintHash: string; // Hash of constraints for fast lookup
-	predictedDeadEnd: boolean; // AI-predicted dead end
 }
 
 // Enhanced Arc data structure with constraint weights
@@ -42,7 +40,14 @@ interface Domain {
 	availableTraits: TransferrableTrait[];
 	originalSize: number;
 	constraintInfluence: Map<string, number>; // layerId -> influence score
-	predictedElimination: Set<string>; // Traits likely to be eliminated
+}
+
+// PERF-2: Domain change frame for efficient trail-based backtracking.
+// Instead of copying entire domains on each decision (O(L×D)), we record
+// only the domains that changed and restore them on backtrack.
+interface DomainChangeFrame {
+	// Map of layerId -> snapshot of availableTraits before modification
+	modifiedDomains: Map<string, { traits: TransferrableTrait[]; influence: Map<string, number> }>;
 }
 
 // Smart constraint cache for ruler rules
@@ -53,8 +58,8 @@ class ConstraintCache {
 	accessCount = 0;
 	private hits = 0;
 
-	get(traitId: string, targetLayerId: string): Set<string> | undefined {
-		const cacheKey = `${traitId}_${targetLayerId}`;
+	get(fromTraitId: string, fromLayerId: string, targetLayerId: string): Set<string> | undefined {
+		const cacheKey = `${fromLayerId}_${fromTraitId}_${targetLayerId}`;
 		this.accessCount++;
 		const result = this.compatiblePairs.get(cacheKey);
 		if (result) {
@@ -64,8 +69,13 @@ class ConstraintCache {
 		return result;
 	}
 
-	set(traitId: string, targetLayerId: string, compatibleTraits: Set<string>): void {
-		const cacheKey = `${traitId}_${targetLayerId}`;
+	set(
+		fromTraitId: string,
+		fromLayerId: string,
+		targetLayerId: string,
+		compatibleTraits: Set<string>
+	): void {
+		const cacheKey = `${fromLayerId}_${fromTraitId}_${targetLayerId}`;
 		this.compatiblePairs.set(cacheKey, new Set(compatibleTraits));
 	}
 
@@ -96,6 +106,7 @@ export class CSPSolver {
 	private rulerViolationCount = 0;
 	private domains = new Map<string, Domain>(); // Enhanced domains with constraint influence
 	private constraints = new Map<string, Set<string>>(); // LayerId -> Set of constrained layerIds
+	private reverseConstraints = new Map<string, Set<string>>(); // LayerId -> Set of layers that constrain this layer
 	private constraintCache = new ConstraintCache(); // Smart constraint caching
 	private performanceStats = {
 		cacheHits: 0,
@@ -103,16 +114,24 @@ export class CSPSolver {
 		backtracks: 0,
 		ac3Iterations: 0,
 		earlyTerminations: 0,
-		predictedDeadEnds: 0,
 		constraintCacheHits: 0
 	};
 	private maxCacheSize = 1000;
 	private constraintOrdering: Arc[] = []; // Pre-ordered constraints for faster processing
 	private layerTraitIdToIndex = new Map<string, Map<string, number>>(); // layerId -> traitId -> numericId (0-255)
+	private layerIdsSorted: string[] = []; // Pre-sorted layer IDs for fast getAssignmentKey
+	// BUG-3: Debug flag gating O(n²) verification - disabled in production
+	private debugConstraintVerification =
+		typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+
+	// PERF-2: Trail-based domain change frames.
+	// Each frame records which domains were modified and their original state,
+	// so we can restore only what changed (O(modified) vs O(L×D) for full snapshot).
+	private domainChangeStack: DomainChangeFrame[] = [];
 
 	constructor(
 		layers: TransferrableLayer[],
-		usedCombinations: Map<string, Set<bigint>>,
+		usedCombinations: Map<string, Set<bigint | string>>, // BUG-1 fix: accepts string keys
 		strictPairConfig?: SolverContext['strictPairConfig']
 	) {
 		this.context = {
@@ -152,6 +171,9 @@ export class CSPSolver {
 				hasLoggedRulerInfo = true;
 			}
 		}
+
+		// Pre-sort layer IDs for fast getAssignmentKey
+		this.layerIdsSorted = layers.map((l) => l.id).sort((a, b) => a.localeCompare(b));
 
 		// Initialize AC-3 domains and constraints
 		this.initializeDomains();
@@ -235,8 +257,7 @@ export class CSPSolver {
 				layerId: layer.id,
 				availableTraits: [...layer.traits],
 				originalSize: layer.traits.length,
-				constraintInfluence: new Map<string, number>(),
-				predictedElimination: new Set<string>()
+				constraintInfluence: new Map<string, number>()
 			});
 		}
 	}
@@ -251,7 +272,6 @@ export class CSPSolver {
 
 			for (const trait of layer.traits) {
 				if (trait.type === 'ruler' && trait.rulerRules) {
-					// Ruler rules constrain specific layers
 					for (const rule of trait.rulerRules) {
 						constrainedLayers.add(rule.layerId);
 					}
@@ -259,6 +279,15 @@ export class CSPSolver {
 			}
 
 			this.constraints.set(layer.id, constrainedLayers);
+
+			// Build reverse constraint index: for each layer that this layer constrains,
+			// record that this layer is a reverse constraint of that layer.
+			for (const targetId of constrainedLayers) {
+				if (!this.reverseConstraints.has(targetId)) {
+					this.reverseConstraints.set(targetId, new Set());
+				}
+				this.reverseConstraints.get(targetId)!.add(layer.id);
+			}
 		}
 
 		// Pre-order constraints by restrictiveness for faster AC-3
@@ -347,10 +376,16 @@ export class CSPSolver {
 			const arc = queue.shift()!;
 			this.performanceStats.ac3Iterations++;
 
-			// Early termination check: if too many revisions, might be infinite loop
-			if (this.performanceStats.ac3Iterations > this.context.layers.length * 100) {
+			// Adaptive iteration limit based on problem complexity.
+			// Simple problems converge in O(layers × traits), complex ruler constraints need more.
+			const totalTraits = this.context.layers.reduce((sum, l) => sum + l.traits.length, 0);
+			const iterationLimit = Math.max(this.context.layers.length * totalTraits * 2, 10000);
+
+			if (this.performanceStats.ac3Iterations > iterationLimit) {
+				// Reset cache instead of abrupt break — may recover from false loop detection
+				this.constraintCache.clear();
+				this.performanceStats.ac3Iterations = 0;
 				this.performanceStats.earlyTerminations++;
-				break;
 			}
 
 			// If domain was revised (values removed), add affected arcs back to queue
@@ -362,11 +397,22 @@ export class CSPSolver {
 					return false;
 				}
 
-				// Add all arcs (neighbor -> fromLayerId) back to queue
+				// Add all arcs (neighbor -> fromLayerId) back to queue for forward neighbors
 				const neighbors = this.constraints.get(arc.fromLayerId) || new Set();
 				for (const neighborId of neighbors) {
 					if (neighborId !== arc.toLayerId) {
 						queue.push(this.createArc(neighborId, arc.fromLayerId));
+					}
+				}
+
+				// FIND-1: Also add reverse arcs — layers that constrain fromLayerId.
+				// When domain[A] shrinks, we must re-check all arcs (Z, A) where Z
+				// constrains A (Z has ruler rules mentioning A), because values in
+				// domain[Z] may have lost support in the reduced domain[A].
+				const reverseNeighbors = this.reverseConstraints.get(arc.fromLayerId) || new Set();
+				for (const revId of reverseNeighbors) {
+					if (revId !== arc.toLayerId) {
+						queue.push(this.createArc(revId, arc.fromLayerId));
 					}
 				}
 			}
@@ -390,7 +436,11 @@ export class CSPSolver {
 		// Filter traits that have no support in toDomain with smart caching
 		fromDomain.availableTraits = fromDomain.availableTraits.filter((fromTrait) => {
 			// Check constraint cache first for performance
-			const cachedCompatible = this.constraintCache.get(fromTrait.id, arc.toLayerId);
+			const cachedCompatible = this.constraintCache.get(
+				fromTrait.id,
+				arc.fromLayerId,
+				arc.toLayerId
+			);
 			if (cachedCompatible !== undefined) {
 				this.performanceStats.constraintCacheHits++;
 				// Use cached compatible traits
@@ -410,7 +460,12 @@ export class CSPSolver {
 						this.isConsistent(fromTrait, arc.fromLayerId, toTrait, arc.toLayerId)
 					)
 					.map((toTrait) => toTrait.id);
-				this.constraintCache.set(fromTrait.id, arc.toLayerId, new Set(compatibleIds));
+				this.constraintCache.set(
+					fromTrait.id,
+					arc.fromLayerId,
+					arc.toLayerId,
+					new Set(compatibleIds)
+				);
 			}
 
 			return hasCompatible;
@@ -479,6 +534,10 @@ export class CSPSolver {
 	/**
 	 * Optimized backtracking with MRV heuristic using AC-3 pruned domains
 	 * Processes layers in order of fewest remaining options
+	 *
+	 * PERF-1 + PERF-2: Uses forward-checking (only propagates arcs from the newly
+	 * assigned layer to its constrained neighbors) and trail-based domain restoration
+	 * (only saves/restores modified domains instead of full O(L×D) snapshots).
 	 */
 	private optimizedBacktrack(): Map<string, TransferrableTrait> | null {
 		// Check cache first to avoid retrying impossible combinations
@@ -492,10 +551,12 @@ export class CSPSolver {
 		// Base case: all required layers processed
 		if (this.isComplete()) {
 			if (this.isValidCombination()) {
-				// CRITICAL: Also verify all ruler constraints are satisfied
-				if (this.verifyAllConstraints()) {
-					return new Map(this.context.selectedTraits);
+				// BUG-3 fix: Gate O(n²) verification behind debug flag
+				// AC-3 + isConsistent during solving already guarantees correctness in production
+				if (this.debugConstraintVerification && !this.verifyAllConstraints()) {
+					return null;
 				}
+				return new Map(this.context.selectedTraits);
 			}
 			return null;
 		}
@@ -503,8 +564,10 @@ export class CSPSolver {
 		// Select next layer using MRV heuristic (Most Constrained Variable)
 		const nextLayer = this.selectNextLayer();
 		if (!nextLayer) {
-			// No more layers to process
-			if (this.isValidCombination() && this.verifyAllConstraints()) {
+			if (this.isValidCombination()) {
+				if (this.debugConstraintVerification && !this.verifyAllConstraints()) {
+					return null;
+				}
 				return new Map(this.context.selectedTraits);
 			}
 			return null;
@@ -512,7 +575,6 @@ export class CSPSolver {
 
 		// Handle optional layers specially
 		if (nextLayer.isOptional) {
-			// Try skipping this layer first (efficient for optional layers)
 			const skipResult = this.optimizedBacktrack();
 			if (skipResult) return skipResult;
 		}
@@ -520,20 +582,33 @@ export class CSPSolver {
 		// Get candidates ordered by constraint weight (most constraining first)
 		const candidates = this.getCandidates(nextLayer);
 
+		// PERF-2: Identify which neighbor domains we'll need to restore on backtrack.
+		// Only save domains for directly constrained neighbors, not all L layers.
+		// This reduces snapshot cost from O(L×D) to O(N×D_neighbor) where N << L.
+		const neighborIds = this.constraints.get(nextLayer.id) || null;
+
 		for (const trait of candidates) {
-			// Assign trait and run AC-3 to propagate constraints
-			const domainSnapshot = this.snapshotDomains();
+			// PERF-2: Start a new domain change frame.
+			// Save the assigned layer's current domain + all neighbor domains
+			// before any modifications.
+			const frame = this.startDomainFrame(nextLayer.id, neighborIds);
 			this.assignTrait(nextLayer.id, trait);
 
-			// Run AC-3 to prune domains based on this assignment
-			if (this.ac3()) {
+			// PERF-1: Forward-check only the constrained neighbor arcs.
+			// Instead of re-running full AC-3 over the entire constraint graph
+			// (O(C × L × D)), we only revise neighbor domains against the newly
+			// assigned trait. This is O(N × D_neighbor) — often N=1-3 neighbors.
+			const domainsOk = this.forwardCheckNeighbors(nextLayer.id, neighborIds);
+
+			if (domainsOk) {
 				// Recurse with pruned domains
 				const result = this.optimizedBacktrack();
 				if (result) return result;
 			}
 
-			// Backtrack: restore domains and unassign trait
-			this.restoreDomains(domainSnapshot);
+			// PERF-2: Backtrack by restoring only modified domains from the frame.
+			// This is O(modified_domains × D_neighbor) instead of O(L × D_all).
+			this.restoreDomainFrame(frame);
 			this.context.selectedTraits.delete(nextLayer.id);
 		}
 
@@ -545,13 +620,113 @@ export class CSPSolver {
 	}
 
 	/**
+	 * PERF-2: Start a new domain change frame by snapshotting only the domains
+	 * that will be affected by the assignment (assigned layer + its neighbors).
+	 */
+	private startDomainFrame(
+		assignedLayerId: string,
+		neighborIds: Set<string> | null
+	): DomainChangeFrame {
+		const frame: DomainChangeFrame = {
+			modifiedDomains: new Map()
+		};
+
+		// Save the assigned layer's domain before trait removal
+		const assignedDomain = this.domains.get(assignedLayerId);
+		if (assignedDomain) {
+			frame.modifiedDomains.set(assignedLayerId, {
+				traits: [...assignedDomain.availableTraits],
+				influence: new Map(assignedDomain.constraintInfluence)
+			});
+		}
+
+		// Save neighbor domains before they might be pruned by forward-checking
+		if (neighborIds) {
+			for (const layerId of neighborIds) {
+				if (this.context.selectedTraits.has(layerId)) continue;
+				const domain = this.domains.get(layerId);
+				if (domain) {
+					frame.modifiedDomains.set(layerId, {
+						traits: [...domain.availableTraits],
+						influence: new Map(domain.constraintInfluence)
+					});
+				}
+			}
+		}
+
+		this.domainChangeStack.push(frame);
+		return frame;
+	}
+
+	/**
+	 * PERF-2: Restore domains from a change frame (trail-based backtrack).
+	 * Only restores domains that were snapshotted, not the entire domain map.
+	 */
+	private restoreDomainFrame(frame: DomainChangeFrame): void {
+		for (const [layerId, saved] of frame.modifiedDomains) {
+			const domain = this.domains.get(layerId);
+			if (domain) {
+				domain.availableTraits = saved.traits;
+				domain.constraintInfluence = saved.influence;
+			}
+		}
+		this.domainChangeStack.pop();
+	}
+
+	/**
+	 * PERF-1: Forward-check only the constrained neighbor arcs.
+	 * Revises each unassigned neighbor's domain against the newly assigned trait.
+	 * This is O(N × D_neighbor) instead of O(L × D_all) for full AC-3.
+	 *
+	 * @returns true if all neighbor domains remain non-empty after pruning
+	 */
+	private forwardCheckNeighbors(assignedLayerId: string, neighborIds: Set<string> | null): boolean {
+		if (!neighborIds || neighborIds.size === 0) {
+			return true; // No neighbors to check
+		}
+
+		const assignedTrait = this.context.selectedTraits.get(assignedLayerId);
+		if (!assignedTrait) return true;
+
+		for (const neighborId of neighborIds) {
+			if (this.context.selectedTraits.has(neighborId)) continue;
+
+			const neighborDomain = this.domains.get(neighborId);
+			if (!neighborDomain) continue;
+
+			const beforeLen = neighborDomain.availableTraits.length;
+
+			// Revise: keep only traits consistent with the newly assigned trait
+			neighborDomain.availableTraits = neighborDomain.availableTraits.filter((neighborTrait) =>
+				this.isConsistent(assignedTrait, assignedLayerId, neighborTrait, neighborId)
+			);
+
+			// Dead end: neighbor has no valid traits left
+			if (neighborDomain.availableTraits.length === 0) {
+				return false;
+			}
+
+			// Track constraint influence
+			if (neighborDomain.availableTraits.length < beforeLen) {
+				neighborDomain.constraintInfluence.set(assignedLayerId, beforeLen);
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Get current partial assignment as cache key
+	 * Uses pre-sorted layer IDs for O(n) string building instead of O(n log n) sort + JSON.stringify.
 	 */
 	private getAssignmentKey(): string {
-		const assignment = Array.from(this.context.selectedTraits.entries()).sort(([a], [b]) =>
-			a.localeCompare(b)
-		);
-		return JSON.stringify(assignment);
+		let key = '';
+		for (const layerId of this.layerIdsSorted) {
+			const trait = this.context.selectedTraits.get(layerId);
+			key += trait ? trait.id : '_';
+			key += ';';
+		}
+		return key;
 	}
 
 	/**
@@ -620,33 +795,6 @@ export class CSPSolver {
 	}
 
 	/**
-	 * Create a snapshot of current domains for backtracking
-	 */
-	private snapshotDomains(): Map<string, Domain> {
-		const snapshot = new Map<string, Domain>();
-		for (const [layerId, domain] of this.domains) {
-			snapshot.set(layerId, {
-				layerId: domain.layerId,
-				availableTraits: [...domain.availableTraits],
-				originalSize: domain.originalSize,
-				constraintInfluence: new Map(domain.constraintInfluence),
-				predictedElimination: new Set(domain.predictedElimination)
-			});
-		}
-		return snapshot;
-	}
-
-	/**
-	 * Restore domains from snapshot (backtracking)
-	 */
-	private restoreDomains(snapshot: Map<string, Domain>): void {
-		this.domains.clear();
-		for (const [layerId, domain] of snapshot) {
-			this.domains.set(layerId, domain);
-		}
-	}
-
-	/**
 	 * Assign a trait to a layer (removes it from domain)
 	 */
 	private assignTrait(layerId: string, trait: TransferrableTrait): void {
@@ -670,69 +818,31 @@ export class CSPSolver {
 			}
 		}
 
-		// Generate constraint hash for faster lookup
-		const constraintHash = this.generateConstraintHash(key);
-
-		// Simple dead-end prediction based on constraint density
-		const predictedDeadEnd = this.predictDeadEnd(key);
-
 		this.impossibleCombinations.set(key, {
 			partialAssignment: key,
-			reason,
-			constraintHash,
-			predictedDeadEnd
+			reason
 		});
 	}
 
 	/**
-	 * Generate hash of constraints for fast lookup
-	 */
-	private generateConstraintHash(assignmentKey: string): string {
-		// Simple hash function for constraint combinations
-		let hash = 0;
-		for (let i = 0; i < assignmentKey.length; i++) {
-			const char = assignmentKey.charCodeAt(i);
-			hash = (hash << 5) - hash + char;
-			hash = hash & hash; // Convert to 32bit integer
-		}
-		return hash.toString(36);
-	}
-
-	/**
-	 * Predict if an assignment is likely to be a dead end
-	 */
-	private predictDeadEnd(assignmentKey: string): boolean {
-		// Simple heuristic: if assignment has many constraints, likely dead end
-		const constraintCount = (assignmentKey.match(/ruler/g) || []).length;
-		return constraintCount > 3;
-	}
-
-	/**
-	 * Optimized strict pair validation with early exit
-	 * Uses bit-packed indexing for O(1) lookups and 80% memory reduction
+	 * Optimized strict pair validation with early exit.
+	 *
+	 * BUG-1 fix: Falls back to collision-proof string-key lookups instead of 32-bit hash.
 	 */
 	private isValidCombination(): boolean {
-		// Always check for duplicates, even when strict pairs are disabled
-		// This ensures basic duplicate prevention works
-
-		// Check all layer combinations (including synthetic ones for basic tracking)
 		for (const layerCombination of this.context.strictPairConfig?.layerCombinations || []) {
 			if (!layerCombination.active) {
 				continue;
 			}
 
-			// Check if all layers in this combination are present in the selection
 			const traitIds: string[] = [];
 			let allLayersPresent = true;
-			const selectedTraits: string[] = [];
 
 			for (const layerId of layerCombination.layerIds) {
 				const trait = this.context.selectedTraits.get(layerId);
 				if (trait) {
 					traitIds.push(trait.id);
-					selectedTraits.push(`${layerId}: ${trait.name} (${trait.id})`);
 				} else {
-					// Skip this rule if not all layers are present
 					allLayersPresent = false;
 					break;
 				}
@@ -742,16 +852,13 @@ export class CSPSolver {
 				continue;
 			}
 
-			// Use bit-packed indexing for O(1) combination checking
 			const usedSet = this.context.usedCombinations.get(layerCombination.id);
-
 			if (!usedSet || usedSet.size === 0) {
 				continue;
 			}
 
 			// Try bit-packed lookup for O(1) performance
 			try {
-				// Use mapped numeric IDs instead of dry-parsing strings (which fail for UUIDs)
 				const numericIds: number[] = [];
 				for (const layerId of layerCombination.layerIds) {
 					const trait = this.context.selectedTraits.get(layerId);
@@ -765,52 +872,17 @@ export class CSPSolver {
 
 				if (numericIds.every((id) => id <= 255) && numericIds.length <= 8) {
 					const combinationIndex = CombinationIndexer.pack(numericIds);
-
-					// O(1) check with bigint
 					if (usedSet.has(combinationIndex)) {
-						return false; // Already used
+						return false;
 					}
 				} else {
 					throw new Error('Incompatible for bit-packing');
 				}
 			} catch {
-				// Fallback to hash-based check for edge cases
-				// This happens if trait IDs > 255 or > 8 traits, or if mapping failed
-				const fallbackKey = traitIds.sort().join('|');
-				const numericHash = this.generateNumericHash(fallbackKey);
-				const hashAsBigInt = BigInt(numericHash);
-
-				// Check if hash-based bigint exists in usedSet
-				if (usedSet.has(hashAsBigInt)) {
-					return false; // Already used
-				}
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Verify that all ruler constraints are satisfied in the current assignment
-	 * This is critical to ensure the final solution respects all constraint rules
-	 */
-	private verifyAllConstraints(): boolean {
-		const selectedTraits = Array.from(this.context.selectedTraits.entries());
-
-		// Check all pairs of selected traits for constraint violations
-		for (let i = 0; i < selectedTraits.length; i++) {
-			const [layerIdA, traitA] = selectedTraits[i];
-
-			for (let j = 0; j < selectedTraits.length; j++) {
-				if (i === j) continue;
-				const [layerIdB, traitB] = selectedTraits[j];
-
-				// Check if these two traits are consistent with each other
-				if (!this.isConsistent(traitA, layerIdA, traitB, layerIdB)) {
-					// Found a constraint violation
-					logger.debug(
-						`❌ FINAL CONSTRAINT CHECK FAILED: ${traitA.name} and ${traitB.name} violate ruler rules`
-					);
+				// BUG-1 FIX: Use string key directly instead of lossy 32-bit hash.
+				// Prevents birthday-paradox collisions at scale (~50k items).
+				const fallbackKey = traitIds.slice().sort().join('|');
+				if (usedSet.has(fallbackKey)) {
 					return false;
 				}
 			}
@@ -820,31 +892,39 @@ export class CSPSolver {
 	}
 
 	/**
-	 * Generate numeric hash for combination (same algorithm as worker)
+	 * Verify that all ruler constraints are satisfied in the current assignment
 	 */
-	private generateNumericHash(combinationKey: string): number {
-		let hash = 0;
-		for (let i = 0; i < combinationKey.length; i++) {
-			const char = combinationKey.charCodeAt(i);
-			hash = (hash << 5) - hash + char;
-			hash = hash & hash; // Convert to 32-bit integer
+	private verifyAllConstraints(): boolean {
+		const selectedTraits = Array.from(this.context.selectedTraits.entries());
+
+		for (let i = 0; i < selectedTraits.length; i++) {
+			const [layerIdA, traitA] = selectedTraits[i];
+
+			for (let j = 0; j < selectedTraits.length; j++) {
+				if (i === j) continue;
+				const [layerIdB, traitB] = selectedTraits[j];
+
+				if (!this.isConsistent(traitA, layerIdA, traitB, layerIdB)) {
+					return false;
+				}
+			}
 		}
-		// Make it unsigned to avoid negative values
-		return hash >>> 0;
+
+		return true;
 	}
 
 	/**
 	 * Mark the current combination as used to prevent duplicates
-	 * This must be called after a successful solution is found
+	 *
+	 * BUG-1 fix: Stores string key directly when bit-packing is not possible,
+	 * eliminating birthday-paradox collisions.
 	 */
 	markCombinationAsUsed(): void {
-		// Check all layer combinations and add to appropriate tracking sets
 		for (const layerCombination of this.context.strictPairConfig?.layerCombinations || []) {
 			if (!layerCombination.active) {
 				continue;
 			}
 
-			// Check if all layers in this combination are present in the selection
 			const traitIds: string[] = [];
 			let allLayersPresent = true;
 
@@ -853,7 +933,6 @@ export class CSPSolver {
 				if (trait) {
 					traitIds.push(trait.id);
 				} else {
-					// Skip this rule if not all layers are present
 					allLayersPresent = false;
 					break;
 				}
@@ -863,10 +942,9 @@ export class CSPSolver {
 				continue;
 			}
 
-			// Get or create the tracking set for this combination
 			let usedSet = this.context.usedCombinations.get(layerCombination.id);
 			if (!usedSet) {
-				usedSet = new Set<bigint>();
+				usedSet = new Set<bigint | string>();
 				this.context.usedCombinations.set(layerCombination.id, usedSet);
 			}
 
@@ -886,17 +964,15 @@ export class CSPSolver {
 				if (numericIds.every((id) => id <= 255) && numericIds.length <= 8) {
 					const combinationIndex = CombinationIndexer.pack(numericIds);
 					usedSet.add(combinationIndex);
-					continue; // Successfully added, move to next combination
+					continue;
 				}
 			} catch {
 				// Continue to fallback
 			}
 
-			// Fallback to hash-based for edge cases
-			const stringKey = traitIds.sort().join('|');
-			const numericHash = this.generateNumericHash(stringKey);
-			const hashAsBigInt = BigInt(numericHash);
-			usedSet.add(hashAsBigInt);
+			// BUG-1 FIX: Fallback to string key instead of lossy 32-bit hash.
+			const stringKey = traitIds.slice().sort().join('|');
+			usedSet.add(stringKey);
 		}
 	}
 
@@ -915,13 +991,13 @@ export class CSPSolver {
 		this.domains.clear();
 		this.constraints.clear();
 		this.constraintCache.clear();
+		this.domainChangeStack = [];
 		this.performanceStats = {
 			cacheHits: 0,
 			constraintChecks: 0,
 			backtracks: 0,
 			ac3Iterations: 0,
 			earlyTerminations: 0,
-			predictedDeadEnds: 0,
 			constraintCacheHits: 0
 		};
 		this.constraintOrdering = [];

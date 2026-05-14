@@ -30,11 +30,8 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 		layers.map(async (layer) => {
 			const transferrableTraits = await Promise.all(
 				layer.traits.map((trait) => {
-					// Create a clean ArrayBuffer to ensure it's properly serializable
-					const cleanArrayBuffer = new ArrayBuffer(trait.imageData.byteLength);
-					const sourceView = new Uint8Array(trait.imageData);
-					const destView = new Uint8Array(cleanArrayBuffer);
-					destView.set(sourceView);
+					// Create a clean ArrayBuffer copy using slice() for speed
+					const cleanArrayBuffer = trait.imageData.slice(0);
 
 					// Create a clean trait object with only the properties defined in TransferrableTrait
 					const transferrableTrait: TransferrableTrait = {
@@ -44,6 +41,12 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 						rarityWeight: trait.rarityWeight,
 						type: trait.type,
 						rulerRules: trait.rulerRules
+							? trait.rulerRules.map((r) => ({
+									layerId: r.layerId,
+									allowedTraitIds: [...r.allowedTraitIds],
+									forbiddenTraitIds: [...r.forbiddenTraitIds]
+								}))
+							: undefined
 					};
 
 					return transferrableTrait;

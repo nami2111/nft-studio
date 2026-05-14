@@ -63,7 +63,6 @@ export const TIME = {
 
 	// Debounce intervals
 	SAVE_DEBOUNCE: 1000, // 1 second for general saves
-	GALLERY_SAVE_DEBOUNCE: 1000, // 1 second for gallery saves
 
 	// Cleanup intervals
 	MEMORY_CLEANUP_INTERVAL: 5 * 60 * 1000, // 5 minutes
@@ -82,8 +81,6 @@ export const BATCH = {
 
 // Cache Configuration
 export const CACHE = {
-	GALLERY_FILTER_MAX_ENTRIES: 100, // Max entries in gallery filter cache
-
 	// LRU eviction settings
 	LRU_EVICTION_ENABLED: true,
 

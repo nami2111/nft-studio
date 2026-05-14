@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { GalleryItem } from '$lib/types/gallery';
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
+	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import { onMount, untrack } from 'svelte';
 
 	interface Props {
@@ -63,6 +64,21 @@
 		// Convert row indices to item indices
 		visibleStart = overscanStartRow * columns;
 		visibleEnd = Math.min(currentItems.length, overscanEndRow * columns);
+
+		// Clean up imageUrls for items scrolled far past the keep window
+		const cleanBuffer = overscanRows * 3;
+		const keepStart = Math.max(0, overscanStartRow - cleanBuffer) * columns;
+		const keepEnd = Math.min(currentItems.length, (overscanEndRow + cleanBuffer) * columns);
+
+		const keepIds = new Set<string>();
+		for (let i = keepStart; i < keepEnd; i++) {
+			const it = currentItems[i];
+			if (it) keepIds.add(it.id);
+		}
+
+		for (const id of Object.keys(imageUrls)) {
+			if (!keepIds.has(id)) delete imageUrls[id];
+		}
 	}
 
 	// Update visible range when scrolling
@@ -93,28 +109,71 @@
 	let imageUrls = $state<Record<string, string>>({});
 
 	// Request image URL creation (async, non-blocking)
+	// Falls back to IndexedDB when imageData is not in memory.
+	// DOES NOT cache error state for IndexedDB misses — images may be
+	// streaming in during import, so the next render will retry naturally.
 	function requestImageUrl(item: GalleryItem): string {
 		// Check if already loaded
 		if (imageUrls[item.id]) {
 			return imageUrls[item.id];
 		}
 
-		// Check if imageData exists
+		// Check if imageData exists in memory
+		const hasImageData =
+			item.imageData &&
+			(typeof item.imageData === 'string' || item.imageData.byteLength > 0);
+
+		if (!hasImageData && imageUrls[item.id] === undefined) {
+			// No data in memory — fetch from IndexedDB on demand
+			if (!imageLoadQueue.has(item.id)) {
+				imageLoadQueue.add(item.id);
+
+				setTimeout(async () => {
+					try {
+						const buffer = await galleryStore.getItemImage(item.id);
+						if (buffer && buffer.byteLength > 0) {
+							const url = imageUrlCache.get(item.id, buffer);
+							if (url) {
+								imageUrls[item.id] = url;
+							} else {
+								// decode failure on valid buffer
+								imageUrls[item.id] = 'error';
+							}
+						}
+						// If buffer is null/empty: image not streamed yet.
+						// Don't set error — the next render will retry.
+						imageLoadQueue.delete(item.id);
+					} catch {
+						imageLoadQueue.delete(item.id);
+						imageUrls[item.id] = 'error';
+					}
+				}, 0);
+
+				// Timeout protection (30 seconds for streaming import window)
+				setTimeout(() => {
+					if (imageLoadQueue.has(item.id)) {
+						imageLoadQueue.delete(item.id);
+						// Don't set error — image may still be streaming in,
+						// next scroll/render will retry the IndexedDB fetch.
+					}
+				}, 30000);
+			}
+			return '';
+		}
+
+		// Check if imageData exists (in-memory path)
 		if (!item.imageData || (typeof item.imageData !== 'string' && item.imageData.byteLength === 0)) {
 			return '';
 		}
 
-		// Add to queue for async loading
+		// Add to queue for async loading (in-memory path)
 		if (!imageLoadQueue.has(item.id)) {
 			imageLoadQueue.add(item.id);
 
-			// Load image in background without blocking UI
-			// We use setTimeout to ensure this update happens outside the current render cycle,
-			// which avoids the state_unsafe_mutation error.
 			setTimeout(() => {
 				try {
 					const url = imageUrlCache.get(item.id, item.imageData);
-					imageUrls[item.id] = url; // This triggers reactivity!
+					imageUrls[item.id] = url;
 					imageLoadQueue.delete(item.id);
 				} catch {
 					imageLoadQueue.delete(item.id);
@@ -122,11 +181,10 @@
 				}
 			}, 0);
 
-			// Add timeout protection (5 seconds max)
+			// Timeout protection (5 seconds max for in-memory decode)
 			setTimeout(() => {
 				if (imageLoadQueue.has(item.id)) {
 					imageLoadQueue.delete(item.id);
-					// Mark as failed to prevent infinite loading
 					imageUrls[item.id] = 'error';
 				}
 			}, 5000);
@@ -266,89 +324,41 @@
 						>
 							<!-- Item Image -->
 							<div class="bg-muted h-full w-full overflow-hidden">
-								{#if item.imageData && (typeof item.imageData === 'string' || item.imageData.byteLength > 0)}
+								{#if true}
 									{@const imageUrl = requestImageUrl(item)}
-									{#if imageUrl && imageUrl !== 'error'}
-										<img
-											src={imageUrl}
-											alt={item.name}
-											class="h-full w-full object-cover transition-transform group-hover:scale-110"
-											loading="lazy"
-											onerror={(e) => handleImageError(e, item)}
-										/>
-										<div
-											class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-2 text-xs"
-											style="display: none;"
-										>
-											<div class="text-center">
-												<svg
-													class="mx-auto mb-1 h-6 w-6"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													aria-hidden="true"
-												>
-													<path
-														d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-														stroke-width="1"
-														stroke-linecap="round"
-														stroke-linejoin="round"
-													/>
-												</svg>
-												<div>Image Unavailable</div>
-												<div class="mt-1 text-xs opacity-70">Loading failed</div>
-											</div>
+								{#if imageUrl && imageUrl !== 'error'}
+									<img
+										src={imageUrl}
+										alt={item.name}
+										class="h-full w-full object-cover transition-transform group-hover:scale-110"
+										loading="lazy"
+										onerror={(e) => handleImageError(e, item)}
+									/>
+									<div
+										class="bg-muted text-muted-foreground h-full w-full items-center justify-center p-2 text-xs"
+										style="display: none;"
+									>
+										<div class="text-center">
+											<svg
+												class="mx-auto mb-1 h-6 w-6"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+													stroke-width="1"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+												/>
+											</svg>
+											<div>Image Unavailable</div>
+											<div class="mt-1 text-xs opacity-70">Loading failed</div>
 										</div>
-									{:else if imageUrl === 'error'}
-										<!-- Show error state -->
-										<div
-											class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
-										>
-											<div class="text-center">
-												<svg
-													class="mx-auto mb-1 h-6 w-6"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													aria-hidden="true"
-												>
-													<path
-														d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-														stroke-width="1"
-														stroke-linecap="round"
-														stroke-linejoin="round"
-													/>
-												</svg>
-												<div>Load Error</div>
-												<div class="mt-1 text-xs opacity-70">Timeout</div>
-											</div>
-										</div>
-									{:else}
-										<!-- Show loading state when no URL is available -->
-										<div
-											class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
-										>
-											<div class="text-center">
-												<svg
-													class="mx-auto mb-1 h-6 w-6 animate-spin"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													aria-hidden="true"
-												>
-													<path
-														d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-														stroke-width="1"
-														stroke-linecap="round"
-														stroke-linejoin="round"
-													/>
-												</svg>
-												<div>Loading...</div>
-											</div>
-										</div>
-									{/if}
-								{:else}
-									<!-- Show placeholder/error state when no image is available -->
+									</div>
+								{:else if imageUrl === 'error'}
+									<!-- Show error state -->
 									<div
 										class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
 									>
@@ -361,15 +371,40 @@
 												aria-hidden="true"
 											>
 												<path
-													d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+													d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 													stroke-width="1"
 													stroke-linecap="round"
 													stroke-linejoin="round"
 												/>
 											</svg>
-											<div>No Image</div>
+											<div>Load Error</div>
+											<div class="mt-1 text-xs opacity-70">Timeout</div>
 										</div>
 									</div>
+								{:else}
+									<!-- Show loading state when image is being fetched -->
+									<div
+										class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
+									>
+										<div class="text-center">
+											<svg
+												class="mx-auto mb-1 h-6 w-6 animate-spin"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+													stroke-width="1"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+												/>
+											</svg>
+											<div>Loading...</div>
+										</div>
+									</div>
+								{/if}
 								{/if}
 							</div>
 

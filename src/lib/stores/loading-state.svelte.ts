@@ -1,27 +1,52 @@
 /**
  * Reactive loading state store for Svelte components
  * Provides reactive state for loading operations using Svelte 5 runes
- *
- * @note This uses a hybrid bridge pattern: LoadingStateManager (legacy pub/sub) is bridged
- * to Svelte 5 $state via Object.assign. This is intentional — LoadingStateManager handles
- * async operations outside of Svelte's reactivity system, and the $state objects serve as
- * the reactive read interface for components.
  */
 
-import { loadingStateManager } from './loading-state';
 import type { LoadingState } from './loading-state';
 
 // Reactive state using Svelte 5 runes
 export const loadingStates = $state<Record<string, boolean>>({});
 export const detailedLoadingStates = $state<Record<string, LoadingState>>({});
 
-// Subscribe to loading state manager updates
-loadingStateManager.subscribe(() => {
-	// Update reactive state when manager state changes
-	Object.assign(loadingStates, loadingStateManager.getAllLoadingStates());
-	Object.assign(detailedLoadingStates, loadingStateManager.getAllDetailedStates());
-});
+// Direct mutation functions — components should import these instead of LoadingStateManager
+export function startLoading(op: string): void {
+	loadingStates[op] = true;
+}
 
-// Initialize with current state
-Object.assign(loadingStates, loadingStateManager.getAllLoadingStates());
-Object.assign(detailedLoadingStates, loadingStateManager.getAllDetailedStates());
+export function stopLoading(op: string): void {
+	loadingStates[op] = false;
+}
+
+export function getLoadingState(op: string): boolean {
+	return loadingStates[op] ?? false;
+}
+
+export function startDetailedLoading(op: string, total = 100): void {
+	detailedLoadingStates[op] = {
+		progress: 0,
+		total,
+		message: 'Starting...',
+		status: 'loading'
+	};
+}
+
+export function updateDetailedLoading(op: string, progress: number, message?: string): void {
+	const state = detailedLoadingStates[op];
+	if (state) {
+		state.progress = progress;
+		if (message) state.message = message;
+	}
+}
+
+export function stopDetailedLoading(op: string, success = true): void {
+	const state = detailedLoadingStates[op];
+	if (state) {
+		state.status = success ? 'success' : 'error';
+		state.progress = state.total;
+	}
+}
+
+export function getDetailedLoadingState(op: string): LoadingState | undefined {
+	return detailedLoadingStates[op];
+}

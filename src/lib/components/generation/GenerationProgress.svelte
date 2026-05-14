@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Progress } from '$lib/components/ui/progress';
-	import { AlertCircle, CheckCircle2 } from '@lucide/svelte';
+	import { AlertCircle, CheckCircle2, Cpu, Layers, Package, Sparkles } from '@lucide/svelte';
 	import { generationState, resetState } from '$lib/stores/generation-progress.svelte';
 	import { formatTime } from '$lib/utils/formatters';
 	import { fade, slide, scale } from 'svelte/transition';
@@ -18,6 +18,19 @@
 	const currentSessionId = $derived(generationState.sessionId);
 	const itemsPerSecond = $derived(generationState.itemsPerSecond);
 	const eta = $derived(generationState.eta);
+	const batchProgress = $derived(generationState.batchProgress);
+
+	const phase = $derived.by(() => {
+		const text = generationState.statusText;
+		if (!generationState.isGenerating && generationState.completionTime) return 'complete';
+		if (text.includes('Solving')) return 'solving';
+		if (text.includes('Packaging')) return 'packaging';
+		if (text.includes('Batch') || text.includes('batch')) return 'generating';
+		if (generationState.isGenerating) return 'generating';
+		return 'idle';
+	});
+
+	const activeWorkers = $derived(batchProgress ? Math.min(batchProgress.total, 6) : 0);
 
 	function handleClearState() {
 		resetState();
@@ -25,6 +38,7 @@
 
 	const isCompleted = $derived(
 		!isGenerating && !!generationState.completionTime && progress === 100
+		&& !generationState.statusText.includes('Packaging')
 	);
 
 	function formatEta(seconds: number | null): string {
@@ -50,6 +64,33 @@
 					</p>
 				</div>
 			</div>
+		</div>
+	{/if}
+
+	<!-- Phase Indicator -->
+	{#if currentSessionId && (isGenerating || generationState.statusText.includes('Packaging'))}
+		<div class="flex items-center gap-1.5 text-xs" in:fade>
+			{#each ['solving', 'generating', 'packaging'] as p}
+				<div
+					class="flex items-center gap-1 rounded-full px-2.5 py-1 transition-all duration-300 {p === phase
+						? 'bg-primary/10 text-primary font-medium'
+						: 'text-muted-foreground/40'}"
+				>
+					{#if p === 'solving'}
+						<Layers class="h-3 w-3" />
+						<span>Solving</span>
+					{:else if p === 'generating'}
+						<Cpu class="h-3 w-3" />
+						<span>Generating</span>
+					{:else if p === 'packaging'}
+						<Package class="h-3 w-3" />
+						<span>Package</span>
+					{/if}
+					{#if p !== 'packaging'}
+						<span class="text-muted-foreground/30">▸</span>
+					{/if}
+				</div>
+			{/each}
 		</div>
 	{/if}
 
@@ -86,8 +127,8 @@
 			{:else}
 				<div class="flex flex-col gap-1">
 					<p class="text-foreground text-sm font-medium wrap-break-word" in:slide>{statusText}</p>
-					{#if isGenerating && (itemsPerSecond || eta !== null)}
-						<div class="text-muted-foreground flex items-center gap-3 text-xs" in:fade>
+					{#if isGenerating && (itemsPerSecond || eta !== null || activeWorkers > 0)}
+						<div class="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" in:fade>
 							{#if itemsPerSecond}
 								<span class="flex items-center gap-1">
 									<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500"></span>
@@ -97,6 +138,17 @@
 							{#if eta !== null}
 								<span class="flex items-center gap-1">
 									⏱️ {formatEta(eta)} remaining
+								</span>
+							{/if}
+							{#if activeWorkers > 0}
+								<span class="flex items-center gap-1">
+									<Cpu class="h-3 w-3" />
+									{activeWorkers}/6 workers
+								</span>
+							{/if}
+							{#if generationState.currentIndex > 0}
+								<span class="text-muted-foreground/60">
+									{generationState.currentIndex}/{generationState.totalItems}
 								</span>
 							{/if}
 						</div>

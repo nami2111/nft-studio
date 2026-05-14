@@ -8,8 +8,9 @@ import type { GalleryCollection } from '$lib/types/gallery';
 import { productionMonitor } from '$lib/monitoring/performance-monitor';
 
 const DB_NAME = 'gnstudio-gallery';
-const DB_VERSION = 2; // Incremented to trigger upgrade for new indices
+const DB_VERSION = 3; // Bumped to add gallery-images store
 const COLLECTIONS_STORE = 'collections';
+const GALLERY_IMAGES_STORE = 'gallery-images';
 
 let dbInstance: IDBPDatabase | null = null;
 
@@ -22,7 +23,7 @@ export async function initGalleryDB(): Promise<IDBPDatabase> {
 	}
 
 	dbInstance = await openDB(DB_NAME, DB_VERSION, {
-		upgrade(db) {
+		upgrade(db, oldVersion) {
 			// Create collections store
 			if (!db.objectStoreNames.contains(COLLECTIONS_STORE)) {
 				const store = db.createObjectStore(COLLECTIONS_STORE, {
@@ -33,6 +34,12 @@ export async function initGalleryDB(): Promise<IDBPDatabase> {
 				store.createIndex('generatedAt', 'generatedAt', { unique: false });
 				store.createIndex('projectName', 'projectName', { unique: false });
 				store.createIndex('totalSupply', 'totalSupply', { unique: false });
+			}
+
+			// Add gallery-images store in version 3
+			if (oldVersion < 3 && !db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
+				const imageStore = db.createObjectStore(GALLERY_IMAGES_STORE, { keyPath: 'itemId' });
+				imageStore.createIndex('collectionId', 'collectionId', { unique: false });
 			}
 		}
 	});
@@ -72,11 +79,27 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 			collectionId: item.collectionId,
 			generatedAt:
 				item.generatedAt instanceof Date ? item.generatedAt.toISOString() : item.generatedAt
-			// imageData excluded to save space
+			// imageData excluded to save space (stored separately in gallery-images store)
 		}))
 	};
 
 	await db.put(COLLECTIONS_STORE, collectionToStore);
+
+	// Also save each item's imageData to the gallery-images store
+	if (db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
+		const tx = db.transaction(GALLERY_IMAGES_STORE, 'readwrite');
+		const store = tx.objectStore(GALLERY_IMAGES_STORE);
+		for (const item of collection.items) {
+			if (item.imageData instanceof ArrayBuffer && item.imageData.byteLength > 0) {
+				store.put({
+					itemId: item.id,
+					collectionId: collection.id,
+					imageData: item.imageData
+				});
+			}
+		}
+		await tx.done;
+	}
 
 	// Record database query performance
 	const duration = Date.now() - startTime;
@@ -84,55 +107,63 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 }
 
 /**
- * Get a collection from IndexedDB by ID
+ * Save a single item image to IndexedDB (used during streaming import).
  */
-export async function getCollection(id: string): Promise<GalleryCollection | undefined> {
-	const startTime = Date.now();
+export async function saveItemImage(
+	itemId: string,
+	collectionId: string,
+	imageData: ArrayBuffer
+): Promise<void> {
 	const db = await initGalleryDB();
-	const stored = await db.get(COLLECTIONS_STORE, id);
+	if (!db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) return;
 
-	// Record database query performance
-	const duration = Date.now() - startTime;
-	productionMonitor.recordDatabaseQuery('getCollection', duration);
-
-	if (!stored) {
-		return undefined;
-	}
-
-	// Restore the collection, converting ISO strings back to Date objects
-	// imageData will need to be reloaded from the original source (ZIP file or generation cache)
-	return {
-		...stored,
-		generatedAt: stored.generatedAt ? new Date(stored.generatedAt) : new Date(),
-		items: stored.items.map((item: Record<string, unknown> & { generatedAt?: string | Date }) => ({
-			...item,
-			generatedAt: item.generatedAt ? new Date(item.generatedAt) : new Date(),
-			imageData: new ArrayBuffer(0) // Empty buffer, will be filled from cache if available
-		}))
-	} as GalleryCollection;
+	const tx = db.transaction(GALLERY_IMAGES_STORE, 'readwrite');
+	const store = tx.objectStore(GALLERY_IMAGES_STORE);
+	store.put({ itemId, collectionId, imageData });
+	await tx.done;
 }
 
 /**
- * Get all collections from IndexedDB
+ * Get a single item image from IndexedDB (on-demand fetch).
+ */
+export async function getItemImage(itemId: string): Promise<ArrayBuffer | null> {
+	const db = await initGalleryDB();
+	if (!db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
+		return null;
+	}
+
+	const tx = db.transaction(GALLERY_IMAGES_STORE, 'readonly');
+	const store = tx.objectStore(GALLERY_IMAGES_STORE);
+	const record = await store.get(itemId);
+
+	if (record?.imageData instanceof ArrayBuffer && record.imageData.byteLength > 0) {
+		return record.imageData;
+	}
+	return null;
+}
+
+/**
+ * Get all collections from IndexedDB (metadata only, no image hydration).
  */
 export async function getAllCollections(): Promise<GalleryCollection[]> {
 	const startTime = Date.now();
 	const db = await initGalleryDB();
 	const storedCollections = await db.getAll(COLLECTIONS_STORE);
 
-	// Record database query performance
 	const duration = Date.now() - startTime;
 	productionMonitor.recordDatabaseQuery('getAllCollections', duration);
 
-	return storedCollections.map((stored) => ({
+	const collections = storedCollections.map((stored) => ({
 		...stored,
 		generatedAt: stored.generatedAt ? new Date(stored.generatedAt) : new Date(),
 		items: stored.items.map((item: Record<string, unknown> & { generatedAt?: string | Date }) => ({
 			...item,
 			generatedAt: item.generatedAt ? new Date(item.generatedAt) : new Date(),
-			imageData: new ArrayBuffer(0) // Empty buffer, will be filled from cache if available
+			imageData: new ArrayBuffer(0) // Placeholder, image fetched on demand via getItemImage
 		}))
 	})) as GalleryCollection[];
+
+	return collections;
 }
 
 /**
@@ -141,6 +172,19 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 export async function deleteCollection(id: string): Promise<void> {
 	const startTime = Date.now();
 	const db = await initGalleryDB();
+
+	// Also delete associated gallery-images
+	if (db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
+		const tx = db.transaction(GALLERY_IMAGES_STORE, 'readwrite');
+		const store = tx.objectStore(GALLERY_IMAGES_STORE);
+		const index = store.index('collectionId');
+		const keys = await index.getAllKeys(id);
+		for (const key of keys) {
+			store.delete(key);
+		}
+		await tx.done;
+	}
+
 	await db.delete(COLLECTIONS_STORE, id);
 
 	// Record database query performance
@@ -155,6 +199,10 @@ export async function clearAllCollections(): Promise<void> {
 	const startTime = Date.now();
 	const db = await initGalleryDB();
 	await db.clear(COLLECTIONS_STORE);
+
+	if (db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
+		await db.clear(GALLERY_IMAGES_STORE);
+	}
 
 	// Record database query performance
 	const duration = Date.now() - startTime;

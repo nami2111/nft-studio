@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
-import type { Handle } from "@sveltejs/kit";
+import { randomUUID } from 'node:crypto';
+import type { Handle } from '@sveltejs/kit';
 
 // Generate a CSP nonce for each request
 function generateNonce(): string {
@@ -15,7 +15,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const CSP_HEADER = `
 		default-src 'self';
 		script-src 'self' 'nonce-${nonce}';
-		worker-src 'self';
+		worker-src 'self' blob:;
 		style-src 'self' 'nonce-${nonce}';
 		img-src 'self' data: blob:;
 		font-src 'self' data:;
@@ -29,27 +29,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 		block-all-mixed-content;
 		require-trusted-types-for 'script';
 	`
-		.replace(/\s{2,}/g, " ")
+		.replace(/\s{2,}/g, ' ')
 		.trim();
 
 	const response = await resolve(event);
 
 	// Security Headers
-	response.headers.set("Content-Security-Policy", CSP_HEADER);
-	response.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-	response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
-	response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
-	response.headers.set(
-		"Strict-Transport-Security",
-		"max-age=63072000; includeSubDomains; preload",
-	);
-	response.headers.set("X-Frame-Options", "DENY");
-	response.headers.set("X-Content-Type-Options", "nosniff");
-	response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-	response.headers.set(
-		"Permissions-Policy",
-		"geolocation=(), microphone=(), camera=()",
-	);
+	response.headers.set('Content-Security-Policy', CSP_HEADER);
+	response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+	response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+	response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
 
 	return response;
 };

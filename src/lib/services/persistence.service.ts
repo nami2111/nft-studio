@@ -23,6 +23,8 @@ export class PersistenceService {
 	>();
 	private persistTimeout: ReturnType<typeof setTimeout> | null = null;
 	private lastSavedMetadata: string | null = null;
+	private dirtyMetadata = false;
+	private dirtyLayers = new Set<string>();
 
 	/**
 	 * Get or create an IndexedDbStore for a specific layer's assets
@@ -36,6 +38,17 @@ export class PersistenceService {
 			this.assetStorages.set(key, new IndexedDbStore(key));
 		}
 		return this.assetStorages.get(key)!;
+	}
+
+	/**
+	 * Mark metadata or a specific layer as dirty so the next save will write it.
+	 */
+	markDirty(layerId?: string): void {
+		if (layerId) {
+			this.dirtyLayers.add(layerId);
+		} else {
+			this.dirtyMetadata = true;
+		}
 	}
 
 	/**
@@ -56,30 +69,35 @@ export class PersistenceService {
 	 */
 	async saveProject(project: Project): Promise<void> {
 		try {
-			// 1. Prepare and save metadata (sans image data)
-			const skeleton = this.createProjectSkeleton(project);
-			const metadataJson = JSON.stringify(skeleton);
+			// 1. Prepare and save metadata (sans image data) only if dirty
+			if (this.dirtyMetadata) {
+				const skeleton = this.createProjectSkeleton(project);
+				const metadataJson = JSON.stringify(skeleton);
 
-			if (metadataJson !== this.lastSavedMetadata) {
-				await this.metaStorage.save(skeleton);
-				this.lastSavedMetadata = metadataJson;
+				if (metadataJson !== this.lastSavedMetadata) {
+					await this.metaStorage.save(skeleton);
+					this.lastSavedMetadata = metadataJson;
+				}
+				this.dirtyMetadata = false;
 			}
 
-			// 2. Save assets for each layer
-			// In a more advanced version, we'd track which layers are dirty
-			// For now, we save all layers but IndexedDB is efficient
-			const assetPromises = project.layers.map(async (layer) => {
-				const assets = {
-					layerId: layer.id,
-					traits: layer.traits.map((t) => ({
-						id: t.id,
-						imageData: t.imageData
-					}))
-				};
-				await this.getAssetStorage(layer.id).save(assets);
-			});
+			// 2. Save assets only for dirty layers
+			const assetPromises: Promise<void>[] = [];
+			for (const layer of project.layers) {
+				if (this.dirtyLayers.has(layer.id) || this.dirtyLayers.size === 0) {
+					const assets = {
+						layerId: layer.id,
+						traits: layer.traits.map((t) => ({
+							id: t.id,
+							imageData: t.imageData
+						}))
+					};
+					assetPromises.push(this.getAssetStorage(layer.id).save(assets));
+				}
+			}
 
 			await Promise.all(assetPromises);
+			this.dirtyLayers.clear();
 		} catch (error) {
 			logger.error('Failed to persist project:', error);
 		}
