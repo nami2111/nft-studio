@@ -102,6 +102,50 @@ function findBestWorkerForTask(): number | null {
 }
 
 /**
+ * Resolve task from pool by taskId (preferred) or workerIndex (fallback).
+ */
+function resolveTask(
+	messageTaskId: string | undefined,
+	workerIndex: number
+): WorkerTask | undefined {
+	if (messageTaskId && workerPool!.activeTasks.has(messageTaskId)) {
+		return workerPool!.activeTasks.get(messageTaskId);
+	}
+	for (const task of workerPool!.activeTasks.values()) {
+		if (task.assignedWorker === workerIndex) {
+			return task;
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Finalize a completed/errored/cancelled task: resolve the promise, update stats, clean up.
+ */
+function finalizeTask(
+	task: WorkerTask,
+	type: string,
+	data: OutgoingWorkerMessage,
+	workerIndex: number
+): void {
+	if (type === 'complete') {
+		task.resolve(data);
+		updateWorkerPerformance(workerIndex, task.complexity, Date.now() - task.timestamp);
+	} else if (type === 'error') {
+		task.reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
+		if (workerIndex >= 0 && workerIndex < workerPool!.workerStats.length) {
+			workerPool!.workerStats[workerIndex].errorCount++;
+		}
+	} else if (type === 'cancelled') {
+		task.reject(new Error('Generation cancelled'));
+	}
+	workerPool!.activeTasks.delete(task.id);
+	if (workerIndex >= 0 && workerIndex < workerPool!.workerTaskCount.length) {
+		workerPool!.workerTaskCount[workerIndex]--;
+	}
+}
+
+/**
  * Handle messages from workers with performance tracking
  */
 function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
@@ -139,72 +183,12 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 
 	if (type === 'complete' || type === 'error' || type === 'cancelled') {
 		const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
-		let foundTask = false;
-
-		if (messageTaskId) {
-			const task = workerPool.activeTasks.get(messageTaskId);
-			if (task) {
-				if (type === 'complete') {
-					if (task._resolve) task._resolve(data);
-					updateWorkerPerformance(workerIndex, task.complexity, Date.now() - task.timestamp);
-				} else if (type === 'error') {
-					if (task._reject)
-						task._reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
-					if (workerIndex >= 0 && workerIndex < workerPool.workerStats.length) {
-						workerPool.workerStats[workerIndex].errorCount++;
-					}
-				} else if (type === 'cancelled') {
-					if (task._reject) task._reject(new Error('Generation cancelled'));
-				}
-				workerPool.activeTasks.delete(messageTaskId);
-				if (workerIndex >= 0 && workerIndex < workerPool.workerTaskCount.length) {
-					workerPool.workerTaskCount[workerIndex]--;
-				}
-				foundTask = true;
-			}
+		const task = resolveTask(messageTaskId, workerIndex);
+		if (task) {
+			finalizeTask(task, type, data, workerIndex);
 		}
-
-		if (!foundTask) {
-			for (const [taskId, task] of workerPool.activeTasks.entries()) {
-				if (task.assignedWorker === workerIndex) {
-					const msgTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
-					if (msgTaskId && msgTaskId !== taskId) {
-						workerPool.workerStatus[workerIndex] = true;
-						processNextTask();
-						return;
-					}
-					if (type === 'complete') {
-						if (task._resolve) task._resolve(data);
-						updateWorkerPerformance(workerIndex, task.complexity, Date.now() - task.timestamp);
-					} else if (type === 'error') {
-						if (task._reject)
-							task._reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
-						if (workerIndex >= 0 && workerIndex < workerPool.workerStats.length) {
-							workerPool.workerStats[workerIndex].errorCount++;
-						}
-					} else if (type === 'cancelled') {
-						if (task._reject) task._reject(new Error('Generation cancelled'));
-					}
-					workerPool.activeTasks.delete(taskId);
-					if (workerIndex >= 0 && workerIndex < workerPool.workerTaskCount.length) {
-						workerPool.workerTaskCount[workerIndex]--;
-					}
-					foundTask = true;
-					break;
-				}
-			}
-		}
-
-		if (!foundTask) {
-			if (workerPool) workerPool.workerStatus[workerIndex] = true;
-			processNextTask();
-			return;
-		}
-
-		if (foundTask && (type === 'complete' || type === 'error' || type === 'cancelled')) {
-			if (workerPool) workerPool.workerStatus[workerIndex] = true;
-			processNextTask();
-		}
+		workerPool.workerStatus[workerIndex] = true;
+		processNextTask();
 	}
 }
 
@@ -248,7 +232,9 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 				error.filename ? `at ${error.filename}` : '',
 				error.lineno != null ? `:${error.lineno}` : '',
 				error.colno != null ? `:${error.colno}` : ''
-			].filter(Boolean).join(' ');
+			]
+				.filter(Boolean)
+				.join(' ');
 			const errorMessage = detail || 'Unknown worker error (check browser console for details)';
 			reject(new Error(`Worker error: ${errorMessage}`));
 		};
@@ -335,7 +321,7 @@ function removeWorker(workerIndex: number): void {
 		return true;
 	});
 	for (const task of removedTasks) {
-		if (task._reject) task._reject(new Error('Task cancelled due to worker removal'));
+		if (task.reject) task.reject(new Error('Task cancelled due to worker removal'));
 		workerPool.activeTasks.delete(task.id);
 	}
 	debugLog(
@@ -590,7 +576,7 @@ function startBackgroundProcesses(healthCheckInterval: number): void {
 				if (task.assignedWorker !== undefined) {
 					handleWorkerFailure(task.assignedWorker, 'Task timeout');
 				}
-				if (task._reject) task._reject(new Error('Task timeout'));
+				if (task.reject) task.reject(new Error('Task timeout'));
 				workerPool.activeTasks.delete(taskId);
 			}
 		}
@@ -605,7 +591,7 @@ function startBackgroundProcesses(healthCheckInterval: number): void {
 		if (allError && workerPool.taskQueue.length > 0) {
 			console.error('All workers failed; draining task queue');
 			for (const task of workerPool.taskQueue) {
-				if (task._reject) task._reject(new Error('All workers failed'));
+				if (task.reject) task.reject(new Error('All workers failed'));
 			}
 			workerPool.taskQueue = [];
 		}
@@ -639,20 +625,10 @@ function processNextTask(): void {
 		let messageToSend: { type: string; taskId: string; payload?: unknown };
 
 		if ('payload' in task.message) {
-			const payload = task.message.payload;
-			if (task.message.type === 'batch-ref') {
-				try {
-					messageToSend = { ...baseMessage, payload: structuredClone(payload) };
-				} catch {
-					messageToSend = { ...baseMessage, payload: safeStructuredClone(payload) };
-				}
-			} else {
-				try {
-					messageToSend = { ...baseMessage, payload: structuredClone(payload) };
-				} catch {
-					messageToSend = { ...baseMessage, payload: safeStructuredClone(payload) };
-				}
-			}
+			messageToSend = {
+				...baseMessage,
+				payload: safeStructuredClone(task.message.payload)
+			};
 		} else {
 			messageToSend = baseMessage;
 		}
@@ -663,7 +639,7 @@ function processNextTask(): void {
 	} catch (error) {
 		console.error(`Failed to post message to worker ${bestWorker}:`, error);
 		workerPool.workerStatus[bestWorker] = true;
-		if (task._reject) task._reject(new Error('Failed to send task to worker'));
+		if (task.reject) task.reject(new Error('Failed to send task to worker'));
 		workerPool.activeTasks.delete(task.id);
 		processNextTask();
 	}
@@ -764,10 +740,9 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 	// Respect caller's maxWorkers if provided and reasonable,
 	// otherwise compute a sensible default based on device cores.
 	const requestedMax = config?.maxWorkers;
-	const computedMax = Math.max(1, Math.floor(coreCount / 2));
-	const warmUpCount = requestedMax != null && requestedMax > 0
-		? Math.min(requestedMax, computedMax)
-		: computedMax;
+	const computedMax = Math.max(2, Math.floor(coreCount / 2) - 2);
+	const warmUpCount =
+		requestedMax != null && requestedMax > 0 ? Math.min(requestedMax, computedMax) : computedMax;
 	debugLog(`Warming up worker pool with ${warmUpCount} workers...`);
 
 	const warmUpConfig: WorkerPoolConfig = {
@@ -819,14 +794,7 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 		let complexity = TaskComplexity.MEDIUM;
 
 		const msg = message as { type: string; payload?: Record<string, unknown> };
-		if (msg.type === 'start' && msg.payload) {
-			const p = msg.payload as {
-				layers: unknown[];
-				collectionSize: number;
-				outputSize: { width: number; height: number };
-			};
-			complexity = calculateTaskComplexity(p.layers, p.collectionSize, p.outputSize);
-		} else if (msg.type === 'batch' && msg.payload) {
+		if (msg.type === 'batch' && msg.payload) {
 			const p = msg.payload as {
 				layers: unknown[];
 				solutions: unknown[];
@@ -841,9 +809,7 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 			resolve,
 			reject,
 			timestamp: Date.now(),
-			complexity,
-			_resolve: resolve,
-			_reject: reject
+			complexity
 		};
 
 		if (workerPool) workerPool.taskQueue.push(task as unknown as WorkerTask);

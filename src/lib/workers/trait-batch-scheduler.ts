@@ -136,7 +136,7 @@ export class TraitBatchScheduler {
 		if (useLayerRef) {
 			const initMessage: InitLayersMessage = {
 				type: 'init-layers',
-				payload: { layers }
+				payload: { layers: stripImageDataFromLayers(layers) }
 			};
 			const workerCount =
 				getWorkerPoolStatus()?.totalWorkers ||
@@ -146,18 +146,19 @@ export class TraitBatchScheduler {
 		}
 
 		const totalBatches = Math.ceil(solutions.length / effectiveBatchSize);
+		const windowSize = getWorkerPoolStatus()?.totalWorkers || BATCH_CONFIG.WINDOW_SIZE;
 
 		if (import.meta.env.DEV)
 			console.log(
-				`📦 Distributing ${totalBatches} batches to worker pool (batchSize=${effectiveBatchSize}, layerRef=${useLayerRef})...`
+				`📦 Distributing ${totalBatches} batches to worker pool (batchSize=${effectiveBatchSize}, workers=${windowSize}, layerRef=${useLayerRef})...`
 			);
 
 		// FIND-3: Process batches in windows to prevent unbounded queue growth.
 		// Each window awaits completion before dispatching the next window,
 		// allowing solution data from processed batches to be GC'd.
-		for (let b = 0; b < totalBatches; b += BATCH_CONFIG.WINDOW_SIZE) {
+		for (let b = 0; b < totalBatches; b += windowSize) {
 			const windowPromises: Promise<unknown>[] = [];
-			const windowEnd = Math.min(b + BATCH_CONFIG.WINDOW_SIZE, totalBatches);
+			const windowEnd = Math.min(b + windowSize, totalBatches);
 
 			for (let w = b; w < windowEnd; w++) {
 				const batchSolutions = solutions.slice(
