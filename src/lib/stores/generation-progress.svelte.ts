@@ -9,12 +9,6 @@
  */
 
 import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
-import { isFlagEnabled } from '$lib/config/feature-flags';
-import {
-	streamMetadata,
-	streamBatch,
-	clearSession
-} from '$lib/utils/streaming-storage';
 
 // ─── State Type ───────────────────────────────────────────────
 export interface GenerationState {
@@ -30,8 +24,6 @@ export interface GenerationState {
 	startTime: number | null;
 	completionTime: number | null;
 
-	allImages: { name: string; imageData: ArrayBuffer }[];
-	allMetadata: { name: string; data: Record<string, unknown> }[];
 	previews: { index: number; url: string }[];
 
 	error: string | null;
@@ -57,8 +49,6 @@ const DEFAULT_STATE: GenerationState = {
 	statusText: 'Ready to generate',
 	startTime: null,
 	completionTime: null,
-	allImages: [],
-	allMetadata: [],
 	previews: [],
 	error: null,
 	sessionId: null,
@@ -69,7 +59,7 @@ const DEFAULT_STATE: GenerationState = {
 };
 
 function freshState(): GenerationState {
-	return { ...DEFAULT_STATE, allImages: [], allMetadata: [], previews: [] };
+	return { ...DEFAULT_STATE, previews: [] };
 }
 
 // ─── Reactive Singleton ───────────────────────────────────────
@@ -118,16 +108,6 @@ export function completeGeneration(): void {
 
 export function cancelGeneration(): void {
 	if (!generationState.isGenerating) return;
-
-	const sessionId = generationState.sessionId;
-
-	// Clear streaming store session if enabled
-	if (sessionId && isFlagEnabled('enableStreamingStorage')) {
-		clearSession(sessionId).catch((err) =>
-			console.warn('Failed to clear streaming session:', err)
-		);
-	}
-
 	resetState();
 }
 
@@ -155,9 +135,7 @@ export function updateProgress(data: ProgressMessage): void {
 		if (elapsedSeconds > 1 && generatedCount > 0) {
 			generationState.itemsPerSecond = generatedCount / elapsedSeconds;
 			const remaining = totalCount - generatedCount;
-			generationState.eta = remaining > 0
-				? remaining / generationState.itemsPerSecond
-				: 0;
+			generationState.eta = remaining > 0 ? remaining / generationState.itemsPerSecond : 0;
 		}
 	}
 
@@ -167,40 +145,6 @@ export function updateProgress(data: ProgressMessage): void {
 		if (m) {
 			generationState.batchProgress = { current: parseInt(m[1]), total: parseInt(m[2]) };
 		}
-	}
-}
-
-// ─── Data Accumulation ────────────────────────────────────────
-
-export function addImages(images: { name: string; imageData: ArrayBuffer }[]): void {
-	if (!generationState.isGenerating || generationState.isPaused) return;
-
-	if (isFlagEnabled('enableStreamingStorage') && generationState.sessionId) {
-		// Stream to IndexedDB; don't block UI
-		streamBatch(generationState.sessionId, generationState.allImages.length, images, []).catch(
-			(err) => {
-				console.warn('Streaming storage failed, falling back to memory:', err);
-				generationState.allImages.push(...images);
-			}
-		);
-	} else {
-		generationState.allImages.push(...images);
-	}
-}
-
-export function addMetadata(metadata: { name: string; data: Record<string, unknown> }[]): void {
-	if (!generationState.isGenerating || generationState.isPaused) return;
-
-	if (isFlagEnabled('enableStreamingStorage') && generationState.sessionId) {
-		const promises = metadata.map((meta, i) =>
-			streamMetadata(generationState.sessionId!, generationState.allMetadata.length + i, meta.name, meta.data)
-		);
-		Promise.all(promises).catch((err) => {
-			console.warn('Streaming metadata failed, falling back to memory:', err);
-			generationState.allMetadata.push(...metadata);
-		});
-	} else {
-		generationState.allMetadata.push(...metadata);
 	}
 }
 
@@ -220,7 +164,11 @@ export function handleError(msg: ErrorMessage): void {
 export function resetState(): void {
 	// Revoke preview ObjectURLs
 	for (const p of generationState.previews) {
-		try { URL.revokeObjectURL(p.url); } catch { /* ignore */ }
+		try {
+			URL.revokeObjectURL(p.url);
+		} catch {
+			/* ignore */
+		}
 	}
 
 	Object.assign(generationState, freshState());

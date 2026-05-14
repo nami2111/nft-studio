@@ -9,7 +9,6 @@
 		startGeneration,
 		pauseGeneration,
 		completeGeneration,
-		cancelGeneration as cancelGenState,
 		resetState,
 		updateProgress,
 		addPreviews,
@@ -44,7 +43,7 @@
 			pauseGeneration('Component unmounted — continuing in background');
 			setTimeout(() => {
 				if (generationState.isGenerating && isComponentDestroyed) {
-					cancelGenState();
+					resetState();
 				}
 			}, 600_000);
 		}
@@ -73,8 +72,6 @@
 					description: 'Your download has started.'
 				});
 				completeGeneration();
-				generationState.allImages = [];
-				generationState.allMetadata = [];
 			},
 
 			onError(error: Error) {
@@ -90,7 +87,7 @@
 
 			onCancelled() {
 				showInfo('Generation has been cancelled.');
-				completeGeneration();
+				resetState();
 			}
 		};
 	}
@@ -168,8 +165,6 @@
 	// ─── Cancel ──────────────────────────────────────────────
 	function handleCancel() {
 		cancelGeneration();
-		cancelGenState();
-		showInfo('Generation has been cancelled.');
 	}
 </script>
 

@@ -9,8 +9,6 @@ export interface FeatureFlags {
 	enableStreamingStorage: boolean;
 	/** Transfer layers once by reference (ID-based batching) instead of full layers per batch */
 	enableLayerRef: boolean;
-	/** Offload CSP solver to a dedicated Web Worker */
-	enableWorkerCspSolver: boolean;
 	/** Use adaptive batch sizing based on collection size, worker count, and resolution */
 	enableAdaptiveBatchSize: boolean;
 	/** Offload ZIP packaging to a dedicated Web Worker */
@@ -27,10 +25,9 @@ function readEnvFlag(name: string): boolean {
 }
 
 const defaultFlags: FeatureFlags = {
-	enableStreamingStorage: readEnvFlag('VITE_ENABLE_STREAMING_STORAGE'),
-	enableLayerRef: import.meta.env?.VITE_ENABLE_LAYER_REF !== 'false',
-	enableWorkerCspSolver: import.meta.env?.VITE_ENABLE_WORKER_CSP_SOLVER !== 'false',
-	enableAdaptiveBatchSize: readEnvFlag('VITE_ENABLE_ADAPTIVE_BATCH_SIZE'),
+	enableStreamingStorage: import.meta.env?.VITE_DISABLE_STREAMING_STORAGE !== 'true',
+	enableLayerRef: readEnvFlag('VITE_ENABLE_LAYER_REF'),
+	enableAdaptiveBatchSize: import.meta.env?.VITE_DISABLE_ADAPTIVE_BATCH_SIZE !== 'true',
 	enableZipWorkerOffloading: readEnvFlag('VITE_ENABLE_ZIP_WORKER_OFFLOADING')
 };
 

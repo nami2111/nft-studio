@@ -48,7 +48,7 @@ vi.mock('$lib/stores', async () => {
 });
 
 vi.mock('$lib/domain/worker.service', () => ({
-	startGeneration: vi.fn(),
+	runGeneration: vi.fn(),
 	cancelGeneration: vi.fn()
 }));
 
@@ -70,8 +70,6 @@ vi.mock('$lib/stores/generation-progress.svelte', () => ({
 	completeGeneration: vi.fn(),
 	cancelGeneration: vi.fn(),
 	updateProgress: vi.fn(),
-	addImages: vi.fn(),
-	addMetadata: vi.fn(),
 	addPreviews: vi.fn(),
 	handleError: vi.fn()
 }));
@@ -94,11 +92,7 @@ describe('GenerationForm', () => {
 			sessionId: null,
 			startTime: null,
 			completionTime: null,
-			error: null,
-			allImages: [],
-			allMetadata: [],
-			warnings: [],
-			lastWarningTimes: new Map()
+			error: null
 		};
 		vi.clearAllMocks();
 	});
@@ -157,14 +151,14 @@ describe('GenerationForm', () => {
 
 	describe('Generation Flow', () => {
 		it('starts generation when inputs are valid', async () => {
-			const { startGeneration } = await import('$lib/domain/worker.service');
+			const { runGeneration } = await import('$lib/domain/worker.service');
 
 			render(GenerationForm);
 			const button = screen.getByRole('button', { name: /generate/i });
 
 			await fireEvent.click(button);
 
-			expect(startGeneration).toHaveBeenCalled();
+			expect(runGeneration).toHaveBeenCalled();
 		});
 
 		it('disables inputs during generation', () => {

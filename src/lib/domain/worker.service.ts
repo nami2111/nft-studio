@@ -11,6 +11,3 @@ export {
 	type GenerationCallbacks,
 	type GenerationConfig
 } from '$lib/workers/generation.orchestrator';
-
-/** @deprecated Use runGeneration with GenerationCallbacks instead. */
-export { runGeneration as startGeneration } from '$lib/workers/generation.orchestrator';

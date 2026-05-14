@@ -38,8 +38,6 @@ export interface WorkerTask<T = unknown> {
 	timestamp: number;
 	complexity: TaskComplexity;
 	estimatedDuration?: number;
-	_resolve?: (value: T) => void;
-	_reject?: (reason?: unknown) => void;
 }
 
 // Worker pool interface

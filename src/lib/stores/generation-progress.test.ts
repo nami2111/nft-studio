@@ -15,15 +15,11 @@ describe('generation state lifecycle', () => {
 
 	it('resetState clears all accumulated data', () => {
 		// Populate state with some data
-		generationState.allImages = [{ name: 'test.png', imageData: new ArrayBuffer(4) }];
-		generationState.allMetadata = [{ name: 'test.json', data: { attr: 'value' } }];
 		generationState.error = 'some error';
 		generationState.statusText = 'some status';
 
 		resetState();
 
-		expect(generationState.allImages).toEqual([]);
-		expect(generationState.allMetadata).toEqual([]);
 		expect(generationState.error).toBeNull();
 		expect(generationState.statusText).toBe('Ready to generate');
 		expect(generationState.isGenerating).toBe(false);
