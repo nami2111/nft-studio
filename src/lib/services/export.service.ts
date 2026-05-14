@@ -224,503 +224,493 @@ function downloadZipBuffer(buffer: ArrayBuffer, filename: string): void {
 	}
 }
 
-export class ExportService {
-	/**
-	 * Package files into a ZIP with memory-efficient batch processing
-	 */
-	static async packageZip(options: ExportOptions): Promise<void> {
-		const { project, images, metadata, onProgress } = options;
+export async function packageZip(options: ExportOptions): Promise<void> {
+	const { project, images, metadata, onProgress } = options;
 
-		// Use ZIP worker offloading when enabled and collection is large enough
-		const useZipWorker = isFlagEnabled('enableZipWorkerOffloading') && images.length > 500;
+	// Use ZIP worker offloading when enabled and collection is large enough
+	const useZipWorker = isFlagEnabled('enableZipWorkerOffloading') && images.length > 500;
 
-		try {
-			// Start memory monitoring for large exports
-			if (images.length > 500) {
-				MemoryMonitor.start();
-			}
-
-			if (useZipWorker) {
-				await ExportService.packageZipWithWorker({
-					project,
-					images,
-					metadata,
-					onProgress
-				});
-				return;
-			}
-
-			// Use optimized approach for large collections
-			if (images.length > 1000) {
-				await ExportService.packageZipOptimized({
-					project,
-					images,
-					metadata,
-					onProgress
-				});
-			} else {
-				await ExportService.packageZipStandard({
-					project,
-					images,
-					metadata,
-					onProgress
-				});
-			}
-		} catch (error) {
-			console.error('Export failed:', error);
-			throw error;
-		} finally {
-			// Stop memory monitoring
-			MemoryMonitor.stop();
+	try {
+		// Start memory monitoring for large exports
+		if (images.length > 500) {
+			MemoryMonitor.start();
 		}
-	}
 
-	/**
-	 * Offload ZIP creation to a dedicated web worker.
-	 */
-	private static async packageZipWithWorker(options: ExportOptions): Promise<void> {
-		const { project, images, metadata, onProgress } = options;
-
-		const transferList: ArrayBuffer[] = [];
-		const imageFiles = images.map((img) => {
-			transferList.push(img.imageData);
-			return {
-				path: `images/${img.name}`,
-				data: img.imageData
-			};
-		});
-
-		// Add metadata as JSON files
-		for (const meta of metadata) {
-			const encoded = new TextEncoder().encode(JSON.stringify(meta.data, null, 2));
-			const buffer = encoded.buffer.slice(
-				encoded.byteOffset,
-				encoded.byteOffset + encoded.byteLength
-			);
-			transferList.push(buffer);
-			imageFiles.push({
-				path: `metadata/${meta.name}`,
-				data: buffer
+		if (useZipWorker) {
+			await packageZipWithWorker({
+				project,
+				images,
+				metadata,
+				onProgress
 			});
-		}
-
-		onProgress?.({
-			processed: 0,
-			total: images.length + metadata.length,
-			message: 'Offloading ZIP creation to worker...'
-		});
-
-		// Capture total before clearing arrays so progress reports correctly
-		const totalItems = images.length + metadata.length;
-
-		// Clear source arrays - buffers are transferred to worker
-		images.length = 0;
-		metadata.length = 0;
-
-		const projectData = JSON.stringify({
-			name: project.name,
-			description: project.description,
-			outputSize: project.outputSize
-		});
-
-		const buffer = await runZipWorker(
-			{
-				type: 'zip-project',
-				taskId: `zip-${Date.now()}`,
-				payload: {
-					projectData,
-					imageFiles
-				}
-			},
-			transferList
-		);
-
-		const blob = new Blob([buffer], { type: 'application/zip' });
-		ExportService.downloadBlob(blob, `${project.name || 'collection'}.zip`);
-
-		onProgress?.({
-			processed: totalItems,
-			total: totalItems,
-			message: 'ZIP created and download started'
-		});
-	}
-
-	/**
-	 * Start a streaming ZIP session. Creates a persistent ZIP worker that accumulates chunks.
-	 * Images are sent incrementally to avoid holding all data in main thread memory.
-	 */
-	static startStreamingZip(taskId?: string, projectName?: string): void {
-		const id = taskId || `zip-stream-${Date.now()}`;
-		if (projectName) zipStreamProjectName = projectName;
-		startZipStreamWorker(id);
-		if (import.meta.env.DEV) console.log(`📦 Started streaming ZIP: ${id}`);
-	}
-
-	/**
-	 * Send a batch of images to the streaming ZIP worker.
-	 * The image ArrayBuffers are transferred (zero-copy) — caller should nullify references.
-	 */
-	static addStreamingChunk(
-		images: { name: string; data: ArrayBuffer }[],
-		metadata: { name: string; data: Record<string, unknown> }[]
-	): void {
-		const imageFiles: Array<{ path: string; data: ArrayBuffer }> = [];
-
-		for (const img of images) {
-			imageFiles.push({ path: `images/${img.name}`, data: img.data });
-		}
-		for (const meta of metadata) {
-			const jsonStr = JSON.stringify(meta.data, null, 2);
-			const encoded = new TextEncoder().encode(jsonStr);
-			const buffer = encoded.buffer.slice(
-				encoded.byteOffset,
-				encoded.byteOffset + encoded.byteLength
-			);
-			imageFiles.push({ path: `metadata/${meta.name}`, data: buffer });
-		}
-
-		sendZipChunk(imageFiles, false);
-	}
-
-	/**
-	 * Finalize the streaming ZIP and return the complete blob.
-	 * Cleans up the persistent ZIP worker.
-	 */
-	static async finalizeStreamingZip(
-		projectName: string,
-		onProgress?: (progress: { processed: number; total: number; message: string }) => void
-	): Promise<void> {
-		onProgress?.({
-			processed: 0,
-			total: 1,
-			message: 'Finalizing ZIP...'
-		});
-
-		zipStreamProjectName = projectName;
-		await finalizeZipStream();
-
-		onProgress?.({
-			processed: 1,
-			total: 1,
-			message: 'ZIP download started'
-		});
-	}
-
-	/**
-	 * Cancel/abort an active streaming ZIP session.
-	 */
-	static cancelStreamingZip(): void {
-		cancelZipStream();
-	}
-
-	private static downloadBlob(blob: Blob, filename: string): void {
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = filename;
-		document.body.appendChild(a);
-		try {
-			a.click();
-		} catch (error) {
-			console.error('Download failed:', error);
-			throw error;
-		} finally {
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
-		}
-	}
-
-	/**
-	 * Standard ZIP creation for smaller collections (≤1000 files)
-	 */
-	private static async packageZipStandard(options: ExportOptions): Promise<void> {
-		const { project, images, metadata, onProgress } = options;
-
-		// Dynamically import JSZip to reduce initial bundle size
-		const { default: JSZip } = await import('jszip');
-		const zip = new JSZip();
-		const imagesFolder = zip.folder('images');
-		const metadataFolder = zip.folder('metadata');
-
-		// Add files with progress tracking
-		for (let i = 0; i < images.length; i++) {
-			imagesFolder?.file(images[i].name, images[i].imageData);
-			onProgress?.({
-				processed: i + 2,
-				total: images.length + metadata.length + 1,
-				message: `Adding images to ZIP (${i + 1}/${images.length})...`
-			});
-		}
-
-		for (let i = 0; i < metadata.length; i++) {
-			metadataFolder?.file(metadata[i].name, JSON.stringify(metadata[i].data, null, 2));
-			onProgress?.({
-				processed: images.length + i + 2,
-				total: images.length + metadata.length + 1,
-				message: `Adding metadata to ZIP (${i + 1}/${metadata.length})...`
-			});
-		}
-
-		const content = await zip.generateAsync({ type: 'blob' });
-		ExportService.downloadZip(content, project);
-	}
-
-	/**
-	 * Optimized ZIP creation for larger collections with better memory management
-	 */
-	private static async packageZipOptimized(options: ExportOptions): Promise<void> {
-		const { project, images, metadata, onProgress } = options;
-
-		// For very large collections or collections with large files, create multiple ZIPs
-		if (images.length > 3000 || (images.length > 0 && images[0].imageData.byteLength > 500000)) {
-			await ExportService.createMultipleZips(options);
 			return;
 		}
 
-		const { default: JSZip } = await import('jszip');
-		const zip = new JSZip();
-		const imagesFolder = zip.folder('images');
-		const metadataFolder = zip.folder('metadata');
-
-		// Process in smaller chunks to manage memory
-		const chunkSize = 100; // Reduced from 250 for better memory management
-
-		for (let i = 0; i < images.length; i += chunkSize) {
-			const chunk = images.slice(i, i + chunkSize);
-			chunk.forEach((file) => {
-				imagesFolder?.file(file.name, file.imageData);
+		// Use optimized approach for large collections
+		if (images.length > 1000) {
+			await packageZipOptimized({
+				project,
+				images,
+				metadata,
+				onProgress
 			});
-
-			// Yield to event loop periodically
-			if (i % (chunkSize * 2) === 0) {
-				await new Promise((resolve) => setTimeout(resolve, 10));
-			}
-
-			onProgress?.({
-				processed: i + chunkSize,
-				total: images.length + metadata.length + 1,
-				message: `Processing images (${Math.min(i + chunkSize, images.length)}/${images.length})...`
+		} else {
+			await packageZipStandard({
+				project,
+				images,
+				metadata,
+				onProgress
 			});
 		}
+	} catch (error) {
+		console.error('Export failed:', error);
+		throw error;
+	} finally {
+		// Stop memory monitoring
+		MemoryMonitor.stop();
+	}
+}
 
-		for (let i = 0; i < metadata.length; i += chunkSize) {
-			const chunk = metadata.slice(i, i + chunkSize);
-			chunk.forEach((meta) => {
-				metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
-			});
+/**
+ * Offload ZIP creation to a dedicated web worker.
+ */
+async function packageZipWithWorker(options: ExportOptions): Promise<void> {
+	const { project, images, metadata, onProgress } = options;
 
-			// Yield to event loop periodically
-			if (i % (chunkSize * 2) === 0) {
-				await new Promise((resolve) => setTimeout(resolve, 10));
-			}
+	const transferList: ArrayBuffer[] = [];
+	const imageFiles = images.map((img) => {
+		transferList.push(img.imageData);
+		return {
+			path: `images/${img.name}`,
+			data: img.imageData
+		};
+	});
 
-			onProgress?.({
-				processed: images.length + i + chunkSize,
-				total: images.length + metadata.length + 1,
-				message: `Processing metadata (${Math.min(i + chunkSize, metadata.length)}/${metadata.length})...`
-			});
-		}
-
-		// Generate ZIP with optimized settings
-		const content = await zip.generateAsync({
-			type: 'blob',
-			compression: 'DEFLATE',
-			compressionOptions: { level: 6 }
+	// Add metadata as JSON files
+	for (const meta of metadata) {
+		const encoded = new TextEncoder().encode(JSON.stringify(meta.data, null, 2));
+		const buffer = encoded.buffer.slice(
+			encoded.byteOffset,
+			encoded.byteOffset + encoded.byteLength
+		);
+		transferList.push(buffer);
+		imageFiles.push({
+			path: `metadata/${meta.name}`,
+			data: buffer
 		});
-		ExportService.downloadZip(content, project);
 	}
 
-	/**
-	 * Create multiple smaller ZIP files for very large collections based on size (2GB max per ZIP)
-	 */
-	private static async createMultipleZips(options: ExportOptions): Promise<void> {
-		const { project, images, metadata, onProgress } = options;
+	onProgress?.({
+		processed: 0,
+		total: images.length + metadata.length,
+		message: 'Offloading ZIP creation to worker...'
+	});
 
-		const { default: JSZip } = await import('jszip');
-		const MAX_ZIP_SIZE = 1 * 1024 * 1024 * 1024; // 1GB in bytes
+	// Capture total before clearing arrays so progress reports correctly
+	const totalItems = images.length + metadata.length;
 
-		// Calculate approximate size for each item (image + metadata)
-		const estimatedSizePerItem = ExportService.estimateSizePerItem(images, metadata);
-		const estimatedTotalSize = images.length * estimatedSizePerItem;
+	// Clear source arrays - buffers are transferred to worker
+	images.length = 0;
+	metadata.length = 0;
 
-		// Calculate number of ZIP files needed based on size
-		const estimatedZipCount = Math.ceil(estimatedTotalSize / MAX_ZIP_SIZE);
+	const projectData = JSON.stringify({
+		name: project.name,
+		description: project.description,
+		outputSize: project.outputSize
+	});
 
-		if (import.meta.env.DEV)
-			console.log(
-				`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`
-			);
-		// Pre-calculate total ZIP count for accurate progress display
-		const totalZips = Math.max(1, estimatedZipCount);
-
-		if (import.meta.env.DEV) console.log(`Will create ${totalZips} ZIP files`);
-
-		let currentZip = new JSZip();
-		let currentZipImages = currentZip.folder('images');
-		let currentZipMetadata = currentZip.folder('metadata');
-		let currentZipSize = 0;
-		let currentZipIndex = 0;
-		let partStartIndex = 0;
-
-		// Process all items
-		for (let i = 0; i < images.length; i++) {
-			const image = images[i];
-			const meta = metadata[i];
-
-			// Calculate size of current items
-			const imageSize = image.imageData.byteLength;
-			const metadataSize = new Blob([JSON.stringify(meta.data, null, 2)]).size;
-			const itemTotalSize = imageSize + metadataSize;
-
-			// Check if adding this item would exceed the 1GB limit
-			if (currentZipSize + itemTotalSize > MAX_ZIP_SIZE && currentZipSize > 0) {
-				// Check memory pressure before generating ZIP — yield if high
-				await ExportService.yieldIfHighMemoryPressure();
-
-				// Finish current ZIP and start a new one
-				const content = await currentZip.generateAsync({
-					type: 'blob',
-					compression: 'DEFLATE',
-					compressionOptions: { level: 6 }
-				});
-
-				// Download current ZIP
-				const zipIndex = currentZipIndex + 1;
-				ExportService.downloadZipWithIndex(content, project, zipIndex, totalZips);
-
-				// Free memory: remove processed items from source arrays
-				const itemsInPart = i - partStartIndex;
-				if (itemsInPart > 0) {
-					images.splice(partStartIndex, itemsInPart);
-					metadata.splice(partStartIndex, itemsInPart);
-					i -= itemsInPart;
-				}
-
-				// Reset for next ZIP
-				currentZip = new JSZip();
-				currentZipImages = currentZip.folder('images');
-				currentZipMetadata = currentZip.folder('metadata');
-				currentZipSize = 0;
-				currentZipIndex++;
-				partStartIndex = i;
+	const buffer = await runZipWorker(
+		{
+			type: 'zip-project',
+			taskId: `zip-${Date.now()}`,
+			payload: {
+				projectData,
+				imageFiles
 			}
+		},
+		transferList
+	);
 
-			// Add image and metadata to current ZIP
-			currentZipImages?.file(image.name, image.imageData);
-			currentZipMetadata?.file(meta.name, JSON.stringify(meta.data, null, 2));
-			currentZipSize += itemTotalSize;
+	const blob = new Blob([buffer], { type: 'application/zip' });
+	downloadBlob(blob, `${project.name || 'collection'}.zip`);
 
-			onProgress?.({
-				processed: i + 1,
-				total: images.length,
-				message: `Processing item ${i + 1}/${images.length}...`
-			});
+	onProgress?.({
+		processed: totalItems,
+		total: totalItems,
+		message: 'ZIP created and download started'
+	});
+}
+
+/**
+ * Start a streaming ZIP session. Creates a persistent ZIP worker that accumulates chunks.
+ * Images are sent incrementally to avoid holding all data in main thread memory.
+ */
+export function startStreamingZip(taskId?: string, projectName?: string): void {
+	const id = taskId || `zip-stream-${Date.now()}`;
+	if (projectName) zipStreamProjectName = projectName;
+	startZipStreamWorker(id);
+	if (import.meta.env.DEV) console.log(`📦 Started streaming ZIP: ${id}`);
+}
+
+/**
+ * Send a batch of images to the streaming ZIP worker.
+ * The image ArrayBuffers are transferred (zero-copy) — caller should nullify references.
+ */
+export function addStreamingChunk(
+	images: { name: string; data: ArrayBuffer }[],
+	metadata: { name: string; data: Record<string, unknown> }[]
+): void {
+	const imageFiles: Array<{ path: string; data: ArrayBuffer }> = [];
+
+	for (const img of images) {
+		imageFiles.push({ path: `images/${img.name}`, data: img.data });
+	}
+	for (const meta of metadata) {
+		const jsonStr = JSON.stringify(meta.data, null, 2);
+		const encoded = new TextEncoder().encode(jsonStr);
+		const buffer = encoded.buffer.slice(
+			encoded.byteOffset,
+			encoded.byteOffset + encoded.byteLength
+		);
+		imageFiles.push({ path: `metadata/${meta.name}`, data: buffer });
+	}
+
+	sendZipChunk(imageFiles, false);
+}
+
+/**
+ * Finalize the streaming ZIP and return the complete blob.
+ * Cleans up the persistent ZIP worker.
+ */
+export async function finalizeStreamingZip(
+	projectName: string,
+	onProgress?: (progress: { processed: number; total: number; message: string }) => void
+): Promise<void> {
+	onProgress?.({
+		processed: 0,
+		total: 1,
+		message: 'Finalizing ZIP...'
+	});
+
+	zipStreamProjectName = projectName;
+	await finalizeZipStream();
+
+	onProgress?.({
+		processed: 1,
+		total: 1,
+		message: 'ZIP download started'
+	});
+}
+
+/**
+ * Cancel/abort an active streaming ZIP session.
+ */
+export function cancelStreamingZip(): void {
+	cancelZipStream();
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = filename;
+	document.body.appendChild(a);
+	try {
+		a.click();
+	} catch (error) {
+		console.error('Download failed:', error);
+		throw error;
+	} finally {
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+}
+
+/**
+ * Standard ZIP creation for smaller collections (≤1000 files)
+ */
+async function packageZipStandard(options: ExportOptions): Promise<void> {
+	const { project, images, metadata, onProgress } = options;
+
+	// Dynamically import JSZip to reduce initial bundle size
+	const { default: JSZip } = await import('jszip');
+	const zip = new JSZip();
+	const imagesFolder = zip.folder('images');
+	const metadataFolder = zip.folder('metadata');
+
+	// Add files with progress tracking
+	for (let i = 0; i < images.length; i++) {
+		imagesFolder?.file(images[i].name, images[i].imageData);
+		onProgress?.({
+			processed: i + 2,
+			total: images.length + metadata.length + 1,
+			message: `Adding images to ZIP (${i + 1}/${images.length})...`
+		});
+	}
+
+	for (let i = 0; i < metadata.length; i++) {
+		metadataFolder?.file(metadata[i].name, JSON.stringify(metadata[i].data, null, 2));
+		onProgress?.({
+			processed: images.length + i + 2,
+			total: images.length + metadata.length + 1,
+			message: `Adding metadata to ZIP (${i + 1}/${metadata.length})...`
+		});
+	}
+
+	const content = await zip.generateAsync({ type: 'blob' });
+	downloadZip(content, project);
+}
+
+/**
+ * Optimized ZIP creation for larger collections with better memory management
+ */
+async function packageZipOptimized(options: ExportOptions): Promise<void> {
+	const { project, images, metadata, onProgress } = options;
+
+	// For very large collections or collections with large files, create multiple ZIPs
+	if (images.length > 3000 || (images.length > 0 && images[0].imageData.byteLength > 500000)) {
+		await createMultipleZips(options);
+		return;
+	}
+
+	const { default: JSZip } = await import('jszip');
+	const zip = new JSZip();
+	const imagesFolder = zip.folder('images');
+	const metadataFolder = zip.folder('metadata');
+
+	// Process in smaller chunks to manage memory
+	const chunkSize = 100; // Reduced from 250 for better memory management
+
+	for (let i = 0; i < images.length; i += chunkSize) {
+		const chunk = images.slice(i, i + chunkSize);
+		chunk.forEach((file) => {
+			imagesFolder?.file(file.name, file.imageData);
+		});
+
+		// Yield to event loop periodically
+		if (i % (chunkSize * 2) === 0) {
+			await new Promise((resolve) => setTimeout(resolve, 10));
 		}
 
-		// Don't forget the last ZIP file
-		if (currentZipSize > 0) {
-			// Check memory pressure before generating the final ZIP
-			await ExportService.yieldIfHighMemoryPressure();
+		onProgress?.({
+			processed: i + chunkSize,
+			total: images.length + metadata.length + 1,
+			message: `Processing images (${Math.min(i + chunkSize, images.length)}/${images.length})...`
+		});
+	}
 
+	for (let i = 0; i < metadata.length; i += chunkSize) {
+		const chunk = metadata.slice(i, i + chunkSize);
+		chunk.forEach((meta) => {
+			metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
+		});
+
+		// Yield to event loop periodically
+		if (i % (chunkSize * 2) === 0) {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+
+		onProgress?.({
+			processed: images.length + i + chunkSize,
+			total: images.length + metadata.length + 1,
+			message: `Processing metadata (${Math.min(i + chunkSize, metadata.length)}/${metadata.length})...`
+		});
+	}
+
+	// Generate ZIP with optimized settings
+	const content = await zip.generateAsync({
+		type: 'blob',
+		compression: 'DEFLATE',
+		compressionOptions: { level: 6 }
+	});
+	downloadZip(content, project);
+}
+
+/**
+ * Create multiple smaller ZIP files for very large collections based on size (2GB max per ZIP)
+ */
+async function createMultipleZips(options: ExportOptions): Promise<void> {
+	const { project, images, metadata, onProgress } = options;
+
+	const { default: JSZip } = await import('jszip');
+	const MAX_ZIP_SIZE = 1 * 1024 * 1024 * 1024; // 1GB in bytes
+
+	// Calculate approximate size for each item (image + metadata)
+	const estimatedSizePerItem = estimateSizePerItem(images, metadata);
+	const estimatedTotalSize = images.length * estimatedSizePerItem;
+
+	// Calculate number of ZIP files needed based on size
+	const estimatedZipCount = Math.ceil(estimatedTotalSize / MAX_ZIP_SIZE);
+
+	if (import.meta.env.DEV)
+		console.log(
+			`Estimated total collection size: ${(estimatedTotalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`
+		);
+	// Pre-calculate total ZIP count for accurate progress display
+	const totalZips = Math.max(1, estimatedZipCount);
+
+	if (import.meta.env.DEV) console.log(`Will create ${totalZips} ZIP files`);
+
+	let currentZip = new JSZip();
+	let currentZipImages = currentZip.folder('images');
+	let currentZipMetadata = currentZip.folder('metadata');
+	let currentZipSize = 0;
+	let currentZipIndex = 0;
+	let partStartIndex = 0;
+
+	// Process all items
+	for (let i = 0; i < images.length; i++) {
+		const image = images[i];
+		const meta = metadata[i];
+
+		// Calculate size of current items
+		const imageSize = image.imageData.byteLength;
+		const metadataSize = new Blob([JSON.stringify(meta.data, null, 2)]).size;
+		const itemTotalSize = imageSize + metadataSize;
+
+		// Check if adding this item would exceed the 1GB limit
+		if (currentZipSize + itemTotalSize > MAX_ZIP_SIZE && currentZipSize > 0) {
+			// Check memory pressure before generating ZIP — yield if high
+			await yieldIfHighMemoryPressure();
+
+			// Finish current ZIP and start a new one
 			const content = await currentZip.generateAsync({
 				type: 'blob',
 				compression: 'DEFLATE',
 				compressionOptions: { level: 6 }
 			});
 
+			// Download current ZIP
 			const zipIndex = currentZipIndex + 1;
-			ExportService.downloadZipWithIndex(content, project, zipIndex, zipIndex);
+			downloadZipWithIndex(content, project, zipIndex, totalZips);
+
+			// Free memory: remove processed items from source arrays
+			const itemsInPart = i - partStartIndex;
+			if (itemsInPart > 0) {
+				images.splice(partStartIndex, itemsInPart);
+				metadata.splice(partStartIndex, itemsInPart);
+				i -= itemsInPart;
+			}
+
+			// Reset for next ZIP
+			currentZip = new JSZip();
+			currentZipImages = currentZip.folder('images');
+			currentZipMetadata = currentZip.folder('metadata');
+			currentZipSize = 0;
+			currentZipIndex++;
+			partStartIndex = i;
 		}
 
-		// Show summary message
-		if (import.meta.env.DEV)
-			console.log(`Created ${currentZipIndex + 1} ZIP files for large collection`);
+		// Add image and metadata to current ZIP
+		currentZipImages?.file(image.name, image.imageData);
+		currentZipMetadata?.file(meta.name, JSON.stringify(meta.data, null, 2));
+		currentZipSize += itemTotalSize;
+
+		onProgress?.({
+			processed: i + 1,
+			total: images.length,
+			message: `Processing item ${i + 1}/${images.length}...`
+		});
 	}
 
-	/**
-	 * Estimate the average size per item (image + metadata)
-	 */
-	private static estimateSizePerItem(
-		images: { imageData: ArrayBuffer }[],
-		metadata: { data: Record<string, unknown> }[]
-	): number {
-		// Sample the first 10 items to estimate average size
-		const sampleSize = Math.min(10, images.length);
-		let totalSize = 0;
+	// Don't forget the last ZIP file
+	if (currentZipSize > 0) {
+		// Check memory pressure before generating the final ZIP
+		await yieldIfHighMemoryPressure();
 
-		for (let i = 0; i < sampleSize; i++) {
-			const imageSize = images[i]?.imageData?.byteLength || 0;
-			const metadataSize = new Blob([JSON.stringify(metadata[i]?.data || {}, null, 2)]).size;
-			totalSize += imageSize + metadataSize;
-		}
+		const content = await currentZip.generateAsync({
+			type: 'blob',
+			compression: 'DEFLATE',
+			compressionOptions: { level: 6 }
+		});
 
-		// Return average size per item
-		return totalSize / sampleSize || 1; // Default to 1 byte if no data
+		const zipIndex = currentZipIndex + 1;
+		downloadZipWithIndex(content, project, zipIndex, zipIndex);
 	}
 
-	/**
-	 * Check memory pressure before a large operation. If memory is critically high,
-	 * yield to the event loop and trigger GC to reduce pressure.
-	 */
-	private static async yieldIfHighMemoryPressure(): Promise<void> {
-		const pressure = MemoryMonitor.getPressureLevel();
-		if (pressure === 'high') {
-			MemoryMonitor.triggerGarbageCollection();
-			// Yield to let GC complete
-			await new Promise((resolve) => setTimeout(resolve, 100));
-		} else if (pressure === 'medium') {
-			// Brief yield to allow any pending GC
-			await new Promise((resolve) => setTimeout(resolve, 10));
-		}
+	// Show summary message
+	if (import.meta.env.DEV)
+		console.log(`Created ${currentZipIndex + 1} ZIP files for large collection`);
+}
+
+/**
+ * Estimate the average size per item (image + metadata)
+ */
+function estimateSizePerItem(
+	images: { imageData: ArrayBuffer }[],
+	metadata: { data: Record<string, unknown> }[]
+): number {
+	// Sample the first 10 items to estimate average size
+	const sampleSize = Math.min(10, images.length);
+	let totalSize = 0;
+
+	for (let i = 0; i < sampleSize; i++) {
+		const imageSize = images[i]?.imageData?.byteLength || 0;
+		const metadataSize = new Blob([JSON.stringify(metadata[i]?.data || {}, null, 2)]).size;
+		totalSize += imageSize + metadataSize;
 	}
 
-	/**
-	 * Download ZIP file with index in filename
-	 */
-	private static downloadZipWithIndex(
-		content: Blob,
-		project: Project,
-		index: number,
-		total: number
-	): void {
-		const url = URL.createObjectURL(content);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `${project.name || 'collection'}_part_${index}_of_${total}.zip`;
+	// Return average size per item
+	return totalSize / sampleSize || 1; // Default to 1 byte if no data
+}
 
-		document.body.appendChild(a);
-		try {
-			a.click();
-			if (import.meta.env.DEV) console.log(`Download initiated for part ${index} of ${total}`);
-		} catch (error) {
-			console.error(`Download failed for part ${index}:`, error);
-			throw error;
-		} finally {
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
-		}
+/**
+ * Check memory pressure before a large operation. If memory is critically high,
+ * yield to the event loop and trigger GC to reduce pressure.
+ */
+async function yieldIfHighMemoryPressure(): Promise<void> {
+	const pressure = MemoryMonitor.getPressureLevel();
+	if (pressure === 'high') {
+		MemoryMonitor.triggerGarbageCollection();
+		// Yield to let GC complete
+		await new Promise((resolve) => setTimeout(resolve, 100));
+	} else if (pressure === 'medium') {
+		// Brief yield to allow any pending GC
+		await new Promise((resolve) => setTimeout(resolve, 10));
 	}
+}
 
-	/**
-	 * Handle ZIP download with error handling
-	 */
-	private static downloadZip(content: Blob, project: Project): void {
-		const url = URL.createObjectURL(content);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `${project.name || 'collection'}.zip`;
+/**
+ * Download ZIP file with index in filename
+ */
+function downloadZipWithIndex(content: Blob, project: Project, index: number, total: number): void {
+	const url = URL.createObjectURL(content);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = `${project.name || 'collection'}_part_${index}_of_${total}.zip`;
 
-		// Try programmatic download
-		document.body.appendChild(a);
-		try {
-			a.click();
-			if (import.meta.env.DEV) console.log('Download initiated for:', a.download);
-		} catch (error) {
-			console.error('Download failed:', error);
-			throw error;
-		} finally {
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
-		}
+	document.body.appendChild(a);
+	try {
+		a.click();
+		if (import.meta.env.DEV) console.log(`Download initiated for part ${index} of ${total}`);
+	} catch (error) {
+		console.error(`Download failed for part ${index}:`, error);
+		throw error;
+	} finally {
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+}
+
+/**
+ * Handle ZIP download with error handling
+ */
+function downloadZip(content: Blob, project: Project): void {
+	const url = URL.createObjectURL(content);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = `${project.name || 'collection'}.zip`;
+
+	// Try programmatic download
+	document.body.appendChild(a);
+	try {
+		a.click();
+		if (import.meta.env.DEV) console.log('Download initiated for:', a.download);
+	} catch (error) {
+		console.error('Download failed:', error);
+		throw error;
+	} finally {
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
 	}
 }
