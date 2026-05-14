@@ -3,7 +3,6 @@
  * Clears all user data on browser tab close/refresh for privacy and storage management
  */
 
-import { galleryStore } from '$lib/stores/gallery.store.svelte';
 import { globalResourceManager } from '$lib/stores/resource-manager';
 import { SmartStorageStore } from '$lib/persistence/storage';
 
@@ -60,11 +59,8 @@ function clearLocalStorage(): void {
 }
 
 async function clearIndexedDB(): Promise<void> {
-	try {
-		await galleryStore.clearGallery();
-	} catch (error) {
-		console.warn('Failed to clear IndexedDB:', error);
-	}
+	// Gallery data is persisted across sessions via IndexedDB.
+	// Other IndexedDB cleanup can be added here if needed in the future.
 }
 
 function clearResourceManager(): void {
