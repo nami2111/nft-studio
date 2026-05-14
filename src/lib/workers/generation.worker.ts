@@ -8,18 +8,56 @@ import type {
 	TransferrableLayer,
 	TransferrableTrait
 } from '$lib/types/worker-messages';
+import type {
+	GenerationChunkMessage,
+	InitLayersMessage,
+	BatchRefMessage
+} from '$lib/types/worker-messages';
 import { PerformanceMonitor } from '$lib/utils/performance-monitor';
 // Refactored Cache & Optimization Imports
 import { WorkerArrayBufferCache } from './cache/array-buffer.cache';
 import { OptimizedMemoryManager } from './memory/memory.manager';
-import { PredictiveTraitLoader } from './optimization/predictive.loader';
 
 // Global worker instances
 const workerArrayBufferCache = new WorkerArrayBufferCache();
 const perfMonitor = new PerformanceMonitor();
+
+// Bounded LRU cache for ImageBitmaps (max 64 entries to bound GPU memory)
+// Uses Map insertion-order semantics for O(1) LRU tracking.
+const IMAGE_BITMAP_CACHE_MAX = 64;
 const imageBitmapCache = new Map<string, ImageBitmap>();
+
+function getImageBitmap(key: string): ImageBitmap | undefined {
+	if (!imageBitmapCache.has(key)) {
+		return undefined;
+	}
+	const bitmap = imageBitmapCache.get(key)!;
+	// Move to end (most recently used)
+	imageBitmapCache.delete(key);
+	imageBitmapCache.set(key, bitmap);
+	return bitmap;
+}
+
+function setImageBitmap(key: string, bitmap: ImageBitmap): void {
+	if (imageBitmapCache.has(key)) {
+		imageBitmapCache.delete(key);
+	} else if (imageBitmapCache.size >= IMAGE_BITMAP_CACHE_MAX) {
+		// Evict oldest (first key in Map insertion order)
+		const oldestKey = imageBitmapCache.keys().next().value;
+		if (oldestKey !== undefined) {
+			const oldBitmap = imageBitmapCache.get(oldestKey);
+			if (oldBitmap) oldBitmap.close();
+			imageBitmapCache.delete(oldestKey);
+		}
+	}
+	imageBitmapCache.set(key, bitmap);
+}
+
 const memoryManager = new OptimizedMemoryManager();
-const predictiveTraitLoader = new PredictiveTraitLoader();
+
+// Layer reference cache for enableLayerRef mode
+const layerMap = new Map<string, TransferrableLayer>();
+const traitMap = new Map<string, TransferrableTrait>();
 
 // Serial task execution queue
 let currentTaskQueue: Promise<void> = Promise.resolve();
@@ -30,7 +68,11 @@ let currentTaskQueue: Promise<void> = Promise.resolve();
 async function createImageBitmapFromBuffer(
 	buffer: ArrayBuffer,
 	traitName: string,
-	options?: { resizeWidth?: number; resizeHeight?: number }
+	options?: {
+		resizeWidth?: number;
+		resizeHeight?: number;
+		resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high';
+	}
 ): Promise<ImageBitmap> {
 	if (!buffer || buffer.byteLength === 0) {
 		throw new Error(
@@ -38,9 +80,10 @@ async function createImageBitmapFromBuffer(
 		);
 	}
 
-	const cacheKey = `${traitName}_${buffer.byteLength}_${options?.resizeWidth || 0}_${options?.resizeHeight || 0}`;
+	const resizeQuality = options?.resizeQuality || 'default';
+	const cacheKey = `${traitName}_${buffer.byteLength}_${options?.resizeWidth || 0}_${options?.resizeHeight || 0}_${resizeQuality}`;
 
-	const cachedBitmap = imageBitmapCache.get(cacheKey);
+	const cachedBitmap = getImageBitmap(cacheKey);
 	if (cachedBitmap) return cachedBitmap;
 
 	const cachedBuffer = workerArrayBufferCache.get(cacheKey);
@@ -60,26 +103,18 @@ async function createImageBitmapFromBuffer(
 		if (options?.resizeWidth && options?.resizeHeight) {
 			imageBitmapOptions.resizeWidth = options.resizeWidth;
 			imageBitmapOptions.resizeHeight = options.resizeHeight;
-			imageBitmapOptions.resizeQuality = 'high';
+			if (resizeQuality !== 'default') {
+				imageBitmapOptions.resizeQuality = resizeQuality as ImageBitmapOptions['resizeQuality'];
+			}
 		}
 
 		const bitmap = await createImageBitmap(blob, imageBitmapOptions);
-		imageBitmapCache.set(cacheKey, bitmap);
+		setImageBitmap(cacheKey, bitmap);
 		return bitmap;
 	} catch (error) {
 		console.error(`Failed to create ImageBitmap for ${traitName}:`, error);
 		throw error;
 	}
-}
-
-/**
- * Cleanup ImageBitmap cache
- */
-function clearImageBitmapCache() {
-	for (const bitmap of imageBitmapCache.values()) {
-		bitmap.close();
-	}
-	imageBitmapCache.clear();
 }
 
 /**
@@ -140,19 +175,18 @@ async function generateIsolatedItem(
 	metadataStandard: MetadataStandard = MetadataStandard.ERC721,
 	extraData?: Record<string, unknown>
 ): Promise<QueuedGeneratedItem | undefined> {
-	const canvas = memoryManager.getCanvas(targetWidth, targetHeight);
-	const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-	if (!ctx) {
-		console.error(`Item ${index}: Failed to get 2D context`);
-		memoryManager.returnCanvas(canvas);
-		return undefined;
-	}
+	let canvas: OffscreenCanvas | undefined;
 
 	try {
+		canvas = memoryManager.getCanvas(targetWidth, targetHeight);
+
+		const ctx = canvas.getContext('2d');
+		if (!ctx) {
+			console.error(`Item ${index}: Failed to get 2D context`);
+			return undefined;
+		}
+
 		const generationStartTime = performance.now();
-		const traitIds = solutionTraits.map((st) => st.trait.id);
-		predictiveTraitLoader.recordCombination(traitIds);
 
 		ctx.clearRect(0, 0, targetWidth, targetHeight);
 		await compositeTraitsDirect(solutionTraits, ctx, targetWidth, targetHeight, index);
@@ -189,7 +223,9 @@ async function generateIsolatedItem(
 		console.error(`Error in generateIsolatedItem for index ${index}:`, error);
 		return undefined;
 	} finally {
-		memoryManager.returnCanvas(canvas);
+		if (canvas) {
+			memoryManager.returnCanvas(canvas);
+		}
 	}
 }
 
@@ -218,8 +254,9 @@ async function handleBatchGeneration(
 ) {
 	perfMonitor.startBatch(solutions.length);
 
-	const chunkImages: { name: string; blob: Blob }[] = [];
-	const chunkMetadata: { name: string; data: object }[] = [];
+	const CHUNK_FLUSH_SIZE = 10;
+	let chunkImages: { name: string; blob: Blob }[] = [];
+	let chunkMetadata: { name: string; data: object }[] = [];
 	let processedInChunk = 0;
 	const TOTAL_IN_BATCH = solutions.length;
 
@@ -246,6 +283,14 @@ async function handleBatchGeneration(
 				processedInChunk++;
 			}
 
+			// FIND-2: Flush intermediate results every CHUNK_FLUSH_SIZE items.
+			// This avoids holding all blobs + array buffers simultaneously.
+			if (chunkImages.length >= CHUNK_FLUSH_SIZE) {
+				await flushGenerationChunk(chunkImages, chunkMetadata, taskId, false);
+				chunkImages = [];
+				chunkMetadata = [];
+			}
+
 			if (processedInChunk % 10 === 0) {
 				self.postMessage({
 					type: 'progress',
@@ -260,50 +305,101 @@ async function handleBatchGeneration(
 			}
 		}
 
-		const imageBuffers = await Promise.all(
-			chunkImages.map(async (img) => ({
-				name: img.name,
-				buffer: await img.blob.arrayBuffer()
-			}))
-		);
-
 		perfMonitor.finishBatch();
-		clearImageBitmapCache();
+		// NOTE: ImageBitmap cache intentionally NOT cleared between batches.
+		// In enableLayerRef mode the same traits appear across many batches;
+		// keeping the cache alive avoids re-decoding the same images thousands of times.
+		// The 64-entry LRU cache bounds GPU memory and the worker is terminated after
+		// all batches complete, releasing all cached bitmaps.
 
-		const message: CompleteMessage = {
-			type: 'complete',
-			taskId,
-			payload: {
-				images: imageBuffers.map((img) => ({
-					name: img.name,
-					imageData: img.buffer
-				})),
-				metadata: chunkMetadata as {
-					name: string;
-					data: Record<string, unknown>;
-				}[],
-				generatedCount: 0,
-				totalCount: 0,
-				isChunk: true
-			}
-		};
-
-		const transferrables = imageBuffers.map((img) => img.buffer) as unknown as Transferable[];
-		(self as unknown as Worker).postMessage(message, transferrables);
-
-		self.postMessage({
-			type: 'complete',
-			taskId,
-			payload: {
-				images: [],
-				metadata: [],
-				isChunk: true
-			}
-		});
+		// Flush remaining items as final complete message (terminates the task)
+		await flushGenerationChunk(chunkImages, chunkMetadata, taskId, true);
 	} catch (error) {
 		console.error('Batch processing error:', error);
 		throw error;
 	}
+}
+
+/**
+ * Flush accumulated chunk images as a postMessage with Transferable ArrayBuffers.
+ * If isFinal, sends as 'complete' (task-terminating); otherwise as 'chunk' (intermediate).
+ * The worker pool forwards 'chunk' messages without resolving the task,
+ * so streaming intermediate results does not trigger premature completion.
+ */
+async function flushGenerationChunk(
+	images: { name: string; blob: Blob }[],
+	metadata: { name: string; data: object }[],
+	taskId: TaskId | undefined,
+	isFinal: boolean
+): Promise<void> {
+	// Skip only when there's nothing to send and it's not the final flush
+	if (images.length === 0 && !isFinal) return;
+
+	const imageBuffers = await Promise.all(
+		images.map(async (img) => ({
+			name: img.name,
+			buffer: await img.blob.arrayBuffer()
+		}))
+	);
+
+	const payload = {
+		images: imageBuffers.map((img) => ({
+			name: img.name,
+			imageData: img.buffer
+		})),
+		metadata: metadata as { name: string; data: Record<string, unknown> }[],
+		generatedCount: images.length,
+		totalCount: images.length
+	};
+
+	const transferrables = imageBuffers.map((img) => img.buffer) as unknown as Transferable[];
+
+	if (isFinal) {
+		const message: CompleteMessage = {
+			type: 'complete',
+			taskId,
+			payload: { ...payload, isChunk: true }
+		};
+		(self as unknown as Worker).postMessage(message, transferrables);
+	} else {
+		const message: GenerationChunkMessage = {
+			type: 'chunk',
+			taskId,
+			payload
+		};
+		(self as unknown as Worker).postMessage(message, transferrables);
+	}
+}
+
+/**
+ * Handle init-layers message to populate local reference maps.
+ */
+function handleInitLayers(message: InitLayersMessage): void {
+	const { layers } = message.payload;
+	layerMap.clear();
+	traitMap.clear();
+	for (const layer of layers) {
+		layerMap.set(layer.id, layer);
+		for (const trait of layer.traits) {
+			traitMap.set(`${layer.id}:${trait.id}`, trait);
+		}
+	}
+}
+
+/**
+ * Resolve trait references using the local layer/trait maps.
+ */
+function resolveTraitRefs(
+	refs: { layerId: string; traitId: string }[]
+): { layerId: string; trait: TransferrableTrait }[] {
+	const resolved: { layerId: string; trait: TransferrableTrait }[] = [];
+	for (const ref of refs) {
+		const trait = traitMap.get(`${ref.layerId}:${ref.traitId}`);
+		if (trait) {
+			resolved.push({ layerId: ref.layerId, trait });
+		}
+	}
+	return resolved;
 }
 
 // Message Listener with serialization
@@ -326,6 +422,49 @@ self.addEventListener('message', (e: MessageEvent) => {
 				try {
 					await handleBatchGeneration(
 						solutions,
+						layers,
+						collectionSize,
+						outputSize,
+						projectName,
+						projectDescription,
+						message.taskId,
+						metadataStandard,
+						extraData
+					);
+				} catch (error) {
+					self.postMessage({
+						type: 'error',
+						taskId: message.taskId,
+						payload: {
+							message: error instanceof Error ? error.message : 'Batch error'
+						}
+					});
+				}
+			} else if (message.type === 'init-layers') {
+				handleInitLayers(message as InitLayersMessage);
+				self.postMessage({
+					type: 'complete',
+					taskId: message.taskId,
+					payload: { initialized: true }
+				});
+			} else if (message.type === 'batch-ref') {
+				const {
+					solutions,
+					collectionSize,
+					outputSize,
+					projectName,
+					projectDescription,
+					metadataStandard,
+					extraData
+				} = (message as BatchRefMessage).payload;
+				const resolvedSolutions = solutions.map((s) => ({
+					index: s.index,
+					traits: resolveTraitRefs(s.traitRefs)
+				}));
+				const layers = Array.from(layerMap.values());
+				try {
+					await handleBatchGeneration(
+						resolvedSolutions,
 						layers,
 						collectionSize,
 						outputSize,

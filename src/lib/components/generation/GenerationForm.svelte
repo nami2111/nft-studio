@@ -1,335 +1,158 @@
 <script lang="ts">
 	import { project } from '$lib/stores';
-	import { startGeneration as startWorkerGeneration } from '$lib/domain/worker.service';
-	import type {
-		ProgressMessage,
-		CompleteMessage,
-		ErrorMessage,
-		CancelledMessage,
-		PreviewMessage
-	} from '$lib/types/worker-messages';
+	import { runGeneration, cancelGeneration, type GenerationConfig, type GenerationCallbacks } from '$lib/domain/worker.service';
+	import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
+	import { getErrorInfo } from '$lib/utils/typed-errors';
 	import {
 		generationState,
 		startGeneration,
 		pauseGeneration,
 		completeGeneration,
-		cancelGeneration,
 		resetState,
 		updateProgress,
-		addImages,
-		addMetadata,
 		addPreviews,
 		handleError
 	} from '$lib/stores/generation-progress.svelte';
-	import { onDestroy } from 'svelte';
 	import { MetadataStandard } from '$lib/domain/metadata/strategies';
-	import { ExportService } from '$lib/services/export.service';
+	import { onDestroy } from 'svelte';
 	import GenerationProgress from './GenerationProgress.svelte';
 	import GenerationControls from './GenerationControls.svelte';
 
-	// Local UI state
+	// ─── Local UI state ──────────────────────────────────────
 	let collectionSize = $state<number | null>(100);
 	let isComponentDestroyed = $state(false);
-	let isPackaging = $state(false);
 
-	// Derived state from persistent store
+	// ─── Derived state from store ────────────────────────────
 	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
 	const isBackground = $derived(generationState.isBackground);
 	const isPaused = $derived(generationState.isPaused);
 	const previews = $derived(generationState.previews);
 
-	// Component lifecycle management
+	// ─── Lifecycle ───────────────────────────────────────────
 	onDestroy(() => {
 		isComponentDestroyed = true;
 
-if (import.meta.env.DEV) console.log('🧹 GenerationForm component destroyed');
+		// Revoke preview URLs
+		for (const p of previews) {
+			try { URL.revokeObjectURL(p.url); } catch { /* ignore */ }
+		}
 
-		// Clean up UI resources only
-		previews.forEach((p) => {
-			try {
-				URL.revokeObjectURL(p.url);
-			} catch (error) {
-				console.warn('Failed to revoke ObjectURL during cleanup:', error);
-			}
-		});
-
-		// If generation is active, move to background mode instead of cancelling
+		// Move to background if still generating
 		if (generationState.isGenerating && !generationState.isBackground) {
-if (import.meta.env.DEV) console.log('🔄 Moving generation to background mode');
-			pauseGeneration('Component unmounted - continuing in background');
-
-			// Set timeout to prevent infinite background generation
+			pauseGeneration('Component unmounted — continuing in background');
 			setTimeout(() => {
 				if (generationState.isGenerating && isComponentDestroyed) {
-if (import.meta.env.DEV) console.log('⏰ Background generation timeout - cancelling');
-					cancelGeneration();
-if (import.meta.env.DEV) console.log('Generation stopped due to timeout.');
+					resetState();
 				}
-			}, 600000); // 10 minutes timeout
+			}, 600_000);
 		}
 	});
 
-	function resetLocalState() {
-		isPackaging = false;
-		// Reset persistent state
-		resetState();
-	}
+	// ─── Orchestrator callbacks ──────────────────────────────
+	function buildCallbacks(): GenerationCallbacks {
+		return {
+			onProgress(msg: ProgressMessage) {
+				updateProgress(msg);
 
-	async function packageZip(
-		images: { name: string; imageData: ArrayBuffer }[],
-		metadata: { name: string; data: Record<string, unknown> }[]
-	) {
-		// Prevent duplicate packaging calls
-		if (isPackaging) return;
-		isPackaging = true;
+				// If in background mode, skip UI feedback
+				if (isComponentDestroyed) return;
 
-		const projectData = project;
+				// Status text already updated by updateProgress
+			},
 
-		try {
-			await ExportService.packageZip({
-				project: projectData,
-				images,
-				metadata,
-				startTime: generationState.startTime ?? undefined,
-				onProgress: (progress) => {
-					// Update status with progress information
-					generationState.statusText = `${progress.message} (${progress.processed}/${progress.total})`;
-
-					// Show user-friendly progress for large collections
-					if (images.length > 1000) {
-						const percentage = Math.round((progress.processed / progress.total) * 100);
-						if (percentage % 10 === 0 || progress.processed === progress.total) {
-if (import.meta.env.DEV) console.log(
-								`Export progress: ${percentage}% (${progress.processed}/${progress.total})`
-							);
-						}
-					}
+			onPreview(newPreviews: { index: number; url: string }[]) {
+				if (!isComponentDestroyed) {
+					addPreviews(newPreviews);
 				}
-			});
+			},
 
-			// Update persistent state
-			generationState.statusText = 'Download started.';
-
-			showSuccess('Generation complete', {
-				description: `Your download has started (${images.length} items). ${images.length > 5000 ? 'Multiple ZIP files were created for optimal performance.' : ''}`
-			});
-
-			// Complete the generation in persistent store
-			completeGeneration();
-		} catch (error) {
-			console.error('Export error details:', error);
-
-			// Handle memory allocation errors specifically
-			if (error instanceof Error && error.message.includes('Array buffer allocation failed')) {
-				showError(error, {
-					title: 'Memory Limit Exceeded',
-					description:
-						'The collection is too large to export as a single ZIP file. Multiple smaller ZIP files will be created automatically for collections over 3000 items. Please try generating a smaller batch or wait for memory to free up.'
+			onComplete(_result) {
+				showSuccess('Generation complete', {
+					description: 'Your download has started.'
 				});
-				generationState.statusText = 'Memory limit reached. Try smaller batches.';
-			} else {
+				completeGeneration();
+			},
+
+			onError(error: Error) {
+				handleError({
+					type: 'error',
+					payload: { message: error.message }
+				} as ErrorMessage);
 				showError(error, {
-					title: 'Package Error',
-					description: 'Failed to create .zip file. Please try again.'
+					title: 'Generation Error',
+					description: 'An error occurred during generation. Please try again.'
 				});
-				generationState.statusText = 'Error: Failed to create .zip file.';
+			},
+
+			onCancelled() {
+				showInfo('Generation has been cancelled.');
+				resetState();
 			}
-			generationState.error = error instanceof Error ? error.message : 'Packaging failed';
-		} finally {
-			isPackaging = false;
-		}
+		};
 	}
 
+	// ─── Generate ────────────────────────────────────────────
 	async function handleGenerate(event?: MouseEvent) {
-		// Prevent accidental closing during generation
-		if (event) {
-			event.preventDefault();
-		}
+		if (event) event.preventDefault();
 
-		// Reset local UI state
-		resetLocalState();
+		resetState();
 
 		try {
 			const projectData = project;
 
-			// Validate project has layers
+			// Validate project
 			if (projectData.layers.length === 0) {
-				showWarning('Project must have at least one layer.', {
-					description: 'Validation Error'
-				});
+				showWarning('Project must have at least one layer.', { description: 'Validation Error' });
 				return;
 			}
-
-			// Validate project has valid output size
 			if (projectData.outputSize.width <= 0 || projectData.outputSize.height <= 0) {
-				showWarning(
-					'Project output size not set. Please upload an image to set the project dimensions.',
-					{
-						description: 'Validation Error'
-					}
-				);
+				showWarning('Project output size not set. Please upload an image first.', { description: 'Validation Error' });
 				return;
 			}
-
-			// Validate layers have traits
-			const emptyLayers = projectData.layers.filter((layer) => layer.traits.length === 0);
+			const emptyLayers = projectData.layers.filter((l) => l.traits.length === 0);
 			if (emptyLayers.length > 0) {
-				showWarning(
-					`The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`,
-					{
-						description: 'Validation Error'
-					}
-				);
+				showWarning(`The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`, { description: 'Validation Error' });
 				return;
 			}
-
-			// Check for missing image data
-			const missingImages = projectData.layers.flatMap((layer) =>
-				layer.traits.filter((trait) => !trait.imageData || trait.imageData.byteLength === 0)
+			const missingImages = projectData.layers.flatMap((l) =>
+				l.traits.filter((t) => !t.imageData || t.imageData.byteLength === 0)
 			);
 			if (missingImages.length > 0) {
-				showWarning(
-					`Missing image data for ${missingImages.length} traits. Please upload images for all traits before generating.`,
-					{
-						description: 'Validation Error'
-					}
-				);
+				showWarning('Missing image data. Please upload images for all traits.', { description: 'Validation Error' });
 				return;
 			}
 
-			// Start generation using persistent store
-			const sessionId = startGeneration({
+			// Start generation state
+			startGeneration({
 				projectName: projectData.name || 'Untitled Collection',
 				projectDescription: projectData.description || '',
 				outputSize: projectData.outputSize,
 				layers: projectData.layers,
-				collectionSize: collectionSize || 100,
-				strictPairConfig: projectData.strictPairConfig,
-				metadataStandard: projectData.metadataStandard || MetadataStandard.ERC721
+				collectionSize: collectionSize || 100
 			});
 
-if (import.meta.env.DEV) console.log(`🚀 Starting generation session: ${sessionId}`);
-
-			// Set up worker message handler that delegates to persistent store
-			const workerMessageHandler = async (
-				data: ProgressMessage | CompleteMessage | ErrorMessage | CancelledMessage | PreviewMessage
-			) => {
-				const message = data;
-
-				// Skip processing if component was destroyed and generation is in background
-				if (isComponentDestroyed && generationState.isBackground) {
-					// Still update persistent store but don't update UI
-					switch (message.type) {
-						case 'progress':
-							updateProgress(message);
-							break;
-						case 'complete':
-							if (message.payload.images) addImages(message.payload.images);
-							if (message.payload.metadata)
-								addMetadata(
-									message.payload.metadata as { name: string; data: Record<string, unknown> }[]
-								);
-							// Check if generation is complete
-							if (collectionSize && generationState.allImages.length >= collectionSize) {
-								// Package in background if possible, or wait for user to return
-if (import.meta.env.DEV) console.log('🎉 Generation completed in background');
-							}
-							break;
-						case 'error':
-							handleError(message);
-							break;
-						case 'cancelled':
-							completeGeneration(); // Mark as complete but cancelled
-							break;
-					}
-					return;
-				}
-
-				// Process messages for active component
-				switch (message.type) {
-					case 'progress':
-						updateProgress(message);
-						break;
-					case 'preview': {
-						const { payload } = message as PreviewMessage;
-						const newPreviews: { index: number; url: string }[] = [];
-						for (let j = 0; j < payload.indexes.length; j++) {
-							const buffer = payload.previewData[j];
-							const blob = new Blob([buffer], { type: 'image/png' });
-							const url = URL.createObjectURL(blob);
-							newPreviews.push({ index: payload.indexes[j], url });
-						}
-						addPreviews(newPreviews);
-						break;
-					}
-					case 'complete':
-						// Handle streamed/chunked image data
-						if (message.payload.images && message.payload.images.length > 0) {
-							addImages(message.payload.images);
-						}
-						if (message.payload.metadata && message.payload.metadata.length > 0) {
-							addMetadata(
-								message.payload.metadata as { name: string; data: Record<string, unknown> }[]
-							);
-						}
-
-						// The worker sends a final "complete" message with empty arrays to signal the end.
-						// Only package once we receive that final marker so we don't repeatedly package while
-						// in-flight items are still arriving.
-						if (
-							message.payload.images.length === 0 &&
-							message.payload.metadata.length === 0 &&
-							!message.payload.isChunk
-						) {
-if (import.meta.env.DEV) console.log(
-								'Generation complete, packaging:',
-								generationState.allImages.length,
-								'images,',
-								generationState.allMetadata.length,
-								'metadata'
-							);
-
-							await packageZip(generationState.allImages, generationState.allMetadata);
-						}
-						break;
-					case 'cancelled':
-						completeGeneration();
-						showInfo('Generation has been cancelled.');
-						break;
-					case 'error':
-						handleError(message);
-						showError(new Error(message.payload.message), {
-							title: 'Generation Error',
-							description: 'An error occurred during generation. Please try again.'
-						});
-						break;
-					default:
-						console.warn('Unknown message type from worker:', (message as { type: string }).type);
+			// Build config
+			const config: GenerationConfig = {
+				layers: projectData.layers,
+				collectionSize: collectionSize || 100,
+				outputSize: projectData.outputSize,
+				projectName: projectData.name || 'Untitled Collection',
+				projectDescription: projectData.description || '',
+				metadataStandard: projectData.metadataStandard || MetadataStandard.ERC721,
+				strictPairConfig: projectData.strictPairConfig,
+				extraData: {
+					symbol: projectData.symbol,
+					seller_fee_basis_points: projectData.sellerFeeBasisPoints,
+					external_url: projectData.externalUrl,
+					animation_url: projectData.animationUrl,
+					creators: projectData.creators
 				}
 			};
 
-			// Prepare extra metadata for strategies
-			const extraData = {
-				symbol: projectData.symbol,
-				seller_fee_basis_points: projectData.sellerFeeBasisPoints,
-				external_url: projectData.externalUrl,
-				animation_url: projectData.animationUrl,
-				creators: projectData.creators
-			};
+			// Run the full pipeline — orchestrator handles everything
+			await runGeneration(config, buildCallbacks());
 
-			// Start generation using the domain service with worker message handler
-			await startWorkerGeneration(
-				projectData.layers,
-				collectionSize || 100,
-				projectData.outputSize,
-				projectData.name,
-				projectData.description || '',
-				projectData.metadataStandard,
-				projectData.strictPairConfig,
-				extraData,
-				workerMessageHandler
-			);
 		} catch (error) {
 			showError(error, {
 				title: 'Generation Failed',
@@ -339,10 +162,9 @@ if (import.meta.env.DEV) console.log(
 		}
 	}
 
+	// ─── Cancel ──────────────────────────────────────────────
 	function handleCancel() {
-		// Cancel generation and clean up all resources
 		cancelGeneration();
-		showInfo('Generation has been cancelled.');
 	}
 </script>
 

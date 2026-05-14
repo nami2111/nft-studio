@@ -11,15 +11,10 @@
 
     const { children }: Props = $props();
 
-    onMount(async () => {
-        try {
-            const { warmUpWorkers } = await import("$lib/workers/worker.pool");
-            await warmUpWorkers({
-                minWorkers: 1,
-                maxWorkers: 1,
-                taskComplexityBasedScaling: false,
-                healthCheckInterval: 30000,
-            });
+	onMount(async () => {
+		try {
+			const { warmUpWorkers } = await import("$lib/workers/pool");
+			await warmUpWorkers();
         } catch (error) {
             console.warn("Worker warm-up failed (non-critical):", error);
         }

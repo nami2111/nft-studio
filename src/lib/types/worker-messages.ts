@@ -41,11 +41,13 @@ export interface ProgressMessage extends BaseWorkerMessage {
 		generatedCount: number;
 		totalCount: number;
 		statusText: string;
-		memoryUsage?: {
-			used: number;
-			available: number;
-			units: string;
-		};
+		memoryUsage?:
+			| number
+			| {
+					used: number;
+					available: number;
+					units: string;
+			  };
 	};
 }
 
@@ -111,6 +113,44 @@ export interface BatchMessage extends BaseWorkerMessage {
 	};
 }
 
+// Initialize layers once in the worker (used with enableLayerRef)
+export interface InitLayersMessage extends BaseWorkerMessage {
+	type: 'init-layers';
+	payload: {
+		layers: TransferrableLayer[];
+	};
+}
+
+// Batch generation by trait references (lightweight, no imageData duplication)
+export interface BatchRefMessage extends BaseWorkerMessage {
+	type: 'batch-ref';
+	payload: {
+		solutions: {
+			index: number;
+			traitRefs: { layerId: string; traitId: string }[];
+		}[];
+		collectionSize: number;
+		outputSize: { width: number; height: number };
+		projectName: string;
+		projectDescription: string;
+		metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
+		extraData?: Record<string, unknown>;
+	};
+}
+
+// Intermediate chunk of generation results streamed from worker before final completion.
+// This allows incremental flushing within a single batch task — images are transferred
+// via Transferables and the task stays active until a 'complete' message arrives.
+export interface GenerationChunkMessage extends BaseWorkerMessage {
+	type: 'chunk';
+	payload: {
+		images: { name: string; imageData: ArrayBuffer }[];
+		metadata: { name: string; data: object }[];
+		generatedCount: number;
+		totalCount: number;
+	};
+}
+
 // Messages that can be sent from workers to the main thread
 export type OutgoingWorkerMessage =
 	| ReadyMessage
@@ -119,12 +159,14 @@ export type OutgoingWorkerMessage =
 	| ErrorMessage
 	| CancelledMessage
 	| PreviewMessage
+	| GenerationChunkMessage
 	| { type: 'pingResponse'; pingResponse: string };
 
 // Messages that can be sent to workers
-// Messages that can be sent to workers
 export type IncomingMessage =
 	| BatchMessage
+	| InitLayersMessage
+	| BatchRefMessage
 	| { type: 'cancel' }
 	| ReadyMessage
 	| { type: 'preview'; payload: Record<string, unknown> }
@@ -134,101 +176,8 @@ export type IncomingMessage =
 // Worker pool message types
 export type GenerationWorkerMessage =
 	| BatchMessage
+	| InitLayersMessage
+	| BatchRefMessage
 	| {
 			type: 'cancel';
 	  };
-
-// Type guards for discriminated unions
-
-/**
- * Type guard for ProgressMessage
- */
-export function isProgressMessage(message: unknown): message is ProgressMessage {
-	return (
-		typeof message === 'object' &&
-		message !== null &&
-		'type' in message &&
-		message.type === 'progress'
-	);
-}
-
-/**
- * Type guard for CompleteMessage
- */
-export function isCompleteMessage(message: unknown): message is CompleteMessage {
-	return (
-		typeof message === 'object' &&
-		message !== null &&
-		'type' in message &&
-		message.type === 'complete'
-	);
-}
-
-/**
- * Type guard for ErrorMessage
- */
-export function isErrorMessage(message: unknown): message is ErrorMessage {
-	return (
-		typeof message === 'object' && message !== null && 'type' in message && message.type === 'error'
-	);
-}
-
-/**
- * Type guard for CancelledMessage
- */
-export function isCancelledMessage(message: unknown): message is CancelledMessage {
-	return (
-		typeof message === 'object' &&
-		message !== null &&
-		'type' in message &&
-		message.type === 'cancelled'
-	);
-}
-
-/**
- * Type guard for PreviewMessage
- */
-export function isPreviewMessage(message: unknown): message is PreviewMessage {
-	return (
-		typeof message === 'object' &&
-		message !== null &&
-		'type' in message &&
-		message.type === 'preview'
-	);
-}
-
-/**
- * Type guard for OutgoingWorkerMessage
- */
-export function isOutgoingWorkerMessage(message: unknown): message is OutgoingWorkerMessage {
-	return (
-		(typeof message === 'object' &&
-			message !== null &&
-			'type' in message &&
-			message.type === 'ready') ||
-		isProgressMessage(message) ||
-		isCompleteMessage(message) ||
-		isErrorMessage(message) ||
-		isPreviewMessage(message)
-	);
-}
-
-/**
- * Type guard for IncomingMessage
- */
-export function isIncomingMessage(message: unknown): message is IncomingMessage {
-	return (
-		(typeof message === 'object' &&
-			message !== null &&
-			'type' in message &&
-			message.type === 'batch') ||
-		(typeof message === 'object' &&
-			message !== null &&
-			'type' in message &&
-			message.type === 'cancel') ||
-		(typeof message === 'object' &&
-			message !== null &&
-			'type' in message &&
-			message.type === 'ready')
-	);
-}

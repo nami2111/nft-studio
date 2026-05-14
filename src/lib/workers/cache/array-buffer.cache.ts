@@ -101,29 +101,63 @@ export class WorkerArrayBufferCache {
 	}
 
 	/**
-	 * Smart eviction using LRU + frequency + memory pressure
-	 * Prioritizes frequently accessed + large + old entries for eviction
+	 * Smart eviction using LRU + frequency + memory pressure.
+	 * Uses single-pass top-k selection (O(n)) instead of full sort (O(n log n)).
 	 */
 	private evictEntries(requiredSpace: number): void {
 		const entries = Array.from(this.cache.entries());
 
-		// Sort by eviction score: (accessCount / daysSinceCreation) * size
-		const scoredEntries = entries.map(([key, entry]) => {
-			const daysSinceCreation = (Date.now() - entry.creationTime) / (1000 * 60 * 60 * 24);
+		// Single-pass top-k selection: find the maxEvictions entries with highest eviction scores.
+		// This avoids a full O(n log n) sort — we only maintain a small sorted candidate list.
+		const maxEvictions = Math.min(entries.length, 10);
+		type Candidate = {
+			key: string;
+			entry: {
+				buffer: ArrayBuffer;
+				accessTime: number;
+				size: number;
+				accessCount: number;
+				creationTime: number;
+			};
+		};
+		const topCandidates: Candidate[] = []; // Sorted ascending by evictionScore (smallest first)
+
+		const now = Date.now();
+
+		for (const [key, entry] of entries) {
+			const daysSinceCreation = (now - entry.creationTime) / (1000 * 60 * 60 * 24);
 			const accessFrequency = entry.accessCount / Math.max(1, daysSinceCreation);
-			const evictionScore = (accessFrequency / Math.max(1, entry.size / 1024)) * 1000; // Higher score = more likely to evict
+			const evictionScore = (accessFrequency / Math.max(1, entry.size / 1024)) * 1000;
 
-			return { key, entry, evictionScore };
-		});
+			if (topCandidates.length < maxEvictions) {
+				topCandidates.push({ key, entry });
+				topCandidates.sort((a, b) => {
+					const scoreA = this.computeEvictionScore(a.entry, now);
+					const scoreB = this.computeEvictionScore(b.entry, now);
+					return scoreA - scoreB;
+				});
+			} else {
+				const minScore = this.computeEvictionScore(topCandidates[0].entry, now);
+				if (evictionScore > minScore) {
+					topCandidates[0] = { key, entry };
+					topCandidates.sort((a, b) => {
+						const scoreA = this.computeEvictionScore(a.entry, now);
+						const scoreB = this.computeEvictionScore(b.entry, now);
+						return scoreA - scoreB;
+					});
+				}
+			}
+		}
 
-		// Sort by eviction score (higher score = better candidate for eviction)
-		scoredEntries.sort((a, b) => b.evictionScore - a.evictionScore);
+		// Sort candidates descending by score for eviction (highest score = best to evict)
+		topCandidates.sort(
+			(a, b) => this.computeEvictionScore(b.entry, now) - this.computeEvictionScore(a.entry, now)
+		);
 
 		let freedSpace = 0;
-		const maxEvictions = Math.min(scoredEntries.length, 10); // Don't evict too many at once
-
-		for (let i = 0; i < maxEvictions && freedSpace < requiredSpace; i++) {
-			const { key, entry } = scoredEntries[i];
+		for (const { key, entry } of topCandidates) {
+			if (freedSpace >= requiredSpace) break;
+			if (!this.cache.has(key)) continue;
 			this.cache.delete(key);
 			this.currentMemoryUsage -= entry.size;
 			freedSpace += entry.size;
@@ -132,19 +166,28 @@ export class WorkerArrayBufferCache {
 
 		if (freedSpace < requiredSpace) {
 			this.stats.memoryPressure++;
-			// If still not enough space, force evict oldest entries
-			const oldestEntries = entries
-				.sort((a, b) => a[1].creationTime - b[1].creationTime)
-				.slice(0, 5);
-
-			for (const [key, entry] of oldestEntries) {
-				if (this.cache.has(key)) {
-					this.cache.delete(key);
-					this.currentMemoryUsage -= entry.size;
-					this.stats.evictions++;
-				}
+			// If still not enough space, force evict oldest entries (Map iteration order = insertion order)
+			for (const [key, entry] of this.cache.entries()) {
+				if (freedSpace >= requiredSpace) break;
+				this.cache.delete(key);
+				this.currentMemoryUsage -= entry.size;
+				freedSpace += entry.size;
+				this.stats.evictions++;
 			}
 		}
+	}
+
+	/**
+	 * Compute eviction score for a single entry.
+	 * Higher score = better candidate for eviction.
+	 */
+	private computeEvictionScore(
+		entry: { accessCount: number; creationTime: number; size: number },
+		now: number
+	): number {
+		const daysSinceCreation = (now - entry.creationTime) / (1000 * 60 * 60 * 24);
+		const accessFrequency = entry.accessCount / Math.max(1, daysSinceCreation);
+		return (accessFrequency / Math.max(1, entry.size / 1024)) * 1000;
 	}
 
 	clear(): void {
