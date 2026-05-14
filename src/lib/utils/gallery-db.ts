@@ -107,67 +107,49 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 }
 
 /**
- * Hydrate imageData for a collection from the gallery-images store.
+ * Save a single item image to IndexedDB (used during streaming import).
  */
-async function hydrateCollectionImages(collection: GalleryCollection): Promise<GalleryCollection> {
+export async function saveItemImage(
+	itemId: string,
+	collectionId: string,
+	imageData: ArrayBuffer
+): Promise<void> {
+	const db = await initGalleryDB();
+	if (!db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) return;
+
+	const tx = db.transaction(GALLERY_IMAGES_STORE, 'readwrite');
+	const store = tx.objectStore(GALLERY_IMAGES_STORE);
+	store.put({ itemId, collectionId, imageData });
+	await tx.done;
+}
+
+/**
+ * Get a single item image from IndexedDB (on-demand fetch).
+ */
+export async function getItemImage(itemId: string): Promise<ArrayBuffer | null> {
 	const db = await initGalleryDB();
 	if (!db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
-		return collection;
+		return null;
 	}
 
 	const tx = db.transaction(GALLERY_IMAGES_STORE, 'readonly');
 	const store = tx.objectStore(GALLERY_IMAGES_STORE);
-	const hydratedItems = await Promise.all(
-		collection.items.map(async (item) => {
-			const record = await store.get(item.id);
-			if (record?.imageData instanceof ArrayBuffer && record.imageData.byteLength > 0) {
-				return { ...item, imageData: record.imageData };
-			}
-			return item;
-		})
-	);
-	return { ...collection, items: hydratedItems };
-}
+	const record = await store.get(itemId);
 
-/**
- * Get a collection from IndexedDB by ID
- */
-export async function getCollection(id: string): Promise<GalleryCollection | undefined> {
-	const startTime = Date.now();
-	const db = await initGalleryDB();
-	const stored = await db.get(COLLECTIONS_STORE, id);
-
-	// Record database query performance
-	const duration = Date.now() - startTime;
-	productionMonitor.recordDatabaseQuery('getCollection', duration);
-
-	if (!stored) {
-		return undefined;
+	if (record?.imageData instanceof ArrayBuffer && record.imageData.byteLength > 0) {
+		return record.imageData;
 	}
-
-	// Restore the collection, converting ISO strings back to Date objects
-	const collection = {
-		...stored,
-		generatedAt: stored.generatedAt ? new Date(stored.generatedAt) : new Date(),
-		items: stored.items.map((item: Record<string, unknown> & { generatedAt?: string | Date }) => ({
-			...item,
-			generatedAt: item.generatedAt ? new Date(item.generatedAt) : new Date(),
-			imageData: new ArrayBuffer(0) // Empty buffer, will be filled from gallery-images store
-		}))
-	} as GalleryCollection;
-
-	return hydrateCollectionImages(collection);
+	return null;
 }
 
 /**
- * Get all collections from IndexedDB
+ * Get all collections from IndexedDB (metadata only, no image hydration).
  */
 export async function getAllCollections(): Promise<GalleryCollection[]> {
 	const startTime = Date.now();
 	const db = await initGalleryDB();
 	const storedCollections = await db.getAll(COLLECTIONS_STORE);
 
-	// Record database query performance
 	const duration = Date.now() - startTime;
 	productionMonitor.recordDatabaseQuery('getAllCollections', duration);
 
@@ -177,11 +159,11 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 		items: stored.items.map((item: Record<string, unknown> & { generatedAt?: string | Date }) => ({
 			...item,
 			generatedAt: item.generatedAt ? new Date(item.generatedAt) : new Date(),
-			imageData: new ArrayBuffer(0) // Empty buffer, will be filled from gallery-images store
+			imageData: new ArrayBuffer(0) // Placeholder, image fetched on demand via getItemImage
 		}))
 	})) as GalleryCollection[];
 
-	return Promise.all(collections.map((c) => hydrateCollectionImages(c)));
+	return collections;
 }
 
 /**
