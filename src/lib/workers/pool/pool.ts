@@ -215,7 +215,7 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 	return new Promise((resolve, reject) => {
 		let worker: Worker;
 		try {
-			worker = new Worker(new URL('./generation.worker.ts', import.meta.url), {
+			worker = new Worker(new URL('../generation.worker.ts', import.meta.url), {
 				type: 'module'
 			});
 		} catch (creationError) {
@@ -234,10 +234,22 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
 
 		worker.onerror = (error: ErrorEvent) => {
 			clearTimeout(timeoutId);
-			let errorMessage = 'Unknown worker error';
-			if (error.message) errorMessage = error.message;
-			else if (error.filename && error.lineno)
-				errorMessage = `Error in ${error.filename}:${error.lineno}:${error.colno || 0}`;
+			// Log full error event for browser console inspection
+			console.error('[pool] Worker error event:', {
+				message: error.message,
+				filename: error.filename,
+				lineno: error.lineno,
+				colno: error.colno,
+				error: error.error,
+				type: error.type
+			});
+			const detail = [
+				error.message,
+				error.filename ? `at ${error.filename}` : '',
+				error.lineno != null ? `:${error.lineno}` : '',
+				error.colno != null ? `:${error.colno}` : ''
+			].filter(Boolean).join(' ');
+			const errorMessage = detail || 'Unknown worker error (check browser console for details)';
 			reject(new Error(`Worker error: ${errorMessage}`));
 		};
 
@@ -749,13 +761,19 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 	if (workerPool) return;
 
 	const { coreCount } = getDeviceCapabilities();
-	const warmUpCount = Math.max(1, Math.floor(coreCount / 2));
+	// Respect caller's maxWorkers if provided and reasonable,
+	// otherwise compute a sensible default based on device cores.
+	const requestedMax = config?.maxWorkers;
+	const computedMax = Math.max(1, Math.floor(coreCount / 2));
+	const warmUpCount = requestedMax != null && requestedMax > 0
+		? Math.min(requestedMax, computedMax)
+		: computedMax;
 	debugLog(`Warming up worker pool with ${warmUpCount} workers...`);
 
 	const warmUpConfig: WorkerPoolConfig = {
 		...config,
 		maxWorkers: warmUpCount,
-		minWorkers: warmUpCount,
+		minWorkers: Math.max(1, Math.min(config?.minWorkers ?? warmUpCount, warmUpCount)),
 		taskComplexityBasedScaling: true,
 		healthCheckInterval: config?.healthCheckInterval ?? 30000
 	};

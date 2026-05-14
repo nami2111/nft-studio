@@ -26,17 +26,13 @@ const perfMonitor = new PerformanceMonitor();
 // Uses Map insertion-order semantics for O(1) LRU tracking.
 const IMAGE_BITMAP_CACHE_MAX = 64;
 const imageBitmapCache = new Map<string, ImageBitmap>();
-let bitmapCacheHits = 0;
-let bitmapCacheMisses = 0;
 
 function getImageBitmap(key: string): ImageBitmap | undefined {
 	if (!imageBitmapCache.has(key)) {
-		bitmapCacheMisses++;
 		return undefined;
 	}
-	bitmapCacheHits++;
 	const bitmap = imageBitmapCache.get(key)!;
-	// Move to end (most recently used) — delete + re-set preserves insertion order
+	// Move to end (most recently used)
 	imageBitmapCache.delete(key);
 	imageBitmapCache.set(key, bitmap);
 	return bitmap;
@@ -55,30 +51,6 @@ function setImageBitmap(key: string, bitmap: ImageBitmap): void {
 		}
 	}
 	imageBitmapCache.set(key, bitmap);
-}
-
-function clearImageBitmapCache(): void {
-	for (const bitmap of imageBitmapCache.values()) {
-		bitmap.close();
-	}
-	const totalOps = bitmapCacheHits + bitmapCacheMisses;
-	if (totalOps > 0) {
-		perfMonitor.addCacheMetrics('imageBitmap', {
-			hits: bitmapCacheHits,
-			misses: bitmapCacheMisses,
-			sets: imageBitmapCache.size,
-			evictions: 0,
-			currentEntries: imageBitmapCache.size,
-			maxEntries: IMAGE_BITMAP_CACHE_MAX,
-			currentSize: imageBitmapCache.size,
-			maxSize: IMAGE_BITMAP_CACHE_MAX,
-			memoryUsage: imageBitmapCache.size * 1024 * 1024,
-			hitRate: bitmapCacheHits / totalOps
-		});
-	}
-	imageBitmapCache.clear();
-	bitmapCacheHits = 0;
-	bitmapCacheMisses = 0;
 }
 
 const memoryManager = new OptimizedMemoryManager();
@@ -334,7 +306,11 @@ async function handleBatchGeneration(
 		}
 
 		perfMonitor.finishBatch();
-		clearImageBitmapCache();
+		// NOTE: ImageBitmap cache intentionally NOT cleared between batches.
+		// In enableLayerRef mode the same traits appear across many batches;
+		// keeping the cache alive avoids re-decoding the same images thousands of times.
+		// The 64-entry LRU cache bounds GPU memory and the worker is terminated after
+		// all batches complete, releasing all cached bitmaps.
 
 		// Flush remaining items as final complete message (terminates the task)
 		await flushGenerationChunk(chunkImages, chunkMetadata, taskId, true);
