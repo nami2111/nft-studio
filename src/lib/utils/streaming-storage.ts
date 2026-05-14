@@ -46,32 +46,6 @@ export interface StreamedMetadata {
 }
 
 /**
- * Stream a single generated image to IndexedDB.
- */
-export async function streamImage(
-	sessionId: string,
-	index: number,
-	name: string,
-	imageData: ArrayBuffer
-): Promise<void> {
-	const db = await initDB();
-	await db.put(IMAGES_STORE, { key: imageKey(sessionId, index), name, imageData });
-}
-
-/**
- * Stream a single metadata object to IndexedDB.
- */
-export async function streamMetadata(
-	sessionId: string,
-	index: number,
-	name: string,
-	data: Record<string, unknown>
-): Promise<void> {
-	const db = await initDB();
-	await db.put(METADATA_STORE, { key: metadataKey(sessionId, index), name, data });
-}
-
-/**
  * Stream images and metadata in bulk (more efficient than individual puts).
  */
 export async function streamBatch(
@@ -80,7 +54,6 @@ export async function streamBatch(
 	images: StreamedImage[],
 	metadata: StreamedMetadata[]
 ): Promise<void> {
-	// Eagerly clone image buffers and metadata so callers can safely transfer originals
 	const imageRecords = images.map((img, i) => ({
 		key: imageKey(sessionId, startIndex + i),
 		name: img.name,
@@ -109,81 +82,59 @@ export async function streamBatch(
 }
 
 /**
- * Get the total count of streamed images for a session.
+ * Iterate over paired image+metadata batches in index order.
+ * Invokes callback with each batch for streaming into ZIP.
  */
-export async function getImageCount(sessionId: string): Promise<number> {
-	const db = await initDB();
-	const keys = await db.getAllKeys(IMAGES_STORE);
-	const prefix = `${sessionId}-img-`;
-	return keys.filter((k) => typeof k === 'string' && k.startsWith(prefix)).length;
-}
-
-/**
- * Iterate over all images for a session in index order, invoking a callback for each batch.
- */
-export async function iterateImages(
+export async function iterateItems(
 	sessionId: string,
-	callback: (images: StreamedImage[], startIndex: number) => void | Promise<void>,
-	batchSize = 100
+	callback: (
+		batch: { images: StreamedImage[]; metadata: StreamedMetadata[] },
+		startIndex: number
+	) => Promise<void>,
+	batchSize = 50
 ): Promise<void> {
 	const db = await initDB();
-	const prefix = `${sessionId}-img-`;
-	const keys = (await db.getAllKeys(IMAGES_STORE)).filter(
-		(k): k is string => typeof k === 'string' && k.startsWith(prefix)
+	const imagePrefix = `${sessionId}-img-`;
+	const metaPrefix = `${sessionId}-meta-`;
+
+	const imageKeys = (await db.getAllKeys(IMAGES_STORE)).filter(
+		(k): k is string => typeof k === 'string' && k.startsWith(imagePrefix)
 	);
 
-	// Sort by numeric index extracted from key
-	keys.sort((a, b) => {
-		const indexA = parseInt(a.replace(prefix, ''), 10);
-		const indexB = parseInt(b.replace(prefix, ''), 10);
+	imageKeys.sort((a, b) => {
+		const indexA = parseInt(a.replace(imagePrefix, ''), 10);
+		const indexB = parseInt(b.replace(imagePrefix, ''), 10);
 		return indexA - indexB;
 	});
 
-	for (let i = 0; i < keys.length; i += batchSize) {
-		const batchKeys = keys.slice(i, i + batchSize);
-		const batch = await Promise.all(
-			batchKeys.map(async (key) => {
-				const record = await db.get(IMAGES_STORE, key);
-				return record as { key: string; name: string; imageData: ArrayBuffer };
-			})
-		);
-		const images = batch.map((r) => ({ name: r.name, imageData: r.imageData }));
-		const startIndex = parseInt(batchKeys[0].replace(prefix, ''), 10);
-		await callback(images, startIndex);
-	}
-}
+	for (let i = 0; i < imageKeys.length; i += batchSize) {
+		const batchImageKeys = imageKeys.slice(i, i + batchSize);
+		const batchMetaKeys = batchImageKeys.map((k) => metaPrefix + k.replace(imagePrefix, ''));
 
-/**
- * Iterate over all metadata for a session in index order, invoking a callback for each batch.
- */
-export async function iterateMetadata(
-	sessionId: string,
-	callback: (metadata: StreamedMetadata[], startIndex: number) => void | Promise<void>,
-	batchSize = 100
-): Promise<void> {
-	const db = await initDB();
-	const prefix = `${sessionId}-meta-`;
-	const keys = (await db.getAllKeys(METADATA_STORE)).filter(
-		(k): k is string => typeof k === 'string' && k.startsWith(prefix)
-	);
+		const [imageRecords, metaRecords] = await Promise.all([
+			Promise.all(
+				batchImageKeys.map(
+					async (k) =>
+						(await db.get(IMAGES_STORE, k)) as { key: string; name: string; imageData: ArrayBuffer }
+				)
+			),
+			Promise.all(
+				batchMetaKeys.map(
+					async (k) =>
+						(await db.get(METADATA_STORE, k)) as {
+							key: string;
+							name: string;
+							data: Record<string, unknown>;
+						}
+				)
+			)
+		]);
 
-	keys.sort((a, b) => {
-		const indexA = parseInt(a.replace(prefix, ''), 10);
-		const indexB = parseInt(b.replace(prefix, ''), 10);
-		return indexA - indexB;
-	});
+		const images = imageRecords.map((r) => ({ name: r.name, imageData: r.imageData }));
+		const metadata = metaRecords.map((r) => ({ name: r.name, data: r.data }));
+		const startIndex = parseInt(batchImageKeys[0].replace(imagePrefix, ''), 10);
 
-	for (let i = 0; i < keys.length; i += batchSize) {
-		const batchKeys = keys.slice(i, i + batchSize);
-		const batch = await Promise.all(
-			batchKeys.map(async (key) => {
-				const record = await db.get(METADATA_STORE, key);
-				return record as { key: string; name: string; data: Record<string, unknown> };
-			})
-		);
-		const metadata = batch.map((r) => ({ name: r.name, data: r.data }));
-		const startIndex = parseInt(batchKeys[0].replace(prefix, ''), 10);
-		await callback(metadata, startIndex);
+		await callback({ images, metadata }, startIndex);
 	}
 }
 
@@ -202,35 +153,10 @@ export async function clearSession(sessionId: string): Promise<void> {
 		(k): k is string => typeof k === 'string' && k.startsWith(metaPrefix)
 	);
 
+	if (allImageKeys.length === 0 && allMetaKeys.length === 0) return;
+
 	const tx = db.transaction([IMAGES_STORE, METADATA_STORE], 'readwrite');
 	for (const key of allImageKeys) tx.objectStore(IMAGES_STORE).delete(key);
 	for (const key of allMetaKeys) tx.objectStore(METADATA_STORE).delete(key);
 	await tx.done;
-}
-
-/**
- * Get total storage bytes used by a session (approximate).
- */
-export async function getSessionStorageSize(sessionId: string): Promise<number> {
-	const db = await initDB();
-	const imagePrefix = `${sessionId}-img-`;
-	const metaPrefix = `${sessionId}-meta-`;
-
-	const imageKeys = (await db.getAllKeys(IMAGES_STORE)).filter(
-		(k): k is string => typeof k === 'string' && k.startsWith(imagePrefix)
-	);
-	const metaKeys = (await db.getAllKeys(METADATA_STORE)).filter(
-		(k): k is string => typeof k === 'string' && k.startsWith(metaPrefix)
-	);
-
-	let total = 0;
-	for (const key of imageKeys) {
-		const record = await db.get(IMAGES_STORE, key);
-		if (record?.imageData?.byteLength) total += record.imageData.byteLength;
-	}
-	for (const key of metaKeys) {
-		const record = await db.get(METADATA_STORE, key);
-		if (record?.data) total += JSON.stringify(record.data).length * 2;
-	}
-	return total;
 }

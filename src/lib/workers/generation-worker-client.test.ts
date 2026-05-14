@@ -27,15 +27,18 @@ vi.mock('./trait-batch-scheduler', () => {
 });
 
 vi.mock('$lib/services/export.service', () => ({
-	ExportService: {
-		startStreamingZip: vi.fn(),
-		addStreamingChunk: vi.fn(),
-		finalizeStreamingZip: vi.fn().mockResolvedValue(undefined),
-		cancelStreamingZip: vi.fn()
-	}
+	startStreamingZip: vi.fn(),
+	addStreamingChunk: vi.fn(),
+	finalizeStreamingZip: vi.fn().mockResolvedValue(undefined),
+	cancelStreamingZip: vi.fn()
 }));
 
-import { solveOnMainThread, runGeneration, type GenerationConfig, type GenerationCallbacks } from './generation.orchestrator';
+import {
+	solveOnMainThread,
+	runGeneration,
+	type GenerationConfig,
+	type GenerationCallbacks
+} from './generation.orchestrator';
 import { setFeatureFlags } from '$lib/config/feature-flags';
 
 function makeLayer(id: string, name: string, traits: TransferrableTrait[]): TransferrableLayer {
@@ -88,7 +91,11 @@ describe('solveOnMainThread', () => {
 
 	it('handles single layer with multiple traits', async () => {
 		const layers = [
-			makeLayer('L1', 'BG', [makeTrait('T1', 'Red'), makeTrait('T2', 'Blue'), makeTrait('T3', 'Green')])
+			makeLayer('L1', 'BG', [
+				makeTrait('T1', 'Red'),
+				makeTrait('T2', 'Blue'),
+				makeTrait('T3', 'Green')
+			])
 		];
 		const solutions = await solveOnMainThread(layers, 3);
 		expect(solutions.length).toBe(3);
@@ -112,7 +119,7 @@ describe('solveOnMainThread', () => {
 describe('runGeneration', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		setFeatureFlags({ enableWorkerCspSolver: false });
+		setFeatureFlags({ enableStreamingStorage: false });
 	});
 
 	function noopCallbacks(): GenerationCallbacks {
@@ -126,7 +133,8 @@ describe('runGeneration', () => {
 	}
 
 	it('calls initializeWorkerPool on start', async () => {
-		const { initializeWorkerPool } = await import('./pool');
+		const { initializeWorkerPool, getWorkerPoolStatus } = await import('./pool');
+		(getWorkerPoolStatus as ReturnType<typeof vi.fn>).mockReturnValue(null);
 
 		const config: GenerationConfig = {
 			layers: [makeLayer('L1', 'BG', [makeTrait('T1', 'Red')])],

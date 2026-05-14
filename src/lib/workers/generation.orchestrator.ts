@@ -23,10 +23,7 @@ import type {
 import { MetadataStandard } from '$lib/domain/metadata/strategies';
 import { prepareLayersForWorker } from '$lib/domain/project.domain';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
-import {
-	recoverableWorkerOperation,
-	recoverableFileOperation
-} from '$lib/utils/error-handler';
+import { recoverableWorkerOperation, recoverableFileOperation } from '$lib/utils/error-handler';
 import { CSPSolver } from './csp-solver';
 import { TraitBatchScheduler } from './trait-batch-scheduler';
 import {
@@ -35,7 +32,15 @@ import {
 	terminateWorkerPool,
 	getWorkerPoolStatus
 } from './pool';
-import { ExportService } from '$lib/services/export.service';
+import {
+	startStreamingZip,
+	addStreamingChunk,
+	finalizeStreamingZip,
+	cancelStreamingZip
+} from '$lib/services/export.service';
+import { isFlagEnabled } from '$lib/config/feature-flags';
+import { streamBatch, iterateItems, clearSession } from '$lib/utils/streaming-storage';
+import type { StreamedMetadata } from '$lib/utils/streaming-storage';
 
 // ─── Public interface ─────────────────────────────────────────
 
@@ -75,6 +80,10 @@ let _activeProjectName = 'collection';
 /** Current message callback set via setMessageCallback so the pool can forward */
 let _activeCallbacks: GenerationCallbacks | null = null;
 
+/** IndexedDB streaming state — used when enableStreamingStorage is on */
+let _useStreamingStorage = false;
+let _idbSessionId: string | null = null;
+
 // Bridge from pool → orchestrator
 setMessageCallback((data) => {
 	if (_activeCallbacks) {
@@ -109,9 +118,12 @@ export async function runGeneration(
 				}
 			);
 
-			// 2 ─ Ensure worker pool is ready (may already be warmed up)
+			// 2 ─ Ensure worker pool has proper capacity
 			const poolStatus = getWorkerPoolStatus();
 			if (!poolStatus) {
+				await initializeWorkerPool();
+			} else if (poolStatus.totalWorkers < 2) {
+				await terminateWorkerPool();
 				await initializeWorkerPool();
 			}
 
@@ -119,10 +131,14 @@ export async function runGeneration(
 			const sessionId = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 			_activeCallbacks = callbacks;
 			_activeProjectName = config.projectName || 'collection';
+			_useStreamingStorage = isFlagEnabled('enableStreamingStorage');
+			_idbSessionId = sessionId;
 
-			// 4 ─ Start streaming ZIP (always — chunks arrive incrementally)
-			ExportService.startStreamingZip(sessionId, _activeProjectName);
-			_activeStreamingSession = sessionId;
+			// 4 ─ Start streaming ZIP (unless IndexedDB path is active)
+			if (!_useStreamingStorage) {
+				startStreamingZip(sessionId, _activeProjectName);
+				_activeStreamingSession = sessionId;
+			}
 
 			try {
 				// 5 ─ Solve CSP (main-thread; single worker fallback omitted — main thread is fast enough)
@@ -144,19 +160,28 @@ export async function runGeneration(
 				});
 				await scheduler.scheduleBatches(solutions);
 
-				// 7 ─ Finalize streaming ZIP
-				callbacks.onProgress({
-					type: 'progress',
-					payload: {
-						generatedCount: config.collectionSize,
-						totalCount: config.collectionSize,
-						statusText: 'Finalizing ZIP...'
-					}
-				});
+				// 7 ─ Finalize
+				if (_useStreamingStorage) {
+					callbacks.onProgress({
+						type: 'progress',
+						payload: {
+							generatedCount: config.collectionSize,
+							totalCount: config.collectionSize,
+							statusText: 'Packaging from storage...'
+						}
+					});
 
-				await ExportService.finalizeStreamingZip(
-					_activeProjectName,
-					(progress) => {
+					startStreamingZip(_idbSessionId!, _activeProjectName);
+					_activeStreamingSession = _idbSessionId;
+
+					await iterateItems(_idbSessionId!, async (batch) => {
+						addStreamingChunk(
+							batch.images.map((img) => ({ name: img.name, data: img.imageData })),
+							batch.metadata
+						);
+					});
+
+					await finalizeStreamingZip(_activeProjectName, (progress) => {
 						callbacks.onProgress({
 							type: 'progress',
 							payload: {
@@ -165,9 +190,32 @@ export async function runGeneration(
 								statusText: progress.message
 							}
 						});
-					}
-				);
-				_activeStreamingSession = null;
+					});
+					_activeStreamingSession = null;
+
+					clearSession(_idbSessionId!).catch(() => {});
+				} else {
+					callbacks.onProgress({
+						type: 'progress',
+						payload: {
+							generatedCount: config.collectionSize,
+							totalCount: config.collectionSize,
+							statusText: 'Finalizing ZIP...'
+						}
+					});
+
+					await finalizeStreamingZip(_activeProjectName, (progress) => {
+						callbacks.onProgress({
+							type: 'progress',
+							payload: {
+								generatedCount: config.collectionSize,
+								totalCount: config.collectionSize,
+								statusText: progress.message
+							}
+						});
+					});
+					_activeStreamingSession = null;
+				}
 
 				// 8 ─ Done
 				performanceMonitor.stopTimer(timerId);
@@ -175,8 +223,11 @@ export async function runGeneration(
 			} catch (error) {
 				// Clean up streaming on error
 				if (_activeStreamingSession) {
-					ExportService.cancelStreamingZip();
+					cancelStreamingZip();
 					_activeStreamingSession = null;
+				}
+				if (_useStreamingStorage && _idbSessionId) {
+					clearSession(_idbSessionId).catch(() => {});
 				}
 				performanceMonitor.stopTimer(timerId, { error: String(error) });
 
@@ -186,6 +237,8 @@ export async function runGeneration(
 				throw err;
 			} finally {
 				_activeCallbacks = null;
+				_useStreamingStorage = false;
+				_idbSessionId = null;
 			}
 		},
 		{
@@ -211,12 +264,20 @@ export async function runGeneration(
  */
 export async function cancelGeneration(): Promise<void> {
 	if (_activeStreamingSession) {
-		ExportService.cancelStreamingZip();
+		cancelStreamingZip();
 		_activeStreamingSession = null;
 	}
-	_activeCallbacks = null;
+	if (_useStreamingStorage && _idbSessionId) {
+		clearSession(_idbSessionId).catch(() => {});
+	}
+
+	if (_activeCallbacks) {
+		_activeCallbacks.onCancelled();
+	}
 
 	await terminateWorkerPool();
+	_activeCallbacks = null;
+
 	await initializeWorkerPool();
 }
 
@@ -248,7 +309,8 @@ export async function solveOnMainThread(
 			};
 
 	const solver = new CSPSolver(layers, usedCombinations, activeConfig);
-	const solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[] = [];
+	const solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[] =
+		[];
 
 	const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
 
@@ -264,8 +326,9 @@ export async function solveOnMainThread(
 					}
 				});
 			}
-			// Yield to event loop for reactive UI flush
-			await new Promise((r) => setTimeout(r, 0));
+			if (collectionSize >= 200) {
+				await new Promise((r) => setTimeout(r, 0));
+			}
 		}
 
 		const solutionMap = solver.solve();
@@ -313,6 +376,15 @@ function cloneTraitForSolution(trait: TransferrableTrait): TransferrableTrait {
 // ─── Pool Message Routing ─────────────────────────────────────
 
 /**
+ * Parse the 0-based index from a generated image filename (e.g. "42.png" → 41).
+ */
+function parseIndexFromName(name: string | undefined): number {
+	if (!name) return 0;
+	const num = parseInt(name, 10);
+	return Number.isNaN(num) ? 0 : num - 1;
+}
+
+/**
  * Route a message from the worker pool to the appropriate callback.
  * Handles ZIP streaming for chunk messages internally.
  */
@@ -323,12 +395,15 @@ type PoolForwardedMessage =
 	| CancelledMessage
 	| ProgressMessage
 	| PreviewMessage
-	| { type: 'chunk'; payload: { images: { name: string; imageData: ArrayBuffer }[]; metadata: { name: string; data: Record<string, unknown> }[] } };
+	| {
+			type: 'chunk';
+			payload: {
+				images: { name: string; imageData: ArrayBuffer }[];
+				metadata: { name: string; data: Record<string, unknown> }[];
+			};
+	  };
 
-function routePoolMessage(
-	data: PoolForwardedMessage,
-	callbacks: GenerationCallbacks
-): void {
+function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallbacks): void {
 	switch (data.type) {
 		case 'progress':
 			callbacks.onProgress(data);
@@ -346,12 +421,25 @@ function routePoolMessage(
 		}
 
 		case 'chunk': {
-			// Intermediate chunk from worker — stream directly to ZIP
+			// Intermediate chunk from worker — stream directly to ZIP or IndexedDB
 			const msg = data;
-			if (msg.payload.images.length > 0 && _activeStreamingSession) {
-				ExportService.addStreamingChunk(
+			if (_useStreamingStorage && _idbSessionId) {
+				const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
+				streamBatch(
+					_idbSessionId,
+					firstIdx,
+					msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
+					(msg.payload.metadata || []) as unknown as StreamedMetadata[]
+				).catch((err) => {
+					console.warn('IndexedDB stream failed:', err);
+				});
+			} else if (msg.payload.images.length > 0 && _activeStreamingSession) {
+				addStreamingChunk(
 					msg.payload.images.map((img) => ({ name: img.name, data: img.imageData })),
-					(msg.payload.metadata || []) as unknown as { name: string; data: Record<string, unknown> }[]
+					(msg.payload.metadata || []) as unknown as {
+						name: string;
+						data: Record<string, unknown>;
+					}[]
 				);
 				// Clear arrays so caller can free references
 				msg.payload.images.length = 0;
@@ -360,25 +448,37 @@ function routePoolMessage(
 		}
 
 		case 'complete': {
-			// Final complete from a batch — stream remaining to ZIP
+			// Final complete from a batch — stream remaining to ZIP or IndexedDB
 			const msg = data as CompleteMessage;
 			if (msg.payload.images && msg.payload.images.length > 0) {
-				if (_activeStreamingSession && msg.payload.isChunk) {
-					ExportService.addStreamingChunk(
+				if (_useStreamingStorage && _idbSessionId) {
+					const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
+					streamBatch(
+						_idbSessionId,
+						firstIdx,
+						msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
+						(msg.payload.metadata || []) as unknown as StreamedMetadata[]
+					).catch((err) => {
+						console.warn('IndexedDB stream failed:', err);
+					});
+				} else if (_activeStreamingSession && msg.payload.isChunk) {
+					addStreamingChunk(
 						msg.payload.images.map((img) => ({ name: img.name, data: img.imageData })),
-						(msg.payload.metadata || []) as unknown as { name: string; data: Record<string, unknown> }[]
+						(msg.payload.metadata || []) as unknown as {
+							name: string;
+							data: Record<string, unknown>;
+						}[]
 					);
 					msg.payload.images.length = 0;
 				}
-				// Accumulate for callback (non-streaming fallback)
 			}
-			// Only call onComplete for non-chunked completes (the final one)
-			// Chunked completes are intermediate; the scheduler's final complete
-			// is handled in runGeneration after scheduleBatches resolves.
 			if (!msg.payload.isChunk) {
 				callbacks.onComplete({
 					images: msg.payload.images || [],
-					metadata: (msg.payload.metadata || []) as unknown as { name: string; data: Record<string, unknown> }[]
+					metadata: (msg.payload.metadata || []) as unknown as {
+						name: string;
+						data: Record<string, unknown>;
+					}[]
 				});
 			}
 			break;
@@ -386,16 +486,22 @@ function routePoolMessage(
 
 		case 'error':
 			if (_activeStreamingSession) {
-				ExportService.cancelStreamingZip();
+				cancelStreamingZip();
 				_activeStreamingSession = null;
+			}
+			if (_useStreamingStorage && _idbSessionId) {
+				clearSession(_idbSessionId).catch(() => {});
 			}
 			callbacks.onError(new Error(data.payload.message));
 			break;
 
 		case 'cancelled':
 			if (_activeStreamingSession) {
-				ExportService.cancelStreamingZip();
+				cancelStreamingZip();
 				_activeStreamingSession = null;
+			}
+			if (_useStreamingStorage && _idbSessionId) {
+				clearSession(_idbSessionId).catch(() => {});
 			}
 			callbacks.onCancelled();
 			break;
