@@ -1,18 +1,13 @@
 /**
- * Cache for managing image URLs with fallback to data URLs for large collections
- * Prevents memory leaks and blob URL issues by using data URLs for large collections
- *
- * Optimized for handling large collections (10K+ items) with:
- * - Data URLs for collections > 1000 items (eliminates blob URL issues)
- * - ObjectURLs for smaller collections (better performance)
- * - Automatic fallback based on collection size
- * - Memory-efficient caching with size limits
+ * Cache for managing image blob URLs.
+ * Uses Object URLs with TTL eviction for all collection sizes.
+ * Blob URL data lives in browser-managed storage, not JS heap.
  */
 
 export class ObjectUrlCache {
 	private cache = new Map<
 		string,
-		{ url: string; type: 'blob' | 'dataurl'; size: number; lastAccessed: number; revoked?: boolean }
+		{ url: string; type: 'blob'; size: number; lastAccessed: number; revoked?: boolean }
 	>();
 	private retryAttempts = new Map<string, number>();
 	private maxSize: number;
@@ -25,7 +20,6 @@ export class ObjectUrlCache {
 	 * @param maxMemory Maximum memory in bytes
 	 */
 	constructor(maxSize = 5000, maxMemory = 200 * 1024 * 1024) {
-		// Reduced memory for data URLs
 		this.maxSize = maxSize;
 		this.maxMemory = maxMemory;
 		this.isLargeCollection = false;
@@ -44,17 +38,15 @@ export class ObjectUrlCache {
 	setCollectionSize(size: number): void {
 		this.isLargeCollection = size > 1000;
 		if (this.isLargeCollection) {
-			// Switch to more aggressive eviction for large collections
+			// More aggressive eviction for large collections
 			this.maxSize = Math.min(2000, size);
-			this.maxMemory = 100 * 1024 * 1024; // 100MB for data URLs
+			this.maxMemory = 100 * 1024 * 1024;
 		}
 	}
 
 	/**
-	 * Get URL for the given image data
-	 * Uses data URLs for large collections to prevent blob URL issues
-	 * Implements lazy URL revocation to prevent ERR_FILE_NOT_FOUND errors
-	 * Handles both ArrayBuffer and string (blob URL) inputs
+	 * Get URL for the given image data. Always uses Object URLs.
+	 * Handles both ArrayBuffer and string (blob URL) inputs.
 	 */
 	get(id: string, imageData: ArrayBuffer | string): string {
 		const now = Date.now();
@@ -62,8 +54,7 @@ export class ObjectUrlCache {
 
 		// If entry exists and is not marked as revoked, check TTL
 		if (entry) {
-			// For data URLs, always use full TTL. For blob URLs, allow longer retention
-			const maxAge = this.isLargeCollection ? 5000 : 30000; // Increased blob TTL to 30s
+			const maxAge = this.isLargeCollection ? 5000 : 30000;
 			if (now - entry.lastAccessed < maxAge) {
 				entry.lastAccessed = now;
 				// If it was marked revoked, recreate the URL
@@ -88,6 +79,11 @@ export class ObjectUrlCache {
 		let url: string;
 		let size: number;
 
+		// Reject empty ArrayBuffer to avoid creating broken blob URLs
+		if (imageData instanceof ArrayBuffer && imageData.byteLength === 0) {
+			return '';
+		}
+
 		// Handle string input (blob URL)
 		if (typeof imageData === 'string') {
 			// Already a blob URL, use it directly
@@ -106,24 +102,14 @@ export class ObjectUrlCache {
 			return url;
 		}
 
-		// Use data URLs for large collections to eliminate blob URL issues
-		if (this.isLargeCollection) {
-			// Convert ArrayBuffer to base64 data URL
-			const base64 = this.arrayBufferToBase64(imageData);
-			const mimeType = this.guessMimeType(imageData);
-			url = `data:${mimeType};base64,${base64}`;
-			size = url.length; // Data URLs are stored as strings
-		} else {
-			// Use blob URLs for smaller collections
-			const blob = new Blob([imageData]);
-			url = URL.createObjectURL(blob);
-			size = imageData.byteLength;
-		}
+		const blob = new Blob([imageData]);
+		url = URL.createObjectURL(blob);
+		size = imageData.byteLength;
 
 		// Cache the URL
 		this.cache.set(id, {
 			url,
-			type: this.isLargeCollection ? 'dataurl' : 'blob',
+			type: 'blob',
 			size,
 			lastAccessed: now,
 			revoked: false
@@ -140,56 +126,7 @@ export class ObjectUrlCache {
 	}
 
 	/**
-	 * Convert ArrayBuffer to base64 string
-	 * Optimized with chunking to prevent stack overflow and improve performance for large buffers
-	 */
-	private arrayBufferToBase64(buffer: ArrayBuffer): string {
-		const bytes = new Uint8Array(buffer);
-		const len = bytes.byteLength;
-		const CHUNK_SIZE = 8192; // Maintain safe stack size
-		let binary = '';
-
-		for (let i = 0; i < len; i += CHUNK_SIZE) {
-			const chunk = bytes.subarray(i, i + CHUNK_SIZE);
-			// @ts-expect-error - apply works with Uint8Array in modern engines
-			binary += String.fromCharCode.apply(null, chunk);
-		}
-
-		return btoa(binary);
-	}
-
-	/**
-	 * Guess MIME type from image data
-	 */
-	private guessMimeType(buffer: ArrayBuffer): string {
-		const view = new Uint8Array(buffer);
-
-		// PNG signature
-		if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4e && view[3] === 0x47) {
-			return 'image/png';
-		}
-
-		// JPEG signature
-		if (view[0] === 0xff && view[1] === 0xd8 && view[2] === 0xff) {
-			return 'image/jpeg';
-		}
-
-		// GIF signature
-		if (view[0] === 0x47 && view[1] === 0x49 && view[2] === 0x46 && view[3] === 0x38) {
-			return 'image/gif';
-		}
-
-		// WebP signature
-		if (view[8] === 0x57 && view[9] === 0x45 && view[10] === 0x42 && view[11] === 0x50) {
-			return 'image/webp';
-		}
-
-		// Default to PNG
-		return 'image/png';
-	}
-
-	/**
-	 * Handle URL errors (data URLs don't fail, so this is mainly for blob URLs)
+	 * Handle URL errors for blob URLs
 	 */
 	handleUrlError(id: string): string | null {
 		const entry = this.cache.get(id);
@@ -273,23 +210,14 @@ export class ObjectUrlCache {
 			return url;
 		}
 
-		// Use data URLs for large collections to eliminate blob URL issues
-		if (this.isLargeCollection) {
-			// Convert ArrayBuffer to base64 data URL
-			const base64 = this.arrayBufferToBase64(imageData);
-			const mimeType = this.guessMimeType(imageData);
-			url = `data:${mimeType};base64,${base64}`;
-			size = url.length; // Data URLs are stored as strings
-		} else {
-			// Use blob URLs for smaller collections
-			const blob = new Blob([imageData]);
-			url = URL.createObjectURL(blob);
-			size = imageData.byteLength;
-		}
+		// Always create a blob URL
+		const blob = new Blob([imageData]);
+		url = URL.createObjectURL(blob);
+		size = imageData.byteLength;
 
 		this.cache.set(id, {
 			url,
-			type: this.isLargeCollection ? 'dataurl' : 'blob',
+			type: 'blob',
 			size,
 			lastAccessed: Date.now(),
 			revoked: false
@@ -326,7 +254,7 @@ export class ObjectUrlCache {
 			if (entry.type === 'blob' && !entry.revoked) {
 				entry.revoked = true;
 			} else {
-				// For data URLs or already revoked entries, remove immediately
+				// Remove immediately to free memory
 				this.currentMemory -= entry.size;
 				this.cache.delete(id);
 				this.retryAttempts.delete(id);
