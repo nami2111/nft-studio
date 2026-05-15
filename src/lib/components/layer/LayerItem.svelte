@@ -17,12 +17,8 @@
 		updateProjectDimensions
 	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import Edit from '@lucide/svelte/icons/edit';
-	import Check from '@lucide/svelte/icons/check';
-	import X from '@lucide/svelte/icons/x';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Delete02Icon, Edit02Icon, CheckmarkBadge01Icon, Cancel01Icon, ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 	import { getImageDimensions } from '$lib/utils';
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { onMount, onDestroy, untrack } from 'svelte';
@@ -541,9 +537,9 @@
 			<div class="flex items-center space-x-2">
 				<Button variant="ghost" size="icon" onclick={() => (isExpanded = !isExpanded)}>
 					{#if isExpanded}
-						<ChevronDown class="h-4 w-4" />
+						<Icon icon={ArrowDown01Icon} class="h-4 w-4" />
 					{:else}
-						<ChevronRight class="h-4 w-4" />
+						<Icon icon={ArrowRight01Icon} class="h-4 w-4" />
 					{/if}
 				</Button>
 				{#if isEditing}
@@ -566,18 +562,18 @@
 			{#if !isEditing}
 				<div class="flex space-x-1">
 					<Button variant="ghost" size="icon" onclick={startEditing}
-						><Edit class="h-4 w-4" /></Button
+						><Icon icon={Edit02Icon} class="h-4 w-4" /></Button
 					>
 					<Button variant="ghost" size="icon" onclick={handleDeleteLayer}
-						><Trash2 class="h-4 w-4 text-red-500" /></Button
+						><Icon icon={Delete02Icon} class="h-4 w-4 text-red-500" /></Button
 					>
 				</div>
 			{:else}
 				<div class="flex space-x-1">
 					<Button variant="ghost" size="icon" onclick={handleNameChange}
-						><Check class="h-4 w-4" /></Button
+						><Icon icon={CheckmarkBadge01Icon} class="h-4 w-4" /></Button
 					>
-					<Button variant="ghost" size="icon" onclick={cancelEdit}><X class="h-4 w-4" /></Button>
+					<Button variant="ghost" size="icon" onclick={cancelEdit}><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button>
 				</div>
 			{/if}
 		</div>
@@ -702,7 +698,7 @@
 										onclick={bulkDelete}
 										class="text-xs text-red-600 hover:text-red-700"
 									>
-										<Trash2 class="h-3 w-3 sm:h-4 sm:w-4" />
+										<Icon icon={Delete02Icon} class="h-3 w-3 sm:h-4 sm:w-4" />
 									</Button>
 								</div>
 							{/if}

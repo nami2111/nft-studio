@@ -3,9 +3,8 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Modal } from '$lib/components/ui/modal';
 	import { Badge } from '$lib/components/ui/badge';
-	import Plus from '@lucide/svelte/icons/plus';
-	import X from '@lucide/svelte/icons/x';
-	import Settings from '@lucide/svelte/icons/settings';
+	import Icon from '$components/shared/Icon.svelte';
+	import { PlusSignIcon, Cancel01Icon, Setting07Icon } from '@hugeicons/core-free-icons';
 	import type { Trait, Layer, RulerRule } from '$lib/types/layer';
 	import type { LayerId, TraitId } from '$lib/types/ids';
 
@@ -119,7 +118,7 @@
 		onclick={() => (isDialogOpen = true)}
 		data-testid="ruler-rules-manager"
 	>
-		<Settings class="h-4 w-4" />
+		<Icon icon={Setting07Icon} class="h-4 w-4" />
 	</Button>
 
 	<Modal
@@ -349,7 +348,7 @@
 										? 'w-full border-amber-300 bg-amber-50 text-amber-700'
 										: 'w-full'}
 								>
-									<Plus class="mr-1 h-3 w-3" />
+									<Icon icon={PlusSignIcon} class="mr-1 h-3 w-3" />
 									Add Rule
 									{#if hasConflicts(newRule)}
 										<span class="ml-auto text-xs">🔧 Auto-fix conflicts</span>
@@ -379,7 +378,7 @@
 													onclick={() => removeRule(rule.layerId)}
 													class="h-6 w-6"
 												>
-													<X class="h-3 w-3" />
+													<Icon icon={Cancel01Icon} class="h-3 w-3" />
 												</Button>
 											</div>
 

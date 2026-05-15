@@ -5,9 +5,8 @@
 	import { Modal } from '$lib/components/ui/modal';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import Settings from '@lucide/svelte/icons/settings';
-	import Plus from '@lucide/svelte/icons/plus';
-	import X from '@lucide/svelte/icons/x';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Setting07Icon, PlusSignIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
 	import type { StrictPairConfig, LayerCombination } from '$lib/types/layer';
 	import type { Layer } from '$lib/types/project';
 	import type { LayerId } from '$lib/types/ids';
@@ -191,7 +190,7 @@
 	<CardHeader>
 		<div class="flex items-center justify-between">
 			<CardTitle class="flex items-center gap-2">
-				<Settings class="size-4" />
+				<Icon icon={Setting07Icon} class="size-4" />
 				Strict Pair Mode
 			</CardTitle>
 			<Badge variant={strictPairConfig.enabled ? 'default' : 'secondary'}>
@@ -230,7 +229,7 @@
 						onclick={() => (showLayerPairModal = true)}
 						disabled={availableLayers.length < 2}
 					>
-						<Plus class="mr-2 size-3" />
+						<Icon icon={PlusSignIcon} class="mr-2 size-3" />
 						Add Layer Combination
 					</Button>
 
@@ -276,7 +275,7 @@
 												class="hover:bg-destructive/10 hover:text-destructive h-9 px-3 text-xs"
 												onclick={() => removeLayerCombination(layerCombination.id)}
 											>
-												<X class="mr-1 size-3" />
+												<Icon icon={Cancel01Icon} class="mr-1 size-3" />
 												Remove
 											</Button>
 										</div>
@@ -288,7 +287,7 @@
 						<div class="px-4 py-6 text-center">
 							<div class="flex flex-col items-center gap-3">
 								<div class="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
-									<Settings class="text-muted-foreground size-6" />
+									<Icon icon={Setting07Icon} class="text-muted-foreground size-6" />
 								</div>
 								<div class="space-y-1">
 									<p class="text-muted-foreground text-sm font-medium">

@@ -4,8 +4,8 @@
 	import type { TraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
-	import Shuffle from '@lucide/svelte/icons/shuffle';
+	import Icon from '$components/shared/Icon.svelte';
+	import { RefreshIcon, ShuffleIcon } from '@hugeicons/core-free-icons';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { onDestroy, untrack } from 'svelte';
 
@@ -711,7 +711,7 @@
 				disabled={isRandomizing}
 				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
 			>
-				<Shuffle class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4 {isRandomizing ? 'animate-spin' : ''}" />
+				<Icon icon={ShuffleIcon} class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4 {isRandomizing ? 'animate-spin' : ''}" />
 				<span class="text-xs sm:text-sm">{isRandomizing ? 'Randomizing...' : 'Randomize'}</span>
 			</Button>
 			<Button
@@ -720,7 +720,7 @@
 				onclick={handleRefresh}
 				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
 			>
-				<RefreshCw class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+				<Icon icon={RefreshIcon} class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 				<span class="text-xs sm:text-sm">Refresh</span>
 			</Button>
 		</div>

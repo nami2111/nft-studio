@@ -8,10 +8,8 @@
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
-	import Edit from '@lucide/svelte/icons/edit';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import Check from '@lucide/svelte/icons/check';
-	import X from '@lucide/svelte/icons/x';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Edit02Icon, Delete02Icon, CheckmarkBadge01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
 	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
@@ -264,10 +262,9 @@
 				/>
 				<div class="flex">
 					<Button variant="ghost" size="icon" onclick={handleUpdateName} data-testid="save-button"
-						><Check class="h-4 w-4" /></Button
-					>
-					<Button variant="ghost" size="icon" onclick={cancelEdit} data-testid="cancel-button"
-						><X class="h-4 w-4" /></Button
+						><Icon icon={CheckmarkBadge01Icon} class="h-4 w-4" /></Button
+					><Button variant="ghost" size="icon" onclick={cancelEdit} data-testid="cancel-button"
+					><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button
 					>
 				</div>
 			{:else}
@@ -276,13 +273,13 @@
 				</p>
 				<div class="flex gap-1">
 					<Button variant="ghost" size="icon" onclick={startEditing} data-testid="edit-button"
-						><Edit class="h-4 w-4" /></Button
+						><Icon icon={Edit02Icon} class="h-4 w-4" /></Button
 					>
 					<Button
 						variant="ghost"
 						size="icon"
 						onclick={handleRemoveTrait}
-						data-testid="delete-button"><Trash2 class="text-destructive h-4 w-4" /></Button
+						data-testid="delete-button"><Icon icon={Delete02Icon} class="text-destructive h-4 w-4" /></Button
 					>
 				</div>
 			{/if}
