@@ -3,7 +3,6 @@
 	import type { Layer, Trait } from '$lib/types/layer';
 	import type { TraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent } from '$lib/components/ui/card';
 	import Icon from '$components/shared/Icon.svelte';
 	import { RefreshIcon, ShuffleIcon } from '@hugeicons/core-free-icons';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -301,7 +300,8 @@
 		// Check if project has valid output size
 		if (outputSize.width <= 0 || outputSize.height <= 0) {
 			// Draw placeholder text when no valid output size is set
-			ctx.fillStyle = '#9ca3af'; // gray-400
+			ctx.fillStyle = 'var(--color-muted-foreground)';
+			if (typeof ctx.fillStyle !== 'string') ctx.fillStyle = '#9ca3af';
 			ctx.font = `${getPlaceholderFontSize()} sans-serif`;
 			ctx.textAlign = 'center';
 			ctx.fillText(
@@ -692,9 +692,11 @@
 	}
 </script>
 
-<Card class="sticky top-3 shadow-none sm:top-4">
-	<CardContent class="p-3 sm:p-4">
-		<h2 class="mb-2 text-base font-bold sm:mb-3 sm:text-lg">Preview</h2>
+<div class="card-brutalist">
+	<div class="border-foreground border-b-2 px-4 py-3 sm:px-5 sm:py-4">
+		<h2 class="text-base font-semibold sm:text-lg">Preview</h2>
+	</div>
+	<div class="p-4 sm:p-5">
 		<div
 			bind:this={container}
 			class="border-input bg-muted flex aspect-square w-full max-w-full items-center justify-center overflow-hidden rounded-md border"
@@ -702,14 +704,14 @@
 			<canvas bind:this={canvas} class="block max-h-full max-w-full"></canvas>
 		</div>
 		<div
-			class="mt-2 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:justify-center sm:gap-0 sm:space-x-2"
+			class="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-center sm:gap-0 sm:space-x-2"
 		>
 			<Button
 				variant="outline"
 				size="sm"
 				onclick={randomize}
 				disabled={isRandomizing}
-				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
+				class="w-full transition-all sm:w-auto"
 			>
 				<Icon icon={ShuffleIcon} class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4 {isRandomizing ? 'animate-spin' : ''}" />
 				<span class="text-xs sm:text-sm">{isRandomizing ? 'Randomizing...' : 'Randomize'}</span>
@@ -718,11 +720,11 @@
 				variant="outline"
 				size="sm"
 				onclick={handleRefresh}
-				class="!hover:bg-primary !hover:text-primary-foreground w-full transition-all sm:w-auto"
+				class="w-full transition-all sm:w-auto"
 			>
 				<Icon icon={RefreshIcon} class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 				<span class="text-xs sm:text-sm">Refresh</span>
 			</Button>
 		</div>
-	</CardContent>
-</Card>
+	</div>
+</div>
