@@ -6,7 +6,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import Icon from '$components/shared/Icon.svelte';
-	import { Setting07Icon, PlusSignIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
+	import { Setting07Icon, PlusSignIcon, Cancel01Icon, Alert01Icon, CheckmarkBadge01Icon } from '@hugeicons/core-free-icons';
 	import type { StrictPairConfig, LayerCombination } from '$lib/types/layer';
 	import type { Layer } from '$lib/types/project';
 	import type { LayerId } from '$lib/types/ids';
@@ -314,13 +314,7 @@
 										<div
 											class="bg-destructive/20 mt-0.5 flex h-4 w-4 items-center justify-center rounded-full"
 										>
-											<svg class="text-destructive h-2 w-2" fill="currentColor" viewBox="0 0 20 20">
-												<path
-													fill-rule="evenodd"
-													d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92z"
-													clip-rule="evenodd"
-												/>
-											</svg>
+											<Icon icon={Alert01Icon} class="text-destructive h-2 w-2" />
 										</div>
 										<div class="flex-1 space-y-1">
 											<h5 class="text-destructive text-xs font-medium">Generation Warning</h5>
@@ -421,15 +415,7 @@
 								: 'border-foreground bg-background'}"
 						>
 							{#if isLayerSelected(layer.id)}
-								<svg
-									class="text-primary-foreground h-3.5 w-3.5"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									stroke-width="4"
-								>
-									<path stroke-linecap="square" stroke-linejoin="miter" d="M20 6L9 17L4 12" />
-								</svg>
+								<Icon icon={CheckmarkBadge01Icon} class="text-primary-foreground h-3.5 w-3.5" />
 							{/if}
 						</div>
 						<div class="flex-1">

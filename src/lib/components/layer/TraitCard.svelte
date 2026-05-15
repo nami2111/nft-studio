@@ -9,7 +9,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import Icon from '$components/shared/Icon.svelte';
-	import { Edit02Icon, Delete02Icon, CheckmarkBadge01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+	import { Edit02Icon, Delete02Icon, CheckmarkBadge01Icon, Cancel01Icon, AlertDiamondIcon } from '@hugeicons/core-free-icons';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
 	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
@@ -223,14 +223,7 @@
 						data-testid="reupload-indicator"
 					>
 						<div class="mb-2 rounded-full bg-amber-50 p-2 text-amber-500 dark:bg-amber-950/30">
-							<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-								/>
-							</svg>
+							<Icon icon={AlertDiamondIcon} class="h-6 w-6" />
 						</div>
 						<span class="text-[10px] font-medium text-amber-600 dark:text-amber-400"
 							>Source image missing</span
