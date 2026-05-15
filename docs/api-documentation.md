@@ -727,8 +727,15 @@ interface Project {
 	id: ProjectId;
 	name: string;
 	description: string;
-	outputSize: { width: number; height: number };
+	outputSize: ProjectDimensions;
+	metadataStandard?: MetadataStandard; // 'erc721' or 'solana'
+	symbol?: string;                     // Solana: token symbol
+	sellerFeeBasisPoints?: number;       // Solana: royalty in basis points
+	externalUrl?: string;                // ERC-721: external URL
+	animationUrl?: string;               // ERC-721: animation URL
+	creators?: { address: string; share: number }[];  // Solana: creator royalties
 	layers: Layer[];
+	strictPairConfig?: StrictPairConfig;
 }
 
 interface Layer {
@@ -783,4 +790,139 @@ interface BatchMessage {
 		projectDescription: string;
 	};
 }
+```
+
+## Persistence Service
+
+### Persistence Service API (`src/lib/services/persistence.service.ts`)
+
+```typescript
+export class PersistenceService {
+	/** Mark metadata or a specific layer as dirty for the next save. */
+	markDirty(layerId?: string): void;
+
+	/** Debounced persistence (default 1s delay). */
+	schedulePersist(project: Project, delay?: number): void;
+
+	/** Save project with differential updates (metadata vs asset separation). */
+	async saveProject(project: Project): Promise<void>;
+
+	/** Load and reconstitute project from storage. */
+	async loadProject(): Promise<Project | null>;
+
+	/** Clear all persisted data. */
+	async clearData(): Promise<void>;
+
+	/** Check if any project data exists. */
+	hasData(): boolean;
+
+	/** Synchronous metadata-only load for fast initialization. */
+	loadMetadataSync(): Project | null;
+
+	/** Force immediate persistence without debounce. */
+	async flush(project: Project): Promise<void>;
+}
+
+/** Global singleton instance. */
+export const persistenceService = new PersistenceService();
+```
+
+## Feature Flags
+
+### Feature Flags API (`src/lib/config/feature-flags.ts`)
+
+```typescript
+export interface FeatureFlags {
+	/** Stream generated images/metadata to IndexedDB instead of accumulating in memory */
+	enableStreamingStorage: boolean;
+	/** Transfer layers once by reference (ID-based batching) instead of full layers per batch */
+	enableLayerRef: boolean;
+	/** Use adaptive batch sizing based on collection size, worker count, and resolution */
+	enableAdaptiveBatchSize: boolean;
+	/** Offload ZIP packaging to a dedicated Web Worker */
+	enableZipWorkerOffloading: boolean;
+}
+
+/** Check if a feature flag is enabled. */
+export function isFlagEnabled(flag: keyof FeatureFlags): boolean;
+
+/** Override feature flags at runtime. */
+export function setFeatureFlags(overrides: Partial<FeatureFlags>): void;
+
+/** Get all current feature flag values (including runtime overrides). */
+export function getFeatureFlags(): FeatureFlags;
+
+/** Reset runtime overrides to defaults. */
+export function resetFeatureFlags(): void;
+```
+
+## Combination Indexer
+
+### Combination Indexer API (`src/lib/utils/combination-indexer.ts`)
+
+```typescript
+export class CombinationIndexer {
+	/** Pack up to 8 trait IDs (each ≤ 255) into a single 64-bit BigInt. */
+	static pack(traitIds: number[]): bigint;
+
+	/** Unpack a BigInt back into trait IDs. */
+	static unpack(index: bigint, expectedLength?: number): number[];
+}
+```
+
+## Gallery DB
+
+### Gallery DB API (`src/lib/persistence/gallery-db.ts`)
+
+```typescript
+/** Get IndexedDB storage estimate for quota monitoring. */
+export function getStorageEstimate(): Promise<{ usage: number; quota: number }>;
+
+/** Stream a batch of items to IndexedDB. */
+export function streamBatch(collectionId: string, items: GalleryItem[]): Promise<void>;
+
+/** Iterate items in a collection. */
+export function iterateItems(collectionId: string, callback: (item: GalleryItem) => void): Promise<void>;
+
+/** Clear streaming session data. */
+export function clearSession(collectionId: string): Promise<void>;
+```
+
+## Metadata Strategy
+
+### Metadata Strategy API (`src/lib/domain/metadata/`)
+
+```typescript
+export enum MetadataStandard {
+	ERC721 = 'erc721',
+	SOLANA = 'solana'
+}
+
+export interface MetadataStrategy {
+	name: string;
+	description: string;
+	format(name: string, description: string, imageName: string, attributes: MetadataAttribute[], extraData?: Record<string, unknown>): GeneratedMetadata;
+}
+
+export interface MetadataAttribute {
+	trait_type: string;
+	value: string | number | boolean;
+	display_type?: string;
+	max_value?: number;
+}
+
+export interface GeneratedMetadata {
+	name: string;
+	description: string;
+	image: string;
+	external_url?: string;
+	animation_url?: string;
+	youtube_url?: string;
+	background_color?: string;
+	attributes: MetadataAttribute[];
+	[key: string]: unknown;
+}
+
+export const metadataStrategies: Record<MetadataStandard, MetadataStrategy>;
+export function getMetadataStrategy(standard: MetadataStandard): MetadataStrategy;
 ```
