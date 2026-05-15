@@ -21,6 +21,15 @@ Before adding traits, you need to have a project with at least one layer:
    - Click "Load Project" and select your project ZIP file
    - Or use the auto-saved project from local storage
 
+### Project Metadata Settings
+
+Before adding layers, configure how metadata is generated for your collection:
+
+- **Metadata standard**: Choose between ERC-721 (Ethereum/EVM) or Solana (Metaplex) in Project Settings
+- **Solana-specific fields**: Set the token `symbol`, `seller_fee_basis_points` (royalty in basis points), and `creators` (each with address and share percentage)
+- **ERC-721-specific fields**: Configure `external_url`, `animation_url`, `youtube_url`, and `background_color`
+- These settings apply globally to all generated items in your collection
+
 ### 2. Add Layers
 
 If your project doesn't have layers yet:
@@ -59,6 +68,16 @@ For each layer, you can add multiple traits:
 - **Recommended dimensions**: Match your project output size
 
 > **Note**: The first image uploaded automatically sets the project output dimensions. All subsequent traits will be scaled to match these dimensions during generation.
+
+### Batch Trait Upload
+
+GNStudio supports adding multiple traits at once for faster workflow:
+
+- **Drag and drop multiple files**: Select and drag many images at once into the trait panel
+- **Automatic naming**: Trait names are derived from filenames with the extension stripped
+- **Batched processing**: Files are processed sequentially with a 100ms delay between each to maintain UI responsiveness
+- **Immediate visual feedback**: Object URLs are created for each trait so you can see previews right away
+- **Smart filtering**: Use the search bar within a layer to quickly find specific traits, even with large trait counts
 
 ### 4. Configure Rarity Distribution
 
@@ -99,6 +118,14 @@ Before generating your full collection:
 - **Maintain consistent naming** conventions
 - **Document your trait system** for future reference
 
+### Virtual Trait List
+
+For layers with many traits, the trait list uses a virtualized rendering approach:
+
+- **Efficient rendering**: Only visible traits are rendered in the DOM, ensuring smooth performance
+- **Smooth scrolling**: Handles hundreds of traits without lag or jank
+- **Automatic optimization**: No manual configuration needed — performance scales automatically
+
 ## Common Issues and Solutions
 
 ### Image Loading Problems
@@ -112,6 +139,8 @@ Before generating your full collection:
 - **Too many legendaries**: Consider making some traits more common
 - **Missing combinations**: Add more trait variety
 - **Unbalanced distribution**: Adjust rarity weights
+- **Granular rarity control**: Use custom rarity weights beyond the 1-5 range for more precise distribution tuning
+- **Strategic classification**: Categorize traits as strategic (low supply, high demand), balanced (standard), or filler (common, high volume) to plan your collection's appeal
 
 ### Performance Tips
 
@@ -171,6 +200,14 @@ While the default is 1-5, you can use any positive integer for more granular con
 ### Image Security
 
 All uploaded images undergo security validation to prevent malicious content and ensure safe processing.
+
+### Metadata Standard Fields
+
+GNStudio supports both ERC-721 and Solana (Metaplex) metadata standards for generating item-level JSON metadata:
+
+- **ERC-721 Fields**: Configure `external_url`, `animation_url`, `youtube_url`, and `background_color` in Project Settings. These fields are included in the metadata JSON for each generated item.
+- **Solana (Metaplex) Fields**: Configure `symbol`, `seller_fee_basis_points`, `creators` (address + share), and collection info in Project Settings.
+- **Standard Selection**: Choose your target metadata standard (ERC-721 or Solana) in Project Settings, which determines the schema used for metadata generation.
 
 ## Next Steps
 
