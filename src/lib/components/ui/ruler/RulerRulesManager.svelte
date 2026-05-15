@@ -4,7 +4,7 @@
 	import { Modal } from '$lib/components/ui/modal';
 	import { Badge } from '$lib/components/ui/badge';
 	import Icon from '$components/shared/Icon.svelte';
-	import { PlusSignIcon, Cancel01Icon, Setting07Icon } from '@hugeicons/core-free-icons';
+	import { PlusSignIcon, Cancel01Icon, CheckmarkBadge01Icon, Setting07Icon, Alert01Icon, Wrench01Icon } from '@hugeicons/core-free-icons';
 	import type { Trait, Layer, RulerRule } from '$lib/types/layer';
 	import type { LayerId, TraitId } from '$lib/types/ids';
 
@@ -212,17 +212,11 @@
 													aria-pressed={isInAllowed}
 													aria-label={`Toggle ${targetTrait.name} from allowed traits`}
 												>
-													{#if isInAllowed}
+														{#if isInAllowed}
 														<Badge
 															class="border-green-600 bg-green-600 text-white hover:bg-green-700 dark:border-green-500 dark:bg-green-500 dark:hover:bg-green-600"
 														>
-															<svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-																<path
-																	fill-rule="evenodd"
-																	d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-																	clip-rule="evenodd"
-																/>
-															</svg>
+															<Icon icon={CheckmarkBadge01Icon} class="mr-1 h-3 w-3" />
 															{targetTrait.name}
 														</Badge>
 													{:else if isInForbidden}
@@ -300,17 +294,11 @@
 													aria-pressed={isInForbidden}
 													aria-label={`Toggle ${targetTrait.name} from forbidden traits`}
 												>
-													{#if isInForbidden}
+														{#if isInForbidden}
 														<Badge
 															class="border-red-600 bg-red-600 text-white hover:bg-red-700 dark:border-red-500 dark:bg-red-500 dark:hover:bg-red-600"
 														>
-															<svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-																<path
-																	fill-rule="evenodd"
-																	d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-																	clip-rule="evenodd"
-																/>
-															</svg>
+															<Icon icon={Cancel01Icon} class="mr-1 h-3 w-3" />
 															{targetTrait.name}
 														</Badge>
 													{:else if isInAllowed}
@@ -337,7 +325,7 @@
 								<!-- Conflict warning and Add button -->
 								{#if hasConflicts(newRule)}
 									<div class="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
-										<span>⚠️ Auto-resolving conflicts</span>
+										<Icon icon={Alert01Icon} class="h-3 w-3" /> Auto-resolving conflicts
 									</div>
 								{/if}
 								<Button
@@ -351,7 +339,7 @@
 									<Icon icon={PlusSignIcon} class="mr-1 h-3 w-3" />
 									Add Rule
 									{#if hasConflicts(newRule)}
-										<span class="ml-auto text-xs">🔧 Auto-fix conflicts</span>
+										<span class="ml-auto text-xs flex items-center gap-1"><Icon icon={Wrench01Icon} class="h-3 w-3" /> Auto-fix conflicts</span>
 									{/if}
 								</Button>
 							{:else}
