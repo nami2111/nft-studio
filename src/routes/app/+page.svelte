@@ -98,27 +98,27 @@
 	<!-- Main Content Grid -->
 	<div class="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 md:gap-6 lg:grid-cols-12 xl:grid-cols-12">
 		<!-- Left Column: Project Settings and Layer Manager -->
-		<div class="space-y-3 sm:space-y-4 lg:col-span-8 xl:col-span-7">
+		<div class="space-y-4 sm:space-y-6 lg:col-span-8 xl:col-span-7">
 			<!-- Project Settings Card -->
-			<div class="bg-card/95 rounded-lg border-2 shadow-sm backdrop-blur-sm">
-				<div class="border-b-2 px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+			<div class="card-brutalist">
+				<div class="border-foreground border-b-2 px-4 py-3 sm:px-5 sm:py-4">
 					<h2 class="text-base font-semibold sm:text-lg lg:text-xl">Project Settings</h2>
 				</div>
-				<div class="p-3 sm:p-4 lg:p-6">
+				<div class="p-4 sm:p-5">
 					<ProjectSettings />
 				</div>
 			</div>
 
 			<!-- Layer Manager -->
-			<div class="mt-3 sm:mt-4 lg:mt-6">
+			<div class="mt-4 sm:mt-6">
 				{#if LayerManager}
 					<LayerManager />
 				{:else if isLoadingLayerManager}
-					<div class="bg-card/95 rounded-lg border-2 shadow-sm backdrop-blur-sm">
-						<div class="border-b-2 px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+					<div class="card-brutalist">
+						<div class="border-foreground border-b-2 px-4 py-3 sm:px-5 sm:py-4">
 							<h2 class="text-base font-semibold sm:text-lg lg:text-xl">Layer Manager</h2>
 						</div>
-						<div class="p-3 sm:p-4 lg:p-6">
+						<div class="p-4 sm:p-5">
 							<div class="flex items-center justify-center py-8">
 								<div class="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
 								<span class="text-muted-foreground ml-2 text-sm">Loading Layer Manager...</span>
@@ -128,7 +128,7 @@
 				{:else}
 					<button
 						onclick={loadLayerManager}
-						class="bg-card/95 hover:bg-card w-full rounded-lg border-2 p-4 shadow-sm backdrop-blur-sm transition-colors"
+						class="card-brutalist hover:bg-muted w-full p-4 text-left transition-colors cursor-pointer"
 					>
 						<div class="flex items-center justify-center py-4">
 							<span class="text-muted-foreground text-sm">Click to load Layer Manager</span>
@@ -139,11 +139,9 @@
 		</div>
 
 		<!-- Right Column: Preview, Strict Pair, and Generation -->
-		<div class="space-y-3 sm:space-y-4 lg:col-span-4 xl:col-span-5">
+		<div class="space-y-4 sm:space-y-6 lg:col-span-4 xl:col-span-5">
 			<!-- Preview -->
-			<div class="lg:sticky lg:top-4 xl:top-6">
-				<Preview />
-			</div>
+			<Preview />
 
 			<!-- Strict Pair Card -->
 			{#if currentProject}
@@ -151,11 +149,11 @@
 			{/if}
 
 			<!-- Generation Card -->
-			<div class="bg-card/95 rounded-lg border-2 shadow-sm backdrop-blur-sm">
-				<div class="border-b-2 px-3 py-2 sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+			<div class="card-brutalist">
+				<div class="border-foreground border-b-2 px-4 py-3 sm:px-5 sm:py-4">
 					<h2 class="text-base font-semibold sm:text-lg lg:text-xl">Generate Collection</h2>
 				</div>
-				<div class="p-3 sm:p-4 lg:p-6">
+				<div class="p-4 sm:p-5">
 					<div class="flex justify-center">
 						<GenerationForm />
 					</div>
