@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { loadingStates } from '$lib/stores';
-	import Loader2 from '@lucide/svelte/icons/loader-2';
+	import Icon from '$components/shared/Icon.svelte';
+	import { RefreshIcon } from '@hugeicons/core-free-icons';
 
 	interface Props {
 		operation: string;
@@ -16,7 +17,7 @@
 
 {#if isLoading}
 	<div class="flex items-center">
-		<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+		<Icon icon={RefreshIcon} class="mr-2 h-4 w-4 animate-spin" />
 		<span>{message}</span>
 	</div>
 {/if}

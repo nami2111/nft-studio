@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
+	import Icon from '$components/shared/Icon.svelte';
 	import {
-		AlertCircle,
-		RefreshCw,
-		Home,
-		FileText,
-		Wifi,
-		Database,
-		Cpu,
-		HardDrive
-	} from '@lucide/svelte';
+		AlertCircleIcon,
+		RefreshIcon,
+		Home01Icon,
+		File01Icon,
+		Wifi01Icon,
+		DatabaseIcon,
+		CpuIcon,
+		HardDriveIcon
+	} from '@hugeicons/core-free-icons';
 	import { handleError, getDetailedErrorInfo } from '$lib/utils/error-handler';
 	import { AppError } from '$lib/utils/error-handling';
 
@@ -89,7 +90,7 @@
 					'Try again in a moment',
 					'Use offline mode'
 				],
-				icon: Wifi
+				icon: Wifi01Icon
 			};
 		}
 
@@ -104,7 +105,7 @@
 				severity: 'medium',
 				recoveryOptions: ['clear-storage', 'use-memory-mode', 'refresh'],
 				suggestedActions: ['Clear browser storage', 'Refresh the page', 'Try using memory mode'],
-				icon: Database
+				icon: DatabaseIcon
 			};
 		}
 
@@ -119,7 +120,7 @@
 				severity: 'critical',
 				recoveryOptions: ['clear-cache', 'reduce-quality', 'restart'],
 				suggestedActions: ['Clear cache and cookies', 'Reduce image quality', 'Restart browser'],
-				icon: HardDrive
+				icon: HardDriveIcon
 			};
 		}
 
@@ -130,7 +131,7 @@
 				severity: 'high',
 				recoveryOptions: ['retry-generation', 'reduce-collection-size', 'check-workers'],
 				suggestedActions: ['Retry generation', 'Reduce collection size', 'Check worker status'],
-				icon: Cpu
+				icon: CpuIcon
 			};
 		}
 
@@ -145,7 +146,7 @@
 				severity: 'high',
 				recoveryOptions: ['restart-workers', 'fallback-main-thread', 'refresh'],
 				suggestedActions: ['Restart workers', 'Use main thread', 'Refresh page'],
-				icon: Cpu
+				icon: CpuIcon
 			};
 		}
 
@@ -156,7 +157,7 @@
 				severity: 'medium',
 				recoveryOptions: ['check-inputs', 'reset-form', 'validate-data'],
 				suggestedActions: ['Check input data', 'Reset form', 'Validate data'],
-				icon: AlertCircle
+				icon: AlertCircleIcon
 			};
 		}
 
@@ -166,7 +167,7 @@
 			severity: 'medium',
 			recoveryOptions: ['retry', 'refresh', 'report-error'],
 			suggestedActions: ['Try again', 'Refresh page', 'Report this error'],
-			icon: AlertCircle
+			icon: AlertCircleIcon
 		};
 	}
 
@@ -343,9 +344,9 @@ if (import.meta.env.DEV) console.log('Error details copied to clipboard');
 					<div class="mb-4 flex justify-center">
 						{#if errorInfo && error}
 							{@const errorCategory = categorizeError(error)}
-							<errorCategory.icon class="h-16 w-16 text-red-500" aria-hidden="true" />
+							<Icon icon={errorCategory.icon} class="h-16 w-16 text-red-500" aria-hidden="true" />
 						{:else}
-							<AlertCircle class="h-16 w-16 text-red-500" aria-hidden="true" />
+							<Icon icon={AlertCircleIcon} class="h-16 w-16 text-red-500" aria-hidden="true" />
 						{/if}
 					</div>
 					<h1 class="mb-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
@@ -412,7 +413,7 @@ if (import.meta.env.DEV) console.log('Error details copied to clipboard');
 							class="w-full"
 							disabled={retryCount >= maxRetries}
 						>
-							<RefreshCw class="mr-2 h-4 w-4" aria-hidden="true" />
+							<Icon icon={RefreshIcon} class="mr-2 h-4 w-4" aria-hidden="true" />
 							Retry ({maxRetries - retryCount} attempts left)
 						</Button>
 					{/if}
@@ -424,7 +425,7 @@ if (import.meta.env.DEV) console.log('Error details copied to clipboard');
 							class="w-full"
 							aria-label="Refresh the page to try again"
 						>
-							<RefreshCw class="mr-2 h-4 w-4" aria-hidden="true" />
+							<Icon icon={RefreshIcon} class="mr-2 h-4 w-4" aria-hidden="true" />
 							Refresh Page
 						</Button>
 
@@ -434,7 +435,7 @@ if (import.meta.env.DEV) console.log('Error details copied to clipboard');
 							class="w-full"
 							aria-label="Go back to the home page"
 						>
-							<Home class="mr-2 h-4 w-4" aria-hidden="true" />
+							<Icon icon={Home01Icon} class="mr-2 h-4 w-4" aria-hidden="true" />
 							Go Home
 						</Button>
 					</div>
@@ -451,15 +452,15 @@ if (import.meta.env.DEV) console.log('Error details copied to clipboard');
 										class="w-full justify-start text-sm"
 									>
 										{#if option === 'clear-cache'}
-											<HardDrive class="mr-2 h-3 w-3" />
+											<Icon icon={HardDriveIcon} class="mr-2 h-3 w-3" />
 										{:else if option === 'clear-storage'}
-											<Database class="mr-2 h-3 w-3" />
+											<Icon icon={DatabaseIcon} class="mr-2 h-3 w-3" />
 										{:else if option === 'restart-workers'}
-											<Cpu class="mr-2 h-3 w-3" />
+											<Icon icon={CpuIcon} class="mr-2 h-3 w-3" />
 										{:else if option === 'offline-mode'}
-											<Wifi class="mr-2 h-3 w-3" />
+											<Icon icon={Wifi01Icon} class="mr-2 h-3 w-3" />
 										{:else}
-											<RefreshCw class="mr-2 h-3 w-3" />
+											<Icon icon={RefreshIcon} class="mr-2 h-3 w-3" />
 										{/if}
 										{option.replace('-', ' ')}
 									</Button>
@@ -474,7 +475,7 @@ if (import.meta.env.DEV) console.log('Error details copied to clipboard');
 						class="w-full"
 						aria-label="Copy error details to clipboard for debugging"
 					>
-						<FileText class="mr-2 h-4 w-4" aria-hidden="true" />
+						<Icon icon={File01Icon} class="mr-2 h-4 w-4" aria-hidden="true" />
 						Copy Error Details
 					</Button>
 				</div>

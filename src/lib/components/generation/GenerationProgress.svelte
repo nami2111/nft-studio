@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Progress } from '$lib/components/ui/progress';
-	import { AlertCircle, CheckCircle2, Cpu, Layers, Package, Sparkles } from '@lucide/svelte';
+	import Icon from '$components/shared/Icon.svelte';
+	import { AlertCircleIcon, CheckmarkCircle01Icon, CpuIcon, LayerIcon, PackageIcon, SparklesIcon } from '@hugeicons/core-free-icons';
 	import { generationState, resetState } from '$lib/stores/generation-progress.svelte';
 	import { formatTime } from '$lib/utils/formatters';
 	import { fade, slide, scale } from 'svelte/transition';
@@ -55,7 +56,7 @@
 	{#if isBackground}
 		<div class="mb-4 rounded-lg border-2 border-yellow-200 bg-yellow-50 p-4">
 			<div class="flex items-center gap-2">
-				<AlertCircle class="h-4 w-4 text-yellow-600" />
+				<Icon icon={AlertCircleIcon} class="h-4 w-4 text-yellow-600" />
 				<div class="flex-1">
 					<p class="text-sm font-medium text-yellow-800">Generation Running in Background</p>
 					<p class="text-xs text-yellow-600">
@@ -77,13 +78,13 @@
 						: 'text-muted-foreground/40'}"
 				>
 					{#if p === 'solving'}
-						<Layers class="h-3 w-3" />
+						<Icon icon={LayerIcon} class="h-3 w-3" />
 						<span>Solving</span>
 					{:else if p === 'generating'}
-						<Cpu class="h-3 w-3" />
+						<Icon icon={CpuIcon} class="h-3 w-3" />
 						<span>Generating</span>
 					{:else if p === 'packaging'}
-						<Package class="h-3 w-3" />
+						<Icon icon={PackageIcon} class="h-3 w-3" />
 						<span>Package</span>
 					{/if}
 					{#if p !== 'packaging'}
@@ -118,7 +119,7 @@
 					in:scale={{ duration: 400, delay: 200, easing: quintOut }}
 					class="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-green-700 dark:bg-green-900/20 dark:text-green-400"
 				>
-					<CheckCircle2 class="h-5 w-5" />
+					<Icon icon={CheckmarkCircle01Icon} class="h-5 w-5" />
 					<div class="flex-1">
 						<p class="text-sm font-bold">Generation Complete!</p>
 						<p class="text-xs opacity-80">{generationState.totalItems} items ready for preview.</p>
@@ -142,7 +143,7 @@
 							{/if}
 							{#if activeWorkers > 0}
 								<span class="flex items-center gap-1">
-									<Cpu class="h-3 w-3" />
+									<Icon icon={CpuIcon} class="h-3 w-3" />
 									{activeWorkers}/6 workers
 								</span>
 							{/if}

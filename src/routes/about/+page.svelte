@@ -9,34 +9,35 @@
 	import AboutRulerTraits from '$lib/components/about/AboutRulerTraits.svelte';
 	import AboutTechnicalDetails from '$lib/components/about/AboutTechnicalDetails.svelte';
 	import AboutPerformance from '$lib/components/about/AboutPerformance.svelte';
+	import Icon from '$components/shared/Icon.svelte';
 	import {
-		ArrowLeft,
-		FileText,
-		Zap,
-		Layers,
-		Cpu,
-		BarChart3,
-		Github,
-		Twitter,
-		Crown,
-		Menu,
-		X,
-		Image,
-		Settings
-	} from '@lucide/svelte';
+		ArrowLeft01Icon,
+		File01Icon,
+		ZapIcon,
+		LayerIcon,
+		CpuIcon,
+		LaptopPerformanceIcon,
+		GithubIcon,
+		NewTwitterIcon,
+		Crown03Icon,
+		Menu01Icon,
+		Cancel01Icon,
+		Image01Icon,
+		Setting07Icon
+	} from '@hugeicons/core-free-icons';
 
 	let activeSection = 'overview';
 	let isMobileMenuOpen = false;
 
 	const sections = [
-		{ id: 'overview', label: 'Overview', icon: FileText },
-		{ id: 'quick-start', label: 'Quick Start', icon: Zap },
-		{ id: 'advanced-features', label: 'Features', icon: Layers },
-		{ id: 'gallery-mode', label: 'Gallery Mode', icon: Image },
-		{ id: 'strict-pair', label: 'Strict Pair', icon: Settings },
-		{ id: 'ruler-traits', label: 'Ruler Traits', icon: Crown },
-		{ id: 'technical-details', label: 'Technical', icon: Cpu },
-		{ id: 'performance', label: 'Performance', icon: BarChart3 }
+		{ id: 'overview', label: 'Overview', icon: File01Icon },
+		{ id: 'quick-start', label: 'Quick Start', icon: ZapIcon },
+		{ id: 'advanced-features', label: 'Features', icon: LayerIcon },
+		{ id: 'gallery-mode', label: 'Gallery Mode', icon: Image01Icon },
+		{ id: 'strict-pair', label: 'Strict Pair', icon: Setting07Icon },
+		{ id: 'ruler-traits', label: 'Ruler Traits', icon: Crown03Icon },
+		{ id: 'technical-details', label: 'Technical', icon: CpuIcon },
+		{ id: 'performance', label: 'Performance', icon: LaptopPerformanceIcon }
 	];
 
 	function showSection(sectionId: string) {
@@ -72,7 +73,7 @@
 					class="text-muted-foreground hover:text-foreground"
 					onclick={toggleMobileMenu}
 				>
-					<Menu class="h-5 w-5" />
+					<Icon icon={Menu01Icon} class="h-5 w-5" />
 				</Button>
 				<div>
 					<h1 class="text-foreground text-lg font-bold">GNStudio</h1>
@@ -85,7 +86,7 @@
 				class="text-muted-foreground hover:text-foreground"
 				onclick={() => history.back()}
 			>
-				<ArrowLeft class="h-5 w-5" />
+				<Icon icon={ArrowLeft01Icon} class="h-5 w-5" />
 			</Button>
 		</div>
 	</div>
@@ -116,7 +117,7 @@
 							class="text-muted-foreground hover:text-foreground"
 							onclick={closeMobileMenu}
 						>
-							<X class="h-5 w-5" />
+							<Icon icon={Cancel01Icon} class="h-5 w-5" />
 						</Button>
 					</div>
 
@@ -130,7 +131,7 @@
 									: 'text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-[1.01]'}"
 								onclick={() => showSection(section.id)}
 							>
-								<section.icon class="h-4 w-4" />
+								<Icon icon={section.icon} class="h-4 w-4" />
 								<span class="text-sm font-medium">{section.label}</span>
 							</button>
 						{/each}
@@ -172,7 +173,7 @@
 									class="text-muted-foreground hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
 									title="Follow on X (Twitter)"
 								>
-									<Twitter class="h-4 w-4" />
+									<Icon icon={NewTwitterIcon} class="h-4 w-4" />
 								</a>
 								<a
 									href="https://github.com/nami2111"
@@ -181,7 +182,7 @@
 									class="text-muted-foreground hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
 									title="Follow on GitHub"
 								>
-									<Github class="h-4 w-4" />
+									<Icon icon={GithubIcon} class="h-4 w-4" />
 								</a>
 							</div>
 						</div>
@@ -203,7 +204,7 @@
 					class="text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
 					onclick={() => history.back()}
 				>
-					<ArrowLeft class="mr-2 h-4 w-4" />
+					<Icon icon={ArrowLeft01Icon} class="mr-2 h-4 w-4" />
 					Back
 				</Button>
 			</div>
@@ -224,7 +225,7 @@
 							: 'text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-[1.01]'}"
 						onclick={() => showSection(section.id)}
 					>
-						<section.icon class="h-4 w-4" />
+						<Icon icon={section.icon} class="h-4 w-4" />
 						<span class="text-sm font-medium">{section.label}</span>
 					</button>
 				{/each}
@@ -264,22 +265,22 @@
 							class="text-muted-foreground hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
 							title="Follow on X (Twitter)"
 						>
-							<Twitter class="h-4 w-4" />
-						</a>
-						<a
-							href="https://github.com/nami2111"
-							target="_blank"
-							rel="noopener noreferrer"
-							class="text-muted-foreground hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
-							title="Follow on GitHub"
-						>
-							<Github class="h-4 w-4" />
-						</a>
+									<Icon icon={NewTwitterIcon} class="h-4 w-4" />
+								</a>
+								<a
+									href="https://github.com/nami2111"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-muted-foreground hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
+									title="Follow on GitHub"
+								>
+									<Icon icon={GithubIcon} class="h-4 w-4" />
+								</a>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
-	</div>
 
 	<!-- Main Content Area -->
 	<div class="sm:ml-64">

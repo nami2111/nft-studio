@@ -2,7 +2,8 @@
 	import { onMount, type Snippet } from 'svelte';
 	import { page } from '$app/stores';
 	import { pwaInfo } from 'virtual:pwa-info';
-	import { Home, Settings, LayoutGrid, Info } from '@lucide/svelte';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Home01Icon, Setting07Icon, Image01Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
 	import '../app.css';
 	import { Button } from '$lib/components/ui/button';
 	import WindowControls from '$lib/components/shared/WindowControls.svelte';
@@ -53,7 +54,7 @@
 						size="sm"
 						class="flex items-center gap-1.5"
 					>
-						<Home class="h-3.5 w-3.5" />
+						<Icon icon={Home01Icon} class="h-3.5 w-3.5" />
 						<span class="hidden sm:inline">Home</span>
 					</Button>
 
@@ -63,7 +64,7 @@
 						size="sm"
 						class="flex items-center gap-1.5"
 					>
-						<Settings class="h-3.5 w-3.5" />
+						<Icon icon={Setting07Icon} class="h-3.5 w-3.5" />
 						<span class="hidden sm:inline">Studio</span>
 					</Button>
 
@@ -73,7 +74,7 @@
 						size="sm"
 						class="flex items-center gap-1.5"
 					>
-						<LayoutGrid class="h-3.5 w-3.5" />
+						<Icon icon={Image01Icon} class="h-3.5 w-3.5" />
 						<span class="hidden sm:inline">Gallery</span>
 					</Button>
 
@@ -83,7 +84,7 @@
 						size="sm"
 						class="flex items-center gap-1.5"
 					>
-						<Info class="h-3.5 w-3.5" />
+						<Icon icon={InformationCircleIcon} class="h-3.5 w-3.5" />
 						<span class="hidden sm:inline">About</span>
 					</Button>
 				</nav>
