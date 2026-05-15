@@ -285,7 +285,7 @@
 	const totalHeight = $derived(Math.ceil(items.length / columns) * rowHeight);
 </script>
 
-<div bind:this={wrapperElement} class="flex h-full flex-col {className}">
+<div bind:this={wrapperElement} class="flex flex-1 flex-col {className}">
 	<!-- Debug info - strictly flex-none to push content down -->
 	{#if import.meta.env.DEV}
 		<div

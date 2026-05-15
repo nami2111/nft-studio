@@ -233,7 +233,7 @@
 						</div>
 
 						<!-- Virtual Grid -->
-						<div class="bg-muted/5 relative flex-1 overflow-hidden">
+						<div class="bg-muted/5 relative min-h-0 flex flex-col flex-1 overflow-hidden">
 							<SimpleVirtualGrid
 								items={filteredItems}
 								{selectedItem}
@@ -241,7 +241,7 @@
 								columns={gridParams.columns}
 								itemHeight={gridParams.itemHeight}
 								gap={gridParams.gap}
-								class="h-full p-4"
+								class="pb-32 md:pb-0"
 							/>
 						</div>
 					{/if}
