@@ -24,7 +24,6 @@
 	let loadDialogOpen = $state(false);
 	let saveDialogOpen = $state(false);
 	let loadFileInputElement: HTMLInputElement | null = null;
-	const saveFileInputElement: HTMLInputElement | null = null;
 	let isDragOver = $state(false);
 	const isProjectLoading = $derived(getLoadingState('project-load'));
 	const isProjectSaving = $derived(getLoadingState('project-save'));
@@ -86,11 +85,10 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 			const message = error instanceof Error ? error.message : 'Failed to save project';
 			toast.error(message);
 		} finally {
-			// Reset file input
-			if (saveFileInputElement) {
-				saveFileInputElement.value = '';
-			}
 			stopDetailedLoading('project-save');
+			if (loadFileInputElement) {
+				loadFileInputElement.value = '';
+			}
 		}
 	}
 
@@ -223,10 +221,10 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 		</p>
 		<div class="space-y-3 sm:space-y-4">
 			<div
-				class="border-input hover:border-primary hover:border-muted-foreground/20 rounded-lg border-2 border-dashed p-4 text-center transition-colors sm:p-6 {isProjectLoading
-					? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500'
+				class="border-input hover:border-muted-foreground/20 rounded-lg border-2 border-dashed p-4 text-center transition-colors sm:p-6 {isProjectLoading
+					? 'border-primary bg-primary/10 ring-primary ring-2'
 					: isDragOver
-						? 'border-green-500 bg-green-50 ring-2 ring-green-400'
+						? 'border-success bg-success/10 ring-success ring-2'
 						: ''}"
 				role="button"
 				tabindex="0"
@@ -261,7 +259,7 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 				{#if projectLoadProgress?.progress !== undefined && projectLoadProgress.progress > 0}
 					<div class="bg-muted mt-3 w-full rounded-full sm:mt-4">
 						<div
-							class="h-1.5 rounded-full bg-blue-600 sm:h-2"
+							class="bg-primary h-1.5 rounded-full sm:h-2"
 							style="width: {projectLoadProgress.progress}%"
 						></div>
 					</div>
@@ -319,7 +317,7 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 			{#if projectSaveProgress?.progress !== undefined && projectSaveProgress.progress > 0}
 				<div class="bg-muted mt-2 w-full rounded-full">
 					<div
-						class="h-1.5 rounded-full bg-blue-600 sm:h-2"
+						class="bg-primary h-1.5 rounded-full sm:h-2"
 						style="width: {projectSaveProgress.progress}%"
 					></div>
 				</div>
