@@ -376,7 +376,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 			loaderDiv.className = 'flex h-full items-center justify-center';
 			const spinner = document.createElement('div');
 			spinner.className =
-				'h-6 w-6 animate-spin rounded-full border-2 border-input border-t-indigo-600';
+				'border-primary h-6 w-6 animate-spin rounded-full border-2 border-t-transparent';
 			loaderDiv.appendChild(spinner);
 			imgContainer.appendChild(loaderDiv);
 		}

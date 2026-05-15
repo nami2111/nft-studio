@@ -186,7 +186,7 @@
 	}
 </script>
 
-<Card class="rounded-lg shadow-none">
+<Card class="card-brutalist">
 	<CardHeader>
 		<div class="flex items-center justify-between">
 			<CardTitle class="flex items-center gap-2">
@@ -239,7 +239,7 @@
 							<h4 class="text-sm font-medium">Layer Combinations</h4>
 
 							{#each strictPairConfig.layerCombinations as layerCombination (layerCombination.id)}
-								<div class="group bg-card hover:bg-muted/50 rounded-lg border-2 p-3 transition-all">
+								<div class="group bg-card hover:bg-muted/50 border-2 p-3 transition-all">
 									<div class="space-y-2">
 										<!-- Top row: Description -->
 										<div class="text-sm leading-tight font-medium break-words">
@@ -309,7 +309,7 @@
 							{@const prediction10000 = predictBlocking(10000)}
 
 							{#if prediction1000.willBlock || prediction5000.willBlock || prediction10000.willBlock}
-								<div class="border-destructive/20 bg-destructive/5 mt-3 rounded-lg border p-3">
+								<div class="border-destructive/20 bg-destructive/5 mt-3 border p-3">
 									<div class="flex items-start gap-2">
 										<div
 											class="bg-destructive/20 mt-0.5 flex h-4 w-4 items-center justify-center rounded-full"
@@ -395,7 +395,7 @@
 			>
 				{#each availableLayers as layer (layer.id)}
 					<label
-						class="hover:bg-muted/50 flex w-full cursor-pointer items-center space-x-3 rounded-lg border-2 p-3 transition-colors {isLayerSelected(
+						class="hover:bg-muted/50 flex w-full cursor-pointer items-center space-x-3 border-2 p-3 transition-colors {isLayerSelected(
 							layer.id
 						)
 							? 'bg-primary/10 border-primary'
@@ -463,7 +463,7 @@
 		</div>
 
 		<!-- Action Buttons -->
-		<div class="mt-6 flex justify-end space-x-2 border-t-2 border-gray-300 pt-6">
+		<div class="mt-6 flex justify-end space-x-2 border-t-2 pt-6">
 			<Button
 				variant="outline"
 				size="sm"
