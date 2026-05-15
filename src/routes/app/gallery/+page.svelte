@@ -4,6 +4,9 @@
 	import { onMount, untrack } from 'svelte';
 	import type { GalleryItem, GalleryCollection, GallerySortOption } from '$lib/types/gallery';
 
+	import Icon from '$components/shared/Icon.svelte';
+	import { Image01Icon, Cancel01Icon, Search01Icon } from '@hugeicons/core-free-icons';
+
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import SimpleVirtualGrid from '$lib/components/gallery/SimpleVirtualGrid.svelte';
 	import CollectionStats from '$lib/components/gallery/CollectionStats.svelte';
@@ -177,17 +180,7 @@
 				<div class="flex min-h-[calc(100dvh-200px)] items-center justify-center px-4 pb-24">
 					<div class="w-full max-w-4xl text-center">
 						{#if !isLoading}
-							<svg
-							class="text-muted-foreground mx-auto h-16 w-16"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="1" />
-							<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1" />
-							<polyline points="21 15 16 10 5 21" stroke-width="1" />
-						</svg>
+							<Icon icon={Image01Icon} class="text-muted-foreground mx-auto h-16 w-16" />
 						<h2 class="mb-2 text-xl font-semibold">No collections yet</h2>
 						<p class="text-muted-foreground mb-6">
 								Generate in Generate Mode or import existing collections to get started.
@@ -268,13 +261,7 @@
 										class="bg-muted hover:bg-muted/80 rounded-full p-1"
 										aria-label="Close"
 									>
-										<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"
-											><path
-												fill-rule="evenodd"
-												d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-												clip-rule="evenodd"
-											/></svg
-										>
+										<Icon icon={Cancel01Icon} class="h-5 w-5" />
 									</button>
 								</div>
 								<ItemDetail
@@ -419,18 +406,7 @@
 								<div class="flex flex-col gap-4">
 									<div class="flex items-center gap-3">
 										<div class="relative flex-1">
-											<svg
-												class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-												><path
-													d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-													stroke-width="2"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-												/></svg
-											>
+											<Icon icon={Search01Icon} class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
 											<input
 												type="text"
 												placeholder="Search by name or trait..."
