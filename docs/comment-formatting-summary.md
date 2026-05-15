@@ -1,91 +1,33 @@
 # Comment and Formatting Standardization (Historical)
 
-> **Note**: This document records historical work. The `pnpm standardize-comments` &&
-> script no longer exists. Current build commands use `vp` instead of `pnpm`.
-> See `docs/onboarding.md` for the current development workflow.
+> **Note**: This document records historical work. The `standardize-comments` script no longer exists
+> and `pnpm` has been replaced by `vp` as the build tool. See `docs/onboarding.md` and
+> `AGENTS.md` for the current development workflow. All formatting is now handled by Oxfmt (`vp fmt`)
+> and linting by Oxlint (`vp lint`).
 
 ## Summary
 
-We've successfully improved the consistency of inline comments and formatting in the GNStudio codebase. Here's what was accomplished:
+This documents a historical effort to improve comment consistency. The current project uses Oxfmt and Oxlint
+for code quality, run via the `vp` CLI. See `docs/coding-standards.md` for current style guidelines.
 
-## Changes Made
+## Historical Usage (No Longer Valid)
 
-1. **Enhanced Coding Standards Documentation**
-   - Updated `docs/coding-standards.md` with comprehensive guidelines aligned with AGENTS.md for:
-     - Block comments (JSDoc style) with examples; no comments unless requested
-     - Inline comments with best practices
-     - Trailing comments usage
-     - General formatting standards (Prettier config)
-     - Naming conventions (camelCase, PascalCase)
-     - Error handling patterns using utils/error-handler.ts
-     - Testing guidelines with Vitest
-
-2. **Maintained Comment Standardization Script**
-   - Kept `scripts/standardize-comments.js` to automatically:
-     - Ensure inline comments have proper spacing (`// ` format)
-     - Remove trailing whitespace from lines
-   - Retained `pnpm standardize-comments` script in package.json
-
-3. **Applied Standardization**
-   - Ran the standardization script across the entire `src/` directory
-   - Processed all files including Svelte components and TypeScript files
-   - Ensured consistent comment formatting throughout the codebase
-
-4. **Integrated with Existing Tooling**
-   - Verified compatibility with existing Prettier configuration
-   - Confirmed that formatting remains consistent with project standards
-   - Added proper TypeScript typing for better code quality
-
-## Benefits
-
-- **Consistency**: All inline comments now follow the same format
-- **Maintainability**: Code is easier to read and maintain
-- **Automation**: Team members can easily standardize comments with a single command
-- **Documentation**: Clear guidelines for future code contributions
-- **Quality**: Enhanced error handling and testing standards improve code reliability
-
-## Usage
-
-To standardize comments in the future, run:
+The following commands no longer exist and are retained for historical reference only:
 
 ```
-pnpm standardize-comments
+pnpm standardize-comments   # Script removed
+pnpm format                 # Replaced by: vp fmt
+pnpm lint                   # Replaced by: vp lint
+pnpm check                  # Replaced by: vp check
 ```
 
-To format the entire codebase according to project standards:
+## Current Commands
+
+Refer to `AGENTS.md` for the authoritative list of current commands:
 
 ```
-pnpm format
+vp fmt          # Format with Oxfmt
+vp lint         # Lint with Oxlint
+vp check        # Format + lint + type check
+vp test         # Run all tests
 ```
-
-To check for formatting issues without making changes:
-
-```
-pnpm lint
-```
-
-To run all code quality checks:
-
-```
-pnpm check
-```
-
-## Best Practices
-
-1. **Run standardization before committing**:
-
-   ```bash
-   pnpm standardize-comments && pnpm format
-   ```
-
-2. **Check code quality regularly**:
-
-   ```bash
-   pnpm check && pnpm lint
-   ```
-
-3. **Follow the coding standards**:
-   - Reference `docs/coding-standards.md` for detailed guidelines
-   - Use JSDoc for all public functions and interfaces
-   - Write descriptive commit messages
-   - Keep functions small and focused
