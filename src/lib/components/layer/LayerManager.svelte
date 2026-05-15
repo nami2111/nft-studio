@@ -5,7 +5,8 @@
 
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import Loader2 from '@lucide/svelte/icons/loader-2';
+	import Icon from '$components/shared/Icon.svelte';
+	import { RefreshIcon } from '@hugeicons/core-free-icons';
 	import { showError, showSuccess } from '$lib/utils/error-handling';
 
 	const layers = $derived(project.layers);
@@ -63,7 +64,7 @@
 				class="w-full transition-all sm:w-auto"
 			>
 				{#if isAddingLayer}
-					<Loader2 class="mr-1 h-3 w-3 animate-spin sm:mr-2 sm:h-4 sm:w-4" />
+					<Icon icon={RefreshIcon} class="mr-1 h-3 w-3 animate-spin sm:mr-2 sm:h-4 sm:w-4" />
 					<span class="text-xs sm:text-sm">Adding...</span>
 				{:else}
 					<span class="text-xs sm:text-sm">Add Layer</span>

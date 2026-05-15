@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Progress } from '$lib/components/ui/progress';
-	import { AlertCircle, CheckCircle2, Cpu, Layers, Package, Sparkles } from '@lucide/svelte';
+	import Icon from '$components/shared/Icon.svelte';
+	import { AlertCircleIcon, CheckmarkCircle01Icon, CpuIcon, LayerIcon, PackageIcon, SparklesIcon, Timer01Icon, PauseIcon, RefreshIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
 	import { generationState, resetState } from '$lib/stores/generation-progress.svelte';
 	import { formatTime } from '$lib/utils/formatters';
 	import { fade, slide, scale } from 'svelte/transition';
@@ -53,12 +54,12 @@
 <div class="space-y-4 py-4">
 	<!-- Background Generation Status -->
 	{#if isBackground}
-		<div class="mb-4 rounded-lg border-2 border-yellow-200 bg-yellow-50 p-4">
+		<div class="mb-4 rounded-lg border-2 border-warning bg-warning/10 p-4">
 			<div class="flex items-center gap-2">
-				<AlertCircle class="h-4 w-4 text-yellow-600" />
+				<Icon icon={AlertCircleIcon} class="text-warning h-4 w-4" />
 				<div class="flex-1">
-					<p class="text-sm font-medium text-yellow-800">Generation Running in Background</p>
-					<p class="text-xs text-yellow-600">
+					<p class="text-warning text-sm font-medium">Generation Running in Background</p>
+					<p class="text-muted-foreground text-xs">
 						Session {currentSessionId?.slice(0, 8)}... • {generationState.currentIndex} of {generationState.totalItems}
 						items
 					</p>
@@ -77,13 +78,13 @@
 						: 'text-muted-foreground/40'}"
 				>
 					{#if p === 'solving'}
-						<Layers class="h-3 w-3" />
+						<Icon icon={LayerIcon} class="h-3 w-3" />
 						<span>Solving</span>
 					{:else if p === 'generating'}
-						<Cpu class="h-3 w-3" />
+						<Icon icon={CpuIcon} class="h-3 w-3" />
 						<span>Generating</span>
 					{:else if p === 'packaging'}
-						<Package class="h-3 w-3" />
+						<Icon icon={PackageIcon} class="h-3 w-3" />
 						<span>Package</span>
 					{/if}
 					{#if p !== 'packaging'}
@@ -116,9 +117,9 @@
 			{#if isCompleted}
 				<div
 					in:scale={{ duration: 400, delay: 200, easing: quintOut }}
-					class="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+					class="bg-success/10 text-success flex items-center gap-2 rounded-lg p-3"
 				>
-					<CheckCircle2 class="h-5 w-5" />
+					<Icon icon={CheckmarkCircle01Icon} class="h-5 w-5" />
 					<div class="flex-1">
 						<p class="text-sm font-bold">Generation Complete!</p>
 						<p class="text-xs opacity-80">{generationState.totalItems} items ready for preview.</p>
@@ -137,12 +138,13 @@
 							{/if}
 							{#if eta !== null}
 								<span class="flex items-center gap-1">
-									⏱️ {formatEta(eta)} remaining
+									<Icon icon={Timer01Icon} class="h-3 w-3" />
+									{formatEta(eta)} remaining
 								</span>
 							{/if}
 							{#if activeWorkers > 0}
 								<span class="flex items-center gap-1">
-									<Cpu class="h-3 w-3" />
+									<Icon icon={CpuIcon} class="h-3 w-3" />
 									{activeWorkers}/6 workers
 								</span>
 							{/if}
@@ -171,9 +173,9 @@
 						</p>
 					{/if}
 					{#if isPaused}
-						<p class="text-yellow-600">⏸️ Paused</p>
+						<p class="text-warning flex items-center gap-1"><Icon icon={PauseIcon} class="h-3 w-3" /> Paused</p>
 					{:else if isBackground}
-						<p class="text-blue-600">🔄 Running in background</p>
+						<p class="text-primary flex items-center gap-1"><Icon icon={RefreshIcon} class="h-3 w-3 animate-spin" /> Running in background</p>
 					{:else if !isGenerating && generationState.completionTime}
 						<div class="flex items-center justify-end">
 							<button
@@ -197,8 +199,8 @@
 
 			<!-- Error Display -->
 			{#if generationState.error}
-				<div class="rounded bg-red-50 p-2 text-xs text-red-600">
-					❌ {generationState.error}
+				<div class="bg-destructive/10 text-destructive flex items-center gap-1 rounded p-2 text-xs">
+					<Icon icon={Cancel01Icon} class="h-3 w-3" /> {generationState.error}
 				</div>
 			{/if}
 		</div>

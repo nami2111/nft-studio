@@ -2,7 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
-	import { Settings, LayoutGrid } from '@lucide/svelte';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Setting07Icon, Image01Icon } from '@hugeicons/core-free-icons';
 
 	interface Props {
 		class?: string;
@@ -14,12 +15,12 @@
 		{
 			name: 'Generate Mode',
 			route: '/app',
-			icon: Settings
+			icon: Setting07Icon
 		},
 		{
 			name: 'Gallery Mode',
 			route: '/app/gallery',
-			icon: LayoutGrid
+			icon: Image01Icon
 		}
 	];
 
@@ -37,8 +38,7 @@
 		class="flex items-center gap-2 {className}"
 	>
 		{#if currentMode.icon}
-			{@const IconComponent = currentMode.icon}
-			<IconComponent class="h-4 w-4" />
+			<Icon icon={currentMode.icon} class="h-4 w-4" />
 		{/if}
 		<span class="ml-2 hidden sm:inline">{currentMode.name}</span>
 	</Button>

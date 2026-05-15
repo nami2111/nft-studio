@@ -5,6 +5,8 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { formatDuration, formatTime } from '$lib/utils/formatters';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Rocket01Icon, Alert01Icon, DatabaseIcon, Wrench01Icon, Analytics01Icon } from '@hugeicons/core-free-icons';
 
 	let performanceStatus = $state({ isActive: false });
 	let updateInterval: number;
@@ -96,7 +98,7 @@
 	<Card>
 		<CardHeader>
 			<CardTitle class="flex items-center gap-2">
-				🚀 Performance Dashboard
+				<Icon icon={Rocket01Icon} class="h-5 w-5" /> Performance Dashboard
 				{#if performanceStatus.isActive}
 					<Badge variant="outline" class="text-green-600">Live</Badge>
 				{:else}
@@ -146,22 +148,22 @@
 
 				<!-- Performance recommendations -->
 				{#if currentSpeed < 5}
-					<div class="recommendation warning">
-						⚠️ Generation is running slower than expected. Consider using fast generation mode for
+					<div class="recommendation warning flex items-center gap-1">
+						<Icon icon={Alert01Icon} class="h-4 w-4 shrink-0" /> Generation is running slower than expected. Consider using fast generation mode for
 						better performance.
 					</div>
 				{/if}
 
 				{#if memoryEfficiency === 'poor'}
-					<div class="recommendation warning">
-						💾 High memory usage detected. Consider reducing collection size or enabling batch
+					<div class="recommendation warning flex items-center gap-1">
+						<Icon icon={DatabaseIcon} class="h-4 w-4 shrink-0" /> High memory usage detected. Consider reducing collection size or enabling batch
 						processing.
 					</div>
 				{/if}
 
 				{#if algorithm === 'existing-sophisticated'}
-					<div class="recommendation info">
-						🔧 Using sophisticated generation for complex constraints. Fast generation could be
+					<div class="recommendation info flex items-center gap-1">
+						<Icon icon={Wrench01Icon} class="h-4 w-4 shrink-0" /> Using sophisticated generation for complex constraints. Fast generation could be
 						faster for simpler collections.
 					</div>
 				{/if}
@@ -179,7 +181,7 @@
 	{#if generationState.memoryUsage}
 		<Card>
 			<CardHeader>
-				<CardTitle class="flex items-center gap-2">💾 Memory Usage</CardTitle>
+				<CardTitle class="flex items-center gap-2"><Icon icon={DatabaseIcon} class="h-5 w-5" /> Memory Usage</CardTitle>
 			</CardHeader>
 			<CardContent>
 				<div class="space-y-2">
@@ -221,7 +223,7 @@
 	{#if generationState.sessionId}
 		<Card>
 			<CardHeader>
-				<CardTitle class="flex items-center gap-2">📊 Generation Details</CardTitle>
+				<CardTitle class="flex items-center gap-2"><Icon icon={Analytics01Icon} class="h-5 w-5" /> Generation Details</CardTitle>
 			</CardHeader>
 			<CardContent class="space-y-2">
 				<div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">

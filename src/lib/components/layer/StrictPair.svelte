@@ -5,9 +5,8 @@
 	import { Modal } from '$lib/components/ui/modal';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import Settings from '@lucide/svelte/icons/settings';
-	import Plus from '@lucide/svelte/icons/plus';
-	import X from '@lucide/svelte/icons/x';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Setting07Icon, PlusSignIcon, Cancel01Icon, Alert01Icon, CheckmarkBadge01Icon } from '@hugeicons/core-free-icons';
 	import type { StrictPairConfig, LayerCombination } from '$lib/types/layer';
 	import type { Layer } from '$lib/types/project';
 	import type { LayerId } from '$lib/types/ids';
@@ -187,11 +186,11 @@
 	}
 </script>
 
-<Card class="rounded-lg shadow-none">
+<Card class="card-brutalist">
 	<CardHeader>
 		<div class="flex items-center justify-between">
 			<CardTitle class="flex items-center gap-2">
-				<Settings class="size-4" />
+				<Icon icon={Setting07Icon} class="size-4" />
 				Strict Pair Mode
 			</CardTitle>
 			<Badge variant={strictPairConfig.enabled ? 'default' : 'secondary'}>
@@ -230,7 +229,7 @@
 						onclick={() => (showLayerPairModal = true)}
 						disabled={availableLayers.length < 2}
 					>
-						<Plus class="mr-2 size-3" />
+						<Icon icon={PlusSignIcon} class="mr-2 size-3" />
 						Add Layer Combination
 					</Button>
 
@@ -240,7 +239,7 @@
 							<h4 class="text-sm font-medium">Layer Combinations</h4>
 
 							{#each strictPairConfig.layerCombinations as layerCombination (layerCombination.id)}
-								<div class="group bg-card hover:bg-muted/50 rounded-lg border-2 p-3 transition-all">
+								<div class="group bg-card hover:bg-muted/50 border-2 p-3 transition-all">
 									<div class="space-y-2">
 										<!-- Top row: Description -->
 										<div class="text-sm leading-tight font-medium break-words">
@@ -276,7 +275,7 @@
 												class="hover:bg-destructive/10 hover:text-destructive h-9 px-3 text-xs"
 												onclick={() => removeLayerCombination(layerCombination.id)}
 											>
-												<X class="mr-1 size-3" />
+												<Icon icon={Cancel01Icon} class="mr-1 size-3" />
 												Remove
 											</Button>
 										</div>
@@ -288,7 +287,7 @@
 						<div class="px-4 py-6 text-center">
 							<div class="flex flex-col items-center gap-3">
 								<div class="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
-									<Settings class="text-muted-foreground size-6" />
+									<Icon icon={Setting07Icon} class="text-muted-foreground size-6" />
 								</div>
 								<div class="space-y-1">
 									<p class="text-muted-foreground text-sm font-medium">
@@ -310,18 +309,12 @@
 							{@const prediction10000 = predictBlocking(10000)}
 
 							{#if prediction1000.willBlock || prediction5000.willBlock || prediction10000.willBlock}
-								<div class="border-destructive/20 bg-destructive/5 mt-3 rounded-lg border p-3">
+								<div class="border-destructive/20 bg-destructive/5 mt-3 border p-3">
 									<div class="flex items-start gap-2">
 										<div
 											class="bg-destructive/20 mt-0.5 flex h-4 w-4 items-center justify-center rounded-full"
 										>
-											<svg class="text-destructive h-2 w-2" fill="currentColor" viewBox="0 0 20 20">
-												<path
-													fill-rule="evenodd"
-													d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92z"
-													clip-rule="evenodd"
-												/>
-											</svg>
+											<Icon icon={Alert01Icon} class="text-destructive h-2 w-2" />
 										</div>
 										<div class="flex-1 space-y-1">
 											<h5 class="text-destructive text-xs font-medium">Generation Warning</h5>
@@ -402,7 +395,7 @@
 			>
 				{#each availableLayers as layer (layer.id)}
 					<label
-						class="hover:bg-muted/50 flex w-full cursor-pointer items-center space-x-3 rounded-lg border-2 p-3 transition-colors {isLayerSelected(
+						class="hover:bg-muted/50 flex w-full cursor-pointer items-center space-x-3 border-2 p-3 transition-colors {isLayerSelected(
 							layer.id
 						)
 							? 'bg-primary/10 border-primary'
@@ -422,15 +415,7 @@
 								: 'border-foreground bg-background'}"
 						>
 							{#if isLayerSelected(layer.id)}
-								<svg
-									class="text-primary-foreground h-3.5 w-3.5"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									stroke-width="4"
-								>
-									<path stroke-linecap="square" stroke-linejoin="miter" d="M20 6L9 17L4 12" />
-								</svg>
+								<Icon icon={CheckmarkBadge01Icon} class="text-primary-foreground h-3.5 w-3.5" />
 							{/if}
 						</div>
 						<div class="flex-1">
@@ -478,7 +463,7 @@
 		</div>
 
 		<!-- Action Buttons -->
-		<div class="mt-6 flex justify-end space-x-2 border-t-2 border-gray-300 pt-6">
+		<div class="mt-6 flex justify-end space-x-2 border-t-2 pt-6">
 			<Button
 				variant="outline"
 				size="sm"

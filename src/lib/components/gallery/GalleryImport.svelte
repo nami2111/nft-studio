@@ -6,6 +6,8 @@
 	import { showError, showSuccess, showWarning } from '$lib/utils/error-handling';
 	import { ZipReader, BlobReader, BlobWriter, TextWriter } from '@zip.js/zip.js';
 	import { detectImageFormat } from '$lib/utils/image-format-detector';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Folder01Icon, Alert01Icon } from '@hugeicons/core-free-icons';
 
 	interface MetadataEntry {
 		name: string;
@@ -489,20 +491,7 @@
 			onclick={triggerFileSelect}
 		>
 			<div class="space-y-2">
-				<svg
-					class="text-muted-foreground mx-auto h-12 w-12"
-					stroke="currentColor"
-					fill="none"
-					viewBox="0 0 24 24"
-					aria-hidden="true"
-				>
-					<path
-						d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-						stroke-width="1"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					/>
-				</svg>
+				<Icon icon={Folder01Icon} class="text-muted-foreground mx-auto h-12 w-12" />
 				<div class="text-foreground text-sm font-medium">
 					{isImporting ? 'Importing...' : 'Drop ZIP file here or click to browse'}
 				</div>
@@ -510,8 +499,8 @@
 				<div class="text-muted-foreground mt-1 text-xs">
 					Tip: You can select multiple ZIP files at once (Ctrl+Click or Cmd+Click)
 				</div>
-				<div class="mt-1 text-xs font-medium text-orange-600">
-					⚠️ Limitations: Max 10,000 items per collection, 2GB total size across all files
+				<div class="mt-1 text-xs font-medium text-orange-600 flex items-center gap-1">
+					<Icon icon={Alert01Icon} class="h-3 w-3" /> Limitations: Max 10,000 items per collection, 2GB total size across all files
 				</div>
 				{#if isImporting && importMessage}
 					<div class="text-muted-foreground mt-2 text-xs">{importMessage}</div>

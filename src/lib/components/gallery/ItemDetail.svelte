@@ -6,6 +6,8 @@
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import { getRarityColor } from '$lib/utils/gallery-helpers';
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Image01Icon } from '@hugeicons/core-free-icons';
 
 	interface Props {
 		selectedItem?: GalleryItem | null;
@@ -65,17 +67,7 @@
 {/snippet}
 
 {#snippet imageIcon()}
-	<svg
-		class="text-muted-foreground h-10 w-10"
-		fill="none"
-		stroke="currentColor"
-		viewBox="0 0 24 24"
-		aria-hidden="true"
-	>
-		<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="1.5" />
-		<circle cx="8.5" cy="8.5" r="1.5" stroke-width="1.5" />
-		<polyline points="21 15 16 10 5 21" stroke-width="1.5" />
-	</svg>
+	<Icon icon={Image01Icon} class="text-muted-foreground h-10 w-10" />
 {/snippet}
 
 {#snippet content()}

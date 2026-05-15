@@ -71,6 +71,12 @@ importers:
         specifier: ^4.3.6
         version: 4.4.3
     devDependencies:
+      '@hugeicons/core-free-icons':
+        specifier: ^1.0.0
+        version: 1.2.1
+      '@hugeicons/svelte':
+        specifier: ^1.0.0
+        version: 1.1.2(svelte@5.55.5)
       '@internationalized/date':
         specifier: ^3.12.0
         version: 3.12.1
@@ -80,9 +86,6 @@ importers:
       '@junobuild/vite-plugin':
         specifier: ^4.7.1
         version: 4.7.1(@junobuild/schema@1.2.4(@icp-sdk/core@5.4.0)(zod@4.4.3))(vite@8.0.12(@types/node@25.7.0)(jiti@2.7.0)(terser@5.47.1))(zod@4.4.3)
-      '@lucide/svelte':
-        specifier: ^0.577.0
-        version: 0.577.0(svelte@5.55.5)
       '@sveltejs/adapter-static':
         specifier: ^3.0.10
         version: 3.0.10(@sveltejs/kit@2.59.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.5)(vite@8.0.12(@types/node@25.7.0)(jiti@2.7.0)(terser@5.47.1)))(svelte@5.55.5)(typescript@5.9.3)(vite@8.0.12(@types/node@25.7.0)(jiti@2.7.0)(terser@5.47.1)))
@@ -781,6 +784,9 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
+  '@hugeicons/core-free-icons@1.2.1':
+    resolution: {integrity: sha512-ho0QdGMkgL+kt+QsZocCsKvJou1rfyVQWARrxIhNLi+9tCKayUUtD9jlHgioaRphmskSl84TxrDm9Ae0G4Uu1g==}
+
   '@hugeicons/core-free-icons@4.1.4':
     resolution: {integrity: sha512-vkMvlnW7Atqh7juhZCadYDvqABWcEeVAkavAK6HJBFbYkLCme5CN51Oc91D5j5ruDja+HQPjMfWkTxxulcwvAQ==}
 
@@ -888,11 +894,6 @@ packages:
     resolution: {integrity: sha512-UwB4eCpP24SRxwGhlVv/I5SX7ggSbL1kOapNs9eq6kczQxUN4ZzAuhoOEmMd023Im18HK7SgBP759jQ/gqDWtg==}
     peerDependencies:
       vite: '>=8.0.5'
-
-  '@lucide/svelte@0.577.0':
-    resolution: {integrity: sha512-0P6mkySd2MapIEgq08tADPmcN4DHndC/02PWwaLkOerXlx5Sv9aT4BxyXLIY+eccr0g/nEyCYiJesqS61YdBZQ==}
-    peerDependencies:
-      svelte: ^5
 
   '@napi-rs/wasm-runtime@1.1.4':
     resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
@@ -4231,6 +4232,8 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
+  '@hugeicons/core-free-icons@1.2.1': {}
+
   '@hugeicons/core-free-icons@4.1.4': {}
 
   '@hugeicons/svelte@1.1.2(svelte@5.55.5)':
@@ -4357,10 +4360,6 @@ snapshots:
     transitivePeerDependencies:
       - '@junobuild/schema'
       - zod
-
-  '@lucide/svelte@0.577.0(svelte@5.55.5)':
-    dependencies:
-      svelte: 5.55.5
 
   '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:

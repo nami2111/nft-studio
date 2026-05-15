@@ -1,4 +1,9 @@
-					<section class="animate-in fade-in duration-300">
+<script lang="ts">
+	import Icon from '$components/shared/Icon.svelte';
+	import { IdeaIcon, Analytics01Icon, EyeIcon, Delete02Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
+</script>
+
+<section class="animate-in fade-in duration-300">
 						<div class="border-border bg-card rounded-lg border">
 							<div class="border-border border-b px-6 py-4">
 								<h2 class="text-foreground text-xl font-semibold">Strict Pair Mode</h2>
@@ -94,8 +99,8 @@
 											</ol>
 										</div>
 										<div class="border-border bg-muted rounded-lg border p-4">
-											<p class="text-foreground text-sm">
-												<strong>💡 Pro Tip:</strong> The system automatically calculates how many unique
+											<p class="text-foreground text-sm flex items-start gap-1">
+												<Icon icon={IdeaIcon} class="mt-0.5 h-4 w-4 shrink-0" /> <strong>Pro Tip:</strong> The system automatically calculates how many unique
 												combinations will be tracked. For example, selecting BASE (4 traits) + HEAD (3
 												traits) results in 4 × 3 = 12 tracked combinations.
 											</p>
@@ -144,27 +149,27 @@
 										</p>
 										<div class="space-y-2">
 											<div class="flex items-center space-x-3">
-												<span class="text-blue-500">📊</span>
+												<span class="text-blue-500"><Icon icon={Analytics01Icon} class="h-5 w-5" /></span>
 												<span class="text-muted-foreground text-sm">
 													<strong>Combination Counter:</strong> Shows total unique combinations that will
 													be tracked
 												</span>
 											</div>
 											<div class="flex items-center space-x-3">
-												<span class="text-blue-500">👁️</span>
+												<span class="text-blue-500"><Icon icon={EyeIcon} class="h-5 w-5" /></span>
 												<span class="text-muted-foreground text-sm">
 													<strong>Active/Inactive Toggle:</strong> Enable or disable combinations without
 													deleting them
 												</span>
 											</div>
 											<div class="flex items-center space-x-3">
-												<span class="text-blue-500">🗑️</span>
+												<span class="text-blue-500"><Icon icon={Delete02Icon} class="h-5 w-5" /></span>
 												<span class="text-muted-foreground text-sm">
 													<strong>Delete Button:</strong> Remove combinations you no longer need
 												</span>
 											</div>
 											<div class="flex items-center space-x-3">
-												<span class="text-blue-500">ℹ️</span>
+												<span class="text-blue-500"><Icon icon={InformationCircleIcon} class="h-5 w-5" /></span>
 												<span class="text-muted-foreground text-sm">
 													<strong>Info Button:</strong> View details about the combination and its current
 													status

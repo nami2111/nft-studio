@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import Crown from '@lucide/svelte/icons/crown';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Crown03Icon } from '@hugeicons/core-free-icons';
 	import type { Trait, TraitType } from '$lib/types/layer';
 
 	import { createLayerId, createTraitId } from '$lib/types/ids';
@@ -60,6 +61,6 @@
 		data-testid="trait-type-toggle"
 		data-trait-type={trait.type || 'normal'}
 	>
-		<Crown class="h-4 w-4" />
+		<Icon icon={Crown03Icon} class="h-4 w-4" />
 	</Button>
 {/if}
