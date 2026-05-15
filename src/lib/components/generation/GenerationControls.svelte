@@ -44,7 +44,7 @@
 			</div>
 		{:else if isGenerating}
 			<Button variant="outline" onclick={onCancel} size="sm" class="w-full sm:w-auto">
-				Canceling...
+				Cancel
 			</Button>
 		{/if}
 
