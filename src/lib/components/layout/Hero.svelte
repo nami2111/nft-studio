@@ -7,73 +7,73 @@
 </script>
 
 <section
-	class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#F2F2F2] p-4 font-mono text-black sm:p-8"
+	class="bg-background text-foreground relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4 font-mono sm:p-8"
 >
 	<!-- Blueprint Grid Layer -->
 	<div class="blueprint-grid absolute inset-0 opacity-[0.07]"></div>
 
 	<!-- Schematic Grid Layout -->
 	<div
-		class="relative z-10 grid w-full max-w-(--breakpoint-2xl) grid-cols-1 gap-0 border-4 border-black bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] lg:grid-cols-12"
+		class="border-foreground shadow-brutalist bg-card relative z-10 grid w-full max-w-(--breakpoint-2xl) grid-cols-1 gap-0 border-4 lg:grid-cols-12"
 	>
 		<!-- Left Column: Typography & Actions -->
 		<div class="flex flex-col p-5 sm:p-8 lg:col-span-7 lg:border-r-4 lg:p-12">
 			<div
-				class="mb-4 flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase opacity-60"
+				class="text-muted-foreground mb-4 flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase"
 			>
-				<span class="inline-block h-2 w-2 bg-black"></span>
-				<span class="hidden sm:inline">Project: GNSTUDIO_V0.5.5 //</span> DRAWING NO: BLP-WEB-001
+				<span class="bg-foreground inline-block h-2 w-2"></span>
+				<span class="hidden sm:inline">Project: GNSTUDIO_V1.0.0 //</span> DRAWING NO: BLP-WEB-001
 			</div>
 
 			<h1
-				class="mb-6 text-4xl leading-[0.85] font-extrabold tracking-tighter break-words uppercase selection:bg-purple-500 selection:text-white sm:text-5xl md:mb-8 lg:text-8xl"
+				class="mb-6 text-4xl leading-[0.85] font-extrabold tracking-tighter break-words uppercase selection:bg-primary selection:text-primary-foreground sm:text-5xl md:mb-8 lg:text-7xl xl:text-8xl"
 			>
 				Create<br class="hidden sm:block" /> Stunning<br class="hidden sm:block" /> Generative<br
 					class="hidden sm:block"
 				/> Collections
 			</h1>
 
-			<div class="mb-8 max-w-lg border-l-4 border-black pl-4 md:mb-10 md:pl-6">
+			<div class="border-foreground text-muted-foreground mb-8 max-w-lg border-l-4 pl-4 md:mb-10 md:pl-6">
 				<p
-					class="hidden text-xs leading-relaxed font-bold uppercase opacity-80 md:block md:text-base"
+					class="hidden text-xs leading-relaxed font-bold uppercase md:block md:text-base"
 				>
 					Layers + Traits + Rarity // Browser-Based // Instant Pipeline.
 				</p>
-				<p class="text-xs leading-relaxed font-bold uppercase opacity-80 md:hidden">
+				<p class="text-xs leading-relaxed font-bold uppercase md:hidden">
 					Layers // Traits // Rarity
 				</p>
 			</div>
 
 			<div class="mt-auto flex flex-col gap-4 pt-6 sm:flex-row sm:gap-6 sm:pt-8">
-				<Button
-					variant="default"
-					size="lg"
-					class="h-14 w-full px-8 text-base font-bold tracking-wider sm:w-auto"
-					onclick={() => goto(resolve('/app'))}
-				>
-					START BLUEPRINT ↗
-				</Button>
-				<Button
-					variant="outline"
-					size="lg"
-					class="h-14 w-full px-8 text-base font-bold tracking-wider sm:w-auto"
-					onclick={() => goto(resolve('/about'))}
-				>
-					DOCS
-				</Button>
+		<Button
+			variant="default"
+			size="lg"
+			class="h-14 w-full px-8 text-base font-bold tracking-wider sm:w-auto"
+			onclick={() => goto(resolve('/app'))}
+		>
+			START BLUEPRINT
+		</Button>
+		<Button
+			variant="outline"
+			size="lg"
+			class="h-14 w-full px-8 text-base font-bold tracking-wider sm:w-auto"
+			onclick={() => goto(resolve('/about'))}
+		>
+			DOCS
+		</Button>
 			</div>
 		</div>
 
 		<!-- Right Column: Preview Window -->
-		<div class="relative hidden flex-col bg-white lg:col-span-5 lg:flex">
-			<div class="flex items-center justify-between border-b-4 border-black bg-gray-100 px-4 py-2">
-				<span class="text-[10px] font-bold tracking-tighter uppercase"
+		<div class="bg-card relative hidden flex-col lg:col-span-5 lg:flex">
+			<div class="border-foreground bg-muted flex items-center justify-between border-b-4 px-4 py-2">
+				<span class="text-muted-foreground text-[10px] font-bold tracking-tighter uppercase"
 					>[WINDOW: PREVIEW_OUTPUT]</span
 				>
 				<div class="flex gap-2">
-					<div class="h-3 w-3 rounded-full border-2 border-black bg-red-400"></div>
-					<div class="h-3 w-3 rounded-full border-2 border-black bg-yellow-400"></div>
-					<div class="h-3 w-3 rounded-full border-2 border-black bg-green-400"></div>
+					<div class="bg-destructive border-foreground h-3 w-3 rounded-full border-2"></div>
+					<div class="bg-warning border-foreground h-3 w-3 rounded-full border-2"></div>
+					<div class="bg-success border-foreground h-3 w-3 rounded-full border-2"></div>
 				</div>
 			</div>
 
@@ -82,9 +82,9 @@
 				<div class="grid grid-cols-2 gap-4 opacity-40 grayscale filter lg:grid-cols-2">
 					{#each Array(4) as _}
 						<div
-							class="flex aspect-square items-center justify-center border-2 border-dashed border-black bg-gray-50"
+							class="border-border bg-muted flex aspect-square items-center justify-center border-2 border-dashed"
 						>
-							<div class="h-2/3 w-2/3 border border-black opacity-20"></div>
+							<div class="border-foreground h-2/3 w-2/3 border opacity-20"></div>
 						</div>
 					{/each}
 				</div>
@@ -93,23 +93,23 @@
 				<div
 					class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-4"
 				>
-					<div class="bg-black px-3 py-1 text-xs font-bold tracking-[0.2em] text-white uppercase">
+					<div class="bg-foreground text-background px-3 py-1 text-xs font-bold tracking-[0.2em] uppercase">
 						Rendering in progress...
 					</div>
-					<div class="mt-2 font-mono text-[9px] font-bold text-black uppercase">
+					<div class="text-muted-foreground mt-2 font-mono text-[9px] font-bold uppercase">
 						Est. Time Remaining: 00:12:45
 					</div>
 				</div>
 			</div>
 
 			<!-- Technical Footer Section -->
-			<div class="mt-auto grid grid-cols-2 border-t-4 border-black text-[9px] font-bold uppercase">
-				<div class="border-r-4 border-black p-3">
-					<div class="opacity-50">Resolution</div>
+			<div class="border-foreground mt-auto grid grid-cols-2 border-t-4 text-[9px] font-bold uppercase">
+				<div class="border-foreground border-r-4 p-3">
+					<div class="text-muted-foreground">Resolution</div>
 					<div>4K // Ultra-Def</div>
 				</div>
 				<div class="p-3">
-					<div class="opacity-50">Art Engine</div>
+					<div class="text-muted-foreground">Art Engine</div>
 					<div>NEOBR_CORE_v1.0</div>
 				</div>
 			</div>
@@ -117,7 +117,7 @@
 	</div>
 
 	<!-- Corners & Schematic Elements -->
-	<div class="pointer-events-none absolute inset-0 z-0">
+	<div class="text-muted-foreground pointer-events-none absolute inset-0 z-0">
 		<div class="absolute top-10 left-10 text-xs font-black opacity-20">SECTION A-A</div>
 		<div class="absolute right-10 bottom-10 rotate-180 text-xs font-black opacity-20">
 			SECTION A-A
@@ -142,6 +142,14 @@
 			-2px -2px,
 			-1px -1px,
 			-1px -1px;
+	}
+
+	:global(.dark) .blueprint-grid {
+		background-image:
+			linear-gradient(rgba(255, 255, 255, 0.3) 2px, transparent 2px),
+			linear-gradient(90deg, rgba(255, 255, 255, 0.3) 2px, transparent 2px),
+			linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
 	}
 
 	section {
