@@ -11,9 +11,9 @@
 
 <div class={className + ' flex items-center'}>
 	<div class="flex space-x-2">
-		<div class="h-3 w-3 rounded-full bg-red-500"></div>
-		<div class="h-3 w-3 rounded-full bg-yellow-500"></div>
-		<div class="h-3 w-3 rounded-full bg-green-500"></div>
+		<div class="bg-destructive h-3 w-3 rounded-full border-2 border-foreground"></div>
+		<div class="bg-warning h-3 w-3 rounded-full border-2 border-foreground"></div>
+		<div class="bg-success h-3 w-3 rounded-full border-2 border-foreground"></div>
 	</div>
-	<div class="ml-4 text-sm text-gray-400">{title}</div>
+	<div class="text-muted-foreground ml-4 text-sm">{title}</div>
 </div>
