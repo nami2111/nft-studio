@@ -2,7 +2,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { Play } from '@lucide/svelte';
+	import Icon from '$components/shared/Icon.svelte';
+	import { PlayIcon } from '@hugeicons/core-free-icons';
 
 	/* eslint-disable prefer-const */
 	let {
@@ -43,7 +44,7 @@
 			</div>
 		{:else if isGenerating}
 			<Button variant="outline" onclick={onCancel} size="sm" class="w-full sm:w-auto">
-				Canceling...
+				Cancel
 			</Button>
 		{/if}
 
@@ -61,7 +62,7 @@
 			{#if isGenerating}
 				Generating...
 			{:else}
-				<Play class="mr-2 h-4 w-4" />
+				<Icon icon={PlayIcon} class="mr-2 h-4 w-4" />
 				<span class="text-sm">Generate</span>
 			{/if}
 		</Button>

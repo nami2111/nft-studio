@@ -92,6 +92,33 @@
 		</div>
 		<div class="flex flex-col items-center">
 			<div
+				class="h-1 w-1 rounded-full transition-colors {currentValue === 2
+					? 'bg-primary'
+					: 'bg-muted-foreground/30'}"
+			></div>
+			<span class="text-muted-foreground/50 mt-1 text-[9px] tracking-tighter uppercase">Legend</span
+			>
+		</div>
+		<div class="flex flex-col items-center">
+			<div
+				class="h-1 w-1 rounded-full transition-colors {currentValue === 3
+					? 'bg-primary'
+					: 'bg-muted-foreground/30'}"
+			></div>
+			<span class="text-muted-foreground/50 mt-1 text-[9px] tracking-tighter uppercase">Epic</span
+			>
+		</div>
+		<div class="flex flex-col items-center">
+			<div
+				class="h-1 w-1 rounded-full transition-colors {currentValue === 4
+					? 'bg-primary'
+					: 'bg-muted-foreground/30'}"
+			></div>
+			<span class="text-muted-foreground/50 mt-1 text-[9px] tracking-tighter uppercase">Rare</span
+			>
+		</div>
+		<div class="flex flex-col items-center">
+			<div
 				class="h-1 w-1 rounded-full transition-colors {currentValue === 5
 					? 'bg-primary'
 					: 'bg-muted-foreground/30'}"

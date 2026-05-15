@@ -17,16 +17,14 @@
 		updateProjectDimensions
 	} from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import Edit from '@lucide/svelte/icons/edit';
-	import Check from '@lucide/svelte/icons/check';
-	import X from '@lucide/svelte/icons/x';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Delete02Icon, Edit02Icon, CheckmarkBadge01Icon, Cancel01Icon, ArrowDown01Icon, ArrowRight01Icon, Upload01Icon, Image01Icon } from '@hugeicons/core-free-icons';
 	import { getImageDimensions } from '$lib/utils';
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
+import { mount } from 'svelte';
+import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 	import {
 		showSuccess,
 		showError,
@@ -378,32 +376,15 @@
 			loaderDiv.className = 'flex h-full items-center justify-center';
 			const spinner = document.createElement('div');
 			spinner.className =
-				'h-6 w-6 animate-spin rounded-full border-2 border-input border-t-indigo-600';
+				'border-primary h-6 w-6 animate-spin rounded-full border-2 border-t-transparent';
 			loaderDiv.appendChild(spinner);
 			imgContainer.appendChild(loaderDiv);
 		}
 
-		// Helper function to show "needs re-upload" indicator using SVG snippet
+		// Helper function to show "needs re-upload" indicator
 		function showNeedsReupload(container: HTMLElement) {
-			const needsReuploadDiv = document.createElement('div');
-			needsReuploadDiv.className =
-				'flex h-full flex-col items-center justify-center p-2 text-center';
-
-			needsReuploadDiv.innerHTML = `
-				<div class="text-muted-foreground mb-2">
-					<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-						/>
-					</svg>
-				</div>
-				<span class="text-muted-foreground text-xs">Image needs re-upload</span>
-			`;
-
-			container.appendChild(needsReuploadDiv);
+			container.innerHTML = '';
+			mount(NeedsReupload, { target: container });
 		}
 
 		const body = document.createElement('div');
@@ -541,9 +522,9 @@
 			<div class="flex items-center space-x-2">
 				<Button variant="ghost" size="icon" onclick={() => (isExpanded = !isExpanded)}>
 					{#if isExpanded}
-						<ChevronDown class="h-4 w-4" />
+						<Icon icon={ArrowDown01Icon} class="h-4 w-4" />
 					{:else}
-						<ChevronRight class="h-4 w-4" />
+						<Icon icon={ArrowRight01Icon} class="h-4 w-4" />
 					{/if}
 				</Button>
 				{#if isEditing}
@@ -566,18 +547,18 @@
 			{#if !isEditing}
 				<div class="flex space-x-1">
 					<Button variant="ghost" size="icon" onclick={startEditing}
-						><Edit class="h-4 w-4" /></Button
+						><Icon icon={Edit02Icon} class="h-4 w-4" /></Button
 					>
 					<Button variant="ghost" size="icon" onclick={handleDeleteLayer}
-						><Trash2 class="h-4 w-4 text-red-500" /></Button
+						><Icon icon={Delete02Icon} class="h-4 w-4 text-red-500" /></Button
 					>
 				</div>
 			{:else}
 				<div class="flex space-x-1">
 					<Button variant="ghost" size="icon" onclick={handleNameChange}
-						><Check class="h-4 w-4" /></Button
+						><Icon icon={CheckmarkBadge01Icon} class="h-4 w-4" /></Button
 					>
-					<Button variant="ghost" size="icon" onclick={cancelEdit}><X class="h-4 w-4" /></Button>
+					<Button variant="ghost" size="icon" onclick={cancelEdit}><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button>
 				</div>
 			{/if}
 		</div>
@@ -624,20 +605,7 @@
 								></div>
 							</div>
 						{:else}
-							<svg
-								class="text-muted-foreground mx-auto h-12 w-12"
-								stroke="currentColor"
-								fill="none"
-								viewBox="0 0 48 48"
-								aria-hidden="true"
-							>
-								<path
-									d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								/>
-							</svg>
+							<Icon icon={Upload01Icon} class="text-muted-foreground mx-auto h-12 w-12" aria-hidden="true" />
 							<div class="text-muted-foreground flex text-sm">
 								<label
 									for="file-upload-{layer.id}"
@@ -702,7 +670,7 @@
 										onclick={bulkDelete}
 										class="text-xs text-red-600 hover:text-red-700"
 									>
-										<Trash2 class="h-3 w-3 sm:h-4 sm:w-4" />
+										<Icon icon={Delete02Icon} class="h-3 w-3 sm:h-4 sm:w-4" />
 									</Button>
 								</div>
 							{/if}

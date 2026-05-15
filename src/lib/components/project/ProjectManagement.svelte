@@ -16,18 +16,14 @@
 		startLoading,
 		stopLoading
 	} from '$lib/stores';
-	import FolderOpen from '@lucide/svelte/icons/folder-open';
-	import Save from '@lucide/svelte/icons/save';
-	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-	import Upload from '@lucide/svelte/icons/upload';
-	import Download from '@lucide/svelte/icons/download';
+	import Icon from '$components/shared/Icon.svelte';
+	import { FolderOpenIcon, FloppyDiskIcon, Alert02Icon, Upload01Icon, Download01Icon, IdeaIcon } from '@hugeicons/core-free-icons';
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { Modal } from '$lib/components/ui/modal';
 
 	let loadDialogOpen = $state(false);
 	let saveDialogOpen = $state(false);
 	let loadFileInputElement: HTMLInputElement | null = null;
-	const saveFileInputElement: HTMLInputElement | null = null;
 	let isDragOver = $state(false);
 	const isProjectLoading = $derived(getLoadingState('project-load'));
 	const isProjectSaving = $derived(getLoadingState('project-save'));
@@ -89,11 +85,10 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 			const message = error instanceof Error ? error.message : 'Failed to save project';
 			toast.error(message);
 		} finally {
-			// Reset file input
-			if (saveFileInputElement) {
-				saveFileInputElement.value = '';
-			}
 			stopDetailedLoading('project-save');
+			if (loadFileInputElement) {
+				loadFileInputElement.value = '';
+			}
 		}
 	}
 
@@ -199,7 +194,7 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 			class="border-border bg-muted mb-2 flex w-full border p-2 text-xs sm:inline-flex sm:w-auto sm:text-sm"
 		>
 			<CardContent class="flex items-center gap-2 p-0">
-				<AlertTriangle class="text-muted-foreground h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
+				<Icon icon={Alert02Icon} class="text-muted-foreground h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
 				<span class="text-foreground leading-tight"
 					>Don't forget to save your project before generating.</span
 				>
@@ -214,7 +209,7 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 		class="w-full sm:w-auto"
 		onclick={() => (loadDialogOpen = true)}
 	>
-		<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+		<Icon icon={Upload01Icon} class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 		<span class="xs:inline hidden">Load Project</span>
 		<span class="xs:hidden">Load</span>
 	</Button>
@@ -226,10 +221,10 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 		</p>
 		<div class="space-y-3 sm:space-y-4">
 			<div
-				class="border-input hover:border-primary hover:border-muted-foreground/20 rounded-lg border-2 border-dashed p-4 text-center transition-colors sm:p-6 {isProjectLoading
-					? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500'
+				class="border-input hover:border-muted-foreground/20 rounded-lg border-2 border-dashed p-4 text-center transition-colors sm:p-6 {isProjectLoading
+					? 'border-primary bg-primary/10 ring-primary ring-2'
 					: isDragOver
-						? 'border-green-500 bg-green-50 ring-2 ring-green-400'
+						? 'border-success bg-success/10 ring-success ring-2'
 						: ''}"
 				role="button"
 				tabindex="0"
@@ -245,7 +240,7 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 					class="hidden"
 					onchange={(e) => handleLoadProject((e.target as HTMLInputElement).files)}
 				/>
-				<FolderOpen class="text-muted-foreground mx-auto mb-3 h-8 w-8 sm:mb-4 sm:h-10 sm:w-10" />
+				<Icon icon={FolderOpenIcon} class="text-muted-foreground mx-auto mb-3 h-8 w-8 sm:mb-4 sm:h-10 sm:w-10" />
 				<p class="text-muted-foreground mb-3 text-xs sm:mb-4 sm:text-sm">
 					Drop a .zip project file here or select one to upload
 				</p>
@@ -257,14 +252,14 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 					{#if isProjectLoading}
 						<LoadingIndicator operation="project-load" message="Loading project..." />
 					{:else}
-						<Upload class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+						<Icon icon={Upload01Icon} class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 						<span class="text-xs sm:text-sm">Choose File</span>
 					{/if}
 				</Button>
 				{#if projectLoadProgress?.progress !== undefined && projectLoadProgress.progress > 0}
 					<div class="bg-muted mt-3 w-full rounded-full sm:mt-4">
 						<div
-							class="h-1.5 rounded-full bg-blue-600 sm:h-2"
+							class="bg-primary h-1.5 rounded-full sm:h-2"
 							style="width: {projectLoadProgress.progress}%"
 						></div>
 					</div>
@@ -275,8 +270,8 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 					{/if}
 				{/if}
 			</div>
-			<p class="text-muted-foreground text-center text-xs">
-				💡 <strong>Tip:</strong> For the best results, try using the "Choose File" button if drag and
+			<p class="text-muted-foreground text-center text-xs flex items-center justify-center gap-1">
+				<Icon icon={IdeaIcon} class="h-3.5 w-3.5" /> <strong>Tip:</strong> For the best results, try using the "Choose File" button if drag and
 				drop doesn't work.
 			</p>
 			<p class="text-muted-foreground text-center text-xs">
@@ -292,7 +287,7 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 		class="w-full sm:w-auto"
 		onclick={() => (saveDialogOpen = true)}
 	>
-		<Download class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+		<Icon icon={Download01Icon} class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 		<span class="xs:inline hidden">Save Project</span>
 		<span class="xs:hidden">Save</span>
 	</Button>
@@ -315,14 +310,14 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 				{#if isProjectSaving}
 					<LoadingIndicator operation="project-save" message="Saving project..." />
 				{:else}
-					<Save class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+					<Icon icon={FloppyDiskIcon} class="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
 					<span class="text-xs sm:text-sm">Save Project</span>
 				{/if}
 			</Button>
 			{#if projectSaveProgress?.progress !== undefined && projectSaveProgress.progress > 0}
 				<div class="bg-muted mt-2 w-full rounded-full">
 					<div
-						class="h-1.5 rounded-full bg-blue-600 sm:h-2"
+						class="bg-primary h-1.5 rounded-full sm:h-2"
 						style="width: {projectSaveProgress.progress}%"
 					></div>
 				</div>

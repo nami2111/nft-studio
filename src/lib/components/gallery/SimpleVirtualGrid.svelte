@@ -3,6 +3,8 @@
 	import { imageUrlCache } from '$lib/utils/object-url-cache';
 	import { galleryStore } from '$lib/stores/gallery.store.svelte';
 	import { onMount, untrack } from 'svelte';
+	import Icon from '$components/shared/Icon.svelte';
+	import { AlertCircleIcon, RefreshIcon } from '@hugeicons/core-free-icons';
 
 	interface Props {
 		items: GalleryItem[];
@@ -283,7 +285,7 @@
 	const totalHeight = $derived(Math.ceil(items.length / columns) * rowHeight);
 </script>
 
-<div bind:this={wrapperElement} class="flex h-full flex-col {className}">
+<div bind:this={wrapperElement} class="flex flex-1 flex-col {className}">
 	<!-- Debug info - strictly flex-none to push content down -->
 	{#if import.meta.env.DEV}
 		<div
@@ -339,20 +341,7 @@
 										style="display: none;"
 									>
 										<div class="text-center">
-											<svg
-												class="mx-auto mb-1 h-6 w-6"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-												aria-hidden="true"
-											>
-												<path
-													d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-													stroke-width="1"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-												/>
-											</svg>
+											<Icon icon={AlertCircleIcon} class="mx-auto mb-1 h-6 w-6" />
 											<div>Image Unavailable</div>
 											<div class="mt-1 text-xs opacity-70">Loading failed</div>
 										</div>
@@ -363,20 +352,7 @@
 										class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
 									>
 										<div class="text-center">
-											<svg
-												class="mx-auto mb-1 h-6 w-6"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-												aria-hidden="true"
-											>
-												<path
-													d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-													stroke-width="1"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-												/>
-											</svg>
+											<Icon icon={AlertCircleIcon} class="mx-auto mb-1 h-6 w-6" />
 											<div>Load Error</div>
 											<div class="mt-1 text-xs opacity-70">Timeout</div>
 										</div>
@@ -387,20 +363,7 @@
 										class="bg-muted text-muted-foreground flex h-full w-full items-center justify-center p-2 text-xs"
 									>
 										<div class="text-center">
-											<svg
-												class="mx-auto mb-1 h-6 w-6 animate-spin"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-												aria-hidden="true"
-											>
-												<path
-													d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-													stroke-width="1"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-												/>
-											</svg>
+											<Icon icon={RefreshIcon} class="mx-auto mb-1 h-6 w-6 animate-spin" />
 											<div>Loading...</div>
 										</div>
 									</div>

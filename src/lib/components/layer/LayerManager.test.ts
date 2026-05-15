@@ -98,12 +98,8 @@ vi.mock('$lib/utils/error-handling', () => ({
 // vi.mock('$lib/components/ui/button', ...);
 // vi.mock('$lib/components/ui/card', ...);
 
-vi.mock('lucide-svelte', () => ({
-	Loader2: vi.fn(),
-	ChevronUp: vi.fn(),
-	ChevronDown: vi.fn(),
-	Trash2: vi.fn(),
-	Plus: vi.fn()
+vi.mock('$components/shared/Icon.svelte', () => ({
+	default: vi.fn()
 }));
 
 describe('LayerManager', () => {

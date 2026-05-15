@@ -195,7 +195,7 @@
 
 	::-webkit-scrollbar-thumb {
 		background: var(--color-border);
-		border-radius: 4px;
+		border-radius: var(--radius-brutalist);
 	}
 
 	::-webkit-scrollbar-thumb:hover {
@@ -213,18 +213,14 @@
 		-moz-osx-font-smoothing: grayscale;
 	}
 
-	/* Toast notification text color fix */
-	[data-sonner-toaster] [data-sonner-toast] {
-		color: var(--color-foreground) !important;
+	/* Toast notification theme integration */
+	[data-sonner-toaster] {
+		--normal-bg: var(--color-background);
+		--normal-text: var(--color-foreground);
+		--normal-border: var(--color-border);
 	}
 
-	[data-sonner-toaster] [data-sonner-toast] [data-title] {
-		color: var(--color-foreground) !important;
-	}
-
-	[data-sonner-toaster] [data-sonner-toast] [data-description] {
-		color: var(--color-foreground) !important;
-	}
+	/* Performance optimization: Contain layout, style, and paint for complex components */
 
 	/* Performance optimization: Reduce motion for users who prefer it */
 	@media (prefers-reduced-motion: reduce) {

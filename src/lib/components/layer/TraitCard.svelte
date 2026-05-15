@@ -8,10 +8,8 @@
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
-	import Edit from '@lucide/svelte/icons/edit';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import Check from '@lucide/svelte/icons/check';
-	import X from '@lucide/svelte/icons/x';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Edit02Icon, Delete02Icon, CheckmarkBadge01Icon, Cancel01Icon, AlertDiamondIcon } from '@hugeicons/core-free-icons';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
 	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
@@ -225,14 +223,7 @@
 						data-testid="reupload-indicator"
 					>
 						<div class="mb-2 rounded-full bg-amber-50 p-2 text-amber-500 dark:bg-amber-950/30">
-							<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-								/>
-							</svg>
+							<Icon icon={AlertDiamondIcon} class="h-6 w-6" />
 						</div>
 						<span class="text-[10px] font-medium text-amber-600 dark:text-amber-400"
 							>Source image missing</span
@@ -264,10 +255,9 @@
 				/>
 				<div class="flex">
 					<Button variant="ghost" size="icon" onclick={handleUpdateName} data-testid="save-button"
-						><Check class="h-4 w-4" /></Button
-					>
-					<Button variant="ghost" size="icon" onclick={cancelEdit} data-testid="cancel-button"
-						><X class="h-4 w-4" /></Button
+						><Icon icon={CheckmarkBadge01Icon} class="h-4 w-4" /></Button
+					><Button variant="ghost" size="icon" onclick={cancelEdit} data-testid="cancel-button"
+					><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button
 					>
 				</div>
 			{:else}
@@ -276,13 +266,13 @@
 				</p>
 				<div class="flex gap-1">
 					<Button variant="ghost" size="icon" onclick={startEditing} data-testid="edit-button"
-						><Edit class="h-4 w-4" /></Button
+						><Icon icon={Edit02Icon} class="h-4 w-4" /></Button
 					>
 					<Button
 						variant="ghost"
 						size="icon"
 						onclick={handleRemoveTrait}
-						data-testid="delete-button"><Trash2 class="text-destructive h-4 w-4" /></Button
+						data-testid="delete-button"><Icon icon={Delete02Icon} class="text-destructive h-4 w-4" /></Button
 					>
 				</div>
 			{/if}

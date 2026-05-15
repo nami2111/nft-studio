@@ -2,7 +2,8 @@
 	import { onMount, type Snippet } from 'svelte';
 	import { page } from '$app/stores';
 	import { pwaInfo } from 'virtual:pwa-info';
-	import { Home, Settings, LayoutGrid, Info } from '@lucide/svelte';
+	import Icon from '$components/shared/Icon.svelte';
+	import { Home01Icon, Setting07Icon, Image01Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
 	import '../app.css';
 	import { Button } from '$lib/components/ui/button';
 	import WindowControls from '$lib/components/shared/WindowControls.svelte';
@@ -46,14 +47,15 @@
 				<WindowControls />
 
 				<!-- Right: Navigation Buttons -->
-				<nav class="flex flex-wrap items-center gap-1.5 sm:gap-2" aria-label="Main navigation">
+				<nav class="flex flex-wrap items-center gap-2 sm:gap-2" aria-label="Main navigation">
 					<Button
 						href="/"
 						variant={$page.url.pathname === '/' ? 'default' : 'outline'}
 						size="sm"
 						class="flex items-center gap-1.5"
+						title="Home"
 					>
-						<Home class="h-3.5 w-3.5" />
+						<Icon icon={Home01Icon} class="h-3.5 w-3.5" />
 						<span class="hidden sm:inline">Home</span>
 					</Button>
 
@@ -62,8 +64,9 @@
 						variant={$page.url.pathname === '/app' ? 'default' : 'outline'}
 						size="sm"
 						class="flex items-center gap-1.5"
+						title="Studio"
 					>
-						<Settings class="h-3.5 w-3.5" />
+						<Icon icon={Setting07Icon} class="h-3.5 w-3.5" />
 						<span class="hidden sm:inline">Studio</span>
 					</Button>
 
@@ -72,8 +75,9 @@
 						variant={$page.url.pathname === '/app/gallery' ? 'default' : 'outline'}
 						size="sm"
 						class="flex items-center gap-1.5"
+						title="Gallery"
 					>
-						<LayoutGrid class="h-3.5 w-3.5" />
+						<Icon icon={Image01Icon} class="h-3.5 w-3.5" />
 						<span class="hidden sm:inline">Gallery</span>
 					</Button>
 
@@ -82,8 +86,9 @@
 						variant={$page.url.pathname === '/about' ? 'default' : 'outline'}
 						size="sm"
 						class="flex items-center gap-1.5"
+						title="About"
 					>
-						<Info class="h-3.5 w-3.5" />
+						<Icon icon={InformationCircleIcon} class="h-3.5 w-3.5" />
 						<span class="hidden sm:inline">About</span>
 					</Button>
 				</nav>
