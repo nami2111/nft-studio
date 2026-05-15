@@ -18,8 +18,6 @@
 	const collections = $derived(galleryStore.collections);
 	const totalItems = $derived(collections.reduce((sum, col) => sum + col.totalSupply, 0));
 	const selectedItem = $derived(galleryStore.selectedItem);
-
-	// The active collection from the store, with a safe fallback in the template
 	const selectedCollection = $derived(galleryStore.selectedCollection);
 
 	// Use store state for filters
@@ -31,7 +29,7 @@
 		galleryStore.filterOptions.selectedTraits || {}
 	);
 
-	// Sync local filter state to store (snapshot avoids subscribing to store internals)
+	// Sync local filter state to store
 	$effect(() => {
 		const search = $state.snapshot(searchQuery);
 		const sort = $state.snapshot(selectedSort);
@@ -42,20 +40,32 @@
 		});
 	});
 
-	let sortDropdownOpen = $state(false);
-	let sortButtonRef = $state<HTMLButtonElement | null>(null);
-	let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
+	// Responsive grid parameters derived from viewport width
+	let viewportWidth = $state(0);
+
+	$effect(() => {
+		viewportWidth = window.innerWidth;
+		const handleResize = () => (viewportWidth = window.innerWidth);
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	});
+
+	const gridParams = $derived.by(() => {
+		if (viewportWidth < 640) return { columns: 3, itemHeight: 120, gap: 8 };
+		if (viewportWidth < 768) return { columns: 4, itemHeight: 160, gap: 10 };
+		if (viewportWidth < 1024) return { columns: 5, itemHeight: 180, gap: 12 };
+		if (viewportWidth < 1440) return { columns: 6, itemHeight: 220, gap: 14 };
+		return { columns: 7, itemHeight: 240, gap: 16 };
+	});
 
 	// Use store's optimized filtering and sorting
 	const filteredItems = $derived(galleryStore.filteredAndSortedItems);
 
-	// No longer syncing selectedCollection back to store via $effect to avoid loops.
-	// We handle initial selection in an effect that only runs when collections load.
+	// Auto-select first collection when collections load
 	$effect(() => {
 		if (collections.length > 0 && !galleryStore.selectedCollection) {
 			untrack(() => {
 				galleryStore.setSelectedCollection(collections[0]);
-				// Auto-select first item to trigger proper layout calculation
 				if (collections[0].items.length > 0) {
 					galleryStore.setSelectedItem(collections[0].items[0]);
 				}
@@ -63,71 +73,41 @@
 		}
 	});
 
-	function forceClearCache() {
-		imageUrlCache.clear();
-		galleryStore.clearGallery();
-		window.location.reload();
-	}
-
-	function selectItem(item: GalleryItem) {
+	function handleSelectItem(item: GalleryItem) {
 		galleryStore.setSelectedItem(item);
 	}
 
-	function selectCollection(collection: GalleryCollection) {
+	function handleSelectCollection(collection: GalleryCollection) {
 		galleryStore.setSelectedCollection(collection);
 	}
 
-	// Toggle trait filter when clicking on traits in item details
 	function toggleTraitFilter(layer: string, value: string) {
 		const current = selectedTraits[layer] || [];
 		const index = current.indexOf(value);
-
 		if (index > -1) {
-			// Remove trait if already selected
 			const filtered = current.filter((v) => v !== value);
-			if (filtered.length === 0) {
-				delete selectedTraits[layer];
-			} else {
-				selectedTraits[layer] = filtered;
-			}
+			if (filtered.length === 0) delete selectedTraits[layer];
+			else selectedTraits[layer] = filtered;
 		} else {
-			// Add trait if not selected
 			selectedTraits[layer] = [...current, value];
 		}
 	}
 
-	// Clear all filters
 	function clearFilters() {
 		searchQuery = '';
 		selectedSort = 'rarity-asc';
 		selectedTraits = {};
 	}
 
+	function forceClearCache() {
+		imageUrlCache.clear();
+		galleryStore.clearGallery();
+		window.location.reload();
+	}
+
 	onMount(() => {
 		clearAllCollections();
 	});
-
-	// Toggle dropdown and calculate position
-	function toggleSortDropdown() {
-		if (!sortDropdownOpen && sortButtonRef) {
-			const rect = sortButtonRef.getBoundingClientRect();
-			const scrollY = window.scrollY;
-			dropdownPosition = {
-				top: rect.bottom + scrollY + 4, // Add scroll position and gap
-				left: rect.left,
-				width: rect.width
-			};
-		}
-		sortDropdownOpen = !sortDropdownOpen;
-	}
-
-	// Close dropdown when clicking outside
-	function handleClickOutside(event: MouseEvent) {
-		const target = event.target as Element;
-		if (sortDropdownOpen && !target.closest('.sort-dropdown-container')) {
-			sortDropdownOpen = false;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -135,339 +115,184 @@
 	<meta name="description" content="Browse, filter, and explore your generated collections in the GNStudio gallery." />
 </svelte:head>
 
-<svelte:document onclick={handleClickOutside} />
-
-<div class="bg-background flex min-h-[100dvh] flex-col overflow-visible">
+<div class="bg-background flex min-h-[100dvh] flex-col">
 	<!-- Gallery Header -->
-	<header
-			class="bg-background/95 supports-[backdrop-filter]:bg-background/60 flex-none border-b backdrop-blur"
-		>
-			<div class="mx-auto max-w-screen-2xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
-				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+	<header class="border-border bg-background flex-none border-b-2">
+		<div class="mx-auto max-w-screen-2xl px-4 py-4 sm:px-6 sm:py-5">
+			<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<div>
+					<h1 class="text-foreground text-2xl font-bold sm:text-3xl">Gallery</h1>
+					<p class="text-muted-foreground mt-1 text-sm">
+						View and manage your generated collections
+					</p>
+				</div>
+				<div class="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm">
 					<div>
-						<h1 class="text-foreground text-2xl font-bold sm:text-3xl">Gallery</h1>
-						<p class="text-muted-foreground mt-1 text-sm">
-							View and manage your generated collections
-						</p>
+						<span class="text-foreground font-medium">{totalItems}</span> Total Items
 					</div>
-
-					<!-- Gallery Stats -->
-					<div
-						class="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm"
+					<div>
+						<span class="text-foreground font-medium">{collections.length}</span> Collections
+					</div>
+					<button
+						type="button"
+						class="text-destructive text-xs underline hover:opacity-80"
+						onclick={forceClearCache}
 					>
-						<div>
-							<span class="text-foreground font-medium">{totalItems}</span> Total Items
-						</div>
-						<div>
-							<span class="text-foreground font-medium">{collections.length}</span> Collections
-						</div>
-						<button
-							type="button"
-							class="text-xs text-red-600 underline hover:text-red-700"
-							onclick={forceClearCache}
-						>
-							Clear Cache
-						</button>
-					</div>
+						Clear Cache
+					</button>
 				</div>
 			</div>
-		</header>
+		</div>
+	</header>
 
-		<main class="flex-1 overflow-visible">
-			<!-- Main Content -->
-			{#if isLoading || collections.length === 0}
-				<!-- Loading / Import in progress OR empty state -->
-				<div class="flex min-h-[calc(100dvh-200px)] items-center justify-center px-4 pb-24">
-					<div class="w-full max-w-4xl text-center">
-						{#if !isLoading}
-							<Icon icon={Image01Icon} class="text-muted-foreground mx-auto h-16 w-16" />
+	<main class="flex flex-1 flex-col overflow-hidden">
+		{#if isLoading || collections.length === 0}
+			<div class="flex min-h-[calc(100dvh-200px)] items-center justify-center px-4 pb-24">
+				<div class="w-full max-w-4xl text-center">
+					{#if !isLoading}
+						<Icon icon={Image01Icon} class="text-muted-foreground mx-auto h-16 w-16" />
 						<h2 class="mb-2 text-xl font-semibold">No collections yet</h2>
 						<p class="text-muted-foreground mb-6">
-								Generate in Generate Mode or import existing collections to get started.
+							Generate in Generate Mode or import existing collections to get started.
 						</p>
-						{/if}
-						<GalleryImport />
-					</div>
+					{/if}
+					<GalleryImport />
 				</div>
-			{:else}
-				<!-- Mobile Layout (below 640px) -->
-				<div class="flex h-[100dvh] flex-col sm:hidden">
+			</div>
+		{:else}
+			<!-- Responsive Layout -->
+			<div class="flex flex-1 flex-col overflow-hidden md:flex-row">
+				<!-- Left: Collection Content + Grid -->
+				<div class="flex flex-1 flex-col overflow-hidden">
 					{#if selectedCollection}
-						<!-- Collection Header - Mobile -->
-						<div class="bg-background/95 shrink-0 border-b p-4 backdrop-blur">
-							<h2 class="text-lg font-bold">{selectedCollection.name}</h2>
-							<div class="text-muted-foreground mt-1 text-xs">
-								{selectedCollection.totalSupply} items • {new Date(
-									selectedCollection.generatedAt
-								).toLocaleDateString()}
-							</div>
-						</div>
-
-						<!-- Search and Filters - Mobile -->
-						<div class="bg-background/95 border-b p-3 backdrop-blur">
+						<!-- Collection Header + Search Bar -->
+						<div class="border-border bg-background shrink-0 border-b-2 p-4">
 							<div class="flex flex-col gap-3">
-								<input
-									type="text"
-									placeholder="Search items..."
-									bind:value={searchQuery}
-									class="focus:ring-primary/20 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-								/>
-								<div class="flex gap-2">
-									<div class="sort-dropdown-container relative flex-1">
-										<button
-											bind:this={sortButtonRef}
-											type="button"
-											onclick={toggleSortDropdown}
-											class="focus:ring-primary/20 flex w-full justify-between rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-										>
-											<span class="truncate">
-												{#if selectedSort === 'name-asc'}Name (A-Z)
-												{:else if selectedSort === 'name-desc'}Name (Z-A)
-												{:else if selectedSort === 'rarity-asc'}Rarity (High)
-												{:else if selectedSort === 'rarity-desc'}Rarity (Low)
-												{/if}
-											</span>
-											<span class="text-muted-foreground ml-2">▼</span>
-										</button>
+								<div class="flex items-center justify-between">
+									<div class="min-w-0 flex-1">
+										<h2 class="truncate text-lg font-bold sm:text-xl lg:text-2xl">
+											{selectedCollection.name}
+										</h2>
+										<p class="text-muted-foreground mt-0.5 text-xs">
+											{selectedCollection.totalSupply} items &middot; {new Date(
+												selectedCollection.generatedAt
+											).toLocaleDateString()}
+										</p>
 									</div>
-									<Button variant="outline" size="sm" onclick={clearFilters}>Clear</Button>
+									{#if collections.length > 1}
+										<select
+											class="input-brutalist hidden h-9 w-48 text-xs md:block"
+											onchange={(e) => {
+												const col = collections.find(
+													(c) => c.id === (e.target as HTMLSelectElement).value
+												);
+												if (col) handleSelectCollection(col);
+											}}
+											value={selectedCollection.id}
+										>
+											{#each collections as collection (collection.id)}
+												<option value={collection.id}>{collection.name}</option>
+											{/each}
+										</select>
+									{/if}
+								</div>
+
+								<!-- Search + Sort + Reset -->
+								<div class="flex flex-col gap-2 sm:flex-row">
+									<div class="relative flex-1">
+										<Icon
+											icon={Search01Icon}
+											class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+										/>
+										<input
+											type="text"
+											placeholder="Search by name or trait..."
+											bind:value={searchQuery}
+											class="input-brutalist pl-10 text-sm"
+										/>
+									</div>
+									<select
+										bind:value={selectedSort}
+										class="input-brutalist w-full text-sm sm:w-44"
+									>
+										<option value="rarity-asc">Rarity: High to Low</option>
+										<option value="rarity-desc">Rarity: Low to High</option>
+										<option value="name-asc">Name: A-Z</option>
+										<option value="name-desc">Name: Z-A</option>
+									</select>
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={clearFilters}
+										class="text-muted-foreground hover:text-foreground shrink-0 text-xs font-semibold tracking-wider uppercase"
+									>
+										Reset
+									</Button>
 								</div>
 							</div>
 						</div>
 
-						<!-- Item Grid -->
-						<div class="relative min-h-0 flex-1 pb-32">
+						<!-- Virtual Grid -->
+						<div class="bg-muted/5 relative flex-1 overflow-hidden">
 							<SimpleVirtualGrid
 								items={filteredItems}
 								{selectedItem}
-								onselect={selectItem}
-								columns={3}
-								itemHeight={120}
-								gap={8}
-								class="h-full"
+								onselect={handleSelectItem}
+								columns={gridParams.columns}
+								itemHeight={gridParams.itemHeight}
+								gap={gridParams.gap}
+								class="h-full p-4"
 							/>
 						</div>
+					{/if}
+				</div>
 
-						<!-- Mobile Details Sheet -->
-						{#if selectedItem}
-							<div
-								class="bg-background/95 pb-safe fixed inset-x-0 bottom-0 z-50 max-h-[60vh] overflow-y-auto border-t p-4 shadow-2xl backdrop-blur-xl"
+				<!-- Right: Details Sidebar (md+) / Bottom Sheet (mobile) -->
+				{#if selectedItem}
+					<!-- Mobile: Bottom sheet -->
+					<aside
+						class="card-brutalist border-foreground pb-safe fixed inset-x-0 bottom-0 z-50 max-h-[65vh] overflow-y-auto border-t-4 bg-card p-4 shadow-2xl md:hidden"
+					>
+						<div class="mb-4 flex items-center justify-between">
+							<h3 class="font-bold">Item Details</h3>
+							<button
+								type="button"
+								onclick={() => galleryStore.setSelectedItem(null)}
+								class="bg-muted hover:bg-muted/80 rounded-full p-1"
+								aria-label="Close details"
 							>
-								<div class="mb-4 flex items-center justify-between">
-										<h3 class="font-bold">Item Details</h3>
-									<button
-										type="button"
-										onclick={() => galleryStore.setSelectedItem(null)}
-										class="bg-muted hover:bg-muted/80 rounded-full p-1"
-										aria-label="Close"
-									>
-										<Icon icon={Cancel01Icon} class="h-5 w-5" />
-									</button>
-								</div>
-								<ItemDetail
-									{selectedItem}
-									hideCard
-									{selectedTraits}
-									ontraitclick={toggleTraitFilter}
-									totalSupply={selectedCollection?.totalSupply}
-								/>
-							</div>
-						{/if}
-					{/if}
-				</div>
-
-				<!-- Mobile Landscape / Small Tablet (640px to 767px) -->
-				<div class="hidden h-full sm:flex md:hidden">
-					{#if selectedCollection}
-						<div class="flex flex-1 flex-col overflow-hidden pb-24">
-							<div class="bg-background/95 border-b p-4 backdrop-blur">
-								<h2 class="truncate text-xl font-bold">{selectedCollection.name}</h2>
-								<div class="flex items-center gap-2">
-									<input
-										type="text"
-										placeholder="Search..."
-										bind:value={searchQuery}
-										class="focus:ring-primary/20 mt-2 flex-1 rounded-md border px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
-									/>
-									<Button variant="outline" size="sm" class="mt-2" onclick={clearFilters}
-										>Reset</Button
-									>
-								</div>
-							</div>
-							<div class="relative min-h-0 flex-1">
-								<SimpleVirtualGrid
-									items={filteredItems}
-									{selectedItem}
-									onselect={selectItem}
-									columns={4}
-									itemHeight={160}
-									gap={10}
-									class="h-full"
-								/>
-							</div>
+								<Icon icon={Cancel01Icon} class="h-5 w-5" />
+							</button>
 						</div>
-						<aside class="bg-card/50 w-72 overflow-y-auto border-l backdrop-blur">
-							<CollectionStats collection={selectedCollection} class="bg-transparent" />
-							<ItemDetail
-								{selectedItem}
-								hideCard
-								class="p-4"
-								{selectedTraits}
-								ontraitclick={toggleTraitFilter}
-								totalSupply={selectedCollection?.totalSupply}
-							/>
-						</aside>
-					{/if}
-				</div>
-
-				<!-- Tablet Layout (md: 768px to lg: 1023px) -->
-				<div class="hidden h-full md:flex lg:hidden">
-					{#if selectedCollection}
-						<div class="flex flex-1 flex-col overflow-hidden">
-							<div class="bg-background/95 border-b p-5 backdrop-blur">
-								<div class="flex items-center justify-between">
-									<h2 class="text-2xl font-bold">{selectedCollection.name}</h2>
-									<div class="flex gap-2">
-										<input
-											type="text"
-									placeholder="Search items..."
-											bind:value={searchQuery}
-											class="focus:ring-primary/20 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-										/>
-										<Button variant="outline" onclick={clearFilters}>Reset</Button>
-									</div>
-								</div>
-							</div>
-							<div class="relative min-h-0 flex-1">
-								<SimpleVirtualGrid
-									items={filteredItems}
-									{selectedItem}
-									onselect={selectItem}
-									columns={5}
-									itemHeight={180}
-									gap={12}
-									class="h-full"
-								/>
-							</div>
-						</div>
-						<aside class="bg-card/50 w-80 overflow-y-auto border-l backdrop-blur">
-							<CollectionStats collection={selectedCollection} class="bg-transparent" />
 						<ItemDetail
 							{selectedItem}
 							hideCard
-							class="p-5"
 							{selectedTraits}
 							ontraitclick={toggleTraitFilter}
 							totalSupply={selectedCollection?.totalSupply}
 						/>
-						</aside>
-					{/if}
-				</div>
+					</aside>
 
-				<!-- Desktop Layout (1024px and above) -->
-				<div class="hidden h-full lg:flex">
-					<!-- Left: Item Grid -->
-					<div class="flex flex-1 flex-col overflow-hidden">
-						{#if selectedCollection}
-							<!-- Collection Header with Stats -->
-							<div class="bg-muted/20 border-b p-6 backdrop-blur-sm">
-								<div class="flex items-center justify-between">
-									<div>
-										<h2 class="text-3xl font-extrabold tracking-tight">
-											{selectedCollection.name}
-										</h2>
-										<p class="text-muted-foreground mt-1">{selectedCollection.description}</p>
-									</div>
-									<div class="flex gap-4">
-										<div class="text-right">
-											<div
-												class="text-muted-foreground text-[10px] font-bold tracking-wider uppercase"
-											>
-												Items
-											</div>
-											<div class="text-xl font-black">{selectedCollection.totalSupply}</div>
-										</div>
-										<div class="text-right">
-											<div
-												class="text-muted-foreground text-[10px] font-bold tracking-wider uppercase"
-											>
-												Format
-											</div>
-											<div class="text-xl font-black">
-												{selectedCollection.items[0]?.imageFormat?.toUpperCase() || 'PNG'}
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Search and Filters -->
-							<div class="bg-background/95 border-b p-4 backdrop-blur">
-								<div class="flex flex-col gap-4">
-									<div class="flex items-center gap-3">
-										<div class="relative flex-1">
-											<Icon icon={Search01Icon} class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-											<input
-												type="text"
-												placeholder="Search by name or trait..."
-												bind:value={searchQuery}
-												class="bg-muted/30 focus:bg-background focus:ring-primary/20 w-full rounded-lg border py-2 pr-4 pl-10 text-sm transition-all focus:ring-2 focus:outline-none"
-											/>
-										</div>
-										<select
-											bind:value={selectedSort}
-											class="bg-muted/30 focus:bg-background focus:ring-primary/20 rounded-lg border px-3 py-2 text-sm transition-all focus:ring-2 focus:outline-none"
-										>
-											<option value="rarity-asc">Rarity: High to Low</option>
-											<option value="rarity-desc">Rarity: Low to High</option>
-											<option value="name-asc">Name: A-Z</option>
-											<option value="name-desc">Name: Z-A</option>
-										</select>
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={clearFilters}
-											class="text-muted-foreground hover:text-foreground text-xs font-semibold tracking-wider uppercase"
-										>
-											Reset
-										</Button>
-									</div>
-								</div>
-							</div>
-
-							<!-- Grid with Virtual Scrolling -->
-							<div class="scrollbar-gutter-stable bg-muted/5 relative min-h-0 flex-1">
-								<SimpleVirtualGrid
-									items={filteredItems}
-									{selectedItem}
-									onselect={selectItem}
-									columns={6}
-									itemHeight={220}
-									gap={16}
-									class="h-full p-6"
-								/>
-							</div>
-						{/if}
-					</div>
-
-					<!-- Right: Fixed Stats and Details Sidebar -->
-					<aside class="bg-card/50 flex w-[30%] flex-col overflow-hidden border-l backdrop-blur-md">
-						<!-- Collections Selector -->
+					<!-- Desktop: Sidebar -->
+					<aside
+						class="card-brutalist border-foreground hidden w-[30%] min-w-[320px] max-w-[420px] flex-col overflow-hidden border-l-2 md:flex"
+					>
 						{#if collections.length > 1}
-							<div class="border-b p-4">
+							<div class="border-border shrink-0 border-b-2 p-4">
 								<label
-									for="collection-select"
+									for="collection-select-desktop"
 									class="text-muted-foreground mb-2 block text-[10px] font-bold tracking-widest uppercase"
-									>Switch Collection</label
 								>
+									Switch Collection
+								</label>
 								<select
-									id="collection-select"
-									class="bg-muted/30 focus:ring-primary/20 w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+									id="collection-select-desktop"
+									class="input-brutalist text-sm"
 									onchange={(e) => {
 										const col = collections.find(
 											(c) => c.id === (e.target as HTMLSelectElement).value
 										);
-										if (col) selectCollection(col);
+										if (col) handleSelectCollection(col);
 									}}
 									value={selectedCollection?.id}
 								>
@@ -478,7 +303,6 @@
 							</div>
 						{/if}
 
-						<!-- Scrollable Sidebar Content -->
 						<div class="flex-1 overflow-y-auto">
 							{#if selectedCollection}
 								<CollectionStats collection={selectedCollection} class="bg-transparent" />
@@ -493,7 +317,8 @@
 							/>
 						</div>
 					</aside>
-				</div>
-			{/if}
-		</main>
+				{/if}
+			</div>
+		{/if}
+	</main>
 </div>
