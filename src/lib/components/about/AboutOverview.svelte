@@ -18,53 +18,59 @@
 											<ul class="text-muted-foreground space-y-2 text-sm">
 												<li class="flex items-center">
 													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-													Advanced layer management with bulk operations
+													Advanced layer management with drag-and-drop
 												</li>
 												<li class="flex items-center">
 													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-													Web Worker-powered background processing
+													Multi-worker background processing
 												</li>
 												<li class="flex items-center">
 													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-													Smart caching with LRU memory management
+													Three-tier caching with memory management
+												</li>
+												<li class="flex items-center">
+													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
+													ERC-721 & Solana metadata generation
+												</li>
+												<li class="flex items-center">
+													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
+													PWA with offline support
 												</li>
 												<li class="flex items-center">
 													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
 													Project persistence with ZIP import/export
+												</li>
+												<li class="flex items-center">
+													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
+													Feature flags for phased optimizations
 												</li>
 											</ul>
 										</div>
 										<div>
 											<h3 class="text-foreground mb-3 font-semibold">Technology Stack</h3>
 											<div class="flex flex-wrap gap-2">
-												<span
-													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-													>SvelteKit 2 & Svelte 5</span
-												>
-												<span
-													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-													>TypeScript</span
-												>
-												<span
-													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-													>Tailwind CSS</span
-												>
-												<span
-													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-													>Web Workers</span
-												>
-												<span
-													class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-													>Canvas API</span
-												>
-									<span
-												class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-												>Static Hosting</span
-											>
-											<span
-												class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium"
-												>Juno</span
-											>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">SvelteKit 2 & Svelte 5</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">TypeScript</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Tailwind CSS 4</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Web Workers</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Canvas API</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">IndexedDB</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Zod</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Juno / ICP</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">PWA</span>
+											</div>
+										</div>
+									</div>
+									<div class="mb-6">
+										<h3 class="text-foreground mb-3 font-semibold">Metadata Standards</h3>
+										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+											<div class="border-border bg-muted rounded-lg border p-3">
+												<h4 class="text-foreground mb-1 text-sm font-semibold">ERC-721</h4>
+												<p class="text-muted-foreground text-xs">OpenSea & EVM marketplaces. Includes external_url, animation_url, background_color.</p>
+											</div>
+											<div class="border-border bg-muted rounded-lg border p-3">
+												<h4 class="text-foreground mb-1 text-sm font-semibold">Solana (Metaplex)</h4>
+												<p class="text-muted-foreground text-xs">Solana NFT standard. Includes symbol, seller_fee_basis_points, creators array, properties.</p>
 											</div>
 										</div>
 									</div>

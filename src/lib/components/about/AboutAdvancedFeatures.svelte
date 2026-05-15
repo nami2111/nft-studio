@@ -24,6 +24,14 @@
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
 												<span class="text-foreground text-sm">Layer Reordering</span>
 											</div>
+											<div class="flex items-center space-x-3">
+												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+												<span class="text-foreground text-sm">Optional Layers</span>
+											</div>
+											<div class="flex items-center space-x-3">
+												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+												<span class="text-foreground text-sm">Ruler Trait Compatibility</span>
+											</div>
 										</div>
 									</div>
 
@@ -32,38 +40,38 @@
 										<div class="space-y-3">
 											<div class="flex items-center space-x-3">
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-												<span class="text-foreground text-sm">Web Worker Processing</span>
+												<span class="text-foreground text-sm">Multi-Worker Pool</span>
 											</div>
 											<div class="flex items-center space-x-3">
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-												<span class="text-foreground text-sm">LRU Image Caching</span>
+												<span class="text-foreground text-sm">Three-Tier Caching</span>
 											</div>
 											<div class="flex items-center space-x-3">
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-												<span class="text-foreground text-sm">Adaptive Chunking</span>
+												<span class="text-foreground text-sm">Streaming Storage</span>
 											</div>
 											<div class="flex items-center space-x-3">
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-												<span class="text-foreground text-sm">Memory Management</span>
+												<span class="text-foreground text-sm">Memory Pressure Management</span>
 											</div>
 										</div>
 									</div>
 								</div>
 
 								<div class="bg-muted mt-6 rounded-lg p-6">
-									<h3 class="text-foreground mb-3 font-semibold">Export Capabilities</h3>
+									<h3 class="text-foreground mb-3 font-semibold">Metadata & Export</h3>
 									<div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
 										<div>
-											<strong class="text-foreground">Images:</strong>
-											<p class="text-muted-foreground">PNG format with transparency</p>
+											<strong class="text-foreground">Metadata Standards:</strong>
+											<p class="text-muted-foreground">ERC-721 (OpenSea/EVM) and Solana (Metaplex) JSON metadata with full attribute support</p>
 										</div>
 										<div>
-											<strong class="text-foreground">Metadata:</strong>
-											<p class="text-muted-foreground">JSON with traits and attributes</p>
+											<strong class="text-foreground">Image Export:</strong>
+											<p class="text-muted-foreground">PNG format with layer compositing and transparency preservation</p>
 										</div>
 										<div>
-											<strong class="text-foreground">Preview:</strong>
-											<p class="text-muted-foreground">HTML gallery with statistics</p>
+											<strong class="text-foreground">ZIP Strategies:</strong>
+											<p class="text-muted-foreground">Streaming, chunked, and multi-ZIP (1GB splits) for collections up to 10,000 items</p>
 										</div>
 									</div>
 								</div>
