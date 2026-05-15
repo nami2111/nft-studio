@@ -241,7 +241,6 @@
 								columns={gridParams.columns}
 								itemHeight={gridParams.itemHeight}
 								gap={gridParams.gap}
-								class="pb-32 md:pb-0"
 							/>
 						</div>
 					{/if}
