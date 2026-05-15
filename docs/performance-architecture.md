@@ -46,11 +46,11 @@ Best for: Trait image data shared across workers
 
 The system monitors memory usage and triggers cleanup at three thresholds:
 
-| Pressure Level | Threshold | Action |
-|---------------|-----------|--------|
-| Light | 200MB+ | Periodic cleanup every 5 minutes |
-| Moderate | 500MB+ | More aggressive eviction, reduce batch sizes |
-| High | 800MB+ | Aggressive cache eviction, GC trigger |
+| Pressure Level | Threshold | Action                                       |
+| -------------- | --------- | -------------------------------------------- |
+| Light          | 200MB+    | Periodic cleanup every 5 minutes             |
+| Moderate       | 500MB+    | More aggressive eviction, reduce batch sizes |
+| High           | 800MB+    | Aggressive cache eviction, GC trigger        |
 
 ### Automatic Cleanup
 
@@ -74,12 +74,12 @@ Worker count is determined by device capabilities:
 
 Tasks are classified by complexity for optimal routing:
 
-| Complexity | Collection Size | Layers | Resolution |
-|-----------|-----------------|--------|------------|
-| LOW | ≤ 100 | ≤ 3 | ≤ 500×500 |
-| MEDIUM | 101-1000 | 4-10 | 500×500-1000×1000 |
-| HIGH | 1001-5000 | 11-20 | 1000×1000-1500×1500 |
-| VERY_HIGH | 5000+ | 20+ | 1500×1500+ |
+| Complexity | Collection Size | Layers | Resolution          |
+| ---------- | --------------- | ------ | ------------------- |
+| LOW        | ≤ 100           | ≤ 3    | ≤ 500×500           |
+| MEDIUM     | 101-1000        | 4-10   | 500×500-1000×1000   |
+| HIGH       | 1001-5000       | 11-20  | 1000×1000-1500×1500 |
+| VERY_HIGH  | 5000+           | 20+    | 1500×1500+          |
 
 ### Health Monitoring
 
@@ -162,12 +162,12 @@ When `enableStreamingStorage` is enabled:
 
 ## ZIP Export Pipeline
 
-| Collection Size | Strategy | Details |
-|----------------|----------|---------|
-| ≤ 1000 items | Standard ZIP | JSZip in main thread or worker |
-| 1001-3000 items | Optimized ZIP | Chunked processing, 100 items per chunk |
-| 3001+ items | Multi-ZIP | Split into multiple 1GB ZIP files |
-| ≥ 500 items | Worker Offload | Dedicated ZIP Web Worker (if enabled) |
+| Collection Size | Strategy       | Details                                 |
+| --------------- | -------------- | --------------------------------------- |
+| ≤ 1000 items    | Standard ZIP   | JSZip in main thread or worker          |
+| 1001-3000 items | Optimized ZIP  | Chunked processing, 100 items per chunk |
+| 3001+ items     | Multi-ZIP      | Split into multiple 1GB ZIP files       |
+| ≥ 500 items     | Worker Offload | Dedicated ZIP Web Worker (if enabled)   |
 
 ## Performance Monitoring
 
@@ -193,11 +193,11 @@ Average task time (per worker)
 
 ## Browser Performance
 
-| Browser | Web Workers | Canvas | Notes |
-|---------|------------|--------|-------|
-| Chrome/Edge | Full support | GPU-accelerated | Best performance |
-| Firefox | Full support | Optimized | Good for large collections |
-| Safari | Full support | Compatible | Standard performance |
+| Browser     | Web Workers  | Canvas          | Notes                      |
+| ----------- | ------------ | --------------- | -------------------------- |
+| Chrome/Edge | Full support | GPU-accelerated | Best performance           |
+| Firefox     | Full support | Optimized       | Good for large collections |
+| Safari      | Full support | Compatible      | Standard performance       |
 
 ## Development Monitoring
 

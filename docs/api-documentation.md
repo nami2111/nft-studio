@@ -729,11 +729,11 @@ interface Project {
 	description: string;
 	outputSize: ProjectDimensions;
 	metadataStandard?: MetadataStandard; // 'erc721' or 'solana'
-	symbol?: string;                     // Solana: token symbol
-	sellerFeeBasisPoints?: number;       // Solana: royalty in basis points
-	externalUrl?: string;                // ERC-721: external URL
-	animationUrl?: string;               // ERC-721: animation URL
-	creators?: { address: string; share: number }[];  // Solana: creator royalties
+	symbol?: string; // Solana: token symbol
+	sellerFeeBasisPoints?: number; // Solana: royalty in basis points
+	externalUrl?: string; // ERC-721: external URL
+	animationUrl?: string; // ERC-721: animation URL
+	creators?: { address: string; share: number }[]; // Solana: creator royalties
 	layers: Layer[];
 	strictPairConfig?: StrictPairConfig;
 }
@@ -882,7 +882,10 @@ export function getStorageEstimate(): Promise<{ usage: number; quota: number }>;
 export function streamBatch(collectionId: string, items: GalleryItem[]): Promise<void>;
 
 /** Iterate items in a collection. */
-export function iterateItems(collectionId: string, callback: (item: GalleryItem) => void): Promise<void>;
+export function iterateItems(
+	collectionId: string,
+	callback: (item: GalleryItem) => void
+): Promise<void>;
 
 /** Clear streaming session data. */
 export function clearSession(collectionId: string): Promise<void>;
@@ -901,7 +904,13 @@ export enum MetadataStandard {
 export interface MetadataStrategy {
 	name: string;
 	description: string;
-	format(name: string, description: string, imageName: string, attributes: MetadataAttribute[], extraData?: Record<string, unknown>): GeneratedMetadata;
+	format(
+		name: string,
+		description: string,
+		imageName: string,
+		attributes: MetadataAttribute[],
+		extraData?: Record<string, unknown>
+	): GeneratedMetadata;
 }
 
 export interface MetadataAttribute {

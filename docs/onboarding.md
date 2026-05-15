@@ -230,12 +230,12 @@ vp run preview
 
 Runtime feature flags allow phased rollout of optimizations without redeployment. Flags are defined in `src/lib/config/feature-flags.ts` and toggled via environment variables:
 
-| Flag                         | Default   | Purpose                                             |
-| ---------------------------- | --------- | --------------------------------------------------- |
-| `enableStreamingStorage`     | Enabled   | Stream generated images/metadata to IndexedDB instead of accumulating in memory |
-| `enableLayerRef`             | Disabled  | Transfer layers by reference (ID-based batching) instead of full layers per batch |
-| `enableAdaptiveBatchSize`    | Enabled   | Dynamic batch sizing based on collection size, worker count, and resolution |
-| `enableZipWorkerOffloading`  | Disabled  | Offload ZIP packaging to a dedicated Web Worker |
+| Flag                        | Default  | Purpose                                                                           |
+| --------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `enableStreamingStorage`    | Enabled  | Stream generated images/metadata to IndexedDB instead of accumulating in memory   |
+| `enableLayerRef`            | Disabled | Transfer layers by reference (ID-based batching) instead of full layers per batch |
+| `enableAdaptiveBatchSize`   | Enabled  | Dynamic batch sizing based on collection size, worker count, and resolution       |
+| `enableZipWorkerOffloading` | Disabled | Offload ZIP packaging to a dedicated Web Worker                                   |
 
 ### Environment Variable Convention
 

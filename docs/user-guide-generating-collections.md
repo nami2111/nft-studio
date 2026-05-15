@@ -94,26 +94,31 @@ The system automatically selects the optimal generation method based on your col
 GNStudio provides multiple export strategies optimized for different collection sizes:
 
 ### Standard ZIP
+
 - **Best for**: Collections up to 1,000 items
 - **Library**: JSZip for in-browser ZIP creation
 - **Behavior**: Generates a single ZIP file containing all images and metadata
 
 ### Optimized ZIP
+
 - **Best for**: 1,000–3,000 items
 - **Approach**: Chunked processing of 100 items per chunk
 - **Behavior**: Processes items in batches to avoid memory pressure, then assembles a single ZIP
 
 ### Multi-ZIP Export
+
 - **Best for**: 3,001–10,000 items
 - **Approach**: Splits output into multiple ZIP files (1 GB max each)
 - **Behavior**: Items are distributed across ZIP files with a manifest for reassembly
 
 ### Streaming Export
+
 - **Behavior**: Images stream directly to IndexedDB during generation
 - **Benefit**: Reduces peak memory usage by persisting images as they are rendered
 - **Compatible with**: IndexedDB-enabled browsers
 
 ### Worker-Offloaded ZIP
+
 - **Best for**: Collections with more than 500 items
 - **Behavior**: ZIP creation runs in a dedicated Web Worker
 - **Benefit**: Keeps the main thread responsive during compression
@@ -122,12 +127,12 @@ GNStudio provides multiple export strategies optimized for different collection 
 
 GNStudio exposes feature flags to fine-tune the generation pipeline:
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `enableStreamingStorage` | Streams generated images to IndexedDB during generation to reduce memory pressure | Enabled |
-| `enableLayerRef` | Transfers layers by ID reference instead of full data per batch, reducing inter-worker message overhead | Disabled |
-| `enableAdaptiveBatchSize` | Adjusts batch size based on collection size and device hardware capabilities | Enabled |
-| `enableZipWorkerOffloading` | Offloads ZIP creation to a dedicated Web Worker to keep the main thread responsive | Disabled |
+| Flag                        | Description                                                                                             | Default  |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
+| `enableStreamingStorage`    | Streams generated images to IndexedDB during generation to reduce memory pressure                       | Enabled  |
+| `enableLayerRef`            | Transfers layers by ID reference instead of full data per batch, reducing inter-worker message overhead | Disabled |
+| `enableAdaptiveBatchSize`   | Adjusts batch size based on collection size and device hardware capabilities                            | Enabled  |
+| `enableZipWorkerOffloading` | Offloads ZIP creation to a dedicated Web Worker to keep the main thread responsive                      | Disabled |
 
 Enable or disable flags in **Project Settings → Feature Flags** before starting generation.
 
@@ -264,12 +269,12 @@ For large collections:
 
 ### Collection Size Considerations
 
-| Size         | Approach                | Details                              |
-| ------------ | ----------------------- | ------------------------------------ |
-| 1-100        | Standard generation     | CSP solving + worker rendering       |
-| 101-1,000    | Streaming storage       | IndexedDB streaming + standard ZIP   |
-| 1,001-3,000  | Optimized chunking      | Chunked ZIP processing               |
-| 3,001-10,000 | Multi-ZIP export        | Split into 1 GB ZIP files            |
+| Size         | Approach            | Details                            |
+| ------------ | ------------------- | ---------------------------------- |
+| 1-100        | Standard generation | CSP solving + worker rendering     |
+| 101-1,000    | Streaming storage   | IndexedDB streaming + standard ZIP |
+| 1,001-3,000  | Optimized chunking  | Chunked ZIP processing             |
+| 3,001-10,000 | Multi-ZIP export    | Split into 1 GB ZIP files          |
 
 ### Memory Management
 

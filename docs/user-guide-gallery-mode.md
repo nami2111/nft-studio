@@ -87,13 +87,13 @@ GNStudio supports six distinct rarity calculation methods, each providing a diff
 
 **Rarity Tiers**: Items are classified into tiers based on percentile thresholds:
 
-| Tier | Percentile | Description |
-|------|-----------|-------------|
-| Legendary | Top 1% | Extremely rare, one-of-a-kind combinations |
-| Epic | Top 5% | Very rare items with exceptional traits |
-| Rare | Top 15% | Uncommon items with notable rarity |
-| Uncommon | Top 35% | Above-average rarity |
-| Common | Remaining | Standard items found frequently |
+| Tier      | Percentile | Description                                |
+| --------- | ---------- | ------------------------------------------ |
+| Legendary | Top 1%     | Extremely rare, one-of-a-kind combinations |
+| Epic      | Top 5%     | Very rare items with exceptional traits    |
+| Rare      | Top 15%    | Uncommon items with notable rarity         |
+| Uncommon  | Top 35%    | Above-average rarity                       |
+| Common    | Remaining  | Standard items found frequently            |
 
 **Strategic Trait Classification**: Each trait is classified into one of three categories based on its impact on rarity scoring:
 
@@ -187,11 +187,11 @@ Item names containing numbers are sorted with natural numeric ordering so sequen
 
 Images are cached across three tiers for optimal memory usage:
 
-| Tier | Limit | Entries | TTL | Description |
-|------|-------|---------|-----|-------------|
-| ImageBitmap | 100MB | 500 | 30 min | Fastest rendering, decoded GPU-ready bitmaps |
-| ImageData | 50MB | 200 | 15 min | Raw pixel data for canvas operations |
-| ArrayBuffer | 200MB | 1000 | 1 hour | Compressed binary data, slowest but most space-efficient |
+| Tier        | Limit | Entries | TTL    | Description                                              |
+| ----------- | ----- | ------- | ------ | -------------------------------------------------------- |
+| ImageBitmap | 100MB | 500     | 30 min | Fastest rendering, decoded GPU-ready bitmaps             |
+| ImageData   | 50MB  | 200     | 15 min | Raw pixel data for canvas operations                     |
+| ArrayBuffer | 200MB | 1000    | 1 hour | Compressed binary data, slowest but most space-efficient |
 
 ### Memory Pressure Handling
 

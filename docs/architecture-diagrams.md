@@ -233,7 +233,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - ObjectURLs to prevent memory leaks
   - Expired cache entries
   - Worker resources on task completion
-   - Event listeners and timers
+  - Event listeners and timers
 
 ### Streaming Storage Architecture
 

@@ -4,12 +4,12 @@ GNStudio uses a feature flag system for phased rollout of performance optimizati
 
 ## Available Flags
 
-| Flag | Default | Env Override | Purpose |
-|------|---------|--------------|---------|
-| `enableStreamingStorage` | Enabled | `VITE_DISABLE_STREAMING_STORAGE=true` to disable | Streams generated images and metadata to IndexedDB during generation instead of accumulating everything in memory |
-| `enableLayerRef` | Disabled | `VITE_ENABLE_LAYER_REF=true` to enable | Transfers layer data to workers once by ID reference, reducing per-batch data transfer size |
-| `enableAdaptiveBatchSize` | Enabled | `VITE_DISABLE_ADAPTIVE_BATCH_SIZE=true` to disable | Dynamically adjusts batch size based on collection size, worker count, and output resolution |
-| `enableZipWorkerOffloading` | Disabled | `VITE_ENABLE_ZIP_WORKER_OFFLOADING=true` to enable | Offloads ZIP file packaging to a dedicated Web Worker for large collections |
+| Flag                        | Default  | Env Override                                       | Purpose                                                                                                           |
+| --------------------------- | -------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `enableStreamingStorage`    | Enabled  | `VITE_DISABLE_STREAMING_STORAGE=true` to disable   | Streams generated images and metadata to IndexedDB during generation instead of accumulating everything in memory |
+| `enableLayerRef`            | Disabled | `VITE_ENABLE_LAYER_REF=true` to enable             | Transfers layer data to workers once by ID reference, reducing per-batch data transfer size                       |
+| `enableAdaptiveBatchSize`   | Enabled  | `VITE_DISABLE_ADAPTIVE_BATCH_SIZE=true` to disable | Dynamically adjusts batch size based on collection size, worker count, and output resolution                      |
+| `enableZipWorkerOffloading` | Disabled | `VITE_ENABLE_ZIP_WORKER_OFFLOADING=true` to enable | Offloads ZIP file packaging to a dedicated Web Worker for large collections                                       |
 
 ## Flag Details
 
@@ -32,6 +32,7 @@ When enabled, the layer initialization message sends all layer data once to each
 ### enableAdaptiveBatchSize
 
 When enabled, the system calculates optimal batch sizes based on:
+
 - Collection size (smaller batches for larger collections to spread work evenly)
 - Available worker count (more workers = smaller per-worker batches)
 - Output resolution (higher resolution = smaller batches to prevent memory pressure)
