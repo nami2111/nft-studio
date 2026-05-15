@@ -17,7 +17,7 @@
 		stopLoading
 	} from '$lib/stores';
 	import Icon from '$components/shared/Icon.svelte';
-	import { FolderOpenIcon, FloppyDiskIcon, Alert02Icon, Upload01Icon, Download01Icon } from '@hugeicons/core-free-icons';
+	import { FolderOpenIcon, FloppyDiskIcon, Alert02Icon, Upload01Icon, Download01Icon, IdeaIcon } from '@hugeicons/core-free-icons';
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { Modal } from '$lib/components/ui/modal';
 
@@ -272,8 +272,8 @@ if (import.meta.env.DEV) console.log('Project download initiated for:', a.downlo
 					{/if}
 				{/if}
 			</div>
-			<p class="text-muted-foreground text-center text-xs">
-				💡 <strong>Tip:</strong> For the best results, try using the "Choose File" button if drag and
+			<p class="text-muted-foreground text-center text-xs flex items-center justify-center gap-1">
+				<Icon icon={IdeaIcon} class="h-3.5 w-3.5" /> <strong>Tip:</strong> For the best results, try using the "Choose File" button if drag and
 				drop doesn't work.
 			</p>
 			<p class="text-muted-foreground text-center text-xs">

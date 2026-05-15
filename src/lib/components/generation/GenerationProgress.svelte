@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Progress } from '$lib/components/ui/progress';
 	import Icon from '$components/shared/Icon.svelte';
-	import { AlertCircleIcon, CheckmarkCircle01Icon, CpuIcon, LayerIcon, PackageIcon, SparklesIcon } from '@hugeicons/core-free-icons';
+	import { AlertCircleIcon, CheckmarkCircle01Icon, CpuIcon, LayerIcon, PackageIcon, SparklesIcon, Timer01Icon, PauseIcon, RefreshIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
 	import { generationState, resetState } from '$lib/stores/generation-progress.svelte';
 	import { formatTime } from '$lib/utils/formatters';
 	import { fade, slide, scale } from 'svelte/transition';
@@ -138,7 +138,8 @@
 							{/if}
 							{#if eta !== null}
 								<span class="flex items-center gap-1">
-									⏱️ {formatEta(eta)} remaining
+									<Icon icon={Timer01Icon} class="h-3 w-3" />
+									{formatEta(eta)} remaining
 								</span>
 							{/if}
 							{#if activeWorkers > 0}
@@ -172,9 +173,9 @@
 						</p>
 					{/if}
 					{#if isPaused}
-						<p class="text-yellow-600">⏸️ Paused</p>
+						<p class="text-yellow-600 flex items-center gap-1"><Icon icon={PauseIcon} class="h-3 w-3" /> Paused</p>
 					{:else if isBackground}
-						<p class="text-blue-600">🔄 Running in background</p>
+						<p class="text-blue-600 flex items-center gap-1"><Icon icon={RefreshIcon} class="h-3 w-3 animate-spin" /> Running in background</p>
 					{:else if !isGenerating && generationState.completionTime}
 						<div class="flex items-center justify-end">
 							<button
@@ -198,8 +199,8 @@
 
 			<!-- Error Display -->
 			{#if generationState.error}
-				<div class="rounded bg-red-50 p-2 text-xs text-red-600">
-					❌ {generationState.error}
+				<div class="rounded bg-red-50 p-2 text-xs text-red-600 flex items-center gap-1">
+					<Icon icon={Cancel01Icon} class="h-3 w-3" /> {generationState.error}
 				</div>
 			{/if}
 		</div>

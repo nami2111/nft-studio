@@ -1,4 +1,9 @@
-					<section class="animate-in fade-in duration-300">
+<script lang="ts">
+	import Icon from '$components/shared/Icon.svelte';
+	import { Crown03Icon, Setting07Icon, IdeaIcon, CheckmarkBadge01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+</script>
+
+<section class="animate-in fade-in duration-300">
 						<div class="border-border bg-card rounded-lg border">
 							<div class="border-border border-b px-6 py-4">
 								<h2 class="text-foreground text-xl font-semibold">Ruler Traits</h2>
@@ -31,10 +36,10 @@
 										<ol class="text-muted-foreground ml-6 list-decimal space-y-2">
 											<li>Navigate to your project's trait layers</li>
 											<li>Find the trait you want to make a ruler</li>
-											<li>Click the crown icon (👑) in the top-right corner of the trait card</li>
+											<li>Click the crown icon (<Icon icon={Crown03Icon} class="inline h-4 w-4" />) in the top-right corner of the trait card</li>
 											<li>The trait is converted to ruler type (crown icon becomes highlighted)</li>
 											<li>
-												Click the settings (⚙️) icon that appears next to ruler traits to manage
+												Click the settings (<Icon icon={Setting07Icon} class="inline h-4 w-4" />) icon that appears next to ruler traits to manage
 												rules
 											</li>
 										</ol>
@@ -50,7 +55,7 @@
 										<div class="border-border bg-muted mb-4 rounded-lg border p-4">
 											<h4 class="text-foreground mb-2 font-semibold">Rule Configuration Steps:</h4>
 											<ol class="text-muted-foreground ml-4 list-decimal space-y-1 text-sm">
-												<li>Click the settings (⚙️) icon on your ruler trait</li>
+												<li>Click the settings (<Icon icon={Setting07Icon} class="inline h-4 w-4" />) icon on your ruler trait</li>
 												<li>Select a target layer from the dropdown menu</li>
 												<li>Click traits to mark them as allowed (green badges)</li>
 												<li>Click traits to mark them as forbidden (red badges)</li>
@@ -58,8 +63,8 @@
 											</ol>
 										</div>
 										<div class="border-border bg-muted rounded-lg border p-4">
-											<p class="text-foreground text-sm">
-												<strong>💡 Pro Tip:</strong> You can create multiple compatibility rules for the
+											<p class="text-foreground text-sm flex items-start gap-1">
+												<Icon icon={IdeaIcon} class="mt-0.5 h-4 w-4 shrink-0" /> <strong>Pro Tip:</strong> You can create multiple compatibility rules for the
 												same ruler trait, covering different trait categories. This gives you fine-grained
 												control over trait combinations.
 											</p>
@@ -132,13 +137,13 @@
 										</p>
 										<div class="space-y-2">
 											<div class="flex items-center space-x-3">
-												<span class="text-blue-500">👑</span>
+												<span class="text-blue-500"><Icon icon={Crown03Icon} class="h-5 w-5" /></span>
 												<span class="text-muted-foreground"
 													>Crown icon - click to toggle trait between normal and ruler type</span
 												>
 											</div>
 											<div class="flex items-center space-x-3">
-												<span class="text-blue-500">⚙️</span>
+												<span class="text-blue-500"><Icon icon={Setting07Icon} class="h-5 w-5" /></span>
 												<span class="text-muted-foreground"
 													>Settings icon - appears only for ruler traits, click to manage
 													compatibility rules</span
@@ -146,9 +151,9 @@
 											</div>
 											<div class="flex items-center space-x-3">
 												<span
-													class="rounded border border-green-600 bg-green-600 px-2 py-1 text-xs font-medium text-white"
+													class="rounded border border-green-600 bg-green-600 px-2 py-1 text-xs font-medium text-white flex items-center gap-1"
 												>
-													✓ Trait</span
+													<Icon icon={CheckmarkBadge01Icon} class="h-3 w-3" /> Trait</span
 												>
 												<span class="text-muted-foreground"
 													>Green badge - allowed traits in rule configuration</span
@@ -156,9 +161,9 @@
 											</div>
 											<div class="flex items-center space-x-3">
 												<span
-													class="rounded border border-red-600 bg-red-600 px-2 py-1 text-xs font-medium text-white"
+													class="rounded border border-red-600 bg-red-600 px-2 py-1 text-xs font-medium text-white flex items-center gap-1"
 												>
-													✗ Trait</span
+													<Icon icon={Cancel01Icon} class="h-3 w-3" /> Trait</span
 												>
 												<span class="text-muted-foreground"
 													>Red badge - forbidden traits in rule configuration</span
