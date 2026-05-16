@@ -113,9 +113,17 @@ GNStudio provides multiple export strategies optimized for different collection 
 
 ### Streaming Export
 
-- **Behavior**: Images stream directly to IndexedDB during generation
-- **Benefit**: Reduces peak memory usage by persisting images as they are rendered
-- **Compatible with**: IndexedDB-enabled browsers
+- **Behavior**: Images stream incrementally to a persistent ZIP worker during generation, avoiding memory accumulation
+- **Benefit**: Main thread stays responsive; ZIP is built incrementally as items are generated
+- **When active**: Default export path during generation (when `enableStreamingStorage` is disabled)
+- **Compatible with**: All modern browsers with Web Worker support
+
+### IndexedDB Streaming
+
+- **Behavior**: Images stream to IndexedDB during generation, then packaged into ZIP files in size-bounded batches after generation completes
+- **Benefit**: Reduces peak memory usage by 60-80% for large collections; RAM stays bounded regardless of collection size
+- **When active**: Only when `enableStreamingStorage` feature flag is enabled (default: enabled)
+- **Batch sizing**: Each ZIP batch is capped at a target size (default 500MB), with multiple ZIP files downloaded sequentially
 
 ### Worker-Offloaded ZIP
 
@@ -129,10 +137,10 @@ GNStudio exposes feature flags to fine-tune the generation pipeline:
 
 | Flag                        | Description                                                                                             | Default  |
 | --------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
-| `enableStreamingStorage`    | Streams generated images to IndexedDB during generation to reduce memory pressure                       | Enabled  |
+| `enableStreamingStorage`    | Streams generated images to IndexedDB during generation, then packages into size-bounded ZIP batches    | Enabled  |
 | `enableLayerRef`            | Transfers layers by ID reference instead of full data per batch, reducing inter-worker message overhead | Disabled |
 | `enableAdaptiveBatchSize`   | Adjusts batch size based on collection size and device hardware capabilities                            | Enabled  |
-| `enableZipWorkerOffloading` | Offloads ZIP creation to a dedicated Web Worker to keep the main thread responsive                      | Disabled |
+| `enableZipWorkerOffloading` | Offloads one-shot ZIP creation to a dedicated Web Worker for collections > 500 items                    | Disabled |
 
 Enable or disable flags in **Project Settings → Feature Flags** before starting generation.
 
@@ -269,12 +277,13 @@ For large collections:
 
 ### Collection Size Considerations
 
-| Size         | Approach            | Details                            |
-| ------------ | ------------------- | ---------------------------------- |
-| 1-100        | Standard generation | CSP solving + worker rendering     |
-| 101-1,000    | Streaming storage   | IndexedDB streaming + standard ZIP |
-| 1,001-3,000  | Optimized chunking  | Chunked ZIP processing             |
-| 3,001-10,000 | Multi-ZIP export    | Split into 1 GB ZIP files          |
+| Size         | Approach             | Details                                                 |
+| ------------ | -------------------- | ------------------------------------------------------- |
+| 1-100        | Standard generation  | CSP solving + worker rendering                          |
+| 101-500      | Streaming ZIP        | Incremental ZIP worker + standard ZIP                   |
+| 501-1,000    | Worker-offloaded ZIP | Dedicated ZIP worker (if flag enabled) or streaming ZIP |
+| 1,001-3,000  | Optimized chunking   | Chunked ZIP processing (100 items/chunk)                |
+| 3,001-10,000 | Multi-ZIP export     | Split into 1 GB ZIP files with sequential downloads     |
 
 ### Memory Management
 
@@ -355,6 +364,8 @@ After successful generation:
    - Standard item metadata format compatible with most marketplaces
 
 > **Note**: The system automatically packages your complete collection with proper folder structure and metadata using the optimal export strategy for your collection size.
+
+> **Multi-ZIP Downloads**: When exporting large collections that produce multiple ZIP files, downloads are triggered sequentially with 5-second intervals between each. This prevents browser download manager overload and ensures large blob URLs (700MB+) have time to begin streaming before the next download starts. Do not close the browser tab until all downloads have initiated.
 
 ## Related Documentation
 
