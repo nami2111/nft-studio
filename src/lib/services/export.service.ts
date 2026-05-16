@@ -1,6 +1,7 @@
 import type { Project } from '$lib/types/project';
 import { isFlagEnabled } from '$lib/config/feature-flags';
 import { MemoryMonitor } from '$lib/utils/memory-monitor';
+import { iterateBySize } from '$lib/utils/streaming-storage';
 
 export interface ExportOptions {
 	project: Project;
@@ -479,6 +480,56 @@ export async function finalizeStreamingZip(
  */
 export function cancelStreamingZip(): void {
 	cancelZipStream();
+}
+
+/**
+ * Package ZIP files directly from IndexedDB in size-bounded batches.
+ * Each batch creates its own ZIP, downloads immediately, then GC frees the memory.
+ * RAM stays bounded at targetChunkBytes regardless of collection size.
+ */
+export async function packageFromIndexedDBBySize(
+	sessionId: string,
+	projectName: string,
+	targetChunkBytes: number,
+	onProgress?: (progress: { processed: number; total: number; message: string }) => Promise<void>
+): Promise<void> {
+	const { default: JSZip } = await import('jszip');
+	let batchIndex = 0;
+
+	await iterateBySize(sessionId, targetChunkBytes, async (batch, idx, total) => {
+		onProgress?.({
+			processed: idx + 1,
+			total,
+			message: `Packaging batch ${idx + 1}/${total} (${batch.images.length} items)...`
+		});
+
+		const zip = new JSZip();
+		const imagesFolder = zip.folder('images');
+		const metadataFolder = zip.folder('metadata');
+
+		for (const img of batch.images) {
+			imagesFolder?.file(img.name, img.imageData);
+		}
+		for (const meta of batch.metadata) {
+			metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
+		}
+
+		const content = await zip.generateAsync({
+			type: 'blob',
+			compression: 'DEFLATE',
+			compressionOptions: { level: 6 }
+		});
+
+		const filename = `${projectName || 'collection'}_part_${idx + 1}_of_${total}.zip`;
+		downloadBlob(content, filename);
+		batchIndex++;
+	});
+
+	onProgress?.({
+		processed: batchIndex,
+		total: batchIndex,
+		message: `All ${batchIndex} ZIP files downloaded`
+	});
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
