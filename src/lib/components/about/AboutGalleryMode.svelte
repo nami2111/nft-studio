@@ -110,81 +110,51 @@
 									<div>
 										<h3 class="text-foreground mb-4 font-semibold">Rarity Calculation System</h3>
 										<p class="text-muted-foreground mb-4">
-											Gallery Mode automatically calculates rarity scores and ranks for all imported
-											items using advanced algorithms that analyze trait distribution across the
-											entire collection.
+											Gallery Mode features six rarity calculation methods for comprehensive collection analysis.
 										</p>
 
-										<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-											<div>
-												<h4 class="text-foreground mb-3 font-semibold">Trait Rarity Method</h4>
-												<p class="text-muted-foreground mb-3 text-sm">
-													Each trait's rarity is calculated based on its frequency in the
-													collection:
-												</p>
-												<div class="border-border bg-muted rounded-lg border p-3">
-													<p class="text-foreground mb-2 font-mono text-xs">
-														Trait Rarity (%) = (Number of items with this trait ÷ Total items) × 100
-													</p>
-													<p class="text-muted-foreground text-xs">
-														Example: If only 50 out of 1000 items have a "Golden Crown" trait, its
-														rarity is 5%.
-													</p>
-												</div>
+										<div class="grid grid-cols-1 gap-4 md:grid-cols-2 mb-4">
+											<div class="border-border bg-muted rounded-lg border p-3">
+												<h4 class="text-foreground mb-1 text-sm font-semibold">Trait Rarity</h4>
+												<p class="text-muted-foreground text-xs">Sum of individual trait rarity scores based on frequency in the collection.</p>
 											</div>
-											<div>
-												<h4 class="text-foreground mb-3 font-semibold">Overall Item Score</h4>
-												<p class="text-muted-foreground mb-3 text-sm">
-													Each item's rarity score is calculated by summing its individual trait
-													rarity scores (where rarer = higher score):
-												</p>
-												<div class="border-border bg-muted rounded-lg border p-3">
-													<p class="text-foreground mb-2 font-mono text-xs">
-														Trait Score = 100 ÷ Trait Percentage
-													</p>
-													<p class="text-foreground mb-2 font-mono text-xs">
-														Item Score = Sum of all trait scores
-													</p>
-													<p class="text-muted-foreground text-xs">
-														Example: A 5% rare trait = 20 points, 10% trait = 10 points. Total score
-														= 30.
-													</p>
-												</div>
+											<div class="border-border bg-muted rounded-lg border p-3">
+												<h4 class="text-foreground mb-1 text-sm font-semibold">Average Trait Rarity</h4>
+												<p class="text-muted-foreground text-xs">Mean of all trait rarity scores for balanced evaluation.</p>
+											</div>
+											<div class="border-border bg-muted rounded-lg border p-3">
+												<h4 class="text-foreground mb-1 text-sm font-semibold">Weighted Trait Rarity</h4>
+												<p class="text-muted-foreground text-xs">Later layers get higher weight for emphasis on foreground traits.</p>
+											</div>
+											<div class="border-border bg-muted rounded-lg border p-3">
+												<h4 class="text-foreground mb-1 text-sm font-semibold">Standard Deviation</h4>
+												<p class="text-muted-foreground text-xs">Statistical deviation from the mean for outlier detection.</p>
+											</div>
+											<div class="border-border bg-muted rounded-lg border p-3">
+												<h4 class="text-foreground mb-1 text-sm font-semibold">Enhanced Weighted</h4>
+												<p class="text-muted-foreground text-xs">Custom weights with tiered rarity system (Common → Legendary).</p>
+											</div>
+											<div class="border-border bg-muted rounded-lg border p-3">
+												<h4 class="text-foreground mb-1 text-sm font-semibold">Emergent Rarity</h4>
+												<p class="text-muted-foreground text-xs">Based on full trait combination uniqueness across the entire collection.</p>
 											</div>
 										</div>
 
-										<div class="border-border bg-muted mt-4 rounded-lg border p-4">
-											<h4 class="text-foreground mb-2 font-semibold">Ranking System</h4>
+										<div class="border-border bg-muted rounded-lg border p-4 mb-4">
+											<h4 class="text-foreground mb-2 font-semibold">Trait Statistics & Analysis</h4>
 											<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
-												<li>
-													<strong>Rank #1:</strong> Most rare item (HIGHEST score - has rarest traits)
-												</li>
-												<li>
-													<strong>Higher numbers:</strong> Less rare items (LOWER scores - more common
-													traits)
-												</li>
-												<li>
-													<strong>Sorting:</strong> "Low to High" = common to rare (low score to high
-													score)
-												</li>
-												<li>
-													<strong>Sorting:</strong> "High to Low" = rare to common (high score to low
-													score)
-												</li>
-												<li>
-													<strong>Visual indicators:</strong> Rarity scores and ranks are displayed in
-													item details
-												</li>
+												<li><strong>Top 20 Rarest Traits:</strong> Ranked list with counts and percentages</li>
+												<li><strong>Jaccard Similarity:</strong> Find items with similar trait combinations</li>
+												<li><strong>Strategic Classification:</strong> Traits categorized as strategic, balanced, or filler</li>
+												<li><strong>Rarity Tiers:</strong> Common, Uncommon, Rare, Epic, Legendary</li>
 											</ul>
 										</div>
 
-										<div class="border-border bg-muted mt-4 rounded-lg border p-4">
+										<div class="border-border bg-muted rounded-lg border p-4">
 											<h4 class="text-foreground mb-2 font-semibold">How Rarity is Displayed</h4>
 											<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
 												<div>
-													<h5 class="text-foreground mb-1 text-sm font-medium">
-														In Item Details Panel:
-													</h5>
+													<h5 class="text-foreground mb-1 text-sm font-medium">In Item Details Panel:</h5>
 													<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-xs">
 														<li>Individual trait rarity percentages</li>
 														<li>Overall item rarity score</li>
@@ -192,9 +162,7 @@
 													</ul>
 												</div>
 												<div>
-													<h5 class="text-foreground mb-1 text-sm font-medium">
-														In Collection Stats:
-													</h5>
+													<h5 class="text-foreground mb-1 text-sm font-medium">In Collection Stats:</h5>
 													<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-xs">
 														<li>Rarest item in the collection</li>
 														<li>Average rarity score across all items</li>
@@ -209,19 +177,21 @@
 										<h3 class="text-foreground mb-4 font-semibold">Performance Features</h3>
 										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 											<div>
-												<h4 class="text-foreground mb-2 font-semibold">Memory Management</h4>
+												<h4 class="text-foreground mb-2 font-semibold">Caching & Storage</h4>
 												<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
-													<li>Automatic cache clearing on page refresh</li>
-													<li>Efficient image loading and display</li>
-													<li>Smart memory cleanup for large collections</li>
+													<li>Three-tier cache: ImageBitmap, ImageData, ArrayBuffer</li>
+													<li>Filter result caching (LRU, max 50 entries)</li>
+													<li>Streaming import with IndexedDB storage</li>
+													<li>Storage quota monitoring with getStorageEstimate()</li>
 												</ul>
 											</div>
 											<div>
-												<h4 class="text-foreground mb-2 font-semibold">User Experience</h4>
+												<h4 class="text-foreground mb-2 font-semibold">Sorting & Filtering</h4>
 												<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
-													<li>Smooth animations and transitions</li>
-													<li>Real-time search and filtering</li>
-													<li>Custom dropdown components for mobile</li>
+													<li>Natural numeric sorting ("Foxinity #1", "#001")</li>
+													<li>O(1) trait index lookups for instant filtering</li>
+													<li>Multi-layer AND/OR trait filter combinations</li>
+													<li>Real-time search with debounced input</li>
 												</ul>
 											</div>
 										</div>

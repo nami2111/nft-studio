@@ -123,6 +123,25 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Dispatches to worker pool via postMessageToPool
   - Sends completion message when all batches finish
 
+##### Worker Pool Architecture
+
+- **Pool Orchestrator** (`src/lib/workers/pool/pool.ts`): 913-line main pool manager
+  - Dynamic scaling based on `navigator.hardwareConcurrency` and `deviceMemory`
+  - Health monitoring with 30-second ping checks
+  - Task complexity classification (LOW/MEDIUM/HIGH/VERY_HIGH)
+  - Work-stealing algorithm for load balancing
+  - Timeout monitoring: 30-second timeout for stuck tasks
+  - Auto-restart for failed workers (up to 3 times)
+
+##### Constraint Satisfaction Solver
+
+- **AC-3 Arc Consistency**: Domain pruning achieving 60-80% search space reduction
+- **MRV Heuristic**: Most Constrained Variable heuristic for layer selection
+- **Weighted-Random Trait Ordering**: Efraimidis-Spirakis algorithm for unbiased weighted sampling
+- **Trail-Based Domain Restoration**: Efficient backtracking with checkpoint/restore
+- **Forward-Checking**: Only checks neighbors instead of full AC-3 re-run
+- **Impossible Combination Cache**: Avoids retrying known dead-end combinations
+
 #### 5. Persistence Layer (`src/lib/persistence/`)
 
 ##### Multi-Backend Storage with Intelligent Caching
@@ -172,6 +191,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
    - Optimized for fast GPU-accelerated rendering
    - LRU eviction with automatic cleanup
    - Device pixel ratio support for sharp rendering
+   - 64-entry LRU cache in generation worker for decoded images
 
 2. **ImageData Cache** (50MB, 200 entries, 15min TTL)
    - Canvas manipulation operations
@@ -182,6 +202,10 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
    - Worker communication optimization
    - Transferable object support for zero-copy transfers
    - Long-term storage for frequently used assets
+   - WorkerArrayBufferCache: device-aware sizing (25 entries/GB, 15% of device memory, max 100MB)
+
+- **LRU Eviction**: Frequency scoring with single-pass top-k selection (O(n))
+- **Memory Pressure Levels**: Aggressive cleanup at 800MB, moderate at 500MB, light at 200MB
 
 ### Intelligent Worker Pool
 
@@ -211,6 +235,21 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Worker resources on task completion
   - Event listeners and timers
 
+### Streaming Storage Architecture
+
+- **IndexedDB Streaming**: Streams generated images/metadata to IndexedDB instead of accumulating in memory
+- **Session-Based Streaming**: `streamBatch()`, `iterateItems()`, `clearSession()` for session management
+- **Incremental ZIP Chunks**: ZIP worker receives incremental chunks during generation
+- **Layer Reference Mode**: Transfers layers once by ID instead of full data per batch
+
+### ZIP Export Pipeline
+
+- **Standard**: JSZip for <= 1000 items
+- **Optimized**: Chunked processing (100 items/chunk) for 1000-3000 items
+- **Multi-ZIP**: Splits into multiple ZIPs (1GB max each) for very large collections
+- **Worker Offloading**: Worker-based generation for > 500 items
+- **Memory Pressure Handling**: Memory cleanup before large ZIP generation
+
 ## Data Flow Architecture
 
 1. **User Interaction**: UI components capture user input with reactive updates
@@ -230,6 +269,9 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 - Visual indicators (crown icons, color-coded badges)
 - Interactive rule configuration interface
 - Real-time validation during generation
+- AC-3 integration in CSP solver for constraint enforcement
+- ConstraintCache class with hit-rate tracking for constraint queries
+- `validateTraitCompatibility()` and `getCompatibleTraits()` functions
 
 ### Interactive Gallery Filtering
 
@@ -239,6 +281,9 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 - Build complex filters by selecting multiple traits
 - Visual feedback with selected trait highlighting
 - Natural sorting with numeric pattern recognition
+- Trait Index: Pre-computed `Map<"layer:trait", Set<itemId>>` for O(1) filtering
+- Filter Cache: LRU cache (max 50 entries) for repeated filter queries
+- 6 Rarity Calculation Methods: Multiple statistical approaches for rarity scoring
 
 ### Progressive Generation
 

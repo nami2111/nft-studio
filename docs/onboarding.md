@@ -86,6 +86,17 @@ GNStudio provides two sophisticated modes for working with item collections:
 - **Independent State**: Each mode maintains its own workspace and data
 - **Data Flow**: Generate Mode → Export ZIP → Import to Gallery Mode for analysis
 - **Performance Optimization**: Each mode has specialized caching and performance tuning
+- **Feature Flags**: Generation behavior can be tuned via feature flags (`enableStreamingStorage`, `enableAdaptiveBatchSize`, `enableLayerRef`, `enableZipWorkerOffloading`) — see [Feature Flags](#feature-flags) section for details
+
+### Metadata Standards
+
+GNStudio supports two metadata output formats for generated collections:
+
+- **ERC-721** (`MetadataStandard.ERC721`): Compatible with OpenSea and EVM marketplaces. Includes `external_url`, `animation_url`, `youtube_url`, `background_color` (6-char hex), and standard `attributes` array with optional `display_type` and `max_value` for numeric traits.
+
+- **Solana** (`MetadataStandard.SOLANA`): Metaplex standard for Solana NFTs. Includes `symbol`, `seller_fee_basis_points`, `creators` array (address + share), `collection` info, and `properties` with a `files` array listing image and animation URIs.
+
+The default strategy is ERC-721. Strategies are registered in `src/lib/domain/metadata/strategies.ts` and selected via the metadata configuration UI.
 
 For detailed information about Gallery Mode features and interactive filtering, see [User Guide: Gallery Mode](./user-guide-gallery-mode.md).
 
@@ -119,17 +130,31 @@ gnstudio/
 │   │   │   ├── validation.ts          # Logic-based validation
 │   │   │   ├── project.domain.ts      # Project business logic
 │   │   │   ├── worker.service.ts      # Worker orchestration
-│   │   │   └── rarity-calculator.ts   # Rarity calculation algorithms
+│   │   │   ├── rarity-calculator.ts   # Rarity calculation algorithms
+│   │   │   └── metadata/              # Metadata output strategies
+│   │   │       ├── metadata.strategy.ts  # Strategy interface & types
+│   │   │       └── strategies.ts         # ERC-721 & Solana implementations
 │   │   ├── services/         # Application services
 │   │   │   ├── persistence.service.ts  # Storage management
 │   │   │   └── validation.service.ts   # Core validation service
 │   │   ├── workers/          # Advanced worker pool system
-│   │   │   ├── worker.pool.ts         # Dynamic worker pool management
-│   │   │   └── generation.worker.ts   # Canvas-based generation
+│   │   │   ├── cache/                 # Worker-level caching
+│   │   │   │   └── array-buffer.cache.ts  # ArrayBuffer cache for images
+│   │   │   ├── pool/                  # Worker pool infrastructure
+│   │   │   │   ├── pool.ts           # Dynamic worker pool management
+│   │   │   │   ├── state.ts          # Pool state tracking
+│   │   │   │   ├── types.ts          # Pool type definitions
+│   │   │   │   ├── sanitize.ts       # Worker data sanitization
+│   │   │   │   └── index.ts          # Pool public API
+│   │   │   ├── worker.pool.ts        # Legacy pool (re-export)
+│   │   │   └── generation.worker.ts  # Canvas-based generation
 │   │   ├── utils/            # Performance and utility functions
 │   │   │   ├── performance-monitor.ts  # Performance tracking
 │   │   │   ├── error-handler.ts       # Error management
-│   │   │   └── advanced-cache.ts       # Three-tier caching system
+│   │   │   ├── advanced-cache.ts       # Three-tier caching system
+│   │   │   └── combination-indexer.ts  # Trait combination indexing
+│   │   ├── config/           # Application configuration
+│   │   │   └── feature-flags.ts       # Runtime feature flag system
 │   │   ├── types/            # TypeScript definitions
 │   │   └── persistence/      # Data storage abstraction
 │   ├── routes/               # SvelteKit page routes
@@ -151,6 +176,17 @@ gnstudio/
 ├── tailwind.config.js        # Tailwind CSS configuration
 └── README.md                 # Project overview and features
 ```
+
+## PWA & Offline Support
+
+GNStudio is a Progressive Web App with offline capabilities powered by `vite-plugin-pwa`:
+
+- **Service Worker**: Auto-update registration (`registerType: 'autoUpdate'`) with `skipWaiting` and `clientsClaim` for seamless updates.
+- **Runtime Caching**: Google Fonts (both `fonts.googleapis.com` and `fonts.gstatic.com`) cached with a CacheFirst strategy for 365 days.
+- **Manifest**: Configured in `vite.config.ts` with icons at 64x64, 192x192, 512x512, and a dedicated maskable icon at 512x512. Theme color `#3b82f6`, display mode `standalone`.
+- **Offline Capabilities**: Navigate fallback to `/` (excluding `/_app/`, `/api/`, and `/manifest.webmanifest` paths). Static assets (JS, CSS, images, fonts, JSON) are precached via `globPatterns`.
+
+The service worker is injected via a script tag in `src/app.html`. The manifest is linked as `/manifest.webmanifest`.
 
 ## Development Workflow
 
@@ -187,8 +223,49 @@ vp fmt
 vp run build
 
 # Preview the built application
-pnpm preview
+vp run preview
 ```
+
+## Feature Flags
+
+Runtime feature flags allow phased rollout of optimizations without redeployment. Flags are defined in `src/lib/config/feature-flags.ts` and toggled via environment variables:
+
+| Flag                        | Default  | Purpose                                                                           |
+| --------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `enableStreamingStorage`    | Enabled  | Stream generated images/metadata to IndexedDB instead of accumulating in memory   |
+| `enableLayerRef`            | Disabled | Transfer layers by reference (ID-based batching) instead of full layers per batch |
+| `enableAdaptiveBatchSize`   | Enabled  | Dynamic batch sizing based on collection size, worker count, and resolution       |
+| `enableZipWorkerOffloading` | Disabled | Offload ZIP packaging to a dedicated Web Worker                                   |
+
+### Environment Variable Convention
+
+- `VITE_ENABLE_<FLAG>` — enable a feature originally disabled
+- `VITE_DISABLE_<FLAG>` — disable a feature originally enabled
+
+Example: `VITE_DISABLE_STREAMING_STORAGE=true vp dev` runs the dev server with streaming storage disabled.
+
+Flags can also be overridden at runtime via `setFeatureFlags()` (useful for dev UI panels or testing). Call `resetFeatureFlags()` to restore defaults.
+
+## Deployment
+
+GNStudio is deployed to the Internet Computer via **Juno** (ICP-based static hosting):
+
+- **Platform**: Juno with `@junobuild/vite-plugin`
+- **Production Satellite ID**: `dpl4s-kqaaa-aaaal-asg3a-cai`
+- **Orbiter ID**: `p2pi7-hiaaa-aaaal-asaia-cai` (analytics)
+- **Config**: `juno.config.ts` — defines satellite IDs per environment, storage headers (CSP, gzip content types), and predeploy hook
+
+### Deploy Commands
+
+```bash
+# Build the production bundle
+vp run build
+
+# Deploy to the satellite
+juno hosting deploy
+```
+
+The `predeploy` hook in `juno.config.ts` runs `vp run build` automatically before deployment. Use `juno hosting deploy --mode staging` for staging deployments.
 
 ## Contributing
 
@@ -253,6 +330,7 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 | `vp test`                | Run tests                  |
 | `vp test watch`          | Run tests in watch mode    |
 | `vp test run --coverage` | Run tests with coverage    |
+| `vp run preview`         | Preview production build   |
 
 ## Getting Help
 

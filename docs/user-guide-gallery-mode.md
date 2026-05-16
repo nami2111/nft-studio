@@ -74,16 +74,32 @@ For each collection, you can see:
    - Rarity score and global rank
    - Complete trait list with individual rarity percentages
 
-### Rarity Scoring System
+### Rarity Calculation Methods
 
-Understanding how rarity is calculated:
+GNStudio supports six distinct rarity calculation methods, each providing a different perspective on item rarity:
 
-- **Trait Rarity**: `(Number of items with trait ÷ Total items) × 100`
-- **Trait Score**: `100 ÷ Trait Percentage` (rarer = higher score)
-- **Item Score**: Sum of all trait scores (higher = rarer)
-- **Ranking**: Rank #1 = most rare item (highest score)
+- **TRAIT_RARITY**: Sum of individual trait rarity scores. Each trait's score is `(Total items ÷ Number of items with trait)`. All traits are summed for the final item score.
+- **AVERAGE_TRAIT_RARITY**: Average of trait rarity scores rather than sum. Normalizes across items with different numbers of traits, preventing trait-heavy items from dominating.
+- **WEIGHTED_TRAIT_RARITY**: Later layers get progressively higher weight multipliers. Assumes later layers (overlays) are more visually impactful and should influence rarity more.
+- **STANDARD_DEVIATION**: Statistical deviation-based scoring. Measures how far each trait's frequency deviates from the mean. Items whose traits all deviate significantly score higher.
+- **ENHANCED_WEIGHTED**: Custom weights combined with a tiered rarity system. Allows manual tuning of layer importance alongside automatic tier assignment.
+- **EMERGENT_RARITY**: Based on the full trait combination's uniqueness across the collection. An item with a unique combination of otherwise common traits can rank highly.
 
-**Example**: A trait appearing in 50 out of 1000 items has 5% rarity and a score of 20 points.
+**Rarity Tiers**: Items are classified into tiers based on percentile thresholds:
+
+| Tier      | Percentile | Description                                |
+| --------- | ---------- | ------------------------------------------ |
+| Legendary | Top 1%     | Extremely rare, one-of-a-kind combinations |
+| Epic      | Top 5%     | Very rare items with exceptional traits    |
+| Rare      | Top 15%    | Uncommon items with notable rarity         |
+| Uncommon  | Top 35%    | Above-average rarity                       |
+| Common    | Remaining  | Standard items found frequently            |
+
+**Strategic Trait Classification**: Each trait is classified into one of three categories based on its impact on rarity scoring:
+
+- **Strategic**: Traits that significantly influence rarity (rare traits, unique combinations)
+- **Balanced**: Traits with moderate rarity impact (average frequency)
+- **Filler**: Common traits used frequently across the collection (low rarity impact)
 
 ## Interactive Trait Filtering
 
@@ -114,6 +130,15 @@ Gallery Mode features revolutionary interactive trait filtering:
 
 ## Search and Sort
 
+### Filter Caching
+
+Gallery Mode uses an intelligent caching system for filtered results:
+
+- **LRU Cache**: Least Recently Used cache with a maximum of 50 entries for filtered result sets. Frequently accessed filter combinations stay in memory.
+- **Cache Key**: Derived from the active filters + collection ID + sort option, ensuring each unique filter state has its own cached result.
+- **Trait Index**: Pre-computed `Map<"layer:trait", Set<itemId>>` lookup structure for O(1) trait-based filtering. Built once at import time.
+- **Invalidation**: Cache entries are invalidated automatically on collection change or filter modification, ensuring stale results are never served.
+
 ### Search Functionality
 
 - **Real-time Search**: Instant results as you type
@@ -125,6 +150,14 @@ Gallery Mode features revolutionary interactive trait filtering:
 - **Rarity Score**: Sort by calculated rarity (ascending/descending)
 - **Name**: Alphabetical sorting (A-Z or Z-A)
 - **Rank**: Sort by global rarity ranking
+
+#### Natural Numeric Sorting
+
+Item names containing numbers are sorted with natural numeric ordering so sequences like "Foxinity #1", "#001", and "Item 42" sort correctly:
+
+- Numeric parts within names are compared numerically (e.g., `#2` before `#10`)
+- Text parts are compared alphabetically using locale-aware collation
+- Handles mixed patterns like `"Set 3 - Variant 12"` where multiple number groups exist in a single name
 
 ## Responsive Design
 
@@ -149,6 +182,32 @@ Gallery Mode features revolutionary interactive trait filtering:
 - **Automatic Cleanup**: Cache clears on page refresh for fresh starts
 - **Efficient Loading**: Progressive loading prevents UI blocking
 - **Memory Optimization**: Smart cleanup for large collections
+
+### Three-Tier Image Cache
+
+Images are cached across three tiers for optimal memory usage:
+
+| Tier        | Limit | Entries | TTL    | Description                                              |
+| ----------- | ----- | ------- | ------ | -------------------------------------------------------- |
+| ImageBitmap | 100MB | 500     | 30 min | Fastest rendering, decoded GPU-ready bitmaps             |
+| ImageData   | 50MB  | 200     | 15 min | Raw pixel data for canvas operations                     |
+| ArrayBuffer | 200MB | 1000    | 1 hour | Compressed binary data, slowest but most space-efficient |
+
+### Memory Pressure Handling
+
+Automatic cleanup triggers at three thresholds:
+
+- **Aggressive (800MB)**: Evicts all tiers, keeps only visible images in memory
+- **Moderate (500MB)**: Evicts ImageBitmap and ImageData tiers, retains ArrayBuffer cache
+- **Light (200MB)**: Evicts oldest ImageBitmap entries, preserves other tiers
+
+### Streaming Import
+
+Large collections use streaming to avoid memory bottlenecks:
+
+- **`createStreamingCollection()`**: Creates metadata-only collection entries first, then streams individual images to IndexedDB one at a time
+- **Storage Estimation**: `getStorageEstimate()` monitors IndexedDB quota usage, warning when approaching browser limits
+- **Progress Tracking**: Real-time byte-level progress during import
 
 ### Performance Features
 
@@ -188,9 +247,10 @@ Gallery Mode features revolutionary interactive trait filtering:
 
 **Images**:
 
-- PNG or JPG format recommended
-- Consistent dimensions across all images
-- Maximum size: 4096×4096 pixels
+- Supported formats: PNG, JPG, WebP, GIF
+- Automatic format detection for WebP and GIF during import
+- Consistent dimensions across all images recommended
+- Maximum dimensions: 4096×4096 pixels
 
 **Metadata** (Optional):
 
@@ -227,6 +287,15 @@ Gallery Mode automatically calculates and displays:
 - **Individual Trait Rarity**: Percentage of items with each specific trait
 - **Trait Rankings**: Most and least common traits in the collection
 - **Rarity Distribution**: Overall rarity score distribution across collection
+
+### Trait Statistics
+
+Detailed statistical analysis tools for in-depth trait exploration:
+
+- **Top 20 Rarest Traits**: Lists the 20 rarest traits with their exact counts and percentage of occurrence across the collection
+- **Individual Trait Percentages**: Every trait displays its precise rarity percentage (e.g., "Golden Crown appears in 3.2% of items")
+- **Rarity Distribution Chart**: Visual breakdown of how rarity scores are distributed, showing clusters and outliers
+- **Jaccard Similarity**: Measures trait overlap between items to find related items. `J(A,B) = |A ∩ B| / |A ∪ B|`. Useful for discovering visually similar items or trait combination clusters.
 
 ### Collection Comparison
 

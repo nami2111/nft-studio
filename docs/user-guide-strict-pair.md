@@ -160,11 +160,39 @@ When duplicates are detected:
 - Ensures consistent results across all generation processes
 - Maintains tracking state across large generation jobs
 
+### Bit-Packed Combination Indexing
+
+Strict Pair uses an efficient bit-packing scheme for O(1) combination lookups:
+
+- **Bit-Packing**: Up to 8 traits are packed into a single 64-bit integer (8 bits per trait, supporting up to 256 traits per layer)
+- **80% Memory Reduction**: Compared to string-based keys, bit-packing dramatically reduces memory usage
+- **Collision-Proof Fallback**: When bit-packing is not possible (more than 8 traits or trait IDs > 255), the system uses collision-proof string keys to prevent the birthday-paradox problem at scale
+- **CombinationIndexer Class**: Pack and unpack trait IDs to/from BigInt values. `CombinationIndexer.pack([1, 5, 10])` produces `0x00000A0501n`
+
+### Predictive Blocking Warnings
+
+The system monitors the relationship between collection size and maximum unique combinations:
+
+- Automatically checks at thresholds of 1000, 5000, and 10,000 items
+- Shows a warning if the requested collection size exceeds the total possible unique combinations for active strict pair rules
+- Helps avoid generation failures before they occur
+
+### Global Uniqueness Mode
+
+When Strict Pair is disabled, the system still ensures uniqueness through a default "global" combination:
+
+- All layers are treated as one combined uniqueness constraint
+- Prevents any full trait combination from appearing more than once
+- This is the default behavior even without explicit strict pair configuration
+- Works alongside optional layers (optional layers skip the uniqueness check if not present)
+
 ### Memory Management
 
 - Used combinations are tracked efficiently
-- Automatic cleanup prevents memory issues
-- Supports large collections (10,000+ items)
+- Bit-packed integers stored as BigInt in a Set for O(1) lookups with minimal memory
+- Fallback string keys use dedicated Map structures per combination
+- Automatic cleanup of old combinations when generation is cancelled
+- Supports large collections (10,000+ items) without memory issues
 
 ### Persistent Configuration
 

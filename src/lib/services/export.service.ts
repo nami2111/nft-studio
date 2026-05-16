@@ -1,6 +1,7 @@
 import type { Project } from '$lib/types/project';
 import { isFlagEnabled } from '$lib/config/feature-flags';
 import { MemoryMonitor } from '$lib/utils/memory-monitor';
+import { iterateBySize } from '$lib/utils/streaming-storage';
 
 export interface ExportOptions {
 	project: Project;
@@ -41,6 +42,25 @@ interface ZipWorkerResponse {
 	};
 }
 
+/**
+ * Track blob URLs created during export so they can be cleaned up on page unload.
+ * We do NOT revoke URLs immediately after download because the browser may still
+ * be streaming large files (700MB+) when revoke is called, causing data loss.
+ */
+const activeBlobUrls = new Set<string>();
+let cleanupRegistered = false;
+
+function registerBlobUrlCleanup(url: string): void {
+	activeBlobUrls.add(url);
+	if (!cleanupRegistered) {
+		cleanupRegistered = true;
+		window.addEventListener('beforeunload', () => {
+			activeBlobUrls.forEach((u) => URL.revokeObjectURL(u));
+			activeBlobUrls.clear();
+		});
+	}
+}
+
 function runZipWorker(message: ZipWorkerMessage, transfer?: Transferable[]): Promise<ArrayBuffer> {
 	return new Promise((resolve, reject) => {
 		const worker = new Worker(new URL('../workers/zip.worker.ts', import.meta.url), {
@@ -71,6 +91,32 @@ function runZipWorker(message: ZipWorkerMessage, transfer?: Transferable[]): Pro
  * Streaming ZIP: maintains a persistent ZIP worker that accepts incremental chunks
  * via the zip-chunk protocol. Finalize to get the complete ZIP.
  */
+/**
+ * Queue for sequential downloads to prevent browser download manager overload.
+ * Large blob URLs (700MB+) need time to begin streaming before the next download starts.
+ */
+const downloadQueue: Array<{ buffer: ArrayBuffer; filename: string }> = [];
+let isProcessingDownloadQueue = false;
+
+/**
+ * Process the download queue sequentially with delays between each trigger.
+ */
+async function processDownloadQueue(): Promise<void> {
+	if (isProcessingDownloadQueue) return;
+	isProcessingDownloadQueue = true;
+
+	while (downloadQueue.length > 0) {
+		const { buffer, filename } = downloadQueue.shift()!;
+		downloadZipBuffer(buffer, filename);
+		// Wait 5 seconds between downloads to let the browser start streaming
+		if (downloadQueue.length > 0) {
+			await new Promise((resolve) => setTimeout(resolve, 5000));
+		}
+	}
+
+	isProcessingDownloadQueue = false;
+}
+
 let zipStreamWorker: Worker | null = null;
 let zipStreamTaskId: string | null = null;
 let zipStreamResolve: (() => void) | null = null;
@@ -94,8 +140,15 @@ function startZipStreamWorker(taskId: string): void {
 		const data = e.data;
 		if (data.type === 'zip-complete') {
 			const { buffer, partIndex, isFinal } = data.payload;
+			if (import.meta.env.DEV) {
+				console.log(
+					`[zip-main] Received zip-complete: partIndex=${partIndex}, isFinal=${isFinal}, buffer=${buffer ? (buffer.byteLength / 1024 / 1024).toFixed(1) + 'MB' : 'null'}`
+				);
+			}
 			if (buffer != null && partIndex != null) {
-				downloadZipBuffer(buffer, `${zipStreamProjectName}_part_${partIndex}.zip`);
+				const filename = `${zipStreamProjectName}_part_${partIndex}.zip`;
+				downloadQueue.push({ buffer, filename });
+				processDownloadQueue();
 			}
 
 			if (isFinal) {
@@ -145,6 +198,12 @@ function sendZipChunk(
 	}
 
 	const transferList = imageFiles.map((f) => f.data);
+	const totalBytes = transferList.reduce((sum, b) => sum + b.byteLength, 0);
+	if (import.meta.env.DEV && (isFinal || transferList.length % 100 === 0)) {
+		console.log(
+			`[zip-main] sendZipChunk: files=${imageFiles.length}, size=${(totalBytes / 1024 / 1024).toFixed(1)}MB, isFinal=${isFinal}`
+		);
+	}
 	const message: ZipChunkMessage = {
 		type: 'zip-chunk',
 		taskId: zipStreamTaskId,
@@ -165,9 +224,12 @@ function finalizeZipStream(timeoutMs = 60000): Promise<void> {
 			return;
 		}
 
+		if (import.meta.env.DEV) console.log(`[zip-main] finalizeZipStream: sending final chunk`);
+
 		// Set up timeout to reject if ZIP worker doesn't respond
 		const timeoutId = setTimeout(() => {
-			zipStreamReject?.(new Error('ZIP finalization timed out after 60 seconds'));
+			console.error(`[zip-main] ZIP finalization timed out after ${timeoutMs}ms`);
+			zipStreamReject?.(new Error(`ZIP finalization timed out after ${timeoutMs}ms`));
 			zipStreamResolve = null;
 			zipStreamReject = null;
 			if (zipStreamWorker) {
@@ -179,10 +241,12 @@ function finalizeZipStream(timeoutMs = 60000): Promise<void> {
 
 		zipStreamResolve = () => {
 			clearTimeout(timeoutId);
+			if (import.meta.env.DEV) console.log(`[zip-main] finalizeZipStream resolved`);
 			resolve();
 		};
 		zipStreamReject = (error: Error) => {
 			clearTimeout(timeoutId);
+			console.error(`[zip-main] finalizeZipStream rejected:`, error.message);
 			reject(error);
 		};
 
@@ -210,6 +274,7 @@ function cancelZipStream(): void {
 function downloadZipBuffer(buffer: ArrayBuffer, filename: string): void {
 	const blob = new Blob([buffer], { type: 'application/zip' });
 	const url = URL.createObjectURL(blob);
+	registerBlobUrlCleanup(url);
 	const a = document.createElement('a');
 	a.href = url;
 	a.download = filename;
@@ -220,7 +285,6 @@ function downloadZipBuffer(buffer: ArrayBuffer, filename: string): void {
 		console.error('Download failed:', error);
 	} finally {
 		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
 	}
 }
 
@@ -362,6 +426,15 @@ export function addStreamingChunk(
 ): void {
 	const imageFiles: Array<{ path: string; data: ArrayBuffer }> = [];
 
+	// Validate image data before sending
+	const emptyImages = images.filter((img) => !img.data || img.data.byteLength === 0);
+	if (emptyImages.length > 0) {
+		console.error(
+			`❌ addStreamingChunk: ${emptyImages.length} images have empty data:`,
+			emptyImages.map((img) => img.name)
+		);
+	}
+
 	for (const img of images) {
 		imageFiles.push({ path: `images/${img.name}`, data: img.data });
 	}
@@ -409,8 +482,59 @@ export function cancelStreamingZip(): void {
 	cancelZipStream();
 }
 
+/**
+ * Package ZIP files directly from IndexedDB in size-bounded batches.
+ * Each batch creates its own ZIP, downloads immediately, then GC frees the memory.
+ * RAM stays bounded at targetChunkBytes regardless of collection size.
+ */
+export async function packageFromIndexedDBBySize(
+	sessionId: string,
+	projectName: string,
+	targetChunkBytes: number,
+	onProgress?: (progress: { processed: number; total: number; message: string }) => Promise<void>
+): Promise<void> {
+	const { default: JSZip } = await import('jszip');
+	let batchIndex = 0;
+
+	await iterateBySize(sessionId, targetChunkBytes, async (batch, idx, total) => {
+		onProgress?.({
+			processed: idx + 1,
+			total,
+			message: `Packaging batch ${idx + 1}/${total} (${batch.images.length} items)...`
+		});
+
+		const zip = new JSZip();
+		const imagesFolder = zip.folder('images');
+		const metadataFolder = zip.folder('metadata');
+
+		for (const img of batch.images) {
+			imagesFolder?.file(img.name, img.imageData);
+		}
+		for (const meta of batch.metadata) {
+			metadataFolder?.file(meta.name, JSON.stringify(meta.data, null, 2));
+		}
+
+		const content = await zip.generateAsync({
+			type: 'blob',
+			compression: 'DEFLATE',
+			compressionOptions: { level: 6 }
+		});
+
+		const filename = `${projectName || 'collection'}_part_${idx + 1}_of_${total}.zip`;
+		downloadBlob(content, filename);
+		batchIndex++;
+	});
+
+	onProgress?.({
+		processed: batchIndex,
+		total: batchIndex,
+		message: `All ${batchIndex} ZIP files downloaded`
+	});
+}
+
 function downloadBlob(blob: Blob, filename: string): void {
 	const url = URL.createObjectURL(blob);
+	registerBlobUrlCleanup(url);
 	const a = document.createElement('a');
 	a.href = url;
 	a.download = filename;
@@ -422,7 +546,6 @@ function downloadBlob(blob: Blob, filename: string): void {
 		throw error;
 	} finally {
 		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
 	}
 }
 
@@ -675,6 +798,7 @@ async function yieldIfHighMemoryPressure(): Promise<void> {
  */
 function downloadZipWithIndex(content: Blob, project: Project, index: number, total: number): void {
 	const url = URL.createObjectURL(content);
+	registerBlobUrlCleanup(url);
 	const a = document.createElement('a');
 	a.href = url;
 	a.download = `${project.name || 'collection'}_part_${index}_of_${total}.zip`;
@@ -688,7 +812,6 @@ function downloadZipWithIndex(content: Blob, project: Project, index: number, to
 		throw error;
 	} finally {
 		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
 	}
 }
 
@@ -697,6 +820,7 @@ function downloadZipWithIndex(content: Blob, project: Project, index: number, to
  */
 function downloadZip(content: Blob, project: Project): void {
 	const url = URL.createObjectURL(content);
+	registerBlobUrlCleanup(url);
 	const a = document.createElement('a');
 	a.href = url;
 	a.download = `${project.name || 'collection'}.zip`;
@@ -711,6 +835,5 @@ function downloadZip(content: Blob, project: Project): void {
 		throw error;
 	} finally {
 		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
 	}
 }

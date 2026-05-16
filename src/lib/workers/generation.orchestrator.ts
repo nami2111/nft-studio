@@ -36,11 +36,11 @@ import {
 	startStreamingZip,
 	addStreamingChunk,
 	finalizeStreamingZip,
-	cancelStreamingZip
+	cancelStreamingZip,
+	packageFromIndexedDBBySize
 } from '$lib/services/export.service';
 import { isFlagEnabled } from '$lib/config/feature-flags';
-import { streamBatch, iterateItems, clearSession } from '$lib/utils/streaming-storage';
-import type { StreamedMetadata } from '$lib/utils/streaming-storage';
+import { streamBatch, clearSession } from '$lib/utils/streaming-storage';
 
 // ─── Public interface ─────────────────────────────────────────
 
@@ -171,27 +171,21 @@ export async function runGeneration(
 						}
 					});
 
-					startStreamingZip(_idbSessionId!, _activeProjectName);
-					_activeStreamingSession = _idbSessionId;
-
-					await iterateItems(_idbSessionId!, async (batch) => {
-						addStreamingChunk(
-							batch.images.map((img) => ({ name: img.name, data: img.imageData })),
-							batch.metadata
-						);
-					});
-
-					await finalizeStreamingZip(_activeProjectName, (progress) => {
-						callbacks.onProgress({
-							type: 'progress',
-							payload: {
-								generatedCount: config.collectionSize,
-								totalCount: config.collectionSize,
-								statusText: progress.message
-							}
-						});
-					});
-					_activeStreamingSession = null;
+					await packageFromIndexedDBBySize(
+						_idbSessionId!,
+						_activeProjectName,
+						500 * 1024 * 1024,
+						async (progress) => {
+							callbacks.onProgress({
+								type: 'progress',
+								payload: {
+									generatedCount: config.collectionSize,
+									totalCount: config.collectionSize,
+									statusText: progress.message
+								}
+							});
+						}
+					);
 
 					clearSession(_idbSessionId!).catch(() => {});
 				} else {
@@ -425,11 +419,13 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 			const msg = data;
 			if (_useStreamingStorage && _idbSessionId) {
 				const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
+				const count = msg.payload.images.length;
+				console.log(`📝 streamBatch chunk: startIndex=${firstIdx}, count=${count}`);
 				streamBatch(
 					_idbSessionId,
 					firstIdx,
 					msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
-					(msg.payload.metadata || []) as unknown as StreamedMetadata[]
+					msg.payload.metadata || []
 				).catch((err) => {
 					console.warn('IndexedDB stream failed:', err);
 				});
@@ -453,11 +449,16 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 			if (msg.payload.images && msg.payload.images.length > 0) {
 				if (_useStreamingStorage && _idbSessionId) {
 					const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
+					const count = msg.payload.images.length;
+					console.log(`📝 streamBatch complete: startIndex=${firstIdx}, count=${count}`);
 					streamBatch(
 						_idbSessionId,
 						firstIdx,
 						msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
-						(msg.payload.metadata || []) as unknown as StreamedMetadata[]
+						(msg.payload.metadata || []) as unknown as {
+							name: string;
+							data: Record<string, unknown>;
+						}[]
 					).catch((err) => {
 						console.warn('IndexedDB stream failed:', err);
 					});
