@@ -84,6 +84,9 @@ let _activeCallbacks: GenerationCallbacks | null = null;
 let _useStreamingStorage = false;
 let _idbSessionId: string | null = null;
 
+/** Track all pending streamBatch promises to ensure writes complete before reading */
+let _pendingStreamPromises: Promise<void>[] = [];
+
 // Bridge from pool → orchestrator
 setMessageCallback((data) => {
 	if (_activeCallbacks) {
@@ -133,6 +136,7 @@ export async function runGeneration(
 			_activeProjectName = config.projectName || 'collection';
 			_useStreamingStorage = isFlagEnabled('enableStreamingStorage');
 			_idbSessionId = sessionId;
+			_pendingStreamPromises = [];
 
 			// 4 ─ Start streaming ZIP (unless IndexedDB path is active)
 			if (!_useStreamingStorage) {
@@ -170,6 +174,14 @@ export async function runGeneration(
 							statusText: 'Packaging from storage...'
 						}
 					});
+
+					// Wait for all IndexedDB writes to complete before reading
+					console.log(
+						`⏳ Awaiting ${_pendingStreamPromises.length} pending streamBatch promises...`
+					);
+					await Promise.all(_pendingStreamPromises);
+					console.log(`✅ All ${_pendingStreamPromises.length} streamBatch writes completed`);
+					_pendingStreamPromises = [];
 
 					startStreamingZip(_idbSessionId!, _activeProjectName);
 					_activeStreamingSession = _idbSessionId;
@@ -239,6 +251,7 @@ export async function runGeneration(
 				_activeCallbacks = null;
 				_useStreamingStorage = false;
 				_idbSessionId = null;
+				_pendingStreamPromises = [];
 			}
 		},
 		{
@@ -425,14 +438,20 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 			const msg = data;
 			if (_useStreamingStorage && _idbSessionId) {
 				const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
-				streamBatch(
-					_idbSessionId,
-					firstIdx,
-					msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
-					(msg.payload.metadata || []) as unknown as StreamedMetadata[]
-				).catch((err) => {
-					console.warn('IndexedDB stream failed:', err);
-				});
+				const count = msg.payload.images.length;
+				console.log(
+					`📝 streamBatch chunk: startIndex=${firstIdx}, count=${count}, totalPending=${_pendingStreamPromises.length + 1}`
+				);
+				_pendingStreamPromises.push(
+					streamBatch(
+						_idbSessionId,
+						firstIdx,
+						msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
+						(msg.payload.metadata || []) as unknown as StreamedMetadata[]
+					).catch((err) => {
+						console.warn('IndexedDB stream failed:', err);
+					})
+				);
 			} else if (msg.payload.images.length > 0 && _activeStreamingSession) {
 				addStreamingChunk(
 					msg.payload.images.map((img) => ({ name: img.name, data: img.imageData })),
@@ -453,14 +472,20 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 			if (msg.payload.images && msg.payload.images.length > 0) {
 				if (_useStreamingStorage && _idbSessionId) {
 					const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
-					streamBatch(
-						_idbSessionId,
-						firstIdx,
-						msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
-						(msg.payload.metadata || []) as unknown as StreamedMetadata[]
-					).catch((err) => {
-						console.warn('IndexedDB stream failed:', err);
-					});
+					const count = msg.payload.images.length;
+					console.log(
+						`📝 streamBatch complete: startIndex=${firstIdx}, count=${count}, totalPending=${_pendingStreamPromises.length + 1}`
+					);
+					_pendingStreamPromises.push(
+						streamBatch(
+							_idbSessionId,
+							firstIdx,
+							msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
+							(msg.payload.metadata || []) as unknown as StreamedMetadata[]
+						).catch((err) => {
+							console.warn('IndexedDB stream failed:', err);
+						})
+					);
 				} else if (_activeStreamingSession && msg.payload.isChunk) {
 					addStreamingChunk(
 						msg.payload.images.map((img) => ({ name: img.name, data: img.imageData })),

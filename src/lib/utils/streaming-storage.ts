@@ -54,6 +54,15 @@ export async function streamBatch(
 	images: StreamedImage[],
 	metadata: StreamedMetadata[]
 ): Promise<void> {
+	// Validate image data before storing
+	const emptyImages = images.filter((img) => !img.imageData || img.imageData.byteLength === 0);
+	if (emptyImages.length > 0) {
+		console.error(
+			`❌ streamBatch: ${emptyImages.length} images have empty data at startIndex=${startIndex}:`,
+			emptyImages.map((img) => img.name)
+		);
+	}
+
 	const imageRecords = images.map((img, i) => ({
 		key: imageKey(sessionId, startIndex + i),
 		name: img.name,
@@ -101,12 +110,15 @@ export async function iterateItems(
 		(k): k is string => typeof k === 'string' && k.startsWith(imagePrefix)
 	);
 
+	console.log(`🔍 iterateItems: Found ${imageKeys.length} image keys for session ${sessionId}`);
+
 	imageKeys.sort((a, b) => {
 		const indexA = parseInt(a.replace(imagePrefix, ''), 10);
 		const indexB = parseInt(b.replace(imagePrefix, ''), 10);
 		return indexA - indexB;
 	});
 
+	let totalProcessed = 0;
 	for (let i = 0; i < imageKeys.length; i += batchSize) {
 		const batchImageKeys = imageKeys.slice(i, i + batchSize);
 		const batchMetaKeys = batchImageKeys.map((k) => metaPrefix + k.replace(imagePrefix, ''));
@@ -130,12 +142,41 @@ export async function iterateItems(
 			)
 		]);
 
+		const missingImages = imageRecords.filter((r) => r === undefined).length;
+		const missingMetadata = metaRecords.filter((r) => r === undefined).length;
+		if (missingImages > 0 || missingMetadata > 0) {
+			console.warn(
+				`⚠️ iterateItems batch ${i}: ${missingImages} missing images, ${missingMetadata} missing metadata`
+			);
+		}
+
 		const images = imageRecords.map((r) => ({ name: r.name, imageData: r.imageData }));
 		const metadata = metaRecords.map((r) => ({ name: r.name, data: r.data }));
 		const startIndex = parseInt(batchImageKeys[0].replace(imagePrefix, ''), 10);
 
+		// Validate image data sizes
+		const emptyImages = images.filter((img) => !img.imageData || img.imageData.byteLength === 0);
+		if (emptyImages.length > 0) {
+			console.error(
+				`❌ iterateItems batch ${i}: ${emptyImages.length} images have empty data:`,
+				emptyImages.map((img) => img.name)
+			);
+		}
+		const totalImageBytes = images.reduce((sum, img) => sum + (img.imageData?.byteLength || 0), 0);
+		if (import.meta.env.DEV) {
+			console.log(
+				`📦 iterateItems batch: startIndex=${startIndex}, images=${images.length}, totalImageBytes=${(totalImageBytes / 1024 / 1024).toFixed(1)}MB, totalProcessed=${totalProcessed}`
+			);
+		}
+
+		totalProcessed += images.length;
+
 		await callback({ images, metadata }, startIndex);
 	}
+
+	console.log(
+		`✅ iterateItems complete: Total ${totalProcessed} items processed for session ${sessionId}`
+	);
 }
 
 /**
