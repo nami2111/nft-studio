@@ -531,7 +531,7 @@ export class PerformanceMonitor {
 
 	finishBatch(): void {
 		const totalTime = performance.now() - this.batchStartTime;
-		const finalRate = this.batchProcessed / (totalTime / 1000);
+		const _finalRate = this.batchProcessed / (totalTime / 1000);
 	}
 
 	// ==========================================
