@@ -2,10 +2,12 @@
 	import { onMount, type Snippet } from 'svelte';
 	import { page } from '$app/stores';
 	import { pwaInfo } from 'virtual:pwa-info';
+	import { ModeWatcher } from 'mode-watcher';
 	import Icon from '$components/shared/Icon.svelte';
 	import { Home01Icon, Setting07Icon, Image01Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
 	import '../app.css';
 	import { Button } from '$lib/components/ui/button';
+	import ThemeToggle from '$lib/components/shared/ThemeToggle.svelte';
 	import WindowControls from '$lib/components/shared/WindowControls.svelte';
 	import SecurityPolicies from '$lib/components/project/SecurityPolicies.svelte';
 	import { setupSessionCleanup } from '$lib/utils/session-cleanup';
@@ -24,6 +26,7 @@
 </script>
 
 <svelte:head>
+	<ModeWatcher />
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html webManifestLink}
 </svelte:head>
@@ -48,6 +51,8 @@
 
 				<!-- Right: Navigation Buttons -->
 				<nav class="flex flex-wrap items-center gap-2 sm:gap-2" aria-label="Main navigation">
+					<ThemeToggle />
+
 					<Button
 						href="/"
 						variant={$page.url.pathname === '/' ? 'default' : 'outline'}
