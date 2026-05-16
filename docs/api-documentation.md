@@ -6,6 +6,7 @@ This document provides comprehensive API documentation for GNStudio's core modul
 
 - [Stores API](#stores-api)
 - [Domain Services API](#domain-services-api)
+- [Export Service API](#export-service-api)
 - [Worker API](#worker-api)
 - [Error Handling](#error-handling)
 - [Performance & Retry Utilities](#performance--retry-utilities)
@@ -189,6 +190,105 @@ export function getTraitStatistics(collection: GalleryCollection): Array<{
 	rarityScore: number;
 }>;
 ```
+
+## Export Service API
+
+### Export Service (`src/lib/services/export.service.ts`)
+
+Handles ZIP packaging and download workflows. Supports multiple export strategies based on collection size and feature flags.
+
+#### Core Types
+
+```typescript
+export interface ExportOptions {
+	project: Project;
+	images: { name: string; imageData: ArrayBuffer }[];
+	metadata: { name: string; data: Record<string, unknown> }[];
+	startTime?: number;
+	onProgress?: (progress: { processed: number; total: number; message: string }) => void;
+}
+```
+
+#### Main Entry Point
+
+```typescript
+/**
+ * Route to the optimal export strategy based on collection size and feature flags.
+ * Uses ZIP worker offloading when enableZipWorkerOffloading is enabled and images > 500.
+ * Falls back to optimized (chunked) for > 1000 items, standard for ≤ 1000.
+ */
+export async function packageZip(options: ExportOptions): Promise<void>;
+```
+
+#### Streaming ZIP API
+
+Used during generation to stream results incrementally without holding all data in memory.
+
+```typescript
+/**
+ * Start a persistent ZIP worker that accumulates chunks via the zip-chunk protocol.
+ * The worker flushes volumes at 700MB raw size threshold to avoid OOM.
+ */
+export function startStreamingZip(taskId?: string, projectName?: string): void;
+
+/**
+ * Send a batch of images and metadata to the streaming ZIP worker.
+ * ArrayBuffers are transferred (zero-copy) — caller must nullify references after.
+ * Validates for empty data before sending.
+ */
+export function addStreamingChunk(
+	images: { name: string; data: ArrayBuffer }[],
+	metadata: { name: string; data: Record<string, unknown> }[]
+): void;
+
+/**
+ * Finalize the streaming ZIP. Sends an empty final chunk, waits for the worker
+ * to flush all pending volumes (with 60s timeout), then triggers downloads.
+ * Downloads are queued and processed sequentially with 5s delays between each.
+ */
+export async function finalizeStreamingZip(
+	projectName: string,
+	onProgress?: (progress: { processed: number; total: number; message: string }) => void
+): Promise<void>;
+
+/**
+ * Abort an active streaming ZIP session and terminate the worker.
+ */
+export function cancelStreamingZip(): void;
+```
+
+#### IndexedDB Batch Export
+
+```typescript
+/**
+ * Package ZIP files directly from IndexedDB in size-bounded batches.
+ * Each batch creates its own ZIP (max targetChunkBytes), downloads immediately,
+ * then GC frees the memory. RAM stays bounded regardless of collection size.
+ *
+ * @param sessionId - The IndexedDB session ID from generation
+ * @param projectName - Prefix for output filenames
+ * @param targetChunkBytes - Max raw bytes per ZIP batch (e.g. 500MB)
+ * @param onProgress - Optional progress callback
+ */
+export async function packageFromIndexedDBBySize(
+	sessionId: string,
+	projectName: string,
+	targetChunkBytes: number,
+	onProgress?: (progress: { processed: number; total: number; message: string }) => Promise<void>
+): Promise<void>;
+```
+
+#### Internal Mechanisms
+
+**Download Queue**: Prevents browser download manager overload by processing ZIP downloads sequentially with 5-second delays between triggers. Required for large blob URLs (700MB+) that need time to begin streaming.
+
+**Blob URL Lifecycle**: All blob URLs created during export are tracked in a `Set` and revoked on `beforeunload`. URLs are NOT revoked immediately after download because the browser may still be streaming large files when `revokeObjectURL` is called, causing data loss.
+
+**ZIP Worker Volume Flushing**: The ZIP worker (`zip.worker.ts`) maintains a pending file buffer and flushes volumes when:
+
+- Raw pending size reaches 700MB threshold (truncated to stay near limit)
+- `isFinal` flag is received (flushes everything remaining)
+- Multiple flushes may occur during a single session if data accumulates faster than ZIP generation
 
 ## Worker API
 
