@@ -98,6 +98,14 @@
 												<li>Click "Add Layer Combination" to save your configuration</li>
 											</ol>
 										</div>
+										<div class="border-border bg-muted rounded-lg border p-4 mb-4">
+											<h4 class="text-foreground mb-2 font-semibold">Automatic Warnings:</h4>
+											<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
+												<li>The system monitors if requested collection size exceeds possible unique combinations</li>
+												<li>Warnings appear at 1,000 / 5,000 / 10,000 item thresholds</li>
+												<li>Helps prevent generation failures before they occur</li>
+											</ul>
+										</div>
 										<div class="border-border bg-muted rounded-lg border p-4">
 											<p class="text-foreground text-sm flex items-start gap-1">
 												<Icon icon={IdeaIcon} class="mt-0.5 h-4 w-4 shrink-0" /> <strong>Pro Tip:</strong> The system automatically calculates how many unique
@@ -255,32 +263,31 @@
 										</p>
 										<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 											<div>
-												<h4 class="text-foreground mb-2 font-semibold">Worker-Level Tracking</h4>
+												<h4 class="text-foreground mb-2 font-semibold">Bit-Packed Indexing</h4>
 												<p class="text-muted-foreground text-sm">
-													Duplicate prevention happens at the worker level for maximum performance
-													and reliability, ensuring consistent results across all generation
-													processes.
+													Up to 8 traits packed into a single 64-bit BigInt for O(1) uniqueness
+													checks and 80% memory reduction over string keys.
 												</p>
 											</div>
 											<div>
-												<h4 class="text-foreground mb-2 font-semibold">Intelligent Retry Logic</h4>
+												<h4 class="text-foreground mb-2 font-semibold">Predictive Blocking</h4>
 												<p class="text-muted-foreground text-sm">
-													When duplicates are detected, the system automatically retries with
-													different traits, maintaining generation efficiency.
+													Warns at 1000, 5000, and 10,000 items if collection size exceeds possible
+													unique combinations before generation starts.
 												</p>
 											</div>
 											<div>
-												<h4 class="text-foreground mb-2 font-semibold">Memory-Efficient Storage</h4>
+												<h4 class="text-foreground mb-2 font-semibold">Global Uniqueness</h4>
 												<p class="text-muted-foreground text-sm">
-													Used combinations are tracked efficiently with automatic cleanup to
-													prevent memory issues during large generation jobs.
+													Even when Strict Pair is disabled, a default global combination ensures
+													every trait combination is unique across all layers.
 												</p>
 											</div>
 											<div>
-												<h4 class="text-foreground mb-2 font-semibold">Persistent Configuration</h4>
+												<h4 class="text-foreground mb-2 font-semibold">Collision-Proof Fallback</h4>
 												<p class="text-muted-foreground text-sm">
-													Your Strict Pair configurations are saved with your project and persist
-													across sessions.
+													String-based collision-proof keys when bit-packing is not possible (> 8
+													traits or trait IDs > 255).
 												</p>
 											</div>
 										</div>

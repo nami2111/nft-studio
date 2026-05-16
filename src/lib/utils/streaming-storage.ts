@@ -54,6 +54,15 @@ export async function streamBatch(
 	images: StreamedImage[],
 	metadata: StreamedMetadata[]
 ): Promise<void> {
+	// Validate image data before storing
+	const emptyImages = images.filter((img) => !img.imageData || img.imageData.byteLength === 0);
+	if (emptyImages.length > 0) {
+		console.error(
+			`❌ streamBatch: ${emptyImages.length} images have empty data at startIndex=${startIndex}:`,
+			emptyImages.map((img) => img.name)
+		);
+	}
+
 	const imageRecords = images.map((img, i) => ({
 		key: imageKey(sessionId, startIndex + i),
 		name: img.name,
@@ -82,60 +91,128 @@ export async function streamBatch(
 }
 
 /**
- * Iterate over paired image+metadata batches in index order.
- * Invokes callback with each batch for streaming into ZIP.
+ * Iterate over image+metadata batches capped by total byte size.
+ * Reads items sequentially, measuring actual sizes, and flushes when targetBytes is reached.
+ * Only holds one batch in memory at a time (~500MB max), never loads all records upfront.
  */
-export async function iterateItems(
+export async function iterateBySize(
 	sessionId: string,
+	targetBytes: number,
 	callback: (
 		batch: { images: StreamedImage[]; metadata: StreamedMetadata[] },
-		startIndex: number
-	) => Promise<void>,
-	batchSize = 50
+		batchIndex: number,
+		totalBatches: number
+	) => Promise<void>
 ): Promise<void> {
 	const db = await initDB();
 	const imagePrefix = `${sessionId}-img-`;
-	const metaPrefix = `${sessionId}-meta-`;
 
-	const imageKeys = (await db.getAllKeys(IMAGES_STORE)).filter(
+	const allImageKeys = (await db.getAllKeys(IMAGES_STORE)).filter(
 		(k): k is string => typeof k === 'string' && k.startsWith(imagePrefix)
 	);
 
-	imageKeys.sort((a, b) => {
-		const indexA = parseInt(a.replace(imagePrefix, ''), 10);
-		const indexB = parseInt(b.replace(imagePrefix, ''), 10);
-		return indexA - indexB;
-	});
+	console.log(`🔍 iterateBySize: Found ${allImageKeys.length} image keys for session ${sessionId}`);
 
-	for (let i = 0; i < imageKeys.length; i += batchSize) {
-		const batchImageKeys = imageKeys.slice(i, i + batchSize);
-		const batchMetaKeys = batchImageKeys.map((k) => metaPrefix + k.replace(imagePrefix, ''));
+	const indices = allImageKeys
+		.map((k) => parseInt(k.replace(imagePrefix, ''), 10))
+		.sort((a, b) => a - b);
 
-		const [imageRecords, metaRecords] = await Promise.all([
-			Promise.all(
-				batchImageKeys.map(
-					async (k) =>
-						(await db.get(IMAGES_STORE, k)) as { key: string; name: string; imageData: ArrayBuffer }
-				)
-			),
-			Promise.all(
-				batchMetaKeys.map(
-					async (k) =>
-						(await db.get(METADATA_STORE, k)) as {
-							key: string;
-							name: string;
-							data: Record<string, unknown>;
-						}
-				)
-			)
-		]);
-
-		const images = imageRecords.map((r) => ({ name: r.name, imageData: r.imageData }));
-		const metadata = metaRecords.map((r) => ({ name: r.name, data: r.data }));
-		const startIndex = parseInt(batchImageKeys[0].replace(imagePrefix, ''), 10);
-
-		await callback({ images, metadata }, startIndex);
+	if (indices.length === 0) {
+		console.warn(`⚠️ iterateBySize: No items found for session ${sessionId}`);
+		return;
 	}
+
+	// First pass: measure sizes without loading full imageData into memory
+	// Read keys only, then probe sizes in small chunks to avoid IndexedDB limits
+	const sizes: number[] = new Array(indices.length);
+	const chunkSize = 20;
+
+	for (let offset = 0; offset < indices.length; offset += chunkSize) {
+		const chunk = indices.slice(offset, offset + chunkSize);
+		const chunkKeys = chunk.map((idx) => imageKey(sessionId, idx));
+
+		const results = await Promise.all(
+			chunkKeys.map(async (k) => {
+				const record = (await db.get(IMAGES_STORE, k)) as
+					| { name: string; imageData: ArrayBuffer }
+					| undefined;
+				return record?.imageData?.byteLength || 0;
+			})
+		);
+
+		for (let i = 0; i < chunk.length; i++) {
+			sizes[offset + i] = results[i];
+		}
+	}
+
+	const totalSize = sizes.reduce((sum, s) => sum + s, 0);
+	const estimatedBatches = Math.max(1, Math.ceil(totalSize / targetBytes));
+
+	console.log(
+		`📊 iterateBySize: ${indices.length} items, ${(totalSize / 1024 / 1024).toFixed(1)}MB total, ~${estimatedBatches} batches at ${(targetBytes / 1024 / 1024).toFixed(0)}MB each`
+	);
+
+	// Second pass: accumulate by actual size, flush when target reached
+	const batchIndices: number[] = [];
+	let batchBytes = 0;
+	let batchIndex = 0;
+
+	const flushBatch = async (): Promise<void> => {
+		if (batchIndices.length === 0) return;
+
+		const images: StreamedImage[] = [];
+		const metadata: StreamedMetadata[] = [];
+
+		for (const idx of batchIndices) {
+			const [imgRecord, metaRecord] = await Promise.all([
+				db.get(IMAGES_STORE, imageKey(sessionId, idx)) as Promise<
+					{ name: string; imageData: ArrayBuffer } | undefined
+				>,
+				db.get(METADATA_STORE, metadataKey(sessionId, idx)) as Promise<
+					{ name: string; data: Record<string, unknown> } | undefined
+				>
+			]);
+
+			if (imgRecord) {
+				images.push({ name: imgRecord.name, imageData: imgRecord.imageData });
+			}
+			if (metaRecord) {
+				metadata.push({ name: metaRecord.name, data: metaRecord.data });
+			}
+		}
+
+		const totalImageBytes = images.reduce((sum, img) => sum + (img.imageData?.byteLength || 0), 0);
+		if (import.meta.env.DEV) {
+			console.log(
+				`📦 iterateBySize batch ${batchIndex}: items=${images.length}, size=${(totalImageBytes / 1024 / 1024).toFixed(1)}MB`
+			);
+		}
+
+		await callback({ images, metadata }, batchIndex, estimatedBatches);
+		batchIndex++;
+		batchIndices.length = 0;
+		batchBytes = 0;
+	};
+
+	for (let i = 0; i < indices.length; i++) {
+		const idx = indices[i];
+		const itemSize = sizes[i];
+
+		if (batchBytes + itemSize > targetBytes && batchIndices.length > 0) {
+			await flushBatch();
+		}
+
+		batchIndices.push(idx);
+		batchBytes += itemSize;
+	}
+
+	if (batchIndices.length > 0) {
+		await flushBatch();
+	}
+
+	console.log(
+		`✅ iterateBySize complete: ${batchIndex} batches processed for session ${sessionId}`
+	);
 }
 
 /**

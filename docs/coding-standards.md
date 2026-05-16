@@ -66,12 +66,13 @@ const LOCAL_STORE = new LocalStorageStore<Project>(PROJECT_STORAGE_KEY); // migr
 
 ### General
 
-- Use tabs for indentation (as per .prettierrc)
-- Use single quotes for strings (as per .prettierrc)
-- No trailing commas (as per .prettierrc)
-- Print width of 100 characters (as per .prettierrc)
+- Use tabs for indentation
+- Use single quotes for strings
+- No trailing commas
+- Print width of 100 characters
 - Always use semicolons to terminate statements
 - Use strict equality operators (`===` and `!==`) instead of loose equality (`==` and `!=`)
+- Formatting enforced by Oxfmt (run `vp fmt`), not Prettier
 
 ### Svelte Files
 
@@ -79,8 +80,7 @@ const LOCAL_STORE = new LocalStorageStore<Project>(PROJECT_STORAGE_KEY); // migr
 - Use TypeScript in script tags (`<script lang="ts">`)
 - Place imports at the top of the script section in this order: External libraries, Svelte imports, Project imports ($lib aliases), with blank lines between groups
 - Use `import type` for types
-- Use reactive statements (`$:`) for computed values
-- Prefer Svelte 5 runes (`$state` for mutable state, `$derived` for computed values, `$effect` for side effects) for better reactivity
+- Use Svelte 5 runes exclusively: `$state` for mutable state, `$derived` for computed values, `$effect` for side effects
 - Keep markup clean and semantic
 - Use proper accessibility attributes (aria-\*, role, etc.)
 - Props: Use `{prop}` shorthand; type via interfaces

@@ -123,15 +123,46 @@
 												<strong>Start Simple:</strong> Begin with basic ruler rules and gradually add
 												complexity
 											</li>
-											<li>
-												<strong>Validate Generation:</strong> Always run a small test generation before
-												creating large collections
-											</li>
-										</ul>
+										<li>
+											<strong>Validate Generation:</strong> Always run a small test generation before
+											creating large collections
+										</li>
+										<li>
+											<strong>Use Preview Mode:</strong> The preview system automatically filters to show only compatible trait combinations
+										</li>
+										<li>
+											<strong>Monitor Rules:</strong> AC-3 pruning runs once per generation, not per item, for efficient validation
+										</li>
+									</ul>
 									</div>
 
-									<div>
-										<h3 class="text-foreground mb-4 font-semibold">Visual Indicators</h3>
+								<div>
+									<h3 class="text-foreground mb-4 font-semibold">Under the Hood: CSP Integration</h3>
+									<p class="text-muted-foreground mb-4">
+										Ruler trait compatibility rules are enforced by the CSP (Constraint Satisfaction Problem) solver during generation:
+									</p>
+									<div class="grid grid-cols-1 gap-4 md:grid-cols-2 mb-4">
+										<div class="border-border bg-muted rounded-lg border p-3">
+											<h4 class="text-foreground mb-1 text-sm font-semibold">AC-3 Arc Consistency</h4>
+											<p class="text-muted-foreground text-xs">Prunes incompatible trait domains before selection, achieving 60-80% search space reduction.</p>
+										</div>
+										<div class="border-border bg-muted rounded-lg border p-3">
+											<h4 class="text-foreground mb-1 text-sm font-semibold">Constraint Caching</h4>
+											<p class="text-muted-foreground text-xs">ConstraintCache with hit-rate tracking avoids redundant compatibility checks.</p>
+										</div>
+										<div class="border-border bg-muted rounded-lg border p-3">
+											<h4 class="text-foreground mb-1 text-sm font-semibold">Validation Functions</h4>
+											<p class="text-muted-foreground text-xs"><code>validateTraitCompatibility()</code> and <code>getCompatibleTraits()</code> for pair and set validation.</p>
+										</div>
+										<div class="border-border bg-muted rounded-lg border p-3">
+											<h4 class="text-foreground mb-1 text-sm font-semibold">Cross-Layer Enforcement</h4>
+											<p class="text-muted-foreground text-xs">Rules from one layer instantly constrain available traits in all other layers.</p>
+										</div>
+									</div>
+								</div>
+
+								<div>
+									<h3 class="text-foreground mb-4 font-semibold">Visual Indicators</h3>
 										<p class="text-muted-foreground mb-4">
 											The UI provides clear visual cues for ruler traits and their status:
 										</p>

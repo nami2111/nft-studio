@@ -41,6 +41,19 @@
 													3
 												</div>
 												<div>
+													<h4 class="text-foreground font-medium">Choose Metadata Standard</h4>
+													<p class="text-muted-foreground text-sm">
+														Select ERC-721 (EVM marketplaces) or Solana (Metaplex) for metadata generation
+													</p>
+												</div>
+											</div>
+											<div class="flex items-start space-x-4">
+												<div
+													class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white"
+												>
+													4
+												</div>
+												<div>
 													<h4 class="text-foreground font-medium">Upload Artwork</h4>
 													<p class="text-muted-foreground text-sm">
 														Drag & drop PNG files into organized layers
@@ -51,7 +64,7 @@
 												<div
 													class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white"
 												>
-													4
+													5
 												</div>
 												<div>
 													<h4 class="text-foreground font-medium">Set Rarity</h4>
@@ -64,7 +77,7 @@
 												<div
 													class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white"
 												>
-													5
+													6
 												</div>
 												<div>
 													<h4 class="text-foreground font-medium">Generate & Export</h4>
@@ -88,9 +101,10 @@
 										<div class="bg-muted rounded-lg p-4">
 											<h4 class="text-foreground mb-2 font-medium">File Guidelines</h4>
 											<ul class="text-muted-foreground space-y-1 text-sm">
-												<li>• PNG format recommended (supports transparency)</li>
+												<li>• PNG, JPG, WebP, GIF formats supported</li>
 												<li>• Consistent dimensions across all layers</li>
 												<li>• Maximum 4096x4096 pixels per image</li>
+												<li>• Maximum 10MB per trait file</li>
 											</ul>
 										</div>
 									</div>
