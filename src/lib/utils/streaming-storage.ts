@@ -124,7 +124,7 @@ export async function iterateBySize(
 
 	// First pass: measure sizes without loading full imageData into memory
 	// Read keys only, then probe sizes in small chunks to avoid IndexedDB limits
-	const sizes: number[] = new Array(indices.length);
+	const sizes: number[] = Array.from({ length: indices.length }, () => 0);
 	const chunkSize = 20;
 
 	for (let offset = 0; offset < indices.length; offset += chunkSize) {
@@ -181,7 +181,7 @@ export async function iterateBySize(
 			}
 		}
 
-		const totalImageBytes = images.reduce((sum, img) => sum + (img.imageData?.byteLength || 0), 0);
+		const _totalImageBytes = images.reduce((sum, img) => sum + (img.imageData?.byteLength || 0), 0);
 
 		await callback({ images, metadata }, batchIndex, estimatedBatches);
 		batchIndex++;
