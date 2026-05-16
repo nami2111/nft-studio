@@ -49,15 +49,15 @@
 										<div>
 											<h3 class="text-foreground mb-3 font-semibold">Technology Stack</h3>
 											<div class="flex flex-wrap gap-2">
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">SvelteKit 2 & Svelte 5</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">TypeScript</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Tailwind CSS 4</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Web Workers</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Canvas API</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">IndexedDB</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Zod</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">Juno / ICP</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium">PWA</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">SvelteKit 2 & Svelte 5</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">TypeScript</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Tailwind CSS 4</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Web Workers</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Canvas API</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">IndexedDB</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Zod</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Juno / ICP</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">PWA</span>
 											</div>
 										</div>
 									</div>
