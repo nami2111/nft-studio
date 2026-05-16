@@ -26,10 +26,11 @@
 </script>
 
 <svelte:head>
-	<ModeWatcher />
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html webManifestLink}
 </svelte:head>
+
+<ModeWatcher />
 
 <div class="bg-background text-foreground min-h-screen">
 	<SecurityPolicies />
