@@ -73,9 +73,6 @@ function updateWorkerPerformance(
 	} else {
 		stats.averageTaskTime = stats.averageTaskTime * 0.7 + taskDuration * 0.3;
 	}
-	debugLog(
-		`Worker ${workerIndex} completed ${TaskComplexity[complexity]} task in ${taskDuration}ms (avg: ${Math.round(stats.averageTaskTime)}ms)`
-	);
 }
 
 /**
@@ -289,7 +286,6 @@ async function addSingleWorker(): Promise<void> {
  */
 async function addWorkers(count: number): Promise<void> {
 	if (!workerPool) return;
-	debugLog(`Adding ${count} worker(s) to pool`);
 	const promises: Promise<void>[] = [];
 	for (let i = 0; i < count; i++) {
 		promises.push(addSingleWorker());
@@ -302,7 +298,6 @@ async function addWorkers(count: number): Promise<void> {
  */
 function removeWorker(workerIndex: number): void {
 	if (!workerPool) return;
-	debugLog(`Removing worker ${workerIndex} with proper cleanup`);
 
 	if (workerPool.workers[workerIndex]) {
 		workerPool.workers[workerIndex].terminate();
@@ -324,9 +319,6 @@ function removeWorker(workerIndex: number): void {
 		if (task.reject) task.reject(new Error('Task cancelled due to worker removal'));
 		workerPool.activeTasks.delete(task.id);
 	}
-	debugLog(
-		`Worker ${workerIndex} removed successfully. Cleaned up ${removedTasks.length} queued tasks and freed resources.`
-	);
 }
 
 /**
@@ -435,7 +427,6 @@ function handleWorkerFailure(workerIndex: number, reason: string): void {
  */
 async function restartWorker(workerIndex: number): Promise<void> {
 	if (!workerPool) return;
-	debugLog(`Restarting worker ${workerIndex}`);
 	const oldWorker = workerPool.workers[workerIndex];
 	if (oldWorker) oldWorker.terminate();
 
@@ -448,7 +439,6 @@ async function restartWorker(workerIndex: number): Promise<void> {
 			handleWorkerMessage(e, workerIndex);
 		};
 		reassignWorkerTasks(workerIndex);
-		debugLog(`Worker ${workerIndex} restarted successfully`);
 	} catch (error) {
 		console.error(`Failed to restart worker ${workerIndex}:`, error);
 		throw error;
@@ -483,7 +473,6 @@ function reassignWorkerTasks(failedWorkerIndex: number): void {
  */
 function performHealthChecks(): void {
 	if (!workerPool) return;
-	debugLog('Running health checks on all workers');
 
 	for (let i = 0; i < workerPool.workers.length; i++) {
 		if (!workerPool.workers[i] || workerPool.workerHealth[i] === WorkerHealth.ERROR) continue;
@@ -504,7 +493,6 @@ function performHealthChecks(): void {
 		}
 
 		if (workerPool.workerHealth[i] === WorkerHealth.DEGRADED) {
-			debugLog(`Worker ${i} recovered from DEGRADED state`);
 			workerPool.workerHealth[i] = WorkerHealth.HEALTHY;
 		}
 		checkWorkerHealth(i);
@@ -596,10 +584,6 @@ function startBackgroundProcesses(healthCheckInterval: number): void {
 			workerPool.taskQueue = [];
 		}
 	}, 30000);
-
-	debugLog(
-		'Background processes started: health checks, dynamic scaling, and timeout monitoring enabled'
-	);
 }
 
 /**
@@ -634,7 +618,6 @@ function processNextTask(): void {
 		}
 
 		workerPool.workers[bestWorker].postMessage(messageToSend);
-		debugLog(`Task ${task.id} assigned to worker ${bestWorker} (complexity: ${task.complexity})`);
 		performDynamicScaling();
 	} catch (error) {
 		console.error(`Failed to post message to worker ${bestWorker}:`, error);
@@ -708,7 +691,6 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 				result.value.onmessage = (e: MessageEvent) => {
 					handleWorkerMessage(e, i);
 				};
-				debugLog(`Worker ${i} initialized successfully`);
 				processNextTask();
 			} else {
 				workerPool!.workers[i] = null as unknown as Worker;
@@ -721,9 +703,7 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 		const successfulWorkers = workerPool!.workers.filter(
 			(worker: Worker) => worker !== (null as unknown as Worker)
 		).length;
-		debugLog(
-			`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers (${initialWorkers} eagerly)`
-		);
+		debugLog(`Worker pool initialized: ${successfulWorkers}/${maxWorkers} workers ready`);
 
 		performanceMonitor.stopTimer(timerId);
 		startBackgroundProcesses(healthCheckInterval);
@@ -755,7 +735,6 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 
 	try {
 		await initializeWorkerPool(warmUpConfig);
-		debugLog(`Worker pool warmed up with ${warmUpCount} workers ready`);
 	} catch (error) {
 		console.error('Worker warm-up failed:', error);
 	}
@@ -783,7 +762,6 @@ export async function terminateWorkerPool(): Promise<void> {
 
 export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<T> {
 	const timerId = performanceMonitor.startTimer('worker.postMessageToPool', message.type);
-	debugLog('WorkerPool: postMessageToPool called with message:', message);
 	if (!workerPool) {
 		throw new Error('Worker pool not initialized. Call initializeWorkerPool() first.');
 	}

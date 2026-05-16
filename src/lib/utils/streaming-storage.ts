@@ -182,11 +182,6 @@ export async function iterateBySize(
 		}
 
 		const totalImageBytes = images.reduce((sum, img) => sum + (img.imageData?.byteLength || 0), 0);
-		if (import.meta.env.DEV) {
-			console.log(
-				`📦 iterateBySize batch ${batchIndex}: items=${images.length}, size=${(totalImageBytes / 1024 / 1024).toFixed(1)}MB`
-			);
-		}
 
 		await callback({ images, metadata }, batchIndex, estimatedBatches);
 		batchIndex++;

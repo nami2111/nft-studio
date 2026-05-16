@@ -419,8 +419,6 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 			const msg = data;
 			if (_useStreamingStorage && _idbSessionId) {
 				const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
-				const count = msg.payload.images.length;
-				console.log(`📝 streamBatch chunk: startIndex=${firstIdx}, count=${count}`);
 				streamBatch(
 					_idbSessionId,
 					firstIdx,
@@ -449,8 +447,6 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 			if (msg.payload.images && msg.payload.images.length > 0) {
 				if (_useStreamingStorage && _idbSessionId) {
 					const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
-					const count = msg.payload.images.length;
-					console.log(`📝 streamBatch complete: startIndex=${firstIdx}, count=${count}`);
 					streamBatch(
 						_idbSessionId,
 						firstIdx,

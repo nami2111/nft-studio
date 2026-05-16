@@ -515,41 +515,23 @@ export class PerformanceMonitor {
 	private batchProcessed = 0;
 	private batchTotal = 0;
 	private batchAvgTime = 0;
-	private batchLastReport = 0;
 
 	startBatch(totalCount: number): void {
 		this.batchStartTime = performance.now();
 		this.batchProcessed = 0;
 		this.batchTotal = totalCount;
 		this.batchAvgTime = 0;
-		this.batchLastReport = this.batchStartTime;
 	}
 
 	recordBatchItem(timePerItem: number): void {
 		this.batchProcessed++;
 		this.batchAvgTime =
 			(this.batchAvgTime * (this.batchProcessed - 1) + timePerItem) / this.batchProcessed;
-		const now = performance.now();
-		if (now - this.batchLastReport > 2000) {
-			const elapsed = now - this.batchStartTime;
-			const rate = this.batchProcessed / (elapsed / 1000);
-			const remaining = Math.max(0, this.batchTotal - this.batchProcessed);
-			const eta = (this.batchAvgTime * remaining) / 1000 / 60;
-			if (import.meta.env.DEV)
-				console.log(
-					`⚡ Sequential Performance: ${this.batchProcessed}/${this.batchTotal} items | ${rate.toFixed(1)} items/sec | ETA: ${eta.toFixed(1)}min | Avg: ${this.batchAvgTime.toFixed(1)}ms/item`
-				);
-			this.batchLastReport = now;
-		}
 	}
 
 	finishBatch(): void {
 		const totalTime = performance.now() - this.batchStartTime;
 		const finalRate = this.batchProcessed / (totalTime / 1000);
-		if (import.meta.env.DEV)
-			console.log(
-				`🎯 Sequential Generation Complete: ${this.batchProcessed} items in ${(totalTime / 1000).toFixed(1)}s | Average: ${finalRate.toFixed(1)} items/sec`
-			);
 	}
 
 	// ==========================================
