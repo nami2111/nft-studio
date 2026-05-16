@@ -28,30 +28,28 @@ export async function prepareLayersForWorker(layers: Layer[]): Promise<Transferr
 
 	const transferrableLayers = await Promise.all(
 		layers.map(async (layer) => {
-			const transferrableTraits = await Promise.all(
-				layer.traits.map((trait) => {
-					// Create a clean ArrayBuffer copy using slice() for speed
-					const cleanArrayBuffer = trait.imageData.slice(0);
+			const transferrableTraits = layer.traits.map((trait) => {
+				// Create a clean ArrayBuffer copy using slice() for speed
+				const cleanArrayBuffer = trait.imageData.slice(0);
 
-					// Create a clean trait object with only the properties defined in TransferrableTrait
-					const transferrableTrait: TransferrableTrait = {
-						id: trait.id,
-						name: trait.name,
-						imageData: cleanArrayBuffer,
-						rarityWeight: trait.rarityWeight,
-						type: trait.type,
-						rulerRules: trait.rulerRules
-							? trait.rulerRules.map((r) => ({
-									layerId: r.layerId,
-									allowedTraitIds: [...r.allowedTraitIds],
-									forbiddenTraitIds: [...r.forbiddenTraitIds]
-								}))
-							: undefined
-					};
+				// Create a clean trait object with only the properties defined in TransferrableTrait
+				const transferrableTrait: TransferrableTrait = {
+					id: trait.id,
+					name: trait.name,
+					imageData: cleanArrayBuffer,
+					rarityWeight: trait.rarityWeight,
+					type: trait.type,
+					rulerRules: trait.rulerRules
+						? trait.rulerRules.map((r) => ({
+								layerId: r.layerId,
+								allowedTraitIds: [...r.allowedTraitIds],
+								forbiddenTraitIds: [...r.forbiddenTraitIds]
+							}))
+						: undefined
+				};
 
-					return transferrableTrait;
-				})
-			);
+				return transferrableTrait;
+			});
 
 			// Create a clean layer object with only the properties defined in TransferrableLayer
 			const transferrableLayer: TransferrableLayer = {
