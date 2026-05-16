@@ -136,7 +136,8 @@ gnstudio/
 │   │   │       └── strategies.ts         # ERC-721 & Solana implementations
 │   │   ├── services/         # Application services
 │   │   │   ├── persistence.service.ts  # Storage management
-│   │   │   └── validation.service.ts   # Core validation service
+│   │   │   ├── validation.service.ts   # Core validation service
+│   │   │   └── export.service.ts       # ZIP packaging & download workflow
 │   │   ├── workers/          # Advanced worker pool system
 │   │   │   ├── cache/                 # Worker-level caching
 │   │   │   │   └── array-buffer.cache.ts  # ArrayBuffer cache for images
@@ -232,10 +233,10 @@ Runtime feature flags allow phased rollout of optimizations without redeployment
 
 | Flag                        | Default  | Purpose                                                                           |
 | --------------------------- | -------- | --------------------------------------------------------------------------------- |
-| `enableStreamingStorage`    | Enabled  | Stream generated images/metadata to IndexedDB instead of accumulating in memory   |
+| `enableStreamingStorage`    | Enabled  | Stream generated images to IndexedDB, then package into size-bounded ZIP batches  |
 | `enableLayerRef`            | Disabled | Transfer layers by reference (ID-based batching) instead of full layers per batch |
 | `enableAdaptiveBatchSize`   | Enabled  | Dynamic batch sizing based on collection size, worker count, and resolution       |
-| `enableZipWorkerOffloading` | Disabled | Offload ZIP packaging to a dedicated Web Worker                                   |
+| `enableZipWorkerOffloading` | Disabled | Offload one-shot ZIP packaging to a dedicated Web Worker for > 500 items          |
 
 ### Environment Variable Convention
 
