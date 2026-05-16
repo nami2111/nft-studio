@@ -162,12 +162,37 @@ When `enableStreamingStorage` is enabled:
 
 ## ZIP Export Pipeline
 
-| Collection Size | Strategy       | Details                                 |
-| --------------- | -------------- | --------------------------------------- |
-| ≤ 1000 items    | Standard ZIP   | JSZip in main thread or worker          |
-| 1001-3000 items | Optimized ZIP  | Chunked processing, 100 items per chunk |
-| 3001+ items     | Multi-ZIP      | Split into multiple 1GB ZIP files       |
-| ≥ 500 items     | Worker Offload | Dedicated ZIP Web Worker (if enabled)   |
+| Collection Size | Strategy        | Details                                                                    |
+| --------------- | --------------- | -------------------------------------------------------------------------- |
+| ≤ 1000 items    | Standard ZIP    | JSZip in main thread                                                       |
+| 1001-3000 items | Optimized ZIP   | Chunked processing, 100 items per chunk                                    |
+| 3001+ items     | Multi-ZIP       | Split into multiple 1GB ZIP files                                          |
+| ≥ 500 items     | Worker Offload  | Dedicated one-shot ZIP Web Worker (if `enableZipWorkerOffloading` enabled) |
+| During gen      | Streaming ZIP   | Persistent worker accumulates chunks, flushes at 700MB raw                 |
+| IndexedDB mode  | Batch packaging | 500MB-bounded ZIP batches read from IndexedDB post-gen                     |
+
+### ZIP Worker Volume Management
+
+The streaming ZIP worker (`zip.worker.ts`) maintains a pending file buffer and uses volume-based flushing:
+
+- **Threshold**: 700MB raw pending size triggers a flush
+- **Truncation**: If pending exceeds threshold, flushes only up to the limit (remaining files stay pending)
+- **Final flush**: `isFinal` signal flushes all remaining files regardless of size
+- **Drain loop**: After each flush, checks if more data accumulated during async ZIP generation and flushes again if needed
+
+### Download Queue
+
+Multi-ZIP exports use a sequential download queue to prevent browser download manager overload:
+
+- Downloads are processed one at a time with 5-second delays between triggers
+- Required for large blob URLs (700MB+) that need time to begin streaming
+- Prevents race conditions where `revokeObjectURL` interrupts an in-progress download
+
+### Blob URL Lifecycle
+
+- All blob URLs created during export are tracked in a `Set<string>`
+- URLs are **not** revoked immediately after `a.click()` — the browser may still be streaming
+- All tracked URLs are revoked on `beforeunload` event to prevent memory leaks
 
 ## Performance Monitoring
 

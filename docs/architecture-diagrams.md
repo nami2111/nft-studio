@@ -244,11 +244,15 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 
 ### ZIP Export Pipeline
 
-- **Standard**: JSZip for <= 1000 items
-- **Optimized**: Chunked processing (100 items/chunk) for 1000-3000 items
-- **Multi-ZIP**: Splits into multiple ZIPs (1GB max each) for very large collections
-- **Worker Offloading**: Worker-based generation for > 500 items
-- **Memory Pressure Handling**: Memory cleanup before large ZIP generation
+- **Standard**: JSZip for ≤ 1000 items (main thread)
+- **Optimized**: Chunked processing (100 items/chunk) for 1001–3000 items
+- **Multi-ZIP**: Size-based splitting (1GB max per ZIP) for 3000+ items or large files
+- **Worker Offloading**: One-shot dedicated ZIP worker for > 500 items (when `enableZipWorkerOffloading` enabled)
+- **Streaming ZIP**: Persistent ZIP worker accepts incremental `zip-chunk` messages during generation; flushes volumes at 700MB raw size threshold
+- **IndexedDB Streaming**: When `enableStreamingStorage` is on, items stream to IndexedDB during generation, then packaged into 500MB-bounded ZIP batches post-generation
+- **Download Queue**: Sequential processing with 5-second delays between triggers to prevent browser download manager overload
+- **Blob URL Lifecycle**: All blob URLs tracked in a Set, revoked on `beforeunload` (not immediately after download to avoid interrupting large file streaming)
+- **Memory Pressure Handling**: Memory cleanup before large ZIP generation via `yieldIfHighMemoryPressure()`
 
 ## Data Flow Architecture
 
