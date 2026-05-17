@@ -483,11 +483,11 @@ export function cancelStreamingZip(): void {
 }
 
 /**
- * Package ZIP files directly from IndexedDB in size-bounded batches.
+ * Package ZIP files directly from storage in size-bounded batches.
  * Each batch creates its own ZIP, downloads immediately, then GC frees the memory.
  * RAM stays bounded at targetChunkBytes regardless of collection size.
  */
-export async function packageFromIndexedDBBySize(
+export async function packageFromStorageBySize(
 	sessionId: string,
 	projectName: string,
 	targetChunkBytes: number,
@@ -530,6 +530,18 @@ export async function packageFromIndexedDBBySize(
 		total: batchIndex,
 		message: `All ${batchIndex} ZIP files downloaded`
 	});
+}
+
+/**
+ * @deprecated Use packageFromStorageBySize. Kept for compatibility during storage migration.
+ */
+export async function packageFromIndexedDBBySize(
+	sessionId: string,
+	projectName: string,
+	targetChunkBytes: number,
+	onProgress?: (progress: { processed: number; total: number; message: string }) => Promise<void>
+): Promise<void> {
+	return packageFromStorageBySize(sessionId, projectName, targetChunkBytes, onProgress);
 }
 
 function downloadBlob(blob: Blob, filename: string): void {

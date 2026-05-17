@@ -37,6 +37,6 @@ describe('memory storage backend', () => {
 
 		await backend.binary.removeTree('gnstudio/gallery/a');
 		expect(await backend.binary.exists('gnstudio/gallery/a/image.bin')).toBe(false);
-		expect(await backend.json.exists('gnstudio/gallery/b/manifest.json')).toBe(true);
+		expect(await backend.json.readJson('gnstudio/gallery/b/manifest.json')).toEqual({ ok: true });
 	});
 });

@@ -9,6 +9,10 @@ describe('storage paths', () => {
 		expect(storagePaths.galleryItemImage('collection-1', 'item-2')).toBe(
 			'gnstudio/gallery/collections/collection-1/items/item-2.bin'
 		);
+		expect(storagePaths.galleryItemLookup('item-2')).toBe(
+			'gnstudio/gallery/item-index/item-2.json'
+		);
+		expect(storagePaths.galleryCollectionsRoot()).toBe('gnstudio/gallery/collections');
 		expect(storagePaths.generationImage('gen-123', 4)).toBe(
 			'gnstudio/generation/gen-123/images/4.bin'
 		);

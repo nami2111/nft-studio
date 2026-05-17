@@ -37,7 +37,7 @@ import {
 	addStreamingChunk,
 	finalizeStreamingZip,
 	cancelStreamingZip,
-	packageFromIndexedDBBySize
+	packageFromStorageBySize
 } from '$lib/services/export.service';
 import { isFlagEnabled } from '$lib/config/feature-flags';
 import { streamBatch, clearSession } from '$lib/utils/streaming-storage';
@@ -80,9 +80,9 @@ let _activeProjectName = 'collection';
 /** Current message callback set via setMessageCallback so the pool can forward */
 let _activeCallbacks: GenerationCallbacks | null = null;
 
-/** IndexedDB streaming state — used when enableStreamingStorage is on */
+/** Storage streaming state — used when enableStreamingStorage is on */
 let _useStreamingStorage = false;
-let _idbSessionId: string | null = null;
+let _storageSessionId: string | null = null;
 
 // Bridge from pool → orchestrator
 setMessageCallback((data) => {
@@ -132,9 +132,9 @@ export async function runGeneration(
 			_activeCallbacks = callbacks;
 			_activeProjectName = config.projectName || 'collection';
 			_useStreamingStorage = isFlagEnabled('enableStreamingStorage');
-			_idbSessionId = sessionId;
+			_storageSessionId = sessionId;
 
-			// 4 ─ Start streaming ZIP (unless IndexedDB path is active)
+			// 4 ─ Start streaming ZIP unless storage-backed packaging is active.
 			if (!_useStreamingStorage) {
 				startStreamingZip(sessionId, _activeProjectName);
 				_activeStreamingSession = sessionId;
@@ -171,8 +171,8 @@ export async function runGeneration(
 						}
 					});
 
-					await packageFromIndexedDBBySize(
-						_idbSessionId!,
+					await packageFromStorageBySize(
+						_storageSessionId!,
 						_activeProjectName,
 						500 * 1024 * 1024,
 						async (progress) => {
@@ -187,7 +187,7 @@ export async function runGeneration(
 						}
 					);
 
-					clearSession(_idbSessionId!).catch(() => {});
+					clearSession(_storageSessionId!).catch(() => {});
 				} else {
 					callbacks.onProgress({
 						type: 'progress',
@@ -220,8 +220,8 @@ export async function runGeneration(
 					cancelStreamingZip();
 					_activeStreamingSession = null;
 				}
-				if (_useStreamingStorage && _idbSessionId) {
-					clearSession(_idbSessionId).catch(() => {});
+				if (_useStreamingStorage && _storageSessionId) {
+					clearSession(_storageSessionId).catch(() => {});
 				}
 				performanceMonitor.stopTimer(timerId, { error: String(error) });
 
@@ -232,7 +232,7 @@ export async function runGeneration(
 			} finally {
 				_activeCallbacks = null;
 				_useStreamingStorage = false;
-				_idbSessionId = null;
+				_storageSessionId = null;
 			}
 		},
 		{
@@ -261,8 +261,8 @@ export async function cancelGeneration(): Promise<void> {
 		cancelStreamingZip();
 		_activeStreamingSession = null;
 	}
-	if (_useStreamingStorage && _idbSessionId) {
-		clearSession(_idbSessionId).catch(() => {});
+	if (_useStreamingStorage && _storageSessionId) {
+		clearSession(_storageSessionId).catch(() => {});
 	}
 
 	if (_activeCallbacks) {
@@ -415,17 +415,17 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 		}
 
 		case 'chunk': {
-			// Intermediate chunk from worker — stream directly to ZIP or IndexedDB
+			// Intermediate chunk from worker — stream directly to ZIP or storage.
 			const msg = data;
-			if (_useStreamingStorage && _idbSessionId) {
+			if (_useStreamingStorage && _storageSessionId) {
 				const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
 				streamBatch(
-					_idbSessionId,
+					_storageSessionId,
 					firstIdx,
 					msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
 					msg.payload.metadata || []
 				).catch((err) => {
-					console.warn('IndexedDB stream failed:', err);
+					console.warn('Storage stream failed:', err);
 				});
 			} else if (msg.payload.images.length > 0 && _activeStreamingSession) {
 				addStreamingChunk(
@@ -442,13 +442,13 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 		}
 
 		case 'complete': {
-			// Final complete from a batch — stream remaining to ZIP or IndexedDB
+			// Final complete from a batch — stream remaining to ZIP or storage.
 			const msg = data as CompleteMessage;
 			if (msg.payload.images && msg.payload.images.length > 0) {
-				if (_useStreamingStorage && _idbSessionId) {
+				if (_useStreamingStorage && _storageSessionId) {
 					const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
 					streamBatch(
-						_idbSessionId,
+						_storageSessionId,
 						firstIdx,
 						msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
 						(msg.payload.metadata || []) as unknown as {
@@ -456,7 +456,7 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 							data: Record<string, unknown>;
 						}[]
 					).catch((err) => {
-						console.warn('IndexedDB stream failed:', err);
+						console.warn('Storage stream failed:', err);
 					});
 				} else if (_activeStreamingSession && msg.payload.isChunk) {
 					addStreamingChunk(
@@ -486,8 +486,8 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 				cancelStreamingZip();
 				_activeStreamingSession = null;
 			}
-			if (_useStreamingStorage && _idbSessionId) {
-				clearSession(_idbSessionId).catch(() => {});
+			if (_useStreamingStorage && _storageSessionId) {
+				clearSession(_storageSessionId).catch(() => {});
 			}
 			callbacks.onError(new Error(data.payload.message));
 			break;
@@ -497,8 +497,8 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 				cancelStreamingZip();
 				_activeStreamingSession = null;
 			}
-			if (_useStreamingStorage && _idbSessionId) {
-				clearSession(_idbSessionId).catch(() => {});
+			if (_useStreamingStorage && _storageSessionId) {
+				clearSession(_storageSessionId).catch(() => {});
 			}
 			callbacks.onCancelled();
 			break;

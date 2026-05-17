@@ -15,7 +15,7 @@
         TextWriter,
     } from "@zip.js/zip.js";
     import { detectImageFormat } from "$lib/utils/image-format-detector";
-    import { getStorageEstimate } from "$lib/utils/gallery-db";
+    import { getStorageEstimate } from "$lib/utils/gallery-storage";
     import Icon from "$components/shared/Icon.svelte";
     import { Folder01Icon, Alert01Icon } from "@hugeicons/core-free-icons";
 
@@ -128,7 +128,7 @@
             return;
         }
 
-        // Check IndexedDB storage quota before import
+        // Check browser storage quota before import
         const estimate = await getStorageEstimate();
         if (estimate.quota > 0) {
             const availableSpace = estimate.quota - estimate.usage;
@@ -247,7 +247,7 @@
 
             importProgress = 35;
 
-            // Phase 3: Stream images one at a time to IndexedDB
+            // Phase 3: Stream images one at a time to durable storage
             let streamedCount = 0;
             for (const { file, strategy, imageNames } of imageNamesByFile) {
                 const onProgress = (count: number) => {

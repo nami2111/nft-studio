@@ -1,16 +1,34 @@
 /**
- * IndexedDB streaming helper for generation images and metadata.
+ * Streaming helper for generation images and metadata.
  * Used when enableStreamingStorage is true to avoid unbounded in-memory accumulation.
  */
 
 import { openDB, type IDBPDatabase } from 'idb';
+import { getStorageBackend } from '$lib/storage/backend';
+import { storagePaths } from '$lib/storage/paths';
+import type { ObjectStorageBackend } from '$lib/storage/types';
 
 const DB_NAME = 'gnstudio-generation';
 const DB_VERSION = 1;
 const IMAGES_STORE = 'images';
 const METADATA_STORE = 'metadata';
 
+interface GenerationSessionManifestItem {
+	index: number;
+	imageName?: string;
+	imageBytes: number;
+	metadataName?: string;
+}
+
+interface GenerationSessionManifest {
+	sessionId: string;
+	createdAt: number;
+	updatedAt: number;
+	items: GenerationSessionManifestItem[];
+}
+
 let dbInstance: IDBPDatabase | null = null;
+const sessionWriteQueues = new Map<string, Promise<void>>();
 
 async function initDB(): Promise<IDBPDatabase> {
 	if (dbInstance) return dbInstance;
@@ -35,6 +53,121 @@ function metadataKey(sessionId: string, index: number): string {
 	return `${sessionId}-meta-${index}`;
 }
 
+function cloneJson<T>(value: T): T {
+	if (typeof structuredClone === 'function') {
+		return structuredClone(value);
+	}
+
+	return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function enqueueSessionWrite(sessionId: string, operation: () => Promise<void>): Promise<void> {
+	const previous = sessionWriteQueues.get(sessionId) ?? Promise.resolve();
+	const queued = previous.catch(() => {}).then(operation);
+
+	sessionWriteQueues.set(sessionId, queued);
+	queued.then(
+		() => {
+			if (sessionWriteQueues.get(sessionId) === queued) {
+				sessionWriteQueues.delete(sessionId);
+			}
+		},
+		() => {
+			if (sessionWriteQueues.get(sessionId) === queued) {
+				sessionWriteQueues.delete(sessionId);
+			}
+		}
+	);
+
+	return queued;
+}
+
+export async function waitForSessionWrites(
+	sessionId: string,
+	options: { ignoreErrors?: boolean } = {}
+): Promise<void> {
+	const queued = sessionWriteQueues.get(sessionId);
+	if (!queued) return;
+
+	if (options.ignoreErrors) {
+		await queued.catch(() => {});
+		return;
+	}
+
+	await queued;
+}
+
+async function getGenerationStorageBackend(): Promise<ObjectStorageBackend | null> {
+	const backend = await getStorageBackend();
+	return backend.kind === 'indexeddb-legacy' ? null : backend;
+}
+
+function createEmptyManifest(sessionId: string): GenerationSessionManifest {
+	const now = Date.now();
+	return {
+		sessionId,
+		createdAt: now,
+		updatedAt: now,
+		items: []
+	};
+}
+
+async function readSessionManifest(
+	backend: ObjectStorageBackend,
+	sessionId: string
+): Promise<GenerationSessionManifest> {
+	return (
+		(await backend.json.readJson<GenerationSessionManifest>(
+			storagePaths.generationSessionManifest(sessionId)
+		)) ?? createEmptyManifest(sessionId)
+	);
+}
+
+async function writeSessionManifest(
+	backend: ObjectStorageBackend,
+	manifest: GenerationSessionManifest
+): Promise<void> {
+	await backend.json.writeJson(storagePaths.generationSessionManifest(manifest.sessionId), {
+		...manifest,
+		items: [...manifest.items].sort((a, b) => a.index - b.index),
+		updatedAt: Date.now()
+	});
+}
+
+function mergeSessionManifest(
+	manifest: GenerationSessionManifest,
+	images: Array<{ index: number; name: string; bytes: number }>,
+	metadata: Array<{ index: number; name: string }>
+): GenerationSessionManifest {
+	const items = new Map<number, GenerationSessionManifestItem>();
+
+	for (const item of manifest.items) {
+		items.set(item.index, { ...item });
+	}
+
+	for (const image of images) {
+		const current = items.get(image.index) ?? { index: image.index, imageBytes: 0 };
+		items.set(image.index, {
+			...current,
+			imageName: image.name,
+			imageBytes: image.bytes
+		});
+	}
+
+	for (const meta of metadata) {
+		const current = items.get(meta.index) ?? { index: meta.index, imageBytes: 0 };
+		items.set(meta.index, {
+			...current,
+			metadataName: meta.name
+		});
+	}
+
+	return {
+		...manifest,
+		items: Array.from(items.values()).sort((a, b) => a.index - b.index)
+	};
+}
+
 export interface StreamedImage {
 	name: string;
 	imageData: ArrayBuffer;
@@ -46,7 +179,7 @@ export interface StreamedMetadata {
 }
 
 /**
- * Stream images and metadata in bulk (more efficient than individual puts).
+ * Stream images and metadata in bulk.
  */
 export async function streamBatch(
 	sessionId: string,
@@ -54,37 +187,90 @@ export async function streamBatch(
 	images: StreamedImage[],
 	metadata: StreamedMetadata[]
 ): Promise<void> {
-	// Validate image data before storing
-	const emptyImages = images.filter((img) => !img.imageData || img.imageData.byteLength === 0);
+	const imageEntries = images.map((img, i) => ({
+		index: startIndex + i,
+		name: img.name,
+		imageData: img.imageData.slice(0)
+	}));
+	const metadataEntries = metadata.map((meta, i) => ({
+		index: startIndex + i,
+		name: meta.name,
+		data: cloneJson(meta.data)
+	}));
+
+	const emptyImages = imageEntries.filter(
+		(img) => !img.imageData || img.imageData.byteLength === 0
+	);
 	if (emptyImages.length > 0) {
 		console.error(
-			`❌ streamBatch: ${emptyImages.length} images have empty data at startIndex=${startIndex}:`,
+			`streamBatch: ${emptyImages.length} images have empty data at startIndex=${startIndex}:`,
 			emptyImages.map((img) => img.name)
 		);
 	}
 
-	const imageRecords = images.map((img, i) => ({
-		key: imageKey(sessionId, startIndex + i),
-		name: img.name,
-		imageData: img.imageData.slice()
-	}));
-	const metadataRecords = metadata.map((meta, i) => ({
-		key: metadataKey(sessionId, startIndex + i),
-		name: meta.name,
-		data: structuredClone(meta.data)
-	}));
+	return enqueueSessionWrite(sessionId, async () => {
+		const backend = await getGenerationStorageBackend();
 
+		if (!backend) {
+			await streamBatchToIndexedDB(sessionId, imageEntries, metadataEntries);
+			return;
+		}
+
+		await Promise.all([
+			...imageEntries.map((img) =>
+				backend.binary.write(storagePaths.generationImage(sessionId, img.index), img.imageData)
+			),
+			...metadataEntries.map((meta) =>
+				backend.json.writeJson(storagePaths.generationMetadata(sessionId, meta.index), {
+					name: meta.name,
+					data: meta.data
+				})
+			)
+		]);
+
+		const manifest = await readSessionManifest(backend, sessionId);
+		await writeSessionManifest(
+			backend,
+			mergeSessionManifest(
+				manifest,
+				imageEntries.map((img) => ({
+					index: img.index,
+					name: img.name,
+					bytes: img.imageData.byteLength
+				})),
+				metadataEntries.map((meta) => ({
+					index: meta.index,
+					name: meta.name
+				}))
+			)
+		);
+	});
+}
+
+async function streamBatchToIndexedDB(
+	sessionId: string,
+	images: Array<{ index: number; name: string; imageData: ArrayBuffer }>,
+	metadata: Array<{ index: number; name: string; data: Record<string, unknown> }>
+): Promise<void> {
 	const db = await initDB();
 	const tx = db.transaction([IMAGES_STORE, METADATA_STORE], 'readwrite');
 	const imageStore = tx.objectStore(IMAGES_STORE);
 	const metaStore = tx.objectStore(METADATA_STORE);
 
-	for (const record of imageRecords) {
-		imageStore.put(record);
+	for (const image of images) {
+		imageStore.put({
+			key: imageKey(sessionId, image.index),
+			name: image.name,
+			imageData: image.imageData
+		});
 	}
 
-	for (const record of metadataRecords) {
-		metaStore.put(record);
+	for (const meta of metadata) {
+		metaStore.put({
+			key: metadataKey(sessionId, meta.index),
+			name: meta.name,
+			data: meta.data
+		});
 	}
 
 	await tx.done;
@@ -92,10 +278,111 @@ export async function streamBatch(
 
 /**
  * Iterate over image+metadata batches capped by total byte size.
- * Reads items sequentially, measuring actual sizes, and flushes when targetBytes is reached.
- * Only holds one batch in memory at a time (~500MB max), never loads all records upfront.
+ * Only holds one batch in memory at a time.
  */
 export async function iterateBySize(
+	sessionId: string,
+	targetBytes: number,
+	callback: (
+		batch: { images: StreamedImage[]; metadata: StreamedMetadata[] },
+		batchIndex: number,
+		totalBatches: number
+	) => Promise<void>
+): Promise<void> {
+	await waitForSessionWrites(sessionId);
+
+	const backend = await getGenerationStorageBackend();
+	if (!backend) {
+		await iterateIndexedDBBySize(sessionId, targetBytes, callback);
+		return;
+	}
+
+	await iterateObjectStorageBySize(backend, sessionId, targetBytes, callback);
+}
+
+async function iterateObjectStorageBySize(
+	backend: ObjectStorageBackend,
+	sessionId: string,
+	targetBytes: number,
+	callback: (
+		batch: { images: StreamedImage[]; metadata: StreamedMetadata[] },
+		batchIndex: number,
+		totalBatches: number
+	) => Promise<void>
+): Promise<void> {
+	const manifest = await readSessionManifest(backend, sessionId);
+	const items = manifest.items
+		.filter((item) => item.imageName && item.imageBytes > 0)
+		.sort((a, b) => a.index - b.index);
+
+	if (items.length === 0) {
+		console.warn(`iterateBySize: No items found for session ${sessionId}`);
+		return;
+	}
+
+	const effectiveTargetBytes = Math.max(1, targetBytes);
+	const totalSize = items.reduce((sum, item) => sum + item.imageBytes, 0);
+	const estimatedBatches = Math.max(1, Math.ceil(totalSize / effectiveTargetBytes));
+
+	if (import.meta.env.DEV) {
+		console.log(
+			`iterateBySize: ${items.length} items, ${(totalSize / 1024 / 1024).toFixed(1)}MB total, ~${estimatedBatches} batches`
+		);
+	}
+
+	const batchItems: GenerationSessionManifestItem[] = [];
+	let batchBytes = 0;
+	let batchIndex = 0;
+
+	const flushBatch = async (): Promise<void> => {
+		if (batchItems.length === 0) return;
+
+		const images: StreamedImage[] = [];
+		const metadata: StreamedMetadata[] = [];
+
+		for (const item of batchItems) {
+			const [imageData, metaRecord] = await Promise.all([
+				backend.binary.read(storagePaths.generationImage(sessionId, item.index)),
+				item.metadataName
+					? backend.json.readJson<{ name: string; data: Record<string, unknown> }>(
+							storagePaths.generationMetadata(sessionId, item.index)
+						)
+					: Promise.resolve(null)
+			]);
+
+			if (imageData && item.imageName) {
+				images.push({ name: item.imageName, imageData });
+			}
+
+			if (metaRecord) {
+				metadata.push({ name: metaRecord.name, data: metaRecord.data });
+			}
+		}
+
+		if (images.length > 0 || metadata.length > 0) {
+			await callback({ images, metadata }, batchIndex, estimatedBatches);
+		}
+
+		batchIndex++;
+		batchItems.length = 0;
+		batchBytes = 0;
+	};
+
+	for (const item of items) {
+		if (batchBytes + item.imageBytes > effectiveTargetBytes && batchItems.length > 0) {
+			await flushBatch();
+		}
+
+		batchItems.push(item);
+		batchBytes += item.imageBytes;
+	}
+
+	if (batchItems.length > 0) {
+		await flushBatch();
+	}
+}
+
+async function iterateIndexedDBBySize(
 	sessionId: string,
 	targetBytes: number,
 	callback: (
@@ -111,19 +398,19 @@ export async function iterateBySize(
 		(k): k is string => typeof k === 'string' && k.startsWith(imagePrefix)
 	);
 
-	console.log(`🔍 iterateBySize: Found ${allImageKeys.length} image keys for session ${sessionId}`);
+	if (import.meta.env.DEV) {
+		console.log(`iterateBySize: Found ${allImageKeys.length} image keys for session ${sessionId}`);
+	}
 
 	const indices = allImageKeys
 		.map((k) => parseInt(k.replace(imagePrefix, ''), 10))
 		.sort((a, b) => a - b);
 
 	if (indices.length === 0) {
-		console.warn(`⚠️ iterateBySize: No items found for session ${sessionId}`);
+		console.warn(`iterateBySize: No items found for session ${sessionId}`);
 		return;
 	}
 
-	// First pass: measure sizes without loading full imageData into memory
-	// Read keys only, then probe sizes in small chunks to avoid IndexedDB limits
 	const sizes: number[] = Array.from({ length: indices.length }, () => 0);
 	const chunkSize = 20;
 
@@ -145,14 +432,16 @@ export async function iterateBySize(
 		}
 	}
 
+	const effectiveTargetBytes = Math.max(1, targetBytes);
 	const totalSize = sizes.reduce((sum, s) => sum + s, 0);
-	const estimatedBatches = Math.max(1, Math.ceil(totalSize / targetBytes));
+	const estimatedBatches = Math.max(1, Math.ceil(totalSize / effectiveTargetBytes));
 
-	console.log(
-		`📊 iterateBySize: ${indices.length} items, ${(totalSize / 1024 / 1024).toFixed(1)}MB total, ~${estimatedBatches} batches at ${(targetBytes / 1024 / 1024).toFixed(0)}MB each`
-	);
+	if (import.meta.env.DEV) {
+		console.log(
+			`iterateBySize: ${indices.length} items, ${(totalSize / 1024 / 1024).toFixed(1)}MB total, ~${estimatedBatches} batches`
+		);
+	}
 
-	// Second pass: accumulate by actual size, flush when target reached
 	const batchIndices: number[] = [];
 	let batchBytes = 0;
 	let batchIndex = 0;
@@ -181,8 +470,6 @@ export async function iterateBySize(
 			}
 		}
 
-		const _totalImageBytes = images.reduce((sum, img) => sum + (img.imageData?.byteLength || 0), 0);
-
 		await callback({ images, metadata }, batchIndex, estimatedBatches);
 		batchIndex++;
 		batchIndices.length = 0;
@@ -193,7 +480,7 @@ export async function iterateBySize(
 		const idx = indices[i];
 		const itemSize = sizes[i];
 
-		if (batchBytes + itemSize > targetBytes && batchIndices.length > 0) {
+		if (batchBytes + itemSize > effectiveTargetBytes && batchIndices.length > 0) {
 			await flushBatch();
 		}
 
@@ -204,16 +491,25 @@ export async function iterateBySize(
 	if (batchIndices.length > 0) {
 		await flushBatch();
 	}
-
-	console.log(
-		`✅ iterateBySize complete: ${batchIndex} batches processed for session ${sessionId}`
-	);
 }
 
 /**
  * Clear all data for a generation session.
  */
 export async function clearSession(sessionId: string): Promise<void> {
+	await waitForSessionWrites(sessionId, { ignoreErrors: true });
+
+	const backend = await getGenerationStorageBackend();
+	if (!backend) {
+		await clearIndexedDBSession(sessionId);
+		return;
+	}
+
+	await backend.binary.removeTree(storagePaths.generationSessionRoot(sessionId));
+	sessionWriteQueues.delete(sessionId);
+}
+
+async function clearIndexedDBSession(sessionId: string): Promise<void> {
 	const db = await initDB();
 	const imagePrefix = `${sessionId}-img-`;
 	const metaPrefix = `${sessionId}-meta-`;

@@ -42,7 +42,7 @@
 			return;
 		}
 
-		// Empty imageData — fetch from IndexedDB
+		// Empty imageData — fetch from storage
 		imageUrl = null;
 		galleryStore.getItemImage(item.id).then((buffer) => {
 			if (buffer && buffer.byteLength > 0) {

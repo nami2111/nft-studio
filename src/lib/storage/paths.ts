@@ -22,11 +22,19 @@ export const storagePaths = {
 	projectManifest: () => joinStoragePath('gnstudio', 'projects', 'current', 'project.json'),
 	projectTraitAsset: (layerId: string, traitId: string) =>
 		joinStoragePath('gnstudio', 'projects', 'current', 'layers', layerId, `${traitId}.bin`),
+	galleryRoot: () => joinStoragePath('gnstudio', 'gallery'),
 	galleryIndex: () => joinStoragePath('gnstudio', 'gallery', 'index.json'),
+	galleryCollectionsRoot: () => joinStoragePath('gnstudio', 'gallery', 'collections'),
+	galleryCollectionRoot: (collectionId: string) =>
+		joinStoragePath('gnstudio', 'gallery', 'collections', collectionId),
 	galleryCollectionManifest: (collectionId: string) =>
 		joinStoragePath('gnstudio', 'gallery', 'collections', collectionId, 'collection.json'),
+	galleryCollectionItemsRoot: (collectionId: string) =>
+		joinStoragePath('gnstudio', 'gallery', 'collections', collectionId, 'items'),
 	galleryItemImage: (collectionId: string, itemId: string) =>
 		joinStoragePath('gnstudio', 'gallery', 'collections', collectionId, 'items', `${itemId}.bin`),
+	galleryItemLookup: (itemId: string) =>
+		joinStoragePath('gnstudio', 'gallery', 'item-index', `${itemId}.json`),
 	generationSessionManifest: (sessionId: string) =>
 		joinStoragePath('gnstudio', 'generation', sessionId, 'manifest.json'),
 	generationImage: (sessionId: string, index: number) =>
