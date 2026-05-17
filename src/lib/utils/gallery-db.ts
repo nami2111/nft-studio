@@ -6,6 +6,7 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { GalleryCollection } from '$lib/types/gallery';
 import { productionMonitor } from '$lib/monitoring/performance-monitor';
+import { getStorageEstimate as getBrowserStorageEstimate } from '$lib/storage/capabilities';
 
 const DB_NAME = 'gnstudio-gallery';
 const DB_VERSION = 3; // Bumped to add gallery-images store
@@ -213,12 +214,9 @@ export async function clearAllCollections(): Promise<void> {
  * Get storage estimate (how much space is being used)
  */
 export async function getStorageEstimate(): Promise<{ usage: number; quota: number }> {
-	if ('storage' in navigator && 'estimate' in navigator.storage) {
-		const estimate = await navigator.storage.estimate();
-		return {
-			usage: estimate.usage || 0,
-			quota: estimate.quota || 0
-		};
-	}
-	return { usage: 0, quota: 0 };
+	const estimate = await getBrowserStorageEstimate();
+	return {
+		usage: estimate.usage,
+		quota: estimate.quota
+	};
 }

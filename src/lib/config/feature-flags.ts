@@ -7,6 +7,8 @@
 export interface FeatureFlags {
 	/** Stream generated images/metadata to IndexedDB instead of accumulating in memory */
 	enableStreamingStorage: boolean;
+	/** Use OPFS as the primary browser storage backend for large binary payloads */
+	enableOpfsStorage: boolean;
 	/** Transfer layers once by reference (ID-based batching) instead of full layers per batch */
 	enableLayerRef: boolean;
 	/** Use adaptive batch sizing based on collection size, worker count, and resolution */
@@ -26,6 +28,7 @@ function readEnvFlag(name: string): boolean {
 
 const defaultFlags: FeatureFlags = {
 	enableStreamingStorage: import.meta.env?.VITE_DISABLE_STREAMING_STORAGE !== 'true',
+	enableOpfsStorage: readEnvFlag('VITE_ENABLE_OPFS_STORAGE'),
 	enableLayerRef: readEnvFlag('VITE_ENABLE_LAYER_REF'),
 	enableAdaptiveBatchSize: import.meta.env?.VITE_DISABLE_ADAPTIVE_BATCH_SIZE !== 'true',
 	enableZipWorkerOffloading: readEnvFlag('VITE_ENABLE_ZIP_WORKER_OFFLOADING')
