@@ -1,25 +1,34 @@
 # Feature Flags
 
-GNStudio uses a feature flag system for phased rollout of performance optimizations. Flags can be toggled via environment variables or overridden at runtime.
+GNStudio uses a feature flag system for phased rollout of performance optimizations. Flags can be toggled via environment variables or overridden at runtime. Browser storage is private to the current browser profile and quota-managed by the browser.
 
 ## Available Flags
 
-| Flag                        | Default  | Env Override                                       | Purpose                                                                                                           |
-| --------------------------- | -------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `enableStreamingStorage`    | Enabled  | `VITE_DISABLE_STREAMING_STORAGE=true` to disable   | Streams generated images and metadata to IndexedDB during generation instead of accumulating everything in memory |
-| `enableLayerRef`            | Disabled | `VITE_ENABLE_LAYER_REF=true` to enable             | Transfers layer data to workers once by ID reference, reducing per-batch data transfer size                       |
-| `enableAdaptiveBatchSize`   | Enabled  | `VITE_DISABLE_ADAPTIVE_BATCH_SIZE=true` to disable | Dynamically adjusts batch size based on collection size, worker count, and output resolution                      |
-| `enableZipWorkerOffloading` | Disabled | `VITE_ENABLE_ZIP_WORKER_OFFLOADING=true` to enable | Offloads ZIP file packaging to a dedicated Web Worker for large collections                                       |
+| Flag                        | Default  | Env Override                                       | Purpose                                                                                                                 |
+| --------------------------- | -------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `enableStreamingStorage`    | Enabled  | `VITE_DISABLE_STREAMING_STORAGE=true` to disable   | Streams generated images and metadata to browser storage during generation instead of accumulating everything in memory |
+| `enableOpfsStorage`         | Disabled | `VITE_ENABLE_OPFS_STORAGE=true` to enable          | Uses OPFS as the primary browser storage backend for large binary payloads, with legacy IndexedDB fallback              |
+| `enableLayerRef`            | Disabled | `VITE_ENABLE_LAYER_REF=true` to enable             | Transfers layer data to workers once by ID reference, reducing per-batch data transfer size                             |
+| `enableAdaptiveBatchSize`   | Enabled  | `VITE_DISABLE_ADAPTIVE_BATCH_SIZE=true` to disable | Dynamically adjusts batch size based on collection size, worker count, and output resolution                            |
+| `enableZipWorkerOffloading` | Disabled | `VITE_ENABLE_ZIP_WORKER_OFFLOADING=true` to enable | Offloads ZIP file packaging to a dedicated Web Worker for large collections                                             |
 
 ## Flag Details
 
 ### enableStreamingStorage
 
-When enabled, the generation pipeline streams each completed item to IndexedDB as it finishes, rather than holding all generated items in memory. This significantly reduces peak memory usage during large generations.
+When enabled, the generation pipeline streams each completed item to browser storage as it finishes, rather than holding all generated items in memory. This significantly reduces peak memory usage during large generations.
 
-**When to enable**: Always (default). Only disable for debugging or if IndexedDB is unavailable.
+**When to enable**: Always (default). Only disable for debugging or if browser storage is unavailable.
 
 **Performance impact**: Reduces peak memory usage by 60-80% for collections over 1000 items.
+
+### enableOpfsStorage
+
+When enabled, large project assets, gallery images, and generation session files use the OPFS-backed object storage seam when the browser supports it. Legacy IndexedDB remains available as a fallback and migration source during rollout.
+
+**When to enable**: During OPFS rollout testing or when validating migration behavior with `VITE_ENABLE_OPFS_STORAGE=true`.
+
+**Performance impact**: Reduces structured-clone overhead for large binary payloads and keeps manifests explicit.
 
 ### enableLayerRef
 
@@ -87,6 +96,7 @@ resetFeatureFlags();
 // Production defaults (as defined in src/lib/config/feature-flags.ts)
 {
 	enableStreamingStorage: true,
+	enableOpfsStorage: false,
 	enableLayerRef: false,
 	enableAdaptiveBatchSize: true,
 	enableZipWorkerOffloading: false

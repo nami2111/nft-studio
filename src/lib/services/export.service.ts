@@ -533,7 +533,7 @@ export async function packageFromStorageBySize(
 }
 
 /**
- * @deprecated Use packageFromStorageBySize. Kept for compatibility during storage migration.
+ * @deprecated Use packageFromStorageBySize. Kept for compatibility during the storage migration window.
  */
 export async function packageFromIndexedDBBySize(
 	sessionId: string,

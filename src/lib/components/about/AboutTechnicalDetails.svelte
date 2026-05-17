@@ -36,7 +36,7 @@
 												<strong class="text-foreground">Solver:</strong> CSP with AC-3 arc consistency, MRV heuristic, weighted-random selection
 											</p>
 											<p>
-												<strong class="text-foreground">Storage:</strong> IndexedDB with differential persistence (metadata vs asset separation)
+												<strong class="text-foreground">Storage:</strong> OPFS-backed object storage with legacy fallback
 											</p>
 											<p>
 												<strong class="text-foreground">Caching:</strong> Three-tier: ImageBitmap (100MB), ImageData (50MB), ArrayBuffer (200MB)

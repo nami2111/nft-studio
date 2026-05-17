@@ -5,7 +5,7 @@
  */
 
 export interface FeatureFlags {
-	/** Stream generated images/metadata to IndexedDB instead of accumulating in memory */
+	/** Stream generated images/metadata to browser storage instead of accumulating in memory */
 	enableStreamingStorage: boolean;
 	/** Use OPFS as the primary browser storage backend for large binary payloads */
 	enableOpfsStorage: boolean;

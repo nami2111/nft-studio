@@ -450,33 +450,33 @@ untouched and should be safe to retry.
 
 ### Tasks
 
-- [ ] Replace "IndexedDB streaming" with "storage streaming" or "OPFS
+- [x] Replace "IndexedDB streaming" with "storage streaming" or "OPFS
       streaming" where accurate.
-- [ ] Keep historical migration notes where needed, but mark IndexedDB as
+- [x] Keep historical migration notes where needed, but mark IndexedDB as
       legacy/fallback.
-- [ ] Update user-facing docs to explain that storage is browser-private and
+- [x] Update user-facing docs to explain that storage is browser-private and
       quota-managed.
-- [ ] Update developer docs to describe the storage seam and OPFS layout.
-- [ ] Update About page copy that lists IndexedDB as the storage technology.
+- [x] Update developer docs to describe the storage seam and OPFS layout.
+- [x] Update About page copy that lists IndexedDB as the storage technology.
 
 ### File Changes
 
-- [ ] Edit `docs/performance-architecture.md`.
-- [ ] Edit `docs/user-guide-generating-collections.md`.
-- [ ] Edit `docs/user-guide-gallery-mode.md`.
-- [ ] Edit `docs/feature-flags.md`.
-- [ ] Edit `docs/onboarding.md`.
-- [ ] Edit `docs/architecture-diagrams.md`.
-- [ ] Edit `docs/api-documentation.md`.
-- [ ] Edit `src/lib/components/about/AboutTechnicalDetails.svelte`.
-- [ ] Edit `src/lib/components/about/AboutGalleryMode.svelte`.
-- [ ] Edit `src/lib/components/about/AboutPerformance.svelte`.
-- [ ] Edit `src/lib/components/about/AboutOverview.svelte`.
+- [x] Edit `docs/performance-architecture.md`.
+- [x] Edit `docs/user-guide-generating-collections.md`.
+- [x] Edit `docs/user-guide-gallery-mode.md`.
+- [x] Edit `docs/feature-flags.md`.
+- [x] Edit `docs/onboarding.md`.
+- [x] Edit `docs/architecture-diagrams.md`.
+- [x] Edit `docs/api-documentation.md`.
+- [x] Edit `src/lib/components/about/AboutTechnicalDetails.svelte`.
+- [x] Edit `src/lib/components/about/AboutGalleryMode.svelte`.
+- [x] Edit `src/lib/components/about/AboutPerformance.svelte`.
+- [x] Edit `src/lib/components/about/AboutOverview.svelte`.
 
 ### Acceptance Checks
 
-- [ ] Docs match the final backend behavior.
-- [ ] User-facing copy does not mention IndexedDB as the primary performance
+- [x] Docs match the final backend behavior.
+- [x] User-facing copy does not mention IndexedDB as the primary performance
       storage after OPFS is enabled by default.
 
 ## Phase 8 - Verification Plan

@@ -205,9 +205,11 @@ Automatic cleanup triggers at three thresholds:
 
 Large collections use streaming to avoid memory bottlenecks:
 
-- **`createStreamingCollection()`**: Creates metadata-only collection entries first, then streams individual images to IndexedDB one at a time
-- **Storage Estimation**: `getStorageEstimate()` monitors IndexedDB quota usage, warning when approaching browser limits
+- **`createStreamingCollection()`**: Creates metadata-only collection entries first, then streams individual images to durable browser storage one at a time
+- **Storage Estimation**: `getStorageEstimate()` monitors browser storage quota usage, warning when approaching browser limits
 - **Progress Tracking**: Real-time byte-level progress during import
+
+Imported gallery data lives in browser-private, quota-managed storage for the current browser profile. Use the explicit gallery clear action when you want to delete durable gallery data.
 
 ### Performance Features
 

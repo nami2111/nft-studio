@@ -47,7 +47,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Skips projects with traits to avoid broken image references
   - Reactive state management using `$state`, `$derived`, `$effect`
 
-- **`gallery.store.svelte.ts`**: IndexedDB-based collection management
+- **`gallery.store.svelte.ts`**: Durable browser-storage-based collection management
   - Virtual scrolling support for large collections
   - Advanced filtering and sorting capabilities
   - Multi-collection support with statistics tracking
@@ -142,14 +142,30 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 - **Forward-Checking**: Only checks neighbors instead of full AC-3 re-run
 - **Impossible Combination Cache**: Avoids retrying known dead-end combinations
 
-#### 5. Persistence Layer (`src/lib/persistence/`)
+#### 5. Storage Layer (`src/lib/storage/`, with legacy helpers in `src/lib/persistence/`)
 
 ##### Multi-Backend Storage with Intelligent Caching
 
-- **IndexedDB Integration**: Structured data persistence for large collections
+- **Browser Storage Integration**: Structured data persistence for large collections
   - Gallery collections with automatic quota monitoring
   - Efficient indexing for fast filtering and sorting
   - Transaction-based operations for data integrity
+
+- **Object Storage Seam** (`src/lib/storage/`): Binary and JSON adapters selected at runtime
+  - OPFS backend when `enableOpfsStorage` is enabled and `navigator.storage.getDirectory()` is available
+  - Legacy IndexedDB backend retained for fallback reads and migration
+  - In-memory backend used by focused storage tests
+  - Browser storage is profile-private and quota-managed by the browser
+
+- **OPFS Layout**: Manifests index binary files; display names stay inside JSON
+  - `gnstudio/projects/current/project.json`
+  - `gnstudio/projects/current/layers/<layerId>/<traitId>.bin`
+  - `gnstudio/gallery/index.json`
+  - `gnstudio/gallery/collections/<collectionId>/collection.json`
+  - `gnstudio/gallery/collections/<collectionId>/items/<itemId>.bin`
+  - `gnstudio/generation/<sessionId>/manifest.json`
+  - `gnstudio/generation/<sessionId>/images/<index>.bin`
+  - `gnstudio/generation/<sessionId>/metadata/<index>.json`
 
 - **LocalStorage Management**: Project settings and user preferences
   - Intelligent persistence strategies to avoid broken references
@@ -237,7 +253,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 
 ### Streaming Storage Architecture
 
-- **IndexedDB Streaming**: Streams generated images/metadata to IndexedDB instead of accumulating in memory
+- **Storage Streaming**: Streams generated images/metadata to browser storage instead of accumulating in memory
 - **Session-Based Streaming**: `streamBatch()`, `iterateItems()`, `clearSession()` for session management
 - **Incremental ZIP Chunks**: ZIP worker receives incremental chunks during generation
 - **Layer Reference Mode**: Transfers layers once by ID instead of full data per batch
@@ -249,7 +265,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 - **Multi-ZIP**: Size-based splitting (1GB max per ZIP) for 3000+ items or large files
 - **Worker Offloading**: One-shot dedicated ZIP worker for > 500 items (when `enableZipWorkerOffloading` enabled)
 - **Streaming ZIP**: Persistent ZIP worker accepts incremental `zip-chunk` messages during generation; flushes volumes at 700MB raw size threshold
-- **IndexedDB Streaming**: When `enableStreamingStorage` is on, items stream to IndexedDB during generation, then packaged into 500MB-bounded ZIP batches post-generation
+- **Storage Streaming**: When `enableStreamingStorage` is on, items stream to browser storage during generation, then packaged into 500MB-bounded ZIP batches post-generation
 - **Download Queue**: Sequential processing with 5-second delays between triggers to prevent browser download manager overload
 - **Blob URL Lifecycle**: All blob URLs tracked in a Set, revoked on `beforeunload` (not immediately after download to avoid interrupting large file streaming)
 - **Memory Pressure Handling**: Memory cleanup before large ZIP generation via `yieldIfHighMemoryPressure()`

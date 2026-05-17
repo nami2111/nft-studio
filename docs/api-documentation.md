@@ -257,20 +257,20 @@ export async function finalizeStreamingZip(
 export function cancelStreamingZip(): void;
 ```
 
-#### IndexedDB Batch Export
+#### Storage Batch Export
 
 ```typescript
 /**
- * Package ZIP files directly from IndexedDB in size-bounded batches.
+ * Package ZIP files directly from browser storage in size-bounded batches.
  * Each batch creates its own ZIP (max targetChunkBytes), downloads immediately,
  * then GC frees the memory. RAM stays bounded regardless of collection size.
  *
- * @param sessionId - The IndexedDB session ID from generation
+ * @param sessionId - The storage session ID from generation
  * @param projectName - Prefix for output filenames
  * @param targetChunkBytes - Max raw bytes per ZIP batch (e.g. 500MB)
  * @param onProgress - Optional progress callback
  */
-export async function packageFromIndexedDBBySize(
+export async function packageFromStorageBySize(
 	sessionId: string,
 	projectName: string,
 	targetChunkBytes: number,
@@ -933,8 +933,10 @@ export const persistenceService = new PersistenceService();
 
 ```typescript
 export interface FeatureFlags {
-	/** Stream generated images/metadata to IndexedDB instead of accumulating in memory */
+	/** Stream generated images/metadata to browser storage instead of accumulating in memory */
 	enableStreamingStorage: boolean;
+	/** Use OPFS as the primary browser storage backend for large binary payloads */
+	enableOpfsStorage: boolean;
 	/** Transfer layers once by reference (ID-based batching) instead of full layers per batch */
 	enableLayerRef: boolean;
 	/** Use adaptive batch sizing based on collection size, worker count, and resolution */
@@ -970,25 +972,32 @@ export class CombinationIndexer {
 }
 ```
 
-## Gallery DB
+## Gallery Storage
 
-### Gallery DB API (`src/lib/persistence/gallery-db.ts`)
+### Gallery Storage API (`src/lib/utils/gallery-storage.ts`)
 
 ```typescript
-/** Get IndexedDB storage estimate for quota monitoring. */
+/** Get browser storage estimate for quota monitoring. */
 export function getStorageEstimate(): Promise<{ usage: number; quota: number }>;
 
-/** Stream a batch of items to IndexedDB. */
-export function streamBatch(collectionId: string, items: GalleryItem[]): Promise<void>;
+/** Save a gallery collection manifest and item images to durable storage. */
+export function saveCollection(collection: GalleryCollection): Promise<void>;
 
-/** Iterate items in a collection. */
-export function iterateItems(
+/** Save a single item image during streaming import. */
+export function saveItemImage(
+	itemId: string,
 	collectionId: string,
-	callback: (item: GalleryItem) => void
+	imageData: ArrayBuffer
 ): Promise<void>;
 
-/** Clear streaming session data. */
-export function clearSession(collectionId: string): Promise<void>;
+/** Fetch a single item image from durable storage. */
+export function getItemImage(itemId: string): Promise<ArrayBuffer | null>;
+
+/** Delete a single gallery collection and its item images. */
+export function deleteCollection(id: string): Promise<void>;
+
+/** Clear all durable gallery collections. */
+export function clearAllCollections(): Promise<void>;
 ```
 
 ## Metadata Strategy
