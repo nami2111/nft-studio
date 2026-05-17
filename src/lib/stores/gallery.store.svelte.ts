@@ -1,6 +1,6 @@
 /**
  * Gallery Store - State management for gallery functionality
- * Uses Svelte 5 runes and IndexedDB for persistence
+ * Uses Svelte 5 runes and durable storage for persistence
  */
 
 import type {
@@ -14,18 +14,20 @@ import { untrack } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
 import {
-	initGalleryDB,
+	getAllCollections,
 	saveCollection,
 	saveItemImage,
 	getItemImage as fetchItemImage,
 	deleteCollection,
 	clearAllCollections,
 	getStorageEstimate
-} from '$lib/utils/gallery-db';
+} from '$lib/utils/gallery-storage';
 import { imageUrlCache } from '$lib/utils/object-url-cache';
 import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
 import { PERF_CONFIG } from '$lib/config/performance.config';
 import { productionMonitor } from '$lib/monitoring/performance-monitor';
+
+const SELECTED_COLLECTION_STORAGE_KEY = 'gnstudio-gallery-selected-collection';
 
 // Gallery store with Svelte 5 runes
 class GalleryStore {
@@ -185,6 +187,18 @@ class GalleryStore {
 
 	get allTraits() {
 		return Object.fromEntries(this._traitCategories.entries());
+	}
+
+	private persistSelectedCollection(collectionId: string | null): void {
+		if (typeof localStorage === 'undefined') {
+			return;
+		}
+
+		if (collectionId) {
+			localStorage.setItem(SELECTED_COLLECTION_STORAGE_KEY, collectionId);
+		} else {
+			localStorage.removeItem(SELECTED_COLLECTION_STORAGE_KEY);
+		}
 	}
 
 	// Fast filtered and sorted items with simple caching
@@ -379,6 +393,7 @@ class GalleryStore {
 			// Clear trait index when switching collections
 			this._traitIndex.clear();
 			this._traitIndexCollectionId = null;
+			this.persistSelectedCollection(collection?.id ?? null);
 		});
 	}
 
@@ -415,14 +430,14 @@ class GalleryStore {
 	// Collection management
 	addCollection(collection: GalleryCollection) {
 		this._state.collections.push(collection);
-		this.debouncedSaveToIndexedDB();
+		this.debouncedSaveToStorage();
 	}
 
 	updateCollection(id: string, updates: Partial<GalleryCollection>) {
 		const index = this._state.collections.findIndex((c) => c.id === id);
 		if (index !== -1) {
 			this._state.collections[index] = { ...this._state.collections[index], ...updates };
-			this.debouncedSaveToIndexedDB();
+			this.debouncedSaveToStorage();
 		}
 	}
 
@@ -434,9 +449,9 @@ class GalleryStore {
 		}
 		// Clear cache entries for removed collection
 		this.clearCollectionCache(id);
-		// Delete from IndexedDB
+		// Delete from durable storage.
 		await deleteCollection(id);
-		this.debouncedSaveToIndexedDB();
+		this.debouncedSaveToStorage();
 	}
 
 	/**
@@ -457,8 +472,8 @@ class GalleryStore {
 		}
 	}
 
-	// Database operations
-	private debouncedSaveToIndexedDB() {
+	// Storage operations
+	private debouncedSaveToStorage() {
 		// Clear any pending save
 		if (this.saveTimeout) {
 			clearTimeout(this.saveTimeout);
@@ -466,11 +481,11 @@ class GalleryStore {
 
 		// Schedule a new save with debounce
 		this.saveTimeout = setTimeout(() => {
-			this.saveToIndexedDB();
+			void this.saveToStorage();
 		}, this.SAVE_DEBOUNCE_MS);
 	}
 
-	private async saveToIndexedDB() {
+	private async saveToStorage() {
 		// Clear any pending save
 		if (this.saveTimeout) {
 			clearTimeout(this.saveTimeout);
@@ -478,9 +493,6 @@ class GalleryStore {
 		}
 
 		try {
-			// Initialize IndexedDB if not already done
-			await initGalleryDB();
-
 			// Save all collections in parallel for better performance
 			const savePromises = this._state.collections.map((collection) => saveCollection(collection));
 			await Promise.all(savePromises);
@@ -497,14 +509,7 @@ class GalleryStore {
 			});
 
 			// Save selected collection ID to localStorage (small, safe)
-			if (this._state.selectedCollection) {
-				localStorage.setItem(
-					'gnstudio-gallery-selected-collection',
-					this._state.selectedCollection.id
-				);
-			} else {
-				localStorage.removeItem('gnstudio-gallery-selected-collection');
-			}
+			this.persistSelectedCollection(this._state.selectedCollection?.id ?? null);
 
 			// Log storage usage for monitoring
 			const estimate = await getStorageEstimate();
@@ -519,6 +524,48 @@ class GalleryStore {
 		} catch (error) {
 			console.error('Failed to save gallery data:', error);
 			this.setError('Failed to save gallery data');
+		}
+	}
+
+	/**
+	 * Load durable gallery data into the store.
+	 */
+	async loadFromStorage(): Promise<void> {
+		if (this._state.collections.length > 0) {
+			return;
+		}
+
+		this.setLoading(true);
+		this.setError(null);
+
+		try {
+			const collections = await getAllCollections();
+			const selectedCollectionId =
+				typeof localStorage !== 'undefined'
+					? localStorage.getItem(SELECTED_COLLECTION_STORAGE_KEY)
+					: null;
+			const selectedCollection =
+				collections.find((collection) => collection.id === selectedCollectionId) ??
+				collections[0] ??
+				null;
+
+			untrack(() => {
+				this._state.collections = collections;
+				this._state.selectedCollection = selectedCollection;
+				this._state.selectedItem = selectedCollection?.items[0] ?? null;
+				this._traitIndex.clear();
+				this._traitCategories.clear();
+				this._traitIndexCollectionId = null;
+				this.filteredCache.clear();
+				imageUrlCache.setCollectionSize(
+					collections.reduce((sum, collection) => sum + collection.totalSupply, 0)
+				);
+			});
+		} catch (error) {
+			console.error('Failed to load gallery data:', error);
+			this.setError('Failed to load gallery data');
+		} finally {
+			this.setLoading(false);
 		}
 	}
 	/**
@@ -576,7 +623,7 @@ class GalleryStore {
 	}
 
 	/**
-	 * Stream a single item image directly to IndexedDB during import.
+	 * Stream a single item image directly to storage during import.
 	 * Updates the item's imageFormat in $state.
 	 */
 	async streamItemImage(
@@ -591,13 +638,13 @@ class GalleryStore {
 			const item = collection.items.find((i) => i.id === itemId);
 			if (item) {
 				item.imageFormat = imageFormat;
+				this.debouncedSaveToStorage();
 			}
 		}
 	}
 
 	/**
-
-	 * Fetch a single item's image data from IndexedDB on demand.
+	 * Fetch a single item's image data from storage on demand.
 	 */
 	async getItemImage(itemId: string): Promise<ArrayBuffer | null> {
 		return fetchItemImage(itemId);
@@ -659,12 +706,21 @@ class GalleryStore {
 
 	// Utility methods
 	async clearGallery() {
+		if (this.saveTimeout) {
+			clearTimeout(this.saveTimeout);
+			this.saveTimeout = null;
+		}
+
 		this._state.collections = [];
 		this._state.selectedItem = null;
 		this._state.selectedCollection = null;
-		// Clear IndexedDB and localStorage
+		this._traitIndex.clear();
+		this._traitCategories.clear();
+		this._traitIndexCollectionId = null;
+		this.filteredCache.clear();
+		// Clear durable storage and localStorage.
 		await clearAllCollections();
-		localStorage.removeItem('gnstudio-gallery-selected-collection');
+		this.persistSelectedCollection(null);
 	}
 
 	exportCollection(collectionId: string) {
