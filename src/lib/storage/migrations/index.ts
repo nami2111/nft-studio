@@ -4,6 +4,12 @@ export {
 	migrateIndexedDbToOpfs,
 	runIndexedDbToOpfsMigration
 } from './indexeddb-to-opfs';
+export {
+	LEGACY_INDEXEDDB_DATABASES,
+	LEGACY_LOCAL_STORAGE_KEYS,
+	OPTIONAL_LEGACY_LOCAL_STORAGE_KEYS,
+	cleanupLegacyIndexedDbStorage
+} from './legacy-cleanup';
 export type {
 	LegacyMigrationReader,
 	MigrationCounts,
@@ -11,3 +17,4 @@ export type {
 	MigrationResult,
 	MigrationStatus
 } from './types';
+export type { LegacyCleanupResult } from './legacy-cleanup';

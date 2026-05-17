@@ -111,6 +111,7 @@ describe('IndexedDB to OPFS migration', () => {
 	it('migrates legacy project and gallery data and can run twice without rewriting', async () => {
 		const backend = createMemoryStorageBackend();
 		const reader = createReader();
+		const legacyProject = await reader.readProject();
 
 		const result = await migrateIndexedDbToOpfs(backend, reader);
 
@@ -140,12 +141,13 @@ describe('IndexedDB to OPFS migration', () => {
 			status: 'completed',
 			attempts: 1
 		});
+		expect(bytes(legacyProject?.layers[0].traits[0].imageData ?? null)).toEqual([1, 2, 3]);
 
 		const secondResult = await migrateIndexedDbToOpfs(backend, reader);
 
 		expect(secondResult.skipped).toBe(true);
 		expect(secondResult.manifest.attempts).toBe(1);
-		expect(reader.calls).toEqual({ project: 1, gallery: 1 });
+		expect(reader.calls).toEqual({ project: 2, gallery: 1 });
 		expect(
 			await backend.json.readJson(storagePaths.migrationManifest(INDEXEDDB_TO_OPFS_MIGRATION_ID))
 		).toMatchObject({

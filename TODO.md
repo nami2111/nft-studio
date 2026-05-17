@@ -392,7 +392,7 @@ untouched and should be safe to retry.
 - [x] Verify project migration by comparing layer count, trait count, and total
       trait image bytes.
 - [x] Do not delete legacy IndexedDB immediately after migration.
-- [ ] Add an explicit cleanup helper for old IndexedDB after the fallback window.
+- [x] Add an explicit cleanup helper for old IndexedDB after the fallback window.
 - [x] If OPFS read misses a file during the fallback window, try legacy
       IndexedDB before returning null.
 
@@ -401,6 +401,7 @@ untouched and should be safe to retry.
 - [x] Add `src/lib/storage/migrations/indexeddb-to-opfs.ts`.
 - [x] Add `src/lib/storage/migrations/types.ts`.
 - [x] Add `src/lib/storage/migrations/index.ts`.
+- [x] Add `src/lib/storage/migrations/legacy-cleanup.ts`.
 - [x] Edit `src/lib/stores/gallery.store.svelte.ts` or route startup code to
       trigger gallery migration before loading gallery data.
 - [x] Edit `src/lib/services/persistence.service.ts` to trigger project
