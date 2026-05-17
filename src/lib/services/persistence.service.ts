@@ -7,6 +7,7 @@
 import { deleteIndexedProject, loadProjectFromIndexedDB } from '$lib/persistence/indexeddb';
 import { IndexedDbStore, SmartStorageStore } from '$lib/persistence/storage';
 import { getStorageBackend } from '$lib/storage/backend';
+import { runIndexedDbToOpfsMigration } from '$lib/storage/migrations';
 import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
 import type { Layer, Project, Trait } from '$lib/types/project';
@@ -118,6 +119,10 @@ export class PersistenceService {
 			const backend = await getProjectStorageBackend();
 
 			if (backend) {
+				await runIndexedDbToOpfsMigration().catch((error) => {
+					logger.warn('IndexedDB to OPFS migration failed; using fallback readers', error);
+				});
+
 				const storedProject = await this.loadProjectFromObjectStorage(backend);
 				if (storedProject) {
 					return storedProject;

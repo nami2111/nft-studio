@@ -381,38 +381,38 @@ untouched and should be safe to retry.
 
 ### Tasks
 
-- [ ] Add a migration manifest at:
+- [x] Add a migration manifest at:
       `migrations/indexeddb-to-opfs-v1.json`.
-- [ ] Migration status values:
+- [x] Migration status values:
       `not-started`, `running`, `completed`, `failed`.
-- [ ] On app startup, if OPFS is enabled and migration is not completed:
+- [x] On app startup, if OPFS is enabled and migration is not completed:
       read legacy data, write OPFS data, verify it, then mark completed.
-- [ ] Verify gallery migration by comparing collection count, item count, and
+- [x] Verify gallery migration by comparing collection count, item count, and
       total image bytes.
-- [ ] Verify project migration by comparing layer count, trait count, and total
+- [x] Verify project migration by comparing layer count, trait count, and total
       trait image bytes.
-- [ ] Do not delete legacy IndexedDB immediately after migration.
+- [x] Do not delete legacy IndexedDB immediately after migration.
 - [ ] Add an explicit cleanup helper for old IndexedDB after the fallback window.
-- [ ] If OPFS read misses a file during the fallback window, try legacy
+- [x] If OPFS read misses a file during the fallback window, try legacy
       IndexedDB before returning null.
 
 ### File Changes
 
-- [ ] Add `src/lib/storage/migrations/indexeddb-to-opfs.ts`.
-- [ ] Add `src/lib/storage/migrations/types.ts`.
-- [ ] Add `src/lib/storage/migrations/index.ts`.
-- [ ] Edit `src/lib/stores/gallery.store.svelte.ts` or route startup code to
+- [x] Add `src/lib/storage/migrations/indexeddb-to-opfs.ts`.
+- [x] Add `src/lib/storage/migrations/types.ts`.
+- [x] Add `src/lib/storage/migrations/index.ts`.
+- [x] Edit `src/lib/stores/gallery.store.svelte.ts` or route startup code to
       trigger gallery migration before loading gallery data.
-- [ ] Edit `src/lib/services/persistence.service.ts` to trigger project
+- [x] Edit `src/lib/services/persistence.service.ts` to trigger project
       migration before project hydration.
-- [ ] Add `src/lib/storage/migrations/indexeddb-to-opfs.test.ts`.
+- [x] Add `src/lib/storage/migrations/indexeddb-to-opfs.test.ts`.
 
 ### Acceptance Checks
 
-- [ ] Migration can run twice without duplicating or corrupting data.
-- [ ] Failed migration leaves legacy data readable.
-- [ ] Completed migration prefers OPFS.
-- [ ] Fallback reads still work for one rollout window.
+- [x] Migration can run twice without duplicating or corrupting data.
+- [x] Failed migration leaves legacy data readable.
+- [x] Completed migration prefers OPFS.
+- [x] Fallback reads still work for one rollout window.
 
 ## Phase 6 - Quota, Persistence, and Cleanup
 
