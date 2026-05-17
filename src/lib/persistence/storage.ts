@@ -119,7 +119,7 @@ export function saveToLocalStorageSync<T>(key: string, value: T): void {
 			const compactSize = getStorageSize(compactValue);
 
 			if (compactSize > STORAGE_QUOTA_LIMIT) {
-				console.error('Project too large for localStorage, consider using IndexedDB');
+				console.error('Project too large for localStorage, use durable browser storage');
 				throw new Error('Project size exceeds localStorage quota');
 			}
 
@@ -211,7 +211,7 @@ export class LocalStorageStore<T> implements PersistenceStore<T> {
 	}
 }
 
-// Minimal IndexedDB adapter (primary storage for large projects)
+// Minimal IndexedDB adapter (legacy fallback for large projects)
 export class IndexedDbStore<T> implements PersistenceStore<T> {
 	constructor(
 		public key: string,
@@ -359,7 +359,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 }
 
 /**
- * Smart storage manager that chooses the best storage method
+ * Legacy smart storage manager for fallback and migration paths.
  */
 export class SmartStorageStore<T> implements PersistenceStore<T> {
 	constructor(

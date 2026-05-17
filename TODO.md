@@ -309,52 +309,52 @@ generation and gallery paths prove the storage seam.
 
 ### Tasks
 
-- [ ] Move project metadata source of truth to:
+- [x] Move project metadata source of truth to:
       `projects/current/project.json`.
-- [ ] Move each trait image to:
+- [x] Move each trait image to:
       `projects/current/layers/<layerId>/<traitId>.bin`.
-- [ ] Store trait metadata without `imageData` and without object URLs.
-- [ ] Hydrate `trait.imageData` from OPFS during project load.
-- [ ] Let UI code recreate object URLs from `imageData` as it already does.
-- [ ] Keep `localStorage` only as a tiny boot hint if needed.
-- [ ] Make `clearData()` delete the full OPFS project tree, not only cached
+- [x] Store trait metadata without `imageData` and without object URLs.
+- [x] Hydrate `trait.imageData` from OPFS during project load.
+- [x] Let UI code recreate object URLs from `imageData` as it already does.
+- [x] Keep `localStorage` only as a tiny boot hint if needed.
+- [x] Make `clearData()` delete the full OPFS project tree, not only cached
       layer keys known in the current service instance.
-- [ ] Keep legacy project reads from `SmartStorageStore`, `IndexedDbStore`, and
+- [x] Keep legacy project reads from `SmartStorageStore`, `IndexedDbStore`, and
       `src/lib/persistence/indexeddb.ts` during migration.
 
 ### File Changes
 
-- [ ] Edit `src/lib/services/persistence.service.ts`.
-  - Replace `IndexedDbStore` layer asset writes with the storage seam.
-  - Replace `assetStorages` map with path-based writes.
-  - Update `saveProject` to write dirty layer asset files by trait ID.
-  - Update `loadProject` to hydrate from OPFS first, then legacy.
-  - Update `clearData` to delete `projects/current`.
-  - Update `hasData` to check OPFS asynchronously, or split into sync hint and
-    async source-of-truth checks.
-- [ ] Edit `src/lib/persistence/storage.ts`.
-  - Keep `LocalStorageStore` for small state.
-  - Mark `IndexedDbStore` as legacy/fallback once OPFS is active.
-  - Avoid using `SmartStorageStore` for large project assets.
-- [ ] Review `src/lib/persistence/indexeddb.ts`.
-  - If unused by runtime, keep it as a legacy migrator module temporarily.
-  - Remove it only after the migration/fallback window closes.
-- [ ] Edit `src/lib/stores/project.store.svelte.ts` only if API shape changes.
-  - Keep current persistence service calls if possible.
-  - Do not push storage details into the store.
-- [ ] Add `src/lib/services/persistence.service.test.ts` or a focused storage
+- [x] Edit `src/lib/services/persistence.service.ts`.
+  - [x] Replace `IndexedDbStore` layer asset writes with the storage seam.
+  - [x] Replace `assetStorages` map with path-based writes.
+  - [x] Update `saveProject` to write dirty layer asset files by trait ID.
+  - [x] Update `loadProject` to hydrate from OPFS first, then legacy.
+  - [x] Update `clearData` to delete `projects/current`.
+  - [x] Update `hasData` to check OPFS asynchronously, or split into sync hint and
+        async source-of-truth checks.
+- [x] Edit `src/lib/persistence/storage.ts`.
+  - [x] Keep `LocalStorageStore` for small state.
+  - [x] Mark `IndexedDbStore` as legacy/fallback once OPFS is active.
+  - [x] Avoid using `SmartStorageStore` for large project assets.
+- [x] Review `src/lib/persistence/indexeddb.ts`.
+  - [x] Kept it as a legacy migrator module temporarily.
+  - [ ] Remove it only after the migration/fallback window closes.
+- [x] Review `src/lib/stores/project.store.svelte.ts` for API impact.
+  - [x] Keep current persistence service calls.
+  - [x] Do not push storage details into the store.
+- [x] Add `src/lib/services/persistence.service.test.ts` or a focused storage
       hydration test.
-  - Save project with multiple layers and traits.
-  - Load project and verify `imageData.byteLength`.
-  - Clear project and verify OPFS tree deletion.
+  - [x] Save project with multiple layers and traits.
+  - [x] Load project and verify `imageData.byteLength`.
+  - [x] Clear project and verify OPFS tree deletion.
 
 ### Acceptance Checks
 
-- [ ] Project save no longer stores trait image bytes in IndexedDB when OPFS is
+- [x] Project save no longer stores trait image bytes in IndexedDB when OPFS is
       enabled.
-- [ ] Project load restores all trait buffers.
-- [ ] Export project ZIP still includes images after loading from storage.
-- [ ] Clearing persisted data clears OPFS project data and old fallback keys.
+- [x] Project load restores all trait buffers.
+- [x] Export project ZIP still includes images after loading from storage.
+- [x] Clearing persisted data clears OPFS project data and old fallback keys.
 
 ## Phase 5 - Legacy IndexedDB Migration
 

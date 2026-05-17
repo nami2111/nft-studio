@@ -19,7 +19,11 @@ export function joinStoragePath(...segments: string[]): string {
 export const storagePaths = {
 	root: 'gnstudio',
 	storageVersion: () => joinStoragePath('gnstudio', 'storage-version.json'),
+	projectRoot: () => joinStoragePath('gnstudio', 'projects', 'current'),
 	projectManifest: () => joinStoragePath('gnstudio', 'projects', 'current', 'project.json'),
+	projectLayersRoot: () => joinStoragePath('gnstudio', 'projects', 'current', 'layers'),
+	projectLayerRoot: (layerId: string) =>
+		joinStoragePath('gnstudio', 'projects', 'current', 'layers', layerId),
 	projectTraitAsset: (layerId: string, traitId: string) =>
 		joinStoragePath('gnstudio', 'projects', 'current', 'layers', layerId, `${traitId}.bin`),
 	galleryRoot: () => joinStoragePath('gnstudio', 'gallery'),

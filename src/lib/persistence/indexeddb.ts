@@ -1,4 +1,4 @@
-// Lightweight IndexedDB persistence wrapper
+// Legacy IndexedDB persistence wrapper retained for OPFS migration fallback.
 // Provides a simple CRUD interface around a single "current" project entry.
 import type { Project } from '$lib/types/project';
 

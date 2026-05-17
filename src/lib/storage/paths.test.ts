@@ -6,6 +6,11 @@ describe('storage paths', () => {
 		expect(storagePaths.projectTraitAsset('layer-1', 'trait-2')).toBe(
 			'gnstudio/projects/current/layers/layer-1/trait-2.bin'
 		);
+		expect(storagePaths.projectRoot()).toBe('gnstudio/projects/current');
+		expect(storagePaths.projectLayersRoot()).toBe('gnstudio/projects/current/layers');
+		expect(storagePaths.projectLayerRoot('layer-1')).toBe(
+			'gnstudio/projects/current/layers/layer-1'
+		);
 		expect(storagePaths.galleryItemImage('collection-1', 'item-2')).toBe(
 			'gnstudio/gallery/collections/collection-1/items/item-2.bin'
 		);
