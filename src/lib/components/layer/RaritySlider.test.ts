@@ -35,7 +35,7 @@ describe('RaritySlider', () => {
 			}
 		});
 
-		expect(screen.getByText('Epic')).toBeInTheDocument();
+		expect(screen.getByTestId('rarity-value')).toHaveTextContent('Epic');
 		expect(screen.getByTestId('rarity-slider')).toHaveAttribute('data-rarity', '3');
 	});
 
