@@ -5,7 +5,10 @@
 
 import { openDB, type IDBPDatabase } from 'idb';
 import { getStorageBackend } from '$lib/storage/backend';
-import { getStorageEstimate as getBrowserStorageEstimate } from '$lib/storage/capabilities';
+import {
+	getStorageEstimate as getBrowserStorageEstimate,
+	requestPersistentStorageOnce
+} from '$lib/storage/capabilities';
 import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
 import type { GalleryCollection, GalleryItem } from '$lib/types/gallery';
@@ -280,6 +283,7 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 			storedCollection
 		);
 		await addCollectionToIndex(backend, collection.id);
+		void requestPersistentStorageOnce('gallery-import');
 	} finally {
 		recordGalleryQuery('saveCollection', startTime);
 	}
@@ -324,6 +328,7 @@ export async function saveItemImage(
 
 	await backend.binary.write(storagePaths.galleryItemImage(collectionId, itemId), imageData);
 	await writeItemLookup(backend, itemId, collectionId);
+	void requestPersistentStorageOnce('gallery-import');
 }
 
 async function saveItemImageToIndexedDB(

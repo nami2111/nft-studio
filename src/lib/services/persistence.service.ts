@@ -7,6 +7,7 @@
 import { deleteIndexedProject, loadProjectFromIndexedDB } from '$lib/persistence/indexeddb';
 import { IndexedDbStore, SmartStorageStore } from '$lib/persistence/storage';
 import { getStorageBackend } from '$lib/storage/backend';
+import { requestPersistentStorageOnce } from '$lib/storage/capabilities';
 import { runIndexedDbToOpfsMigration } from '$lib/storage/migrations';
 import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
@@ -271,6 +272,7 @@ export class PersistenceService {
 
 		this.writeProjectBootHint(project);
 		this.dirtyLayers.clear();
+		void requestPersistentStorageOnce('project-save');
 	}
 
 	private async saveProjectToLegacyStorage(project: Project): Promise<void> {

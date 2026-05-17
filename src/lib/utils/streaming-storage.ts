@@ -5,6 +5,7 @@
 
 import { openDB, type IDBPDatabase } from 'idb';
 import { getStorageBackend } from '$lib/storage/backend';
+import { requestPersistentStorageOnce } from '$lib/storage/capabilities';
 import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
 
@@ -12,6 +13,8 @@ const DB_NAME = 'gnstudio-generation';
 const DB_VERSION = 1;
 const IMAGES_STORE = 'images';
 const METADATA_STORE = 'metadata';
+const LARGE_GENERATION_SESSION_BYTES = 50 * 1024 * 1024;
+const DEFAULT_STALE_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 interface GenerationSessionManifestItem {
 	index: number;
@@ -25,6 +28,19 @@ interface GenerationSessionManifest {
 	createdAt: number;
 	updatedAt: number;
 	items: GenerationSessionManifestItem[];
+}
+
+export interface CleanupStaleGenerationSessionsOptions {
+	activeSessionIds?: Iterable<string>;
+	maxAgeMs?: number;
+	now?: number;
+	preserveActiveWrites?: boolean;
+}
+
+export interface CleanupStaleGenerationSessionsResult {
+	removedSessionIds: string[];
+	skippedSessionIds: string[];
+	failedSessionIds: string[];
 }
 
 let dbInstance: IDBPDatabase | null = null;
@@ -110,6 +126,29 @@ function createEmptyManifest(sessionId: string): GenerationSessionManifest {
 		updatedAt: now,
 		items: []
 	};
+}
+
+function getManifestTimestamp(manifest: GenerationSessionManifest | null): number | null {
+	if (manifest?.updatedAt) return manifest.updatedAt;
+	if (manifest?.createdAt) return manifest.createdAt;
+	return null;
+}
+
+function parseSessionTimestamp(sessionId: string): number | null {
+	const match = /^gen-(\d+)-/.exec(sessionId);
+	if (!match) return null;
+
+	const timestamp = Number(match[1]);
+	return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function getSessionAgeMs(
+	sessionId: string,
+	manifest: GenerationSessionManifest | null,
+	now: number
+): number | null {
+	const timestamp = getManifestTimestamp(manifest) ?? parseSessionTimestamp(sessionId);
+	return timestamp === null ? null : now - timestamp;
 }
 
 async function readSessionManifest(
@@ -229,21 +268,24 @@ export async function streamBatch(
 		]);
 
 		const manifest = await readSessionManifest(backend, sessionId);
-		await writeSessionManifest(
-			backend,
-			mergeSessionManifest(
-				manifest,
-				imageEntries.map((img) => ({
-					index: img.index,
-					name: img.name,
-					bytes: img.imageData.byteLength
-				})),
-				metadataEntries.map((meta) => ({
-					index: meta.index,
-					name: meta.name
-				}))
-			)
+		const mergedManifest = mergeSessionManifest(
+			manifest,
+			imageEntries.map((img) => ({
+				index: img.index,
+				name: img.name,
+				bytes: img.imageData.byteLength
+			})),
+			metadataEntries.map((meta) => ({
+				index: meta.index,
+				name: meta.name
+			}))
 		);
+		await writeSessionManifest(backend, mergedManifest);
+
+		const sessionImageBytes = mergedManifest.items.reduce((sum, item) => sum + item.imageBytes, 0);
+		if (sessionImageBytes >= LARGE_GENERATION_SESSION_BYTES) {
+			void requestPersistentStorageOnce('generation-session');
+		}
 	});
 }
 
@@ -507,6 +549,64 @@ export async function clearSession(sessionId: string): Promise<void> {
 
 	await backend.binary.removeTree(storagePaths.generationSessionRoot(sessionId));
 	sessionWriteQueues.delete(sessionId);
+}
+
+export async function cleanupStaleGenerationSessions(
+	options: CleanupStaleGenerationSessionsOptions = {}
+): Promise<CleanupStaleGenerationSessionsResult> {
+	const backend = await getGenerationStorageBackend();
+	const result: CleanupStaleGenerationSessionsResult = {
+		removedSessionIds: [],
+		skippedSessionIds: [],
+		failedSessionIds: []
+	};
+
+	if (!backend) {
+		return result;
+	}
+
+	const now = options.now ?? Date.now();
+	const maxAgeMs = Math.max(0, options.maxAgeMs ?? DEFAULT_STALE_SESSION_MAX_AGE_MS);
+	const activeSessionIds = new Set(options.activeSessionIds ?? []);
+	if (options.preserveActiveWrites !== false) {
+		for (const sessionId of sessionWriteQueues.keys()) {
+			activeSessionIds.add(sessionId);
+		}
+	}
+
+	const sessionIds = await backend.binary.list(storagePaths.generationRoot());
+
+	for (const sessionId of sessionIds) {
+		if (activeSessionIds.has(sessionId)) {
+			result.skippedSessionIds.push(sessionId);
+			continue;
+		}
+
+		let manifest: GenerationSessionManifest | null = null;
+		try {
+			manifest = await backend.json.readJson<GenerationSessionManifest>(
+				storagePaths.generationSessionManifest(sessionId)
+			);
+		} catch {
+			manifest = null;
+		}
+
+		const sessionAgeMs = getSessionAgeMs(sessionId, manifest, now);
+		if (maxAgeMs > 0 && (sessionAgeMs === null || sessionAgeMs < maxAgeMs)) {
+			result.skippedSessionIds.push(sessionId);
+			continue;
+		}
+
+		try {
+			await waitForSessionWrites(sessionId, { ignoreErrors: true });
+			await backend.binary.removeTree(storagePaths.generationSessionRoot(sessionId));
+			result.removedSessionIds.push(sessionId);
+		} catch {
+			result.failedSessionIds.push(sessionId);
+		}
+	}
+
+	return result;
 }
 
 async function clearIndexedDBSession(sessionId: string): Promise<void> {

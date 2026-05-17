@@ -40,7 +40,11 @@ import {
 	packageFromStorageBySize
 } from '$lib/services/export.service';
 import { isFlagEnabled } from '$lib/config/feature-flags';
-import { streamBatch, clearSession } from '$lib/utils/streaming-storage';
+import {
+	streamBatch,
+	clearSession,
+	cleanupStaleGenerationSessions
+} from '$lib/utils/streaming-storage';
 
 // ─── Public interface ─────────────────────────────────────────
 
@@ -133,6 +137,9 @@ export async function runGeneration(
 			_activeProjectName = config.projectName || 'collection';
 			_useStreamingStorage = isFlagEnabled('enableStreamingStorage');
 			_storageSessionId = sessionId;
+			if (_useStreamingStorage) {
+				void cleanupStaleGenerationSessions({ activeSessionIds: [sessionId] });
+			}
 
 			// 4 ─ Start streaming ZIP unless storage-backed packaging is active.
 			if (!_useStreamingStorage) {

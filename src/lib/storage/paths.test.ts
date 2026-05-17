@@ -18,6 +18,7 @@ describe('storage paths', () => {
 			'gnstudio/gallery/item-index/item-2.json'
 		);
 		expect(storagePaths.galleryCollectionsRoot()).toBe('gnstudio/gallery/collections');
+		expect(storagePaths.generationRoot()).toBe('gnstudio/generation');
 		expect(storagePaths.generationImage('gen-123', 4)).toBe(
 			'gnstudio/generation/gen-123/images/4.bin'
 		);

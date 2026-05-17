@@ -5,6 +5,7 @@ import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
 import {
 	clearSession,
+	cleanupStaleGenerationSessions,
 	iterateBySize,
 	streamBatch,
 	waitForSessionWrites
@@ -139,5 +140,56 @@ describe('streaming storage', () => {
 		expect(
 			await backend.json.readJson(storagePaths.generationSessionManifest('session-d'))
 		).toBeNull();
+	});
+
+	it('cleans stale generation sessions without touching durable storage', async () => {
+		await backend.json.writeJson(storagePaths.generationSessionManifest('old-session'), {
+			sessionId: 'old-session',
+			createdAt: 1_000,
+			updatedAt: 1_000,
+			items: []
+		});
+		await backend.binary.write(storagePaths.generationImage('old-session', 0), buffer(2));
+		await backend.json.writeJson(storagePaths.generationSessionManifest('fresh-session'), {
+			sessionId: 'fresh-session',
+			createdAt: 9_000,
+			updatedAt: 9_000,
+			items: []
+		});
+		await backend.binary.write(storagePaths.generationImage('fresh-session', 0), buffer(2));
+		await backend.json.writeJson(storagePaths.generationSessionManifest('active-session'), {
+			sessionId: 'active-session',
+			createdAt: 1_000,
+			updatedAt: 1_000,
+			items: []
+		});
+		await backend.binary.write(storagePaths.generationImage('active-session', 0), buffer(2));
+		await backend.binary.write(storagePaths.projectTraitAsset('layer-1', 'trait-1'), buffer(2));
+		await backend.binary.write(storagePaths.galleryItemImage('collection-1', 'item-1'), buffer(2));
+
+		const result = await cleanupStaleGenerationSessions({
+			activeSessionIds: ['active-session'],
+			maxAgeMs: 5_000,
+			now: 10_000
+		});
+
+		expect(result).toEqual({
+			removedSessionIds: ['old-session'],
+			skippedSessionIds: ['active-session', 'fresh-session'],
+			failedSessionIds: []
+		});
+		expect(await backend.binary.exists(storagePaths.generationImage('old-session', 0))).toBe(false);
+		expect(await backend.binary.exists(storagePaths.generationImage('fresh-session', 0))).toBe(
+			true
+		);
+		expect(await backend.binary.exists(storagePaths.generationImage('active-session', 0))).toBe(
+			true
+		);
+		expect(await backend.binary.exists(storagePaths.projectTraitAsset('layer-1', 'trait-1'))).toBe(
+			true
+		);
+		expect(
+			await backend.binary.exists(storagePaths.galleryItemImage('collection-1', 'item-1'))
+		).toBe(true);
 	});
 });

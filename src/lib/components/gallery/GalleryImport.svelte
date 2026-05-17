@@ -15,7 +15,10 @@
         TextWriter,
     } from "@zip.js/zip.js";
     import { detectImageFormat } from "$lib/utils/image-format-detector";
-    import { getStorageEstimate } from "$lib/utils/gallery-storage";
+    import {
+        formatStorageBytes,
+        getStoragePressure,
+    } from "$lib/storage/capabilities";
     import Icon from "$components/shared/Icon.svelte";
     import { Folder01Icon, Alert01Icon } from "@hugeicons/core-free-icons";
 
@@ -128,24 +131,20 @@
             return;
         }
 
-        // Check browser storage quota before import
-        const estimate = await getStorageEstimate();
-        if (estimate.quota > 0) {
-            const availableSpace = estimate.quota - estimate.usage;
-            const requiredSpace = totalSize * 1.5;
+        const pressure = await getStoragePressure(totalSize, {
+            headroomMultiplier: 1.5,
+        });
+        if (pressure.status === "insufficient") {
+            showWarning("Insufficient storage", {
+                description: `Not enough storage space available. Need about ${formatStorageBytes(pressure.bytesNeeded)} but only ${formatStorageBytes(pressure.availableBytes)} is available. Free up disk space and try again.`,
+            });
+            return;
+        }
 
-            if (availableSpace < totalSize) {
-                showWarning("Insufficient storage", {
-                    description: `Not enough storage space available. Need ~${(totalSize / 1073741824).toFixed(1)}GB but only ${(availableSpace / 1073741824).toFixed(1)}GB available. Free up disk space and try again.`,
-                });
-                return;
-            }
-
-            if (availableSpace < requiredSpace) {
-                showWarning("Low storage space", {
-                    description: `Storage space is limited. Need ~${(totalSize / 1073741824).toFixed(1)}GB with only ${(availableSpace / 1073741824).toFixed(1)}GB available. Import may fail if space runs out.`,
-                });
-            }
+        if (pressure.status === "low") {
+            showWarning("Low storage space", {
+                description: `Storage space is limited. Need about ${formatStorageBytes(pressure.bytesNeeded)} with ${formatStorageBytes(pressure.availableBytes)} available. Import may fail if space runs out.`,
+            });
         }
 
         isImporting = true;

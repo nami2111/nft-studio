@@ -3,7 +3,8 @@
 	import { runGeneration, cancelGeneration, type GenerationConfig, type GenerationCallbacks } from '$lib/domain/worker.service';
 	import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
-	import { getErrorInfo } from '$lib/utils/typed-errors';
+	import { isFlagEnabled } from '$lib/config/feature-flags';
+	import { formatStorageBytes, getStoragePressure } from '$lib/storage/capabilities';
 	import {
 		generationState,
 		startGeneration,
@@ -22,6 +23,9 @@
 	// ─── Local UI state ──────────────────────────────────────
 	let collectionSize = $state<number | null>(100);
 	let isComponentDestroyed = $state(false);
+
+	const ESTIMATED_GENERATION_IMAGE_BYTES_PER_PIXEL = 1;
+	const ESTIMATED_GENERATION_METADATA_BYTES_PER_ITEM = 4096;
 
 	// ─── Derived state from store ────────────────────────────
 	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
@@ -92,6 +96,50 @@
 		};
 	}
 
+	function estimateGenerationStorageBytes(
+		outputSize: { width: number; height: number },
+		totalItems: number
+	): number {
+		const imageBytes =
+			outputSize.width *
+			outputSize.height *
+			ESTIMATED_GENERATION_IMAGE_BYTES_PER_PIXEL *
+			totalItems;
+		const metadataBytes = ESTIMATED_GENERATION_METADATA_BYTES_PER_ITEM * totalItems;
+		return imageBytes + metadataBytes;
+	}
+
+	async function hasStorageHeadroomForGeneration(
+		outputSize: { width: number; height: number },
+		totalItems: number
+	): Promise<boolean> {
+		if (!isFlagEnabled('enableStreamingStorage')) {
+			return true;
+		}
+
+		const estimatedBytes = estimateGenerationStorageBytes(outputSize, totalItems);
+		const pressure = await getStoragePressure(estimatedBytes, { headroomMultiplier: 1.25 });
+
+		if (pressure.status === 'unknown') {
+			return true;
+		}
+
+		if (pressure.status === 'insufficient') {
+			showWarning('Insufficient storage', {
+				description: `This generation may need about ${formatStorageBytes(pressure.bytesNeeded)} but only ${formatStorageBytes(pressure.availableBytes)} is available. Free up disk space and try again.`
+			});
+			return false;
+		}
+
+		if (pressure.status === 'low') {
+			showWarning('Low storage space', {
+				description: `This generation may need about ${formatStorageBytes(pressure.bytesNeeded)}. Only ${formatStorageBytes(pressure.availableBytes)} is currently available, so generation may fail if storage fills up.`
+			});
+		}
+
+		return true;
+	}
+
 	// ─── Generate ────────────────────────────────────────────
 	async function handleGenerate(event?: MouseEvent) {
 		if (event) event.preventDefault();
@@ -122,6 +170,10 @@
 				showWarning('Missing image data. Please upload images for all traits.', { description: 'Validation Error' });
 				return;
 			}
+			const totalItems = collectionSize || 100;
+			if (!(await hasStorageHeadroomForGeneration(projectData.outputSize, totalItems))) {
+				return;
+			}
 
 			// Start generation state
 			startGeneration({
@@ -129,13 +181,13 @@
 				projectDescription: projectData.description || '',
 				outputSize: projectData.outputSize,
 				layers: projectData.layers,
-				collectionSize: collectionSize || 100
+				collectionSize: totalItems
 			});
 
 			// Build config
 			const config: GenerationConfig = {
 				layers: projectData.layers,
-				collectionSize: collectionSize || 100,
+				collectionSize: totalItems,
 				outputSize: projectData.outputSize,
 				projectName: projectData.name || 'Untitled Collection',
 				projectDescription: projectData.description || '',

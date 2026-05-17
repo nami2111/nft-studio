@@ -419,32 +419,32 @@ untouched and should be safe to retry.
 
 ### Tasks
 
-- [ ] Centralize quota and persistence calls in `src/lib/storage/capabilities.ts`.
-- [ ] Call `navigator.storage.persist()` after:
+- [x] Centralize quota and persistence calls in `src/lib/storage/capabilities.ts`.
+- [x] Call `navigator.storage.persist()` after:
       first successful project save, first successful gallery import, and first
       large generation session write.
-- [ ] Surface low-storage warnings through existing `showWarning(...)` paths in
+- [x] Surface low-storage warnings through existing `showWarning(...)` paths in
       gallery import and generation flows.
-- [ ] Add stale generation cleanup for abandoned OPFS sessions.
-- [ ] Update `src/lib/utils/session-cleanup.ts` so it does not leave temporary
+- [x] Add stale generation cleanup for abandoned OPFS sessions.
+- [x] Update `src/lib/utils/session-cleanup.ts` so it does not leave temporary
       OPFS generation sessions behind.
-- [ ] Keep gallery data cleanup intentional. Do not delete durable gallery data
+- [x] Keep gallery data cleanup intentional. Do not delete durable gallery data
       from generic session cleanup unless the product intentionally wants
       session-only gallery storage.
 
 ### File Changes
 
-- [ ] Edit `src/lib/utils/session-cleanup.ts`.
-- [ ] Edit `src/lib/components/gallery/GalleryImport.svelte`.
-- [ ] Edit `src/lib/workers/generation.orchestrator.ts`.
-- [ ] Edit `src/lib/services/persistence.service.ts`.
+- [x] Edit `src/lib/utils/session-cleanup.ts`.
+- [x] Edit `src/lib/components/gallery/GalleryImport.svelte`.
+- [x] Edit `src/lib/workers/generation.orchestrator.ts`.
+- [x] Edit `src/lib/services/persistence.service.ts`.
 
 ### Acceptance Checks
 
-- [ ] Browser storage pressure warnings still happen before large imports.
-- [ ] OPFS temporary generation directories are removed after success, cancel,
+- [x] Browser storage pressure warnings still happen before large imports.
+- [x] OPFS temporary generation directories are removed after success, cancel,
       and error.
-- [ ] Durable project/gallery data is not removed by accident.
+- [x] Durable project/gallery data is not removed by accident.
 
 ## Phase 7 - Documentation and Naming Cleanup
 

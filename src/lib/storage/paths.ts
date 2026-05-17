@@ -39,6 +39,7 @@ export const storagePaths = {
 		joinStoragePath('gnstudio', 'gallery', 'collections', collectionId, 'items', `${itemId}.bin`),
 	galleryItemLookup: (itemId: string) =>
 		joinStoragePath('gnstudio', 'gallery', 'item-index', `${itemId}.json`),
+	generationRoot: () => joinStoragePath('gnstudio', 'generation'),
 	generationSessionManifest: (sessionId: string) =>
 		joinStoragePath('gnstudio', 'generation', sessionId, 'manifest.json'),
 	generationImage: (sessionId: string, index: number) =>
