@@ -25,9 +25,9 @@ memory pressure in the hot paths.
 | Workload                           | Current files                                                                                                            | Current backend                                         | Replacement target                                                |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ----------------------------------------------------------------- |
 | Project metadata                   | `src/lib/services/persistence.service.ts`, `src/lib/persistence/storage.ts`                                              | `SmartStorageStore`, `localStorage`, IndexedDB fallback | OPFS `project.json` source of truth, optional tiny local snapshot |
-| Project layer assets               | `src/lib/services/persistence.service.ts`                                                                                | `IndexedDbStore` in `gnstudio-assets`                   | OPFS files under project layer asset paths                        |
-| Gallery metadata                   | `src/lib/utils/gallery-db.ts`, `src/lib/stores/gallery.store.svelte.ts`                                                  | IndexedDB `collections` store                           | OPFS collection manifests                                         |
-| Gallery images                     | `src/lib/utils/gallery-db.ts`, gallery UI callers                                                                        | IndexedDB `gallery-images` store                        | OPFS item image files                                             |
+| Project layer assets               | `src/lib/services/persistence.service.ts`                                                                                | Legacy asset store `gnstudio-assets`                    | OPFS files under project layer asset paths                        |
+| Gallery metadata                   | `src/lib/utils/gallery-storage.ts`, `src/lib/stores/gallery.store.svelte.ts`                                             | IndexedDB `collections` store                           | OPFS collection manifests                                         |
+| Gallery images                     | `src/lib/utils/gallery-storage.ts`, gallery UI callers                                                                   | IndexedDB `gallery-images` store                        | OPFS item image files                                             |
 | Generation session images/metadata | `src/lib/utils/streaming-storage.ts`, `src/lib/services/export.service.ts`, `src/lib/workers/generation.orchestrator.ts` | IndexedDB `gnstudio-generation`                         | OPFS session directories                                          |
 | Tiny UI state                      | `gallery.store.svelte.ts`, `persistence.service.ts`                                                                      | `localStorage`                                          | Keep `localStorage`                                               |
 
@@ -205,11 +205,11 @@ hot, and isolated. There is no long-lived migration requirement for
 - [x] Edit `src/lib/utils/streaming-storage.ts`.
   - Keep direct `idb` dependency only in the legacy fallback path.
   - [x] Use `src/lib/storage/backend.ts`.
-  - [x] Rename comments from IndexedDB-specific wording to storage-neutral wording.
+  - [x] Rename comments from backend-specific wording to storage-neutral wording.
 - [x] Edit `src/lib/services/export.service.ts`.
-  - [x] Rename `packageFromIndexedDBBySize` to `packageFromStorageBySize`.
-  - [x] Keep a deprecated wrapper `packageFromIndexedDBBySize` for one release if
-        that avoids a large call-site change.
+  - [x] Use `packageFromStorageBySize` for storage-backed ZIP packaging.
+  - [x] Remove the deprecated wrapper after call sites moved to
+        `packageFromStorageBySize`.
   - [x] Update comments and progress messages.
 - [x] Edit `src/lib/workers/generation.orchestrator.ts`.
   - [x] Rename `_idbSessionId` to `_storageSessionId`.
@@ -262,10 +262,10 @@ through the explicit clear action.
 
 ### File Changes
 
-- [x] Rename or replace `src/lib/utils/gallery-db.ts`.
-  - Preferred final name: `src/lib/utils/gallery-storage.ts`.
-  - Keep a temporary re-export from `gallery-db.ts` if that keeps the diff
-    smaller during migration.
+- [x] Replace `src/lib/utils/gallery-db.ts` with
+      `src/lib/utils/gallery-storage.ts`.
+  - [x] Remove the temporary `gallery-db.ts` re-export after callers moved to
+        `gallery-storage`.
 - [x] Edit `src/lib/stores/gallery.store.svelte.ts`.
   - [x] Change imports from gallery DB to gallery storage.
   - [x] Rename `debouncedSaveToIndexedDB()` to `debouncedSaveToStorage()`.
@@ -319,13 +319,14 @@ generation and gallery paths prove the storage seam.
 - [x] Keep `localStorage` only as a tiny boot hint if needed.
 - [x] Make `clearData()` delete the full OPFS project tree, not only cached
       layer keys known in the current service instance.
-- [x] Keep legacy project reads from `SmartStorageStore`, `IndexedDbStore`, and
-      `src/lib/persistence/indexeddb.ts` during migration.
+- [x] Keep legacy project reads from `SmartStorageStore`,
+      `LegacyIndexedDbStore`, and `src/lib/persistence/indexeddb.ts` during
+      migration.
 
 ### File Changes
 
 - [x] Edit `src/lib/services/persistence.service.ts`.
-  - [x] Replace `IndexedDbStore` layer asset writes with the storage seam.
+  - [x] Replace legacy asset store writes with the storage seam.
   - [x] Replace `assetStorages` map with path-based writes.
   - [x] Update `saveProject` to write dirty layer asset files by trait ID.
   - [x] Update `loadProject` to hydrate from OPFS first, then legacy.
@@ -334,7 +335,7 @@ generation and gallery paths prove the storage seam.
         async source-of-truth checks.
 - [x] Edit `src/lib/persistence/storage.ts`.
   - [x] Keep `LocalStorageStore` for small state.
-  - [x] Mark `IndexedDbStore` as legacy/fallback once OPFS is active.
+  - [x] Rename the legacy fallback class to `LegacyIndexedDbStore`.
   - [x] Avoid using `SmartStorageStore` for large project assets.
 - [x] Review `src/lib/persistence/indexeddb.ts`.
   - [x] Kept it as a legacy migrator module temporarily.
@@ -483,22 +484,31 @@ untouched and should be safe to retry.
 
 Run verification in the project-required order.
 
-- [ ] `vp fmt`
-- [ ] `vp lint`
-- [ ] `vp test`
+- [x] `vp fmt`
+- [x] `vp lint`
+- [x] `vp test`
 
 Add manual checks because OPFS behavior depends on browser APIs that jsdom may
 not fully emulate.
 
-- [ ] Chrome: generate 1,000 items with streaming storage enabled.
-- [ ] Chrome: import a multi-part gallery ZIP and scroll the virtual grid.
-- [ ] Chrome: open item detail for images that are not in memory.
-- [ ] Chrome: reload app and verify durable project/gallery behavior, if
+- [x] Chrome: generate 1,000 items with streaming storage enabled.
+      Manual check on May 18, 2026: generated 2,000 items; storage packaging
+      read 929.2MB in about two ZIP batches.
+- [x] Chrome: import a multi-part gallery ZIP and scroll the virtual grid.
+      Manual check on May 18, 2026: imported two ZIP files; gallery filtering
+      completed in 27.7ms, then 2.5ms and 2.0ms for filtered views.
+- [x] Chrome: open item detail for images that are not in memory.
+      Manual check on May 18, 2026: confirmed working.
+- [x] Chrome: reload app and verify durable project/gallery behavior, if
       durability is intended.
-- [ ] Chrome: cancel generation and verify generation session cleanup.
-- [ ] Safari latest: verify OPFS fallback or native path, depending on feature
+      Manual check on May 18, 2026: confirmed durable project/gallery reload.
+- [x] Chrome: cancel generation and verify generation session cleanup.
+      Manual check on May 18, 2026: confirmed working.
+- [x] Safari latest: verify OPFS fallback or native path, depending on feature
       detection.
-- [ ] Private/incognito mode: verify fallback path and user-facing warning.
+      Manual check on May 18, 2026: confirmed working.
+- [x] Private/incognito mode: verify fallback path and user-facing warning.
+      Manual check on May 18, 2026: confirmed working.
 
 Performance numbers to compare with the baseline:
 
@@ -512,14 +522,15 @@ Performance numbers to compare with the baseline:
 ## Final Rollout Steps
 
 - [ ] Ship with `enableOpfsStorage` default-off.
-- [ ] Test with `VITE_ENABLE_OPFS_STORAGE=true`.
+- [x] Test with `VITE_ENABLE_OPFS_STORAGE=true`.
 - [ ] Enable OPFS by default only after migration is stable.
 - [ ] Keep legacy IndexedDB fallback for at least one release.
 - [ ] Add cleanup command or UI path for legacy IndexedDB after the fallback
       window.
-- [ ] Remove deprecated names:
-      `packageFromIndexedDBBySize`, `gallery-db.ts`, `IndexedDbStore` primary
-      references, and IndexedDB-specific comments.
+- [x] Remove deprecated `gallery-db.ts` re-export.
+- [x] Remove remaining deprecated names:
+      `packageFromStorageBySize` is now the only ZIP packaging export, and the
+      legacy asset store class is now `LegacyIndexedDbStore`.
 
 ## Do Not Do
 

@@ -532,18 +532,6 @@ export async function packageFromStorageBySize(
 	});
 }
 
-/**
- * @deprecated Use packageFromStorageBySize. Kept for compatibility during the storage migration window.
- */
-export async function packageFromIndexedDBBySize(
-	sessionId: string,
-	projectName: string,
-	targetChunkBytes: number,
-	onProgress?: (progress: { processed: number; total: number; message: string }) => Promise<void>
-): Promise<void> {
-	return packageFromStorageBySize(sessionId, projectName, targetChunkBytes, onProgress);
-}
-
 function downloadBlob(blob: Blob, filename: string): void {
 	const url = URL.createObjectURL(blob);
 	registerBlobUrlCleanup(url);

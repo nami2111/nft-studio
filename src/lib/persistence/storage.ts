@@ -211,8 +211,8 @@ export class LocalStorageStore<T> implements PersistenceStore<T> {
 	}
 }
 
-// Minimal IndexedDB adapter (legacy fallback for large projects)
-export class IndexedDbStore<T> implements PersistenceStore<T> {
+// Legacy browser database adapter for fallback and migration paths.
+export class LegacyIndexedDbStore<T> implements PersistenceStore<T> {
 	constructor(
 		public key: string,
 		private dbName: string = 'gnstudio-assets',
@@ -231,9 +231,9 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 				};
 				req.onsuccess = () => resolve(req.result);
 				req.onerror = () => reject(req.error);
-				req.onblocked = () => reject(new Error('IndexedDB blocked'));
+				req.onblocked = () => reject(new Error('Legacy storage database blocked'));
 			} catch (e) {
-				// IndexedDB not available
+				// Legacy storage is not available.
 				reject(e as Error);
 			}
 		});
@@ -245,7 +245,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			const tx = db.transaction([this.storeName], 'readwrite');
 			const store = tx.objectStore(this.storeName);
 
-			// Clean the value to remove non-serializable objects
+			// Clean the value to remove non-serializable objects.
 			const cleanValue = this.cleanForSerialization(value);
 			store.put({ key: this.key, value: cleanValue });
 
@@ -255,7 +255,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			});
 		} catch (error) {
 			handleStorageError(error, {
-				context: { component: 'IndexedDB', action: 'save' },
+				context: { component: 'LegacyStorage', action: 'save' },
 				silent: true
 			});
 			// Fallback to localStorage for small data
@@ -283,7 +283,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			});
 		} catch (error) {
 			handleStorageError(error, {
-				context: { component: 'IndexedDB', action: 'load' },
+				context: { component: 'LegacyStorage', action: 'load' },
 				silent: true
 			});
 			// Fallback to localStorage
@@ -303,7 +303,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 			});
 		} catch (error) {
 			handleStorageError(error, {
-				context: { component: 'IndexedDB', action: 'clear' },
+				context: { component: 'LegacyStorage', action: 'clear' },
 				silent: true
 			});
 			removeFromLocalStorageSync(this.key);
@@ -311,7 +311,7 @@ export class IndexedDbStore<T> implements PersistenceStore<T> {
 	}
 
 	/**
-	 * Clean object for IndexedDB serialization
+	 * Clean object for legacy storage serialization.
 	 */
 	private cleanForSerialization(obj: unknown): unknown {
 		if (obj === null || obj === undefined) {
@@ -365,16 +365,16 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 	constructor(
 		public key: string,
 		private localStorageStore = new LocalStorageStore<T>(key),
-		private indexedDbStore = new IndexedDbStore<T>(key)
+		private legacyIndexedDbStore = new LegacyIndexedDbStore<T>(key)
 	) {}
 
 	async save(value: T): Promise<void> {
 		try {
 			// Get estimated size first
 			const estimatedSize = getStorageSize(value);
-			// Use IndexedDB for large projects (>2MB) or projects with significant image data
+			// Use the legacy store for large projects (>2MB) or projects with significant image data.
 			if (estimatedSize > LARGE_PROJECT_THRESHOLD) {
-				await this.indexedDbStore.save(value);
+				await this.legacyIndexedDbStore.save(value);
 			} else if (estimatedSize > COMPACT_PROJECT_THRESHOLD) {
 				// For medium-sized projects, try localStorage with compact mode first
 				const compactValue = createCompactVersion(value);
@@ -390,13 +390,13 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 			try {
 				const estimatedSize = getStorageSize(value);
 				if (estimatedSize > LARGE_PROJECT_THRESHOLD) {
-					// If IndexedDB failed, try localStorage (might work for smaller actual size)
-					console.warn('SmartStorage: IndexedDB failed, trying localStorage fallback');
+					// If the legacy store failed, try localStorage (might work for smaller actual size).
+					console.warn('SmartStorage: legacy store failed, trying localStorage fallback');
 					this.localStorageStore.save(value);
 				} else {
-					// If localStorage failed, try IndexedDB
-					console.warn('SmartStorage: localStorage failed, trying IndexedDB fallback');
-					await this.indexedDbStore.save(value);
+					// If localStorage failed, try the legacy store.
+					console.warn('SmartStorage: localStorage failed, trying legacy store fallback');
+					await this.legacyIndexedDbStore.save(value);
 				}
 			} catch (fallbackError) {
 				console.error('SmartStorage: Both storage methods failed:', fallbackError);
@@ -415,15 +415,15 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 				if (isValid) {
 					return localStorageData;
 				}
-				// Data is corrupted or invalid, clear corrupted data and try IndexedDB
+				// Data is corrupted or invalid, clear corrupted data and try the legacy store.
 				console.warn(
-					'SmartStorage: localStorage data invalid, clearing and falling back to IndexedDB'
+					'SmartStorage: localStorage data invalid, clearing and falling back to legacy store'
 				);
 				await this.localStorageStore.clear();
 			}
 
-			// Fallback to IndexedDB
-			return await this.indexedDbStore.load();
+			// Fallback to the legacy store.
+			return await this.legacyIndexedDbStore.load();
 		} catch (error) {
 			handleStorageError(error, {
 				context: { component: 'SmartStorage', action: 'load' },
@@ -463,7 +463,7 @@ export class SmartStorageStore<T> implements PersistenceStore<T> {
 
 	async clear(): Promise<void> {
 		try {
-			await Promise.all([this.localStorageStore.clear(), this.indexedDbStore.clear()]);
+			await Promise.all([this.localStorageStore.clear(), this.legacyIndexedDbStore.clear()]);
 		} catch (error) {
 			handleStorageError(error, {
 				context: { component: 'SmartStorage', action: 'clear' },

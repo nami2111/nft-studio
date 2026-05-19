@@ -15,6 +15,8 @@ const IMAGES_STORE = 'images';
 const METADATA_STORE = 'metadata';
 const LARGE_GENERATION_SESSION_BYTES = 50 * 1024 * 1024;
 const DEFAULT_STALE_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const LEGACY_IMAGE_SESSION_KEY_PATTERN = /^(.*)-img-\d+$/;
+const LEGACY_METADATA_SESSION_KEY_PATTERN = /^(.*)-meta-\d+$/;
 
 interface GenerationSessionManifestItem {
 	index: number;
@@ -151,6 +153,25 @@ function getSessionAgeMs(
 	return timestamp === null ? null : now - timestamp;
 }
 
+function getActiveSessionIds(options: CleanupStaleGenerationSessionsOptions): Set<string> {
+	const activeSessionIds = new Set(options.activeSessionIds ?? []);
+	if (options.preserveActiveWrites !== false) {
+		for (const sessionId of sessionWriteQueues.keys()) {
+			activeSessionIds.add(sessionId);
+		}
+	}
+
+	return activeSessionIds;
+}
+
+function getLegacySessionId(key: string): string | null {
+	return (
+		LEGACY_IMAGE_SESSION_KEY_PATTERN.exec(key)?.[1] ??
+		LEGACY_METADATA_SESSION_KEY_PATTERN.exec(key)?.[1] ??
+		null
+	);
+}
+
 async function readSessionManifest(
 	backend: ObjectStorageBackend,
 	sessionId: string
@@ -251,7 +272,7 @@ export async function streamBatch(
 		const backend = await getGenerationStorageBackend();
 
 		if (!backend) {
-			await streamBatchToIndexedDB(sessionId, imageEntries, metadataEntries);
+			await streamBatchToLegacyStorage(sessionId, imageEntries, metadataEntries);
 			return;
 		}
 
@@ -289,7 +310,7 @@ export async function streamBatch(
 	});
 }
 
-async function streamBatchToIndexedDB(
+async function streamBatchToLegacyStorage(
 	sessionId: string,
 	images: Array<{ index: number; name: string; imageData: ArrayBuffer }>,
 	metadata: Array<{ index: number; name: string; data: Record<string, unknown> }>
@@ -335,7 +356,7 @@ export async function iterateBySize(
 
 	const backend = await getGenerationStorageBackend();
 	if (!backend) {
-		await iterateIndexedDBBySize(sessionId, targetBytes, callback);
+		await iterateLegacyStorageBySize(sessionId, targetBytes, callback);
 		return;
 	}
 
@@ -424,7 +445,7 @@ async function iterateObjectStorageBySize(
 	}
 }
 
-async function iterateIndexedDBBySize(
+async function iterateLegacyStorageBySize(
 	sessionId: string,
 	targetBytes: number,
 	callback: (
@@ -543,7 +564,7 @@ export async function clearSession(sessionId: string): Promise<void> {
 
 	const backend = await getGenerationStorageBackend();
 	if (!backend) {
-		await clearIndexedDBSession(sessionId);
+		await clearLegacyStorageSession(sessionId);
 		return;
 	}
 
@@ -561,17 +582,12 @@ export async function cleanupStaleGenerationSessions(
 		failedSessionIds: []
 	};
 
-	if (!backend) {
-		return result;
-	}
-
 	const now = options.now ?? Date.now();
 	const maxAgeMs = Math.max(0, options.maxAgeMs ?? DEFAULT_STALE_SESSION_MAX_AGE_MS);
-	const activeSessionIds = new Set(options.activeSessionIds ?? []);
-	if (options.preserveActiveWrites !== false) {
-		for (const sessionId of sessionWriteQueues.keys()) {
-			activeSessionIds.add(sessionId);
-		}
+	const activeSessionIds = getActiveSessionIds(options);
+
+	if (!backend) {
+		return cleanupStaleLegacyStorageSessions(result, activeSessionIds, maxAgeMs, now);
 	}
 
 	const sessionIds = await backend.binary.list(storagePaths.generationRoot());
@@ -609,7 +625,61 @@ export async function cleanupStaleGenerationSessions(
 	return result;
 }
 
-async function clearIndexedDBSession(sessionId: string): Promise<void> {
+async function cleanupStaleLegacyStorageSessions(
+	result: CleanupStaleGenerationSessionsResult,
+	activeSessionIds: Set<string>,
+	maxAgeMs: number,
+	now: number
+): Promise<CleanupStaleGenerationSessionsResult> {
+	let db: IDBPDatabase;
+	try {
+		db = await initDB();
+	} catch {
+		return result;
+	}
+
+	const sessionIds = await getLegacyStorageGenerationSessionIds(db);
+
+	for (const sessionId of sessionIds) {
+		if (activeSessionIds.has(sessionId)) {
+			result.skippedSessionIds.push(sessionId);
+			continue;
+		}
+
+		const sessionAgeMs = getSessionAgeMs(sessionId, null, now);
+		if (maxAgeMs > 0 && (sessionAgeMs === null || sessionAgeMs < maxAgeMs)) {
+			result.skippedSessionIds.push(sessionId);
+			continue;
+		}
+
+		try {
+			await waitForSessionWrites(sessionId, { ignoreErrors: true });
+			await clearLegacyStorageSession(sessionId);
+			sessionWriteQueues.delete(sessionId);
+			result.removedSessionIds.push(sessionId);
+		} catch {
+			result.failedSessionIds.push(sessionId);
+		}
+	}
+
+	return result;
+}
+
+async function getLegacyStorageGenerationSessionIds(db: IDBPDatabase): Promise<string[]> {
+	const keys = await Promise.all([db.getAllKeys(IMAGES_STORE), db.getAllKeys(METADATA_STORE)]);
+	const sessionIds = new Set<string>();
+
+	for (const key of keys.flat()) {
+		if (typeof key !== 'string') continue;
+
+		const sessionId = getLegacySessionId(key);
+		if (sessionId) sessionIds.add(sessionId);
+	}
+
+	return Array.from(sessionIds).sort();
+}
+
+async function clearLegacyStorageSession(sessionId: string): Promise<void> {
 	const db = await initDB();
 	const imagePrefix = `${sessionId}-img-`;
 	const metaPrefix = `${sessionId}-meta-`;

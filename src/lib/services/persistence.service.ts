@@ -4,8 +4,8 @@
  * Implements differential persistence to optimize saving large projects.
  */
 
-import { deleteIndexedProject, loadProjectFromIndexedDB } from '$lib/persistence/indexeddb';
-import { IndexedDbStore, SmartStorageStore } from '$lib/persistence/storage';
+import { deleteLegacyProject, loadProjectFromLegacyStorage } from '$lib/persistence/indexeddb';
+import { LegacyIndexedDbStore, SmartStorageStore } from '$lib/persistence/storage';
 import { getStorageBackend } from '$lib/storage/backend';
 import { requestPersistentStorageOnce } from '$lib/storage/capabilities';
 import { runIndexedDbToOpfsMigration } from '$lib/storage/migrations';
@@ -64,10 +64,10 @@ export class PersistenceService {
 	private dirtyLayers = new Set<string>();
 
 	/**
-	 * Get a legacy IndexedDbStore for a specific layer's assets.
+	 * Get a legacy browser database-backed store for a specific layer's assets.
 	 */
-	private getLegacyAssetStorage(layerId: string): IndexedDbStore<LegacyLayerAssets> {
-		return new IndexedDbStore<LegacyLayerAssets>(`${LAYER_ASSETS_PREFIX}${layerId}`);
+	private getLegacyAssetStorage(layerId: string): LegacyIndexedDbStore<LegacyLayerAssets> {
+		return new LegacyIndexedDbStore<LegacyLayerAssets>(`${LAYER_ASSETS_PREFIX}${layerId}`);
 	}
 
 	/**
@@ -121,7 +121,7 @@ export class PersistenceService {
 
 			if (backend) {
 				await runIndexedDbToOpfsMigration().catch((error) => {
-					logger.warn('IndexedDB to OPFS migration failed; using fallback readers', error);
+					logger.warn('Legacy storage to OPFS migration failed; using fallback readers', error);
 				});
 
 				const storedProject = await this.loadProjectFromObjectStorage(backend);
@@ -162,7 +162,7 @@ export class PersistenceService {
 			this.clearProjectBootHint();
 
 			if (typeof indexedDB !== 'undefined') {
-				await Promise.all([this.clearLegacyIndexedDbKeys(), deleteIndexedProject()]);
+				await Promise.all([this.clearLegacyIndexedDbKeys(), deleteLegacyProject()]);
 			}
 
 			this.lastSavedMetadata = null;
@@ -464,7 +464,7 @@ export class PersistenceService {
 			return project;
 		}
 
-		const indexedProject = await loadProjectFromIndexedDB();
+		const indexedProject = await loadProjectFromLegacyStorage();
 		if (indexedProject) {
 			const project = this.normalizeProject(indexedProject);
 			this.rememberSavedProject(project);

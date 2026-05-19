@@ -87,7 +87,14 @@ class OpfsBinaryObjectStore {
 	}
 
 	async exists(path: string): Promise<boolean> {
-		return (await this.read(path)) !== null;
+		try {
+			const { directory, name } = await getParentDirectory(path, false);
+			await directory.getFileHandle(name, { create: false });
+			return true;
+		} catch (error) {
+			if (isNotFoundError(error)) return false;
+			throw error;
+		}
 	}
 
 	async remove(path: string): Promise<void> {

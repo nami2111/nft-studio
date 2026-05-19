@@ -1,6 +1,6 @@
 /**
  * Durable storage for gallery collections.
- * Uses the shared storage backend for OPFS-capable browsers and falls back to IndexedDB.
+ * Uses the shared storage backend for OPFS-capable browsers and falls back to legacy storage.
  */
 
 import { openDB, type IDBPDatabase } from 'idb';
@@ -45,7 +45,7 @@ type StoredGalleryCollection = Omit<GalleryCollection, 'generatedAt' | 'items'> 
 let dbInstance: IDBPDatabase | null = null;
 
 /**
- * Initialize the legacy IndexedDB database.
+ * Initialize the legacy gallery database.
  */
 export async function initGalleryDB(): Promise<IDBPDatabase> {
 	if (dbInstance) {
@@ -258,7 +258,7 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 		const backend = await getGalleryStorageBackend();
 
 		if (!backend) {
-			await saveCollectionToIndexedDB(collection);
+			await saveCollectionToLegacyStorage(collection);
 			return;
 		}
 
@@ -289,7 +289,7 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 	}
 }
 
-async function saveCollectionToIndexedDB(collection: GalleryCollection): Promise<void> {
+async function saveCollectionToLegacyStorage(collection: GalleryCollection): Promise<void> {
 	const db = await initGalleryDB();
 	const collectionToStore = serializeCollection(collection);
 
@@ -322,7 +322,7 @@ export async function saveItemImage(
 	const backend = await getGalleryStorageBackend();
 
 	if (!backend) {
-		await saveItemImageToIndexedDB(itemId, collectionId, imageData);
+		await saveItemImageToLegacyStorage(itemId, collectionId, imageData);
 		return;
 	}
 
@@ -331,7 +331,7 @@ export async function saveItemImage(
 	void requestPersistentStorageOnce('gallery-import');
 }
 
-async function saveItemImageToIndexedDB(
+async function saveItemImageToLegacyStorage(
 	itemId: string,
 	collectionId: string,
 	imageData: ArrayBuffer
@@ -352,12 +352,12 @@ export async function getItemImage(itemId: string): Promise<ArrayBuffer | null> 
 	const backend = await getGalleryStorageBackend();
 
 	if (!backend) {
-		return getItemImageFromIndexedDB(itemId);
+		return getItemImageFromLegacyStorage(itemId);
 	}
 
 	const collectionId = await findCollectionIdForItem(backend, itemId);
 	if (!collectionId) {
-		return backend.kind === 'opfs' ? getItemImageFromIndexedDB(itemId) : null;
+		return backend.kind === 'opfs' ? getItemImageFromLegacyStorage(itemId) : null;
 	}
 
 	const imageData = await backend.binary.read(storagePaths.galleryItemImage(collectionId, itemId));
@@ -365,10 +365,10 @@ export async function getItemImage(itemId: string): Promise<ArrayBuffer | null> 
 		return imageData;
 	}
 
-	return getItemImageFromIndexedDB(itemId);
+	return getItemImageFromLegacyStorage(itemId);
 }
 
-async function getItemImageFromIndexedDB(itemId: string): Promise<ArrayBuffer | null> {
+async function getItemImageFromLegacyStorage(itemId: string): Promise<ArrayBuffer | null> {
 	const db = await initGalleryDB();
 	if (!db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
 		return null;
@@ -394,7 +394,7 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 		const backend = await getGalleryStorageBackend();
 
 		if (!backend) {
-			return getAllCollectionsFromIndexedDB();
+			return getAllCollectionsFromLegacyStorage();
 		}
 
 		const index = await readGalleryIndex(backend);
@@ -407,7 +407,7 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 				);
 				return collectionsFromTree;
 			}
-			return getAllCollectionsFromIndexedDB();
+			return getAllCollectionsFromLegacyStorage();
 		}
 
 		const collections = await Promise.all(
@@ -452,7 +452,7 @@ async function getAllCollectionsFromOpfs(
 	return collections.filter((collection): collection is GalleryCollection => collection !== null);
 }
 
-async function getAllCollectionsFromIndexedDB(): Promise<GalleryCollection[]> {
+async function getAllCollectionsFromLegacyStorage(): Promise<GalleryCollection[]> {
 	const db = await initGalleryDB();
 	const storedCollections = (await db.getAll(COLLECTIONS_STORE)) as StoredGalleryCollection[];
 
@@ -469,7 +469,7 @@ export async function deleteCollection(id: string): Promise<void> {
 		const backend = await getGalleryStorageBackend();
 
 		if (!backend) {
-			await deleteCollectionFromIndexedDB(id);
+			await deleteCollectionFromLegacyStorage(id);
 			return;
 		}
 
@@ -486,14 +486,14 @@ export async function deleteCollection(id: string): Promise<void> {
 			index.collectionIds.filter((collectionId) => collectionId !== id)
 		);
 		if (backend.kind === 'opfs') {
-			await deleteCollectionFromIndexedDB(id);
+			await deleteCollectionFromLegacyStorage(id);
 		}
 	} finally {
 		recordGalleryQuery('deleteCollection', startTime);
 	}
 }
 
-async function deleteCollectionFromIndexedDB(id: string): Promise<void> {
+async function deleteCollectionFromLegacyStorage(id: string): Promise<void> {
 	const db = await initGalleryDB();
 
 	if (db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
@@ -535,14 +535,14 @@ export async function clearAllCollections(): Promise<void> {
 		}
 
 		if (!backend || backend.kind === 'opfs') {
-			await clearAllCollectionsFromIndexedDB();
+			await clearAllCollectionsFromLegacyStorage();
 		}
 	} finally {
 		recordGalleryQuery('clearAllCollections', startTime);
 	}
 }
 
-async function clearAllCollectionsFromIndexedDB(): Promise<void> {
+async function clearAllCollectionsFromLegacyStorage(): Promise<void> {
 	const db = await initGalleryDB();
 	await db.clear(COLLECTIONS_STORE);
 
