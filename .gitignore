@@ -63,3 +63,4 @@ AGENTS.md
 .pi-lens/
 /coverage
 /tmp
+.agents/
