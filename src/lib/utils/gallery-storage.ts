@@ -1,9 +1,8 @@
 /**
  * Durable storage for gallery collections.
- * Uses the shared storage backend for OPFS-capable browsers and falls back to legacy storage.
+ * Uses the shared storage backend (OPFS or legacy adapter).
  */
 
-import { openDB, type IDBPDatabase } from 'idb';
 import { getStorageBackend } from '$lib/storage/backend';
 import {
 	getStorageEstimate as getBrowserStorageEstimate,
@@ -13,11 +12,6 @@ import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
 import type { GalleryCollection, GalleryItem } from '$lib/types/gallery';
 import { productionMonitor } from '$lib/monitoring/performance-monitor';
-
-const DB_NAME = 'gnstudio-gallery';
-const DB_VERSION = 3;
-const COLLECTIONS_STORE = 'collections';
-const GALLERY_IMAGES_STORE = 'gallery-images';
 
 interface GalleryIndex {
 	collectionIds: string[];
@@ -42,41 +36,8 @@ type StoredGalleryCollection = Omit<GalleryCollection, 'generatedAt' | 'items'> 
 	items: StoredGalleryItem[];
 };
 
-let dbInstance: IDBPDatabase | null = null;
-
-/**
- * Initialize the legacy gallery database.
- */
-export async function initGalleryDB(): Promise<IDBPDatabase> {
-	if (dbInstance) {
-		return dbInstance;
-	}
-
-	dbInstance = await openDB(DB_NAME, DB_VERSION, {
-		upgrade(db, oldVersion) {
-			if (!db.objectStoreNames.contains(COLLECTIONS_STORE)) {
-				const store = db.createObjectStore(COLLECTIONS_STORE, {
-					keyPath: 'id'
-				});
-				store.createIndex('name', 'name', { unique: false });
-				store.createIndex('generatedAt', 'generatedAt', { unique: false });
-				store.createIndex('projectName', 'projectName', { unique: false });
-				store.createIndex('totalSupply', 'totalSupply', { unique: false });
-			}
-
-			if (oldVersion < 3 && !db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
-				const imageStore = db.createObjectStore(GALLERY_IMAGES_STORE, { keyPath: 'itemId' });
-				imageStore.createIndex('collectionId', 'collectionId', { unique: false });
-			}
-		}
-	});
-
-	return dbInstance;
-}
-
-async function getGalleryStorageBackend(): Promise<ObjectStorageBackend | null> {
-	const backend = await getStorageBackend();
-	return backend.kind === 'indexeddb-legacy' ? null : backend;
+async function getGalleryStorageBackend(): Promise<ObjectStorageBackend> {
+	return getStorageBackend();
 }
 
 function serializeCollection(collection: GalleryCollection): StoredGalleryCollection {
@@ -256,12 +217,6 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 
 	try {
 		const backend = await getGalleryStorageBackend();
-
-		if (!backend) {
-			await saveCollectionToLegacyStorage(collection);
-			return;
-		}
-
 		const storedCollection = serializeCollection(collection);
 		const itemIds = new Set(storedCollection.items.map((item) => item.id));
 
@@ -289,28 +244,6 @@ export async function saveCollection(collection: GalleryCollection): Promise<voi
 	}
 }
 
-async function saveCollectionToLegacyStorage(collection: GalleryCollection): Promise<void> {
-	const db = await initGalleryDB();
-	const collectionToStore = serializeCollection(collection);
-
-	await db.put(COLLECTIONS_STORE, collectionToStore);
-
-	if (db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
-		const tx = db.transaction(GALLERY_IMAGES_STORE, 'readwrite');
-		const store = tx.objectStore(GALLERY_IMAGES_STORE);
-		for (const item of collection.items) {
-			if (item.imageData instanceof ArrayBuffer && item.imageData.byteLength > 0) {
-				store.put({
-					itemId: item.id,
-					collectionId: collection.id,
-					imageData: item.imageData
-				});
-			}
-		}
-		await tx.done;
-	}
-}
-
 /**
  * Save a single item image to durable gallery storage.
  */
@@ -321,28 +254,9 @@ export async function saveItemImage(
 ): Promise<void> {
 	const backend = await getGalleryStorageBackend();
 
-	if (!backend) {
-		await saveItemImageToLegacyStorage(itemId, collectionId, imageData);
-		return;
-	}
-
 	await backend.binary.write(storagePaths.galleryItemImage(collectionId, itemId), imageData);
 	await writeItemLookup(backend, itemId, collectionId);
 	void requestPersistentStorageOnce('gallery-import');
-}
-
-async function saveItemImageToLegacyStorage(
-	itemId: string,
-	collectionId: string,
-	imageData: ArrayBuffer
-): Promise<void> {
-	const db = await initGalleryDB();
-	if (!db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) return;
-
-	const tx = db.transaction(GALLERY_IMAGES_STORE, 'readwrite');
-	const store = tx.objectStore(GALLERY_IMAGES_STORE);
-	store.put({ itemId, collectionId, imageData });
-	await tx.done;
 }
 
 /**
@@ -351,37 +265,12 @@ async function saveItemImageToLegacyStorage(
 export async function getItemImage(itemId: string): Promise<ArrayBuffer | null> {
 	const backend = await getGalleryStorageBackend();
 
-	if (!backend) {
-		return getItemImageFromLegacyStorage(itemId);
-	}
-
 	const collectionId = await findCollectionIdForItem(backend, itemId);
 	if (!collectionId) {
-		return backend.kind === 'opfs' ? getItemImageFromLegacyStorage(itemId) : null;
-	}
-
-	const imageData = await backend.binary.read(storagePaths.galleryItemImage(collectionId, itemId));
-	if (imageData || backend.kind !== 'opfs') {
-		return imageData;
-	}
-
-	return getItemImageFromLegacyStorage(itemId);
-}
-
-async function getItemImageFromLegacyStorage(itemId: string): Promise<ArrayBuffer | null> {
-	const db = await initGalleryDB();
-	if (!db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
 		return null;
 	}
 
-	const tx = db.transaction(GALLERY_IMAGES_STORE, 'readonly');
-	const store = tx.objectStore(GALLERY_IMAGES_STORE);
-	const record = await store.get(itemId);
-
-	if (record?.imageData instanceof ArrayBuffer && record.imageData.byteLength > 0) {
-		return record.imageData;
-	}
-	return null;
+	return backend.binary.read(storagePaths.galleryItemImage(collectionId, itemId));
 }
 
 /**
@@ -392,23 +281,7 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 
 	try {
 		const backend = await getGalleryStorageBackend();
-
-		if (!backend) {
-			return getAllCollectionsFromLegacyStorage();
-		}
-
 		const index = await readGalleryIndex(backend);
-		if (backend.kind === 'opfs' && index.collectionIds.length === 0) {
-			const collectionsFromTree = await getAllCollectionsFromOpfs(backend);
-			if (collectionsFromTree.length > 0) {
-				await writeGalleryIndex(
-					backend,
-					collectionsFromTree.map((collection) => collection.id)
-				);
-				return collectionsFromTree;
-			}
-			return getAllCollectionsFromLegacyStorage();
-		}
 
 		const collections = await Promise.all(
 			index.collectionIds.map(async (collectionId) => {
@@ -435,30 +308,6 @@ export async function getAllCollections(): Promise<GalleryCollection[]> {
 	}
 }
 
-async function getAllCollectionsFromOpfs(
-	backend: ObjectStorageBackend
-): Promise<GalleryCollection[]> {
-	const collectionIds = await listGalleryCollectionIds(backend);
-
-	const collections = await Promise.all(
-		collectionIds.map(async (collectionId) => {
-			const stored = await backend.json.readJson<StoredGalleryCollection>(
-				storagePaths.galleryCollectionManifest(collectionId)
-			);
-			return stored ? hydrateCollection(stored) : null;
-		})
-	);
-
-	return collections.filter((collection): collection is GalleryCollection => collection !== null);
-}
-
-async function getAllCollectionsFromLegacyStorage(): Promise<GalleryCollection[]> {
-	const db = await initGalleryDB();
-	const storedCollections = (await db.getAll(COLLECTIONS_STORE)) as StoredGalleryCollection[];
-
-	return storedCollections.map(hydrateCollection);
-}
-
 /**
  * Delete a collection from durable gallery storage.
  */
@@ -467,11 +316,6 @@ export async function deleteCollection(id: string): Promise<void> {
 
 	try {
 		const backend = await getGalleryStorageBackend();
-
-		if (!backend) {
-			await deleteCollectionFromLegacyStorage(id);
-			return;
-		}
 
 		const collection = await backend.json.readJson<StoredGalleryCollection>(
 			storagePaths.galleryCollectionManifest(id)
@@ -485,29 +329,9 @@ export async function deleteCollection(id: string): Promise<void> {
 			backend,
 			index.collectionIds.filter((collectionId) => collectionId !== id)
 		);
-		if (backend.kind === 'opfs') {
-			await deleteCollectionFromLegacyStorage(id);
-		}
 	} finally {
 		recordGalleryQuery('deleteCollection', startTime);
 	}
-}
-
-async function deleteCollectionFromLegacyStorage(id: string): Promise<void> {
-	const db = await initGalleryDB();
-
-	if (db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
-		const tx = db.transaction(GALLERY_IMAGES_STORE, 'readwrite');
-		const store = tx.objectStore(GALLERY_IMAGES_STORE);
-		const index = store.index('collectionId');
-		const keys = await index.getAllKeys(id);
-		for (const key of keys) {
-			store.delete(key);
-		}
-		await tx.done;
-	}
-
-	await db.delete(COLLECTIONS_STORE, id);
 }
 
 /**
@@ -519,35 +343,18 @@ export async function clearAllCollections(): Promise<void> {
 	try {
 		const backend = await getGalleryStorageBackend();
 
-		if (backend) {
-			const index = await readGalleryIndex(backend);
-			await Promise.all(
-				index.collectionIds.map(async (collectionId) => {
-					const manifest = await backend.json.readJson<StoredGalleryCollection>(
-						storagePaths.galleryCollectionManifest(collectionId)
-					);
-					await Promise.all(
-						manifest?.items.map((item) => removeItemLookup(backend, item.id)) ?? []
-					);
-				})
-			);
-			await backend.binary.removeTree(storagePaths.galleryRoot());
-		}
-
-		if (!backend || backend.kind === 'opfs') {
-			await clearAllCollectionsFromLegacyStorage();
-		}
+		const index = await readGalleryIndex(backend);
+		await Promise.all(
+			index.collectionIds.map(async (collectionId) => {
+				const manifest = await backend.json.readJson<StoredGalleryCollection>(
+					storagePaths.galleryCollectionManifest(collectionId)
+				);
+				await Promise.all(manifest?.items.map((item) => removeItemLookup(backend, item.id)) ?? []);
+			})
+		);
+		await backend.binary.removeTree(storagePaths.galleryRoot());
 	} finally {
 		recordGalleryQuery('clearAllCollections', startTime);
-	}
-}
-
-async function clearAllCollectionsFromLegacyStorage(): Promise<void> {
-	const db = await initGalleryDB();
-	await db.clear(COLLECTIONS_STORE);
-
-	if (db.objectStoreNames.contains(GALLERY_IMAGES_STORE)) {
-		await db.clear(GALLERY_IMAGES_STORE);
 	}
 }
 

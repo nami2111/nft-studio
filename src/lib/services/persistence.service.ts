@@ -121,7 +121,7 @@ export class PersistenceService {
 
 			if (backend) {
 				await runIndexedDbToOpfsMigration().catch((error) => {
-					logger.warn('Legacy storage to OPFS migration failed; using fallback readers', error);
+					logger.warn('Legacy storage to OPFS migration failed', error);
 				});
 
 				const storedProject = await this.loadProjectFromObjectStorage(backend);

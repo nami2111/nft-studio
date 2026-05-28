@@ -28,7 +28,8 @@ function readEnvFlag(name: string): boolean {
 
 const defaultFlags: FeatureFlags = {
 	enableStreamingStorage: import.meta.env?.VITE_DISABLE_STREAMING_STORAGE !== 'true',
-	enableOpfsStorage: readEnvFlag('VITE_ENABLE_OPFS_STORAGE'),
+	enableOpfsStorage: import.meta.env?.VITE_ENABLE_OPFS_STORAGE !== 'false',
+
 	enableLayerRef: readEnvFlag('VITE_ENABLE_LAYER_REF'),
 	enableAdaptiveBatchSize: import.meta.env?.VITE_DISABLE_ADAPTIVE_BATCH_SIZE !== 'true',
 	enableZipWorkerOffloading: readEnvFlag('VITE_ENABLE_ZIP_WORKER_OFFLOADING')

@@ -16,6 +16,7 @@
 		handleError
 	} from '$lib/stores/generation-progress.svelte';
 	import { MetadataStandard } from '$lib/domain/metadata/strategies';
+	import type { Layer } from '$lib/types/layer';
 	import { onDestroy } from 'svelte';
 	import GenerationProgress from './GenerationProgress.svelte';
 	import GenerationControls from './GenerationControls.svelte';
@@ -24,8 +25,9 @@
 	let collectionSize = $state<number | null>(100);
 	let isComponentDestroyed = $state(false);
 
-	const ESTIMATED_GENERATION_IMAGE_BYTES_PER_PIXEL = 1;
-	const ESTIMATED_GENERATION_METADATA_BYTES_PER_ITEM = 4096;
+	const ESTIMATED_METADATA_BYTES_PER_ITEM = 4096;
+	const SAMPLING_IMAGE_COUNT = 3;
+	const SAMPLING_FALLBACK_BYTES_PER_PIXEL = 0.4;
 
 	// ─── Derived state from store ────────────────────────────
 	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
@@ -96,20 +98,79 @@
 		};
 	}
 
-	function estimateGenerationStorageBytes(
+	/**
+	 * Generate sample composite images and measure actual PNG sizes to estimate
+	 * total storage needed. Falls back to a conservative constant if sampling fails.
+	 */
+	async function estimateGenerationStorageBytesBySampling(
+		layers: Layer[],
 		outputSize: { width: number; height: number },
 		totalItems: number
-	): number {
-		const imageBytes =
-			outputSize.width *
-			outputSize.height *
-			ESTIMATED_GENERATION_IMAGE_BYTES_PER_PIXEL *
-			totalItems;
-		const metadataBytes = ESTIMATED_GENERATION_METADATA_BYTES_PER_ITEM * totalItems;
+	): Promise<number> {
+		const sortedLayers = [...layers].sort((a, b) => a.order - b.order);
+		const sampleCombos: { order: number; imageData: ArrayBuffer }[][] = [];
+
+		for (let s = 0; s < SAMPLING_IMAGE_COUNT; s++) {
+			const combo: { order: number; imageData: ArrayBuffer }[] = [];
+			for (const layer of sortedLayers) {
+				if (layer.traits.length === 0) continue;
+				const traitIdx = s % layer.traits.length;
+				const trait = layer.traits[traitIdx];
+				combo.push({ order: layer.order, imageData: trait.imageData });
+			}
+			sampleCombos.push(combo);
+		}
+
+		const canvas = document.createElement('canvas');
+		canvas.width = outputSize.width;
+		canvas.height = outputSize.height;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) {
+			const fallbackBytes =
+				outputSize.width * outputSize.height * SAMPLING_FALLBACK_BYTES_PER_PIXEL * totalItems;
+			return fallbackBytes + ESTIMATED_METADATA_BYTES_PER_ITEM * totalItems;
+		}
+
+		let totalImageBytes = 0;
+		let validSamples = 0;
+
+		for (const combo of sampleCombos) {
+			try {
+				ctx.clearRect(0, 0, outputSize.width, outputSize.height);
+
+				const sortedCombo = combo.sort((a, b) => a.order - b.order);
+				for (const item of sortedCombo) {
+					const blob = new Blob([item.imageData], { type: 'image/png' });
+					const bitmap = await createImageBitmap(blob);
+					ctx.drawImage(bitmap, 0, 0, outputSize.width, outputSize.height);
+					bitmap.close();
+				}
+
+				const blobSize = await new Promise<number>((resolve) => {
+					canvas.toBlob((blob) => resolve(blob?.size ?? 0), 'image/png');
+				});
+
+				if (blobSize > 100) {
+					totalImageBytes += blobSize;
+					validSamples++;
+				}
+			} catch {
+				// Skip failed sample
+			}
+		}
+
+		const avgBytesPerImage =
+			validSamples > 0
+				? totalImageBytes / validSamples
+				: outputSize.width * outputSize.height * SAMPLING_FALLBACK_BYTES_PER_PIXEL;
+
+		const imageBytes = avgBytesPerImage * totalItems;
+		const metadataBytes = ESTIMATED_METADATA_BYTES_PER_ITEM * totalItems;
 		return imageBytes + metadataBytes;
 	}
 
 	async function hasStorageHeadroomForGeneration(
+		layers: Layer[],
 		outputSize: { width: number; height: number },
 		totalItems: number
 	): Promise<boolean> {
@@ -117,7 +178,11 @@
 			return true;
 		}
 
-		const estimatedBytes = estimateGenerationStorageBytes(outputSize, totalItems);
+		const estimatedBytes = await estimateGenerationStorageBytesBySampling(
+			layers,
+			outputSize,
+			totalItems
+		);
 		const pressure = await getStoragePressure(estimatedBytes, { headroomMultiplier: 1.25 });
 
 		if (pressure.status === 'unknown') {
@@ -171,7 +236,7 @@
 				return;
 			}
 			const totalItems = collectionSize || 100;
-			if (!(await hasStorageHeadroomForGeneration(projectData.outputSize, totalItems))) {
+			if (!(await hasStorageHeadroomForGeneration(projectData.layers, projectData.outputSize, totalItems))) {
 				return;
 			}
 

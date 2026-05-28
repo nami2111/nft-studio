@@ -234,7 +234,7 @@ Runtime feature flags allow phased rollout of optimizations without redeployment
 | Flag                        | Default  | Purpose                                                                                |
 | --------------------------- | -------- | -------------------------------------------------------------------------------------- |
 | `enableStreamingStorage`    | Enabled  | Stream generated images to browser storage, then package into size-bounded ZIP batches |
-| `enableOpfsStorage`         | Disabled | Use OPFS for large binary payloads with IndexedDB fallback                             |
+| `enableOpfsStorage`         | Enabled  | Use OPFS for large binary payloads with legacy storage fallback                        |
 | `enableLayerRef`            | Disabled | Transfer layers by reference (ID-based batching) instead of full layers per batch      |
 | `enableAdaptiveBatchSize`   | Enabled  | Dynamic batch sizing based on collection size, worker count, and resolution            |
 | `enableZipWorkerOffloading` | Disabled | Offload one-shot ZIP packaging to a dedicated Web Worker for > 500 items               |

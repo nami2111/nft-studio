@@ -541,7 +541,7 @@ class GalleryStore {
 
 		try {
 			await runIndexedDbToOpfsMigration().catch((error) => {
-				console.warn('IndexedDB to OPFS migration failed; using gallery fallback readers', error);
+				console.warn('IndexedDB to OPFS migration failed', error);
 			});
 			const collections = await getAllCollections();
 			const selectedCollectionId =

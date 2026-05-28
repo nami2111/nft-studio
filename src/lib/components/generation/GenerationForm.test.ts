@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { setFeatureFlags } from '$lib/config/feature-flags';
 import type { Project } from '$lib/types/project';
 import { createMockProject } from '../test-utils';
 import GenerationForm from './GenerationForm.svelte';
@@ -94,6 +95,7 @@ describe('GenerationForm', () => {
 			completionTime: null,
 			error: null
 		};
+		setFeatureFlags({ enableStreamingStorage: false });
 		vi.clearAllMocks();
 	});
 

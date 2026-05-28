@@ -7,7 +7,7 @@ GNStudio uses a feature flag system for phased rollout of performance optimizati
 | Flag                        | Default  | Env Override                                       | Purpose                                                                                                                 |
 | --------------------------- | -------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `enableStreamingStorage`    | Enabled  | `VITE_DISABLE_STREAMING_STORAGE=true` to disable   | Streams generated images and metadata to browser storage during generation instead of accumulating everything in memory |
-| `enableOpfsStorage`         | Disabled | `VITE_ENABLE_OPFS_STORAGE=true` to enable          | Uses OPFS as the primary browser storage backend for large binary payloads, with legacy IndexedDB fallback              |
+| `enableOpfsStorage`         | Enabled  | `VITE_ENABLE_OPFS_STORAGE=false` to disable        | Uses OPFS as the primary browser storage backend for large binary payloads, with legacy storage seam fallback           |
 | `enableLayerRef`            | Disabled | `VITE_ENABLE_LAYER_REF=true` to enable             | Transfers layer data to workers once by ID reference, reducing per-batch data transfer size                             |
 | `enableAdaptiveBatchSize`   | Enabled  | `VITE_DISABLE_ADAPTIVE_BATCH_SIZE=true` to disable | Dynamically adjusts batch size based on collection size, worker count, and output resolution                            |
 | `enableZipWorkerOffloading` | Disabled | `VITE_ENABLE_ZIP_WORKER_OFFLOADING=true` to enable | Offloads ZIP file packaging to a dedicated Web Worker for large collections                                             |
@@ -24,7 +24,7 @@ When enabled, the generation pipeline streams each completed item to browser sto
 
 ### enableOpfsStorage
 
-When enabled, large project assets, gallery images, and generation session files use the OPFS-backed object storage seam when the browser supports it. Legacy IndexedDB remains available as a fallback and migration source during rollout.
+When enabled, large project assets, gallery images, and generation session files use the OPFS-backed object storage seam when the browser supports it. A legacy storage adapter remains available as a fallback for browsers without OPFS support. Legacy IndexedDB data is migrated to OPFS on startup.
 
 **When to enable**: During OPFS rollout testing or when validating migration behavior with `VITE_ENABLE_OPFS_STORAGE=true`.
 
@@ -96,7 +96,7 @@ resetFeatureFlags();
 // Production defaults (as defined in src/lib/config/feature-flags.ts)
 {
 	enableStreamingStorage: true,
-	enableOpfsStorage: false,
+	enableOpfsStorage: true,
 	enableLayerRef: false,
 	enableAdaptiveBatchSize: true,
 	enableZipWorkerOffloading: false

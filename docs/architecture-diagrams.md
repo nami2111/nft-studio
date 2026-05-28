@@ -153,8 +153,9 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 
 - **Object Storage Seam** (`src/lib/storage/`): Binary and JSON adapters selected at runtime
   - OPFS backend when `enableOpfsStorage` is enabled and `navigator.storage.getDirectory()` is available
-  - Legacy IndexedDB backend retained for fallback reads and migration
+  - Legacy storage seam adapter for browsers without OPFS support
   - In-memory backend used by focused storage tests
+  - Legacy IndexedDB data is migrated to OPFS on startup
   - Browser storage is profile-private and quota-managed by the browser
 
 - **OPFS Layout**: Manifests index binary files; display names stay inside JSON
