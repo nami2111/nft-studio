@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import Icon from '$components/shared/Icon.svelte';
 	import { Crown03Icon } from '@hugeicons/core-free-icons';
 	import type { Trait, TraitType } from '$lib/types/layer';
@@ -57,7 +57,7 @@
 		size="icon"
 		title={trait.type === 'ruler' ? 'Demote from ruler' : 'Promote to ruler'}
 		onclick={toggleTraitType}
-		class="{trait.type === 'ruler' ? 'text-foreground' : ''} {className}"
+		class="{flatIconButtonClass} {trait.type === 'ruler' ? 'text-foreground' : ''} {className}"
 		data-testid="trait-type-toggle"
 		data-trait-type={trait.type || 'normal'}
 	>

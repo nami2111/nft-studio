@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Modal } from '$lib/components/ui/modal';
 	import { Badge } from '$lib/components/ui/badge';
@@ -116,6 +116,7 @@
 		size="icon"
 		title="Manage Ruler Rules"
 		onclick={() => (isDialogOpen = true)}
+		class={flatIconButtonClass}
 		data-testid="ruler-rules-manager"
 	>
 		<Icon icon={Setting07Icon} class="h-4 w-4" />
@@ -364,7 +365,7 @@
 													variant="ghost"
 													size="icon"
 													onclick={() => removeRule(rule.layerId)}
-													class="h-6 w-6"
+													class="{flatIconButtonClass} h-6 w-6"
 												>
 													<Icon icon={Cancel01Icon} class="h-3 w-3" />
 												</Button>

@@ -6,7 +6,7 @@
 	import RaritySlider from '$lib/components/layer/RaritySlider.svelte';
 	import { removeTrait, updateTraitName } from '$lib/stores';
 	import { createLayerId, createTraitId } from '$lib/types/ids';
-	import { Button } from '$lib/components/ui/button';
+	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import Icon from '$components/shared/Icon.svelte';
 	import { Edit02Icon, Delete02Icon, CheckmarkBadge01Icon, Cancel01Icon, AlertDiamondIcon } from '@hugeicons/core-free-icons';
@@ -254,9 +254,19 @@
 					data-testid="trait-name-input"
 				/>
 				<div class="flex">
-					<Button variant="ghost" size="icon" onclick={handleUpdateName} data-testid="save-button"
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={handleUpdateName}
+						class={flatIconButtonClass}
+						data-testid="save-button"
 						><Icon icon={CheckmarkBadge01Icon} class="h-4 w-4" /></Button
-					><Button variant="ghost" size="icon" onclick={cancelEdit} data-testid="cancel-button"
+					><Button
+						variant="ghost"
+						size="icon"
+						onclick={cancelEdit}
+						class={flatIconButtonClass}
+						data-testid="cancel-button"
 					><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button
 					>
 				</div>
@@ -265,13 +275,19 @@
 					{trait.name}
 				</p>
 				<div class="flex gap-1">
-					<Button variant="ghost" size="icon" onclick={startEditing} data-testid="edit-button"
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={startEditing}
+						class={flatIconButtonClass}
+						data-testid="edit-button"
 						><Icon icon={Edit02Icon} class="h-4 w-4" /></Button
 					>
 					<Button
 						variant="ghost"
 						size="icon"
 						onclick={handleRemoveTrait}
+						class={flatIconButtonClass}
 						data-testid="delete-button"><Icon icon={Delete02Icon} class="text-destructive h-4 w-4" /></Button
 					>
 				</div>

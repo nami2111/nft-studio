@@ -16,7 +16,7 @@
 		removeLayer,
 		updateProjectDimensions
 	} from '$lib/stores';
-	import { Button } from '$lib/components/ui/button';
+	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import Icon from '$components/shared/Icon.svelte';
 	import { Delete02Icon, Edit02Icon, CheckmarkBadge01Icon, Cancel01Icon, ArrowDown01Icon, ArrowRight01Icon, Upload01Icon, Image01Icon } from '@hugeicons/core-free-icons';
 	import { getImageDimensions } from '$lib/utils';
@@ -520,7 +520,12 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 	<CardContent class="p-4">
 		<div class="mb-3 flex items-center justify-between">
 			<div class="flex items-center space-x-2">
-				<Button variant="ghost" size="icon" onclick={() => (isExpanded = !isExpanded)}>
+				<Button
+					variant="ghost"
+					size="icon"
+					onclick={() => (isExpanded = !isExpanded)}
+					class={flatIconButtonClass}
+				>
 					{#if isExpanded}
 						<Icon icon={ArrowDown01Icon} class="h-4 w-4" />
 					{:else}
@@ -546,19 +551,29 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 			</div>
 			{#if !isEditing}
 				<div class="flex space-x-1">
-					<Button variant="ghost" size="icon" onclick={startEditing}
+					<Button variant="ghost" size="icon" onclick={startEditing} class={flatIconButtonClass}
 						><Icon icon={Edit02Icon} class="h-4 w-4" /></Button
 					>
-					<Button variant="ghost" size="icon" onclick={handleDeleteLayer}
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={handleDeleteLayer}
+						class={flatIconButtonClass}
 						><Icon icon={Delete02Icon} class="h-4 w-4 text-red-500" /></Button
 					>
 				</div>
 			{:else}
 				<div class="flex space-x-1">
-					<Button variant="ghost" size="icon" onclick={handleNameChange}
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={handleNameChange}
+						class={flatIconButtonClass}
 						><Icon icon={CheckmarkBadge01Icon} class="h-4 w-4" /></Button
 					>
-					<Button variant="ghost" size="icon" onclick={cancelEdit}><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button>
+					<Button variant="ghost" size="icon" onclick={cancelEdit} class={flatIconButtonClass}
+						><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button
+					>
 				</div>
 			{/if}
 		</div>

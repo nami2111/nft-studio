@@ -612,10 +612,13 @@
                     or Cmd+Click)
                 </div>
                 <div
-                    class="mt-1 text-xs font-medium text-orange-600 flex items-center gap-1"
+                    class="mt-1 flex items-start justify-center gap-1 text-xs font-medium text-orange-600"
                 >
-                    <Icon icon={Alert01Icon} class="h-3 w-3" /> Limitations: Max 10,000
-                    items per collection, 5GB total size across all files
+                    <Icon icon={Alert01Icon} class="mt-0.5 h-3 w-3 shrink-0" />
+                    <span>
+                        Limitations: Max 10,000 items per collection, 5GB total size across all
+                        files
+                    </span>
                 </div>
                 {#if isImporting && importMessage}
                     <div class="text-muted-foreground mt-2 text-xs">
