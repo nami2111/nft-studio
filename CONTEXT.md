@@ -13,4 +13,3 @@ data type.
 Use **Collection Design** when discussing the deepened module that owns editing intent and
 invariants for Layers, Traits, Ruler Traits, Strict Pair settings, image resources, and persistence
 dirtiness.
-

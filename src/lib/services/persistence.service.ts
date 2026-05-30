@@ -1,7 +1,11 @@
 /**
  * Persistence Service
  * Coordinates project storage across OPFS and legacy browser storage.
- * Implements differential persistence to optimize saving large projects.
+ *
+ * Public API: save, flush, load, clearData, hasData, hasDataAsync, loadMetadataSync.
+ *
+ * Change detection is internal — callers pass the project and the service
+ * decides what to persist by comparing snapshots against last-saved state.
  */
 
 import { deleteLegacyProject, loadProjectFromLegacyStorage } from '$lib/persistence/indexeddb';
@@ -20,6 +24,7 @@ const LEGACY_STORAGE_KEY = 'gnstudio-project';
 const PROJECT_BOOT_HINT_KEY = 'gnstudio-project-boot-hint';
 const LEGACY_ASSETS_DB_NAME = 'gnstudio-assets';
 const LEGACY_ASSETS_STORE_NAME = 'store';
+const DEFAULT_DEBOUNCE_MS = 1000;
 
 interface LegacyLayerAssets {
 	layerId: string;
@@ -60,18 +65,43 @@ export class PersistenceService {
 	private metaStorage = new SmartStorageStore<StoredProjectManifest>(METADATA_KEY);
 	private persistTimeout: ReturnType<typeof setTimeout> | null = null;
 	private lastSavedMetadata: string | null = null;
+	private lastSavedLayerFingerprints = new Map<string, string>();
+	private lastSavedTraitBuffers = new Map<string, ArrayBuffer>();
 	private dirtyMetadata = false;
 	private dirtyLayers = new Set<string>();
 
-	/**
-	 * Get a legacy browser database-backed store for a specific layer's assets.
-	 */
 	private getLegacyAssetStorage(layerId: string): LegacyIndexedDbStore<LegacyLayerAssets> {
 		return new LegacyIndexedDbStore<LegacyLayerAssets>(`${LAYER_ASSETS_PREFIX}${layerId}`);
 	}
 
 	/**
-	 * Mark metadata or a specific layer as dirty so the next save will write it.
+	 * Schedule a debounced save. Service detects changes internally.
+	 * Subsequent calls within the debounce window collapse into one save.
+	 */
+	save(project: Project, delay = DEFAULT_DEBOUNCE_MS): void {
+		if (this.persistTimeout) {
+			clearTimeout(this.persistTimeout);
+		}
+		this.persistTimeout = setTimeout(() => {
+			this.persistImmediate(project);
+			this.persistTimeout = null;
+		}, delay);
+	}
+
+	/**
+	 * Force immediate persistence, bypassing debounce.
+	 */
+	async flush(project: Project): Promise<void> {
+		if (this.persistTimeout) {
+			clearTimeout(this.persistTimeout);
+			this.persistTimeout = null;
+		}
+		await this.persistImmediate(project);
+	}
+
+	/**
+	 * @deprecated Use {@link save} — change detection is internal now.
+	 * Kept for compatibility during migration.
 	 */
 	markDirty(layerId?: string): void {
 		if (layerId) {
@@ -82,39 +112,19 @@ export class PersistenceService {
 	}
 
 	/**
-	 * Persist project data with debouncing.
+	 * @deprecated Use {@link save} — debouncing is handled by save().
 	 */
-	schedulePersist(project: Project, delay = 1000): void {
-		if (this.persistTimeout) {
-			clearTimeout(this.persistTimeout);
-		}
-		this.persistTimeout = setTimeout(() => {
-			this.saveProject(project);
-			this.persistTimeout = null;
-		}, delay);
+	schedulePersist(project: Project, delay = DEFAULT_DEBOUNCE_MS): void {
+		this.save(project, delay);
 	}
 
 	/**
-	 * Save project to the active storage path using differential updates.
+	 * @deprecated Use {@link flush} for immediate persist or {@link save} for debounced.
 	 */
-	async saveProject(project: Project): Promise<void> {
-		try {
-			const backend = await getProjectStorageBackend();
-
-			if (backend) {
-				await this.saveProjectToObjectStorage(backend, project);
-				return;
-			}
-
-			await this.saveProjectToLegacyStorage(project);
-		} catch (error) {
-			logger.error('Failed to persist project:', error);
-		}
+	saveProject(project: Project): Promise<void> {
+		return this.persistImmediate(project);
 	}
 
-	/**
-	 * Load project from storage, preferring OPFS and falling back to legacy data.
-	 */
 	async loadProject(): Promise<Project | null> {
 		try {
 			const backend = await getProjectStorageBackend();
@@ -125,13 +135,15 @@ export class PersistenceService {
 				});
 
 				const storedProject = await this.loadProjectFromObjectStorage(backend);
-				if (storedProject) {
-					return storedProject;
-				}
+				if (storedProject) return storedProject;
 
 				const legacyProject = await this.loadProjectFromLegacyStorage();
 				if (legacyProject) {
 					logger.info('Migrating legacy project data to object storage');
+					this.dirtyMetadata = true;
+					for (const layer of legacyProject.layers) {
+						this.dirtyLayers.add(layer.id);
+					}
 					await this.saveProjectToObjectStorage(backend, legacyProject, {
 						forceFullAssetWrite: true
 					});
@@ -148,9 +160,6 @@ export class PersistenceService {
 		}
 	}
 
-	/**
-	 * Clear all persisted project data.
-	 */
 	async clearData(): Promise<void> {
 		try {
 			const backend = await getProjectStorageBackend();
@@ -165,21 +174,14 @@ export class PersistenceService {
 				await Promise.all([this.clearLegacyIndexedDbKeys(), deleteLegacyProject()]);
 			}
 
-			this.lastSavedMetadata = null;
-			this.dirtyMetadata = false;
-			this.dirtyLayers.clear();
+			this.resetSnapshotState();
 		} catch (error) {
 			logger.error('Failed to clear persisted project:', error);
 		}
 	}
 
-	/**
-	 * Check if any synchronous project data hint exists.
-	 */
 	hasData(): boolean {
-		if (typeof localStorage === 'undefined') {
-			return false;
-		}
+		if (typeof localStorage === 'undefined') return false;
 
 		return (
 			localStorage.getItem(PROJECT_BOOT_HINT_KEY) !== null ||
@@ -188,9 +190,6 @@ export class PersistenceService {
 		);
 	}
 
-	/**
-	 * Check the async source of truth when OPFS is active.
-	 */
 	async hasDataAsync(): Promise<boolean> {
 		const backend = await getProjectStorageBackend();
 
@@ -201,13 +200,8 @@ export class PersistenceService {
 		return this.hasData();
 	}
 
-	/**
-	 * Load project metadata synchronously from localStorage for legacy fast boot.
-	 */
 	loadMetadataSync(): Project | null {
-		if (typeof localStorage === 'undefined') {
-			return null;
-		}
+		if (typeof localStorage === 'undefined') return null;
 
 		const data = localStorage.getItem(METADATA_KEY);
 		if (data) {
@@ -230,15 +224,74 @@ export class PersistenceService {
 		return null;
 	}
 
-	/**
-	 * Force immediate persistence of the project.
-	 */
-	async flush(project: Project): Promise<void> {
-		if (this.persistTimeout) {
-			clearTimeout(this.persistTimeout);
-			this.persistTimeout = null;
+	private async persistImmediate(project: Project): Promise<void> {
+		try {
+			this.detectChanges(project);
+
+			const backend = await getProjectStorageBackend();
+			if (backend) {
+				await this.saveProjectToObjectStorage(backend, project);
+				return;
+			}
+
+			await this.saveProjectToLegacyStorage(project);
+		} catch (error) {
+			logger.error('Failed to persist project:', error);
 		}
-		await this.saveProject(project);
+	}
+
+	/**
+	 * Compare current project against last-saved snapshot to populate dirty flags.
+	 * Called automatically by persistImmediate — callers don't manage dirty state.
+	 */
+	private detectChanges(project: Project): void {
+		const manifest = this.createProjectManifest(project);
+		const manifestJson = JSON.stringify(manifest);
+		if (manifestJson !== this.lastSavedMetadata) {
+			this.dirtyMetadata = true;
+		}
+
+		for (const layer of project.layers) {
+			const fingerprint = this.computeLayerFingerprint(layer);
+			if (fingerprint !== this.lastSavedLayerFingerprints.get(layer.id)) {
+				this.dirtyLayers.add(layer.id);
+				continue;
+			}
+
+			for (const trait of layer.traits) {
+				if (!isArrayBuffer(trait.imageData)) continue;
+				const cached = this.lastSavedTraitBuffers.get(trait.id);
+				if (cached !== trait.imageData) {
+					this.dirtyLayers.add(layer.id);
+					break;
+				}
+			}
+		}
+
+		const currentLayerIds = new Set(project.layers.map((l) => String(l.id)));
+		for (const savedLayerId of this.lastSavedLayerFingerprints.keys()) {
+			if (!currentLayerIds.has(savedLayerId)) {
+				this.dirtyMetadata = true;
+				this.dirtyLayers.add(savedLayerId);
+			}
+		}
+	}
+
+	private computeLayerFingerprint(layer: Layer): string {
+		return JSON.stringify({
+			id: layer.id,
+			name: layer.name,
+			order: layer.order,
+			isOptional: layer.isOptional,
+			traits: layer.traits.map((trait) => ({
+				id: trait.id,
+				name: trait.name,
+				rarityWeight: trait.rarityWeight,
+				type: trait.type,
+				rulerRules: trait.rulerRules,
+				byteLength: isArrayBuffer(trait.imageData) ? trait.imageData.byteLength : 0
+			}))
+		});
 	}
 
 	private async saveProjectToObjectStorage(
@@ -271,6 +324,7 @@ export class PersistenceService {
 		}
 
 		this.writeProjectBootHint(project);
+		this.refreshLayerSnapshots(project);
 		this.dirtyLayers.clear();
 		void requestPersistentStorageOnce('project-save');
 	}
@@ -295,6 +349,7 @@ export class PersistenceService {
 				'layer' in target ? this.saveLayerAssetsToLegacyStorage(target.layer) : Promise.resolve()
 			)
 		);
+		this.refreshLayerSnapshots(project);
 		this.dirtyLayers.clear();
 	}
 
@@ -533,6 +588,29 @@ export class PersistenceService {
 		this.lastSavedMetadata = JSON.stringify(this.createProjectManifest(project));
 		this.dirtyMetadata = false;
 		this.dirtyLayers.clear();
+		this.refreshLayerSnapshots(project);
+	}
+
+	private refreshLayerSnapshots(project: Project): void {
+		this.lastSavedLayerFingerprints.clear();
+		this.lastSavedTraitBuffers.clear();
+
+		for (const layer of project.layers) {
+			this.lastSavedLayerFingerprints.set(layer.id, this.computeLayerFingerprint(layer));
+			for (const trait of layer.traits) {
+				if (isArrayBuffer(trait.imageData)) {
+					this.lastSavedTraitBuffers.set(trait.id, trait.imageData);
+				}
+			}
+		}
+	}
+
+	private resetSnapshotState(): void {
+		this.lastSavedMetadata = null;
+		this.lastSavedLayerFingerprints.clear();
+		this.lastSavedTraitBuffers.clear();
+		this.dirtyMetadata = false;
+		this.dirtyLayers.clear();
 	}
 
 	private writeProjectBootHint(project: Project): void {
@@ -548,7 +626,7 @@ export class PersistenceService {
 				} satisfies ProjectBootHint)
 			);
 		} catch {
-			// The hint is optional; OPFS remains the source of truth.
+			// hint is optional; OPFS remains the source of truth
 		}
 	}
 
@@ -560,14 +638,12 @@ export class PersistenceService {
 			localStorage.removeItem(METADATA_KEY);
 			localStorage.removeItem(LEGACY_STORAGE_KEY);
 		} catch {
-			// Clearing storage should still succeed for the async backends.
+			// clearing storage should still succeed for the async backends
 		}
 	}
 
 	private clearLegacyIndexedDbKeys(): Promise<void> {
-		if (typeof indexedDB === 'undefined') {
-			return Promise.resolve();
-		}
+		if (typeof indexedDB === 'undefined') return Promise.resolve();
 
 		return new Promise((resolve) => {
 			const request = indexedDB.open(LEGACY_ASSETS_DB_NAME, 1);

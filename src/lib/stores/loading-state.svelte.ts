@@ -3,7 +3,12 @@
  * Provides reactive state for loading operations using Svelte 5 runes
  */
 
-import type { LoadingState } from './loading-state';
+export interface LoadingState {
+	progress: number;
+	total: number;
+	message: string;
+	status: 'idle' | 'loading' | 'success' | 'error';
+}
 
 // Reactive state using Svelte 5 runes
 export const loadingStates = $state<Record<string, boolean>>({});

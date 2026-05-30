@@ -1,7 +1,8 @@
 // src/lib/domain/index.ts
 
 export * from './models';
-export * from './collection-design';
+export * from './collection-design-mutator';
+export type { CollectionDesignEditResult, TraitTypeEditResult } from './collection-design';
 export * from './project.domain';
 export {
 	validateProjectName,

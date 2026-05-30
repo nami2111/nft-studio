@@ -10,7 +10,7 @@ import {
 	validateRarityWeight,
 	validateImportedProject
 } from './validation';
-import { recoverableFileOperation } from '$lib/utils/error-handler';
+import { withRetry } from '$lib/utils/error-handler';
 import { createProjectId, createLayerId, createTraitId } from '$lib/types/ids';
 
 /**
@@ -123,7 +123,7 @@ export async function addTrait(
 		throw new Error(`Layer with id ${layerId} not found`);
 	}
 
-	return recoverableFileOperation(
+	return withRetry(
 		async () => {
 			const arrayBuffer = await fileToArrayBuffer(file);
 
@@ -146,6 +146,7 @@ export async function addTrait(
 				)
 			};
 		},
+		'file',
 		{
 			operation: 'addTrait',
 			enableRetry: true,
