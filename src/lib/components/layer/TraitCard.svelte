@@ -4,7 +4,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import type { Trait } from '$lib/types/layer';
 	import RaritySlider from '$lib/components/layer/RaritySlider.svelte';
-	import { removeTrait, updateTraitName } from '$lib/stores';
+	import { removeTrait, updateTraitName, updateTraitRulerRules } from '$lib/stores';
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
@@ -76,12 +76,7 @@
 
 	// Handle ruler rules update
 	function handleRulerRulesUpdate(rules: import('$lib/types/layer').RulerRule[]) {
-		if (!currentLayer) return;
-
-		const traitIndex = currentLayer.traits.findIndex((t) => t.id === traitIdTyped);
-		if (traitIndex !== -1) {
-			currentLayer.traits[traitIndex].rulerRules = rules;
-		}
+		updateTraitRulerRules(layerIdTyped, traitIdTyped, rules);
 	}
 
 	function cancelEdit() {

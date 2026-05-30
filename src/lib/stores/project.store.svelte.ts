@@ -11,9 +11,13 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { calculateAdaptiveDelay } from '$lib/config/performance.config';
 import type { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
+import {
+	toggleTraitType as toggleCollectionDesignTraitType,
+	updateTraitRulerRules as updateCollectionDesignTraitRulerRules
+} from '$lib/domain/collection-design';
 import type { LayerId, ProjectId, TraitId } from '$lib/types/ids';
 import { createLayerId, createTraitId } from '$lib/types/ids';
-import type { StrictPairConfig } from '$lib/types/layer';
+import type { RulerRule, StrictPairConfig, TraitType } from '$lib/types/layer';
 import type { Layer, Project, ProjectDimensions, Trait } from '$lib/types/project';
 import { fileToArrayBuffer } from '$lib/utils';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
@@ -452,6 +456,27 @@ export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeig
 	validationService.validateRarityWeight(rarityWeight);
 	trait.rarityWeight = rarityWeight;
 	persistenceService.markDirty(layerId);
+	persistenceService.schedulePersist(project);
+}
+
+export function toggleTraitType(layerId: LayerId, traitId: TraitId): TraitType | undefined {
+	const result = toggleCollectionDesignTraitType(project, layerId, traitId);
+	if (!result.changed || !result.dirtyLayerId) return result.type;
+
+	persistenceService.markDirty(result.dirtyLayerId);
+	persistenceService.schedulePersist(project);
+	return result.type;
+}
+
+export function updateTraitRulerRules(
+	layerId: LayerId,
+	traitId: TraitId,
+	rules: RulerRule[]
+): void {
+	const result = updateCollectionDesignTraitRulerRules(project, layerId, traitId, rules);
+	if (!result.changed || !result.dirtyLayerId) return;
+
+	persistenceService.markDirty(result.dirtyLayerId);
 	persistenceService.schedulePersist(project);
 }
 
