@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { createMemoryStorageBackend } from '$lib/storage/memory';
 import { storagePaths } from '$lib/storage/paths';
-import { createLayerId, createProjectId, createTraitId } from '$lib/types/ids';
+import { unsafeCreateLayerId, unsafeCreateProjectId, unsafeCreateTraitId } from '$lib/types/ids';
 import type { GalleryCollection } from '$lib/types/gallery';
 import type { Project } from '$lib/types/project';
 import { INDEXEDDB_TO_OPFS_MIGRATION_ID, migrateIndexedDbToOpfs } from './indexeddb-to-opfs';
@@ -17,25 +17,25 @@ function bytes(data: ArrayBuffer | null): number[] | null {
 
 function createProject(): Project {
 	return {
-		id: createProjectId('project-legacy'),
+		id: unsafeCreateProjectId('project-legacy'),
 		name: 'Legacy Project',
 		description: 'Project from legacy storage',
 		outputSize: { width: 100, height: 100 },
 		layers: [
 			{
-				id: createLayerId('layer-legacy'),
+				id: unsafeCreateLayerId('layer-legacy'),
 				name: 'Base',
 				order: 0,
 				traits: [
 					{
-						id: createTraitId('trait-blue'),
+						id: unsafeCreateTraitId('trait-blue'),
 						name: 'Blue',
 						imageData: buffer([1, 2, 3]),
 						imageUrl: 'blob:legacy',
 						rarityWeight: 5
 					},
 					{
-						id: createTraitId('trait-red'),
+						id: unsafeCreateTraitId('trait-red'),
 						name: 'Red',
 						imageData: buffer([4, 5]),
 						rarityWeight: 3

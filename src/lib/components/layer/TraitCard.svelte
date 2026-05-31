@@ -4,7 +4,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import type { Trait } from '$lib/types/layer';
 	import RaritySlider from '$lib/components/layer/RaritySlider.svelte';
-	import { removeTrait, updateTraitName, updateTraitRulerRules } from '$lib/stores';
+	import { useProjectStore } from '$lib/stores/facades';
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
@@ -13,7 +13,6 @@
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
 	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
-	import { project } from '$lib/stores';
 
 	interface Props {
 		trait: Trait;
@@ -30,6 +29,8 @@
 		onToggleSelection,
 		showSelection = false
 	}: Props = $props();
+
+	const projectStore = useProjectStore();
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(trait.id));
 
@@ -40,14 +41,14 @@
 	let observer: IntersectionObserver | null = $state(null);
 
 	// Get current layer and all layers for ruler rules manager
-	const currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
-	const allLayers = $derived(project.layers);
+	const currentLayer = $derived(projectStore.state.layers.find((l) => l.id === layerIdTyped));
+	const allLayers = $derived(projectStore.state.layers);
 
 	function handleRemoveTrait() {
 		// Simple confirmation dialog
 		if (confirm(`Are you sure you want to delete "${trait.name}"?`)) {
 			try {
-				removeTrait(layerIdTyped, traitIdTyped);
+				projectStore.actions.removeTrait(layerIdTyped, traitIdTyped);
 				toast.success(`Trait "${trait.name}" has been deleted.`);
 			} catch (error) {
 				console.error('Failed to delete trait:', error);
@@ -69,14 +70,14 @@
 			return;
 		}
 
-		updateTraitName(layerIdTyped, traitIdTyped, editedName);
+		projectStore.actions.updateTraitName(layerIdTyped, traitIdTyped, editedName);
 		toast.success('Trait name updated.');
 		isEditing = false;
 	}
 
 	// Handle ruler rules update
 	function handleRulerRulesUpdate(rules: import('$lib/types/layer').RulerRule[]) {
-		updateTraitRulerRules(layerIdTyped, traitIdTyped, rules);
+		projectStore.actions.updateTraitRulerRules(layerIdTyped, traitIdTyped, rules);
 	}
 
 	function cancelEdit() {

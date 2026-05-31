@@ -8,7 +8,19 @@
  * @note Module-level singleton — generation is a single-session SPA.
  */
 
-import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
+import type { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
+import type { Layer, StrictPairConfig } from '$lib/types/layer';
+import type { ErrorMessage, ProgressMessage } from '$lib/types/worker-messages';
+
+export interface StartGenerationConfig {
+	projectName: string;
+	projectDescription: string;
+	outputSize: { width: number; height: number };
+	layers: Layer[];
+	collectionSize: number;
+	strictPairConfig?: StrictPairConfig;
+	metadataStandard?: MetadataStandard;
+}
 
 // ─── State Type ───────────────────────────────────────────────
 export interface GenerationState {
@@ -67,15 +79,7 @@ export const generationState = $state<GenerationState>(freshState());
 
 // ─── Lifecycle ────────────────────────────────────────────────
 
-export function startGeneration(config: {
-	projectName: string;
-	projectDescription: string;
-	outputSize: { width: number; height: number };
-	layers: unknown[];
-	collectionSize: number;
-	strictPairConfig?: unknown;
-	metadataStandard?: unknown;
-}): string {
+export function startGeneration(config: StartGenerationConfig): string {
 	const sessionId = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 	Object.assign(generationState, freshState(), {

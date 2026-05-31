@@ -8,7 +8,6 @@
  * migrate to Svelte context (setContext/getContext).
  */
 
-import { SvelteMap } from 'svelte/reactivity';
 import { calculateAdaptiveDelay } from '$lib/config/performance.config';
 import type { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
 import {
@@ -44,10 +43,8 @@ import {
 	type LayerBatchUpdate
 } from '$lib/domain/collection-design-mutator';
 import type { LayerId, ProjectId, TraitId } from '$lib/types/ids';
-import { createTraitId } from '$lib/types/ids';
 import type { RulerRule, StrictPairConfig, TraitType } from '$lib/types/layer';
 import type { Layer, Project, ProjectDimensions, Trait } from '$lib/types/project';
-import { fileToArrayBuffer } from '$lib/utils';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { persistenceService } from '../services/persistence.service';
 import { validationService } from '../services/validation.service';
@@ -65,6 +62,7 @@ import {
 	getDetailedLoadingState
 } from './loading-state.svelte';
 import { globalResourceManager } from './resource-manager';
+import { traitUploadManager } from './trait-upload-manager';
 
 // Initialize project with a fresh default project.
 export const project = $state<Project>(validationService.createDefaultProject());
@@ -186,31 +184,15 @@ export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial
 	handleMutationResult(result);
 }
 
-export function addTrait(layerId: LayerId, file: File): Promise<void> {
+export async function addTrait(layerId: LayerId, file: File): Promise<void> {
 	const layer = project.layers.find((l) => l.id === layerId);
 	if (!layer) throw new Error(`Layer with ID ${layerId} not found`);
 
 	const traitName = file.name.replace(/\.[^/.]+$/, '');
 	validationService.validateTraitName(traitName);
 
-	const newTrait: Trait = {
-		id: createTraitId(crypto.randomUUID()),
-		name: traitName,
-		imageData: new ArrayBuffer(0),
-		rarityWeight: 5
-	};
-
-	layer.traits.push(newTrait);
-
-	const loadPromise = new Promise<void>((resolve, reject) => {
-		pendingTraitPromises.set(newTrait.id, { resolve, reject });
-	});
-
-	pendingTraitUpdates.set(newTrait.id, { trait: newTrait, layer, file });
-	scheduleBatchUpdate();
+	await traitUploadManager.uploadTrait(layerId, layer, file, traitName);
 	persistenceService.save(project);
-
-	return loadPromise;
 }
 
 export function removeTrait(layerId: LayerId, traitId: TraitId): void {
@@ -363,57 +345,14 @@ export function flushBatch(): void {
 	}
 }
 
-// Pending trait loading (async file processing)
+// Trait upload status API
 
-const pendingTraitUpdates = new SvelteMap<string, { trait: Trait; layer: Layer; file: File }>();
-const pendingTraitPromises = new SvelteMap<
-	TraitId,
-	{ resolve: () => void; reject: (error: Error) => void }
->();
-
-async function processPendingTraitUpdates(): Promise<void> {
-	if (pendingTraitUpdates.size === 0) return;
-
-	const updates = Array.from(pendingTraitUpdates.values());
-	pendingTraitUpdates.clear();
-
-	const results = await Promise.all(
-		updates.map(async ({ trait, layer, file }) => {
-			try {
-				const arrayBuffer = await fileToArrayBuffer(file);
-				trait.imageData = arrayBuffer;
-				const blob = new Blob([arrayBuffer], { type: file.type || 'image/png' });
-				trait.imageUrl = URL.createObjectURL(blob);
-				globalResourceManager.addObjectUrl(trait.imageUrl);
-				pendingTraitPromises.get(trait.id)?.resolve();
-				pendingTraitPromises.delete(trait.id);
-				return { trait, layer };
-			} catch (error) {
-				const traitIndex = layer.traits.findIndex((t) => t.id === trait.id);
-				if (traitIndex !== -1) layer.traits.splice(traitIndex, 1);
-				pendingTraitPromises.get(trait.id)?.reject(error as Error);
-				pendingTraitPromises.delete(trait.id);
-				return null;
-			}
-		})
-	);
-
-	const validResults = results.filter((r): r is { trait: Trait; layer: Layer } => r !== null);
-	for (const { trait, layer } of validResults) {
-		const traitIndex = layer.traits.findIndex((t) => t.id === trait.id);
-		if (traitIndex !== -1) layer.traits[traitIndex] = trait;
-	}
+export function getTraitUploadStatus(traitId: TraitId) {
+	return traitUploadManager.getUploadStatus(traitId);
 }
 
-let batchTimeoutId: ReturnType<typeof setTimeout> | null = null;
-const BATCH_DELAY_MS = 100;
-
-function scheduleBatchUpdate() {
-	if (batchTimeoutId) clearTimeout(batchTimeoutId);
-	batchTimeoutId = setTimeout(() => {
-		processPendingTraitUpdates();
-		batchTimeoutId = null;
-	}, BATCH_DELAY_MS);
+export function getPendingUploadCount(): number {
+	return traitUploadManager.pendingCount();
 }
 
 // Derived state functions

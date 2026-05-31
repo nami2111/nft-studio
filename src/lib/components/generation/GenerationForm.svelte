@@ -1,25 +1,18 @@
 <script lang="ts">
-	import { project } from '$lib/stores';
+	import { useProjectStore, useGenerationStore } from '$lib/stores/facades';
 	import { runGeneration, cancelGeneration, type GenerationConfig, type GenerationCallbacks } from '$lib/domain/worker.service';
 	import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
 	import { isFlagEnabled } from '$lib/config/feature-flags';
 	import { formatStorageBytes, getStoragePressure } from '$lib/storage/capabilities';
-	import {
-		generationState,
-		startGeneration,
-		pauseGeneration,
-		completeGeneration,
-		resetState,
-		updateProgress,
-		addPreviews,
-		handleError
-	} from '$lib/stores/generation-progress.svelte';
 	import { MetadataStandard } from '$lib/domain/metadata/strategies';
 	import type { Layer } from '$lib/types/layer';
 	import { onDestroy } from 'svelte';
 	import GenerationProgress from './GenerationProgress.svelte';
 	import GenerationControls from './GenerationControls.svelte';
+
+	const projectStore = useProjectStore();
+	const generationStore = useGenerationStore();
 
 	// ─── Local UI state ──────────────────────────────────────
 	let collectionSize = $state<number | null>(100);
@@ -30,10 +23,10 @@
 	const SAMPLING_FALLBACK_BYTES_PER_PIXEL = 0.4;
 
 	// ─── Derived state from store ────────────────────────────
-	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
-	const isBackground = $derived(generationState.isBackground);
-	const isPaused = $derived(generationState.isPaused);
-	const previews = $derived(generationState.previews);
+	const isGenerating = $derived(generationStore.state.isGenerating && !generationStore.state.isBackground);
+	const isBackground = $derived(generationStore.state.isBackground);
+	const isPaused = $derived(generationStore.state.isPaused);
+	const previews = $derived(generationStore.state.previews);
 
 	// ─── Lifecycle ───────────────────────────────────────────
 	onDestroy(() => {
@@ -45,11 +38,11 @@
 		}
 
 		// Move to background if still generating
-		if (generationState.isGenerating && !generationState.isBackground) {
-			pauseGeneration('Component unmounted — continuing in background');
+		if (generationStore.state.isGenerating && !generationStore.state.isBackground) {
+			generationStore.actions.pauseGeneration('Component unmounted — continuing in background');
 			setTimeout(() => {
 				if (generationState.isGenerating && isComponentDestroyed) {
-					resetState();
+					generationStore.actions.resetState();
 				}
 			}, 600_000);
 		}
@@ -59,7 +52,7 @@
 	function buildCallbacks(): GenerationCallbacks {
 		return {
 			onProgress(msg: ProgressMessage) {
-				updateProgress(msg);
+				generationStore.actions.updateProgress(msg);
 
 				// If in background mode, skip UI feedback
 				if (isComponentDestroyed) return;
@@ -69,7 +62,7 @@
 
 			onPreview(newPreviews: { index: number; url: string }[]) {
 				if (!isComponentDestroyed) {
-					addPreviews(newPreviews);
+					generationStore.actions.addPreviews(newPreviews);
 				}
 			},
 
@@ -77,11 +70,11 @@
 				showSuccess('Generation complete', {
 					description: 'Your download has started.'
 				});
-				completeGeneration();
+				generationStore.actions.completeGeneration();
 			},
 
 			onError(error: Error) {
-				handleError({
+				generationStore.actions.handleError({
 					type: 'error',
 					payload: { message: error.message }
 				} as ErrorMessage);
@@ -93,7 +86,7 @@
 
 			onCancelled() {
 				showInfo('Generation has been cancelled.');
-				resetState();
+				generationStore.actions.resetState();
 			}
 		};
 	}
@@ -209,10 +202,10 @@
 	async function handleGenerate(event?: MouseEvent) {
 		if (event) event.preventDefault();
 
-		resetState();
+		generationStore.actions.resetState();
 
 		try {
-			const projectData = project;
+			const projectData = projectStore.state;
 
 			// Validate project
 			if (projectData.layers.length === 0) {
@@ -241,7 +234,7 @@
 			}
 
 			// Start generation state
-			startGeneration({
+			generationStore.actions.startGeneration({
 				projectName: projectData.name || 'Untitled Collection',
 				projectDescription: projectData.description || '',
 				outputSize: projectData.outputSize,

@@ -1,18 +1,11 @@
 <script lang="ts">
-	import {
-		project,
-		updateProjectName,
-		updateProjectDescription,
-		updateProjectMetadataStandard,
-		updateProjectSymbol,
-		updateProjectSellerFee,
-		updateProjectExternalUrl,
-		updateProjectAnimationUrl
-	} from '$lib/stores';
+	import { useProjectStore } from '$lib/stores/facades';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { showSuccess, showWarning } from '$lib/utils/error-handling';
 	import { MetadataStandard } from '$lib/domain/metadata/strategies';
+
+	const projectStore = useProjectStore();
 
 	let projectName = $state('');
 	let projectDescription = $state('');
@@ -30,7 +23,7 @@
 
 	// Sync with project store changes (skip focused fields to preserve unsaved edits)
 	$effect(() => {
-		const currentProject = project;
+		const currentProject = projectStore.state;
 		if (focusedField !== 'projectName') projectName = currentProject.name;
 		if (focusedField !== 'projectDescription') projectDescription = currentProject.description;
 		if (focusedField !== 'metadataStandard')
@@ -55,7 +48,7 @@
 			});
 			return;
 		}
-		updateProjectName(projectName);
+		projectStore.actions.updateProjectName(projectName);
 		showSuccess('Project name saved.');
 	}
 
@@ -68,13 +61,13 @@
 			});
 			return;
 		}
-		updateProjectDescription(projectDescription);
+		projectStore.actions.updateProjectDescription(projectDescription);
 	}
 
 	// Save metadata standard
 	function saveMetadataStandard(value: MetadataStandard) {
 		metadataStandard = value;
-		updateProjectMetadataStandard(metadataStandard);
+		projectStore.actions.updateProjectMetadataStandard(metadataStandard);
 		showSuccess('Metadata standard saved.', {
 			description: `Switched to ${value.toUpperCase()} format`
 		});
@@ -82,22 +75,22 @@
 
 	function saveSymbol(value: string) {
 		symbol = value;
-		updateProjectSymbol(symbol);
+		projectStore.actions.updateProjectSymbol(symbol);
 	}
 
 	function saveSellerFee(value: number) {
 		sellerFeeBasisPoints = value;
-		updateProjectSellerFee(sellerFeeBasisPoints);
+		projectStore.actions.updateProjectSellerFee(sellerFeeBasisPoints);
 	}
 
 	function saveExternalUrl(value: string) {
 		externalUrl = value;
-		updateProjectExternalUrl(externalUrl);
+		projectStore.actions.updateProjectExternalUrl(externalUrl);
 	}
 
 	function saveAnimationUrl(value: string) {
 		animationUrl = value;
-		updateProjectAnimationUrl(animationUrl);
+		projectStore.actions.updateProjectAnimationUrl(animationUrl);
 	}
 </script>
 
@@ -270,7 +263,7 @@
 	<div class="bg-muted rounded-md border p-3 sm:p-4">
 		<h4 class="text-foreground mb-1 text-xs font-medium sm:text-sm">Current Project Dimensions</h4>
 		<p class="text-muted-foreground mb-1 text-xs sm:text-sm">
-			{project.outputSize.width}px × {project.outputSize.height}px
+			{projectStore.state.outputSize.width}px × {projectStore.state.outputSize.height}px
 		</p>
 		<p class="text-muted-foreground text-[10px] sm:text-xs">
 			Dimensions are locked once traits are uploaded to ensure consistency.

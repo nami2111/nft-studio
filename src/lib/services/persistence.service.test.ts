@@ -3,7 +3,7 @@ import { setStorageBackendForTesting } from '$lib/storage/backend';
 import { createMemoryStorageBackend } from '$lib/storage/memory';
 import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
-import { createLayerId, createProjectId, createTraitId } from '$lib/types/ids';
+import { unsafeCreateLayerId, unsafeCreateProjectId, unsafeCreateTraitId } from '$lib/types/ids';
 import type { Project } from '$lib/types/project';
 import { PersistenceService } from './persistence.service';
 import { saveProjectToZip } from '../stores/file-operations';
@@ -18,25 +18,25 @@ function bytes(data: ArrayBuffer | null): number[] | null {
 
 function createProject(): Project {
 	return {
-		id: createProjectId('project-1'),
+		id: unsafeCreateProjectId('project-1'),
 		name: 'Project One',
 		description: 'Stored project',
 		outputSize: { width: 512, height: 512 },
 		layers: [
 			{
-				id: createLayerId('layer-1'),
+				id: unsafeCreateLayerId('layer-1'),
 				name: 'Background',
 				order: 0,
 				traits: [
 					{
-						id: createTraitId('trait-1'),
+						id: unsafeCreateTraitId('trait-1'),
 						name: 'Blue',
 						imageData: buffer([1, 2, 3]),
 						imageUrl: 'blob:stale-url',
 						rarityWeight: 5
 					},
 					{
-						id: createTraitId('trait-2'),
+						id: unsafeCreateTraitId('trait-2'),
 						name: 'Red',
 						imageData: buffer([4, 5]),
 						imageUrl: 'blob:stale-url-2',
@@ -45,12 +45,12 @@ function createProject(): Project {
 				]
 			},
 			{
-				id: createLayerId('layer-2'),
+				id: unsafeCreateLayerId('layer-2'),
 				name: 'Eyes',
 				order: 1,
 				traits: [
 					{
-						id: createTraitId('trait-3'),
+						id: unsafeCreateTraitId('trait-3'),
 						name: 'Open',
 						imageData: buffer([6, 7, 8, 9]),
 						rarityWeight: 4

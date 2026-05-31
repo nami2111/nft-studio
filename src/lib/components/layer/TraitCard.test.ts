@@ -40,7 +40,9 @@ vi.mock('$lib/stores', () => {
 
 vi.mock('$lib/types/ids', () => ({
 	createLayerId: (id: string) => `layer:${id}`,
-	createTraitId: (id: string) => `trait:${id}`
+	createTraitId: (id: string) => `trait:${id}`,
+	unsafeCreateLayerId: (id: string) => `layer:${id}`,
+	unsafeCreateTraitId: (id: string) => `trait:${id}`
 }));
 
 vi.mock('svelte-sonner', () => ({
