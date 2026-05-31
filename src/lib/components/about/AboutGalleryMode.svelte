@@ -181,7 +181,7 @@
 												<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
 													<li>Three-tier cache: ImageBitmap, ImageData, ArrayBuffer</li>
 													<li>Filter result caching (LRU, max 50 entries)</li>
-													<li>Streaming import with IndexedDB storage</li>
+													<li>Streaming import with durable browser storage</li>
 													<li>Storage quota monitoring with getStorageEstimate()</li>
 												</ul>
 											</div>

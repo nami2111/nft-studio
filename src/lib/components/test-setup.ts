@@ -107,6 +107,21 @@ Object.defineProperty(window, 'visualViewport', {
 	}
 });
 
+// Mock createImageBitmap (not available in jsdom)
+globalThis.createImageBitmap = vi
+	.fn()
+	.mockResolvedValue({ close: vi.fn(), width: 100, height: 100 });
+
+// Mock canvas toBlob (jsdom's canvas may not render)
+HTMLCanvasElement.prototype.toBlob = vi.fn(function (
+	this: HTMLCanvasElement,
+	callback: BlobCallback
+) {
+	const blob = new Blob(['mock-png-data'], { type: 'image/png' });
+	Object.defineProperty(blob, 'size', { value: 500000 });
+	callback(blob);
+});
+
 // Mock canvas context
 const mockCanvasContext = {
 	getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4) })),

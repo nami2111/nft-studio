@@ -483,11 +483,11 @@ export function cancelStreamingZip(): void {
 }
 
 /**
- * Package ZIP files directly from IndexedDB in size-bounded batches.
+ * Package ZIP files directly from storage in size-bounded batches.
  * Each batch creates its own ZIP, downloads immediately, then GC frees the memory.
  * RAM stays bounded at targetChunkBytes regardless of collection size.
  */
-export async function packageFromIndexedDBBySize(
+export async function packageFromStorageBySize(
 	sessionId: string,
 	projectName: string,
 	targetChunkBytes: number,

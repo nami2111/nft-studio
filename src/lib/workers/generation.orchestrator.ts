@@ -23,7 +23,7 @@ import type {
 import { MetadataStandard } from '$lib/domain/metadata/strategies';
 import { prepareLayersForWorker } from '$lib/domain/project.domain';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
-import { recoverableWorkerOperation, recoverableFileOperation } from '$lib/utils/error-handler';
+import { withRetry } from '$lib/utils/error-handler';
 import { CSPSolver } from './csp-solver';
 import { TraitBatchScheduler } from './trait-batch-scheduler';
 import {
@@ -32,21 +32,24 @@ import {
 	terminateWorkerPool,
 	getWorkerPoolStatus
 } from './pool';
-import {
-	startStreamingZip,
-	addStreamingChunk,
-	finalizeStreamingZip,
-	cancelStreamingZip,
-	packageFromIndexedDBBySize
-} from '$lib/services/export.service';
+import { addStreamingChunk } from '$lib/services/export.service';
 import { isFlagEnabled } from '$lib/config/feature-flags';
-import { streamBatch, clearSession } from '$lib/utils/streaming-storage';
+import { streamBatch } from '$lib/utils/streaming-storage';
+import { createResultStreamer, type ResultStreamer } from './result-streamer';
 
 // ─── Public interface ─────────────────────────────────────────
 
 export interface GenerationCallbacks {
 	/** Called on every worker progress update */
-	onProgress: (msg: ProgressMessage) => void;
+	onProgress: (msg: {
+		type: 'progress';
+		payload: {
+			generatedCount: number;
+			totalCount: number;
+			statusText: string;
+			memoryUsage?: number | { used: number; available: number; units: string };
+		};
+	}) => void;
 	/** Called when live previews are available */
 	onPreview: (previews: { index: number; url: string }[]) => void;
 	/** Called when generation finishes (images & metadata are already streamed to ZIP) */
@@ -71,23 +74,47 @@ export interface GenerationConfig {
 	extraData?: Record<string, unknown>;
 }
 
-// ─── Session-scoped mutable state ─────────────────────────────
+// ─── Session encapsulation ────────────────────────────────────
 
-/** Active ZIP streaming session ID — null when not streaming */
-let _activeStreamingSession: string | null = null;
-let _activeProjectName = 'collection';
+/**
+ * Per-generation session state. Replaces the previous module-level globals
+ * so cleanup is concentrated in one place. Single-session today —
+ * enabling true concurrent sessions requires worker pool messages to
+ * carry a session ID (deferred).
+ */
+class GenerationSession {
+	readonly id: string;
+	readonly projectName: string;
+	readonly callbacks: GenerationCallbacks;
+	readonly useStreamingStorage: boolean;
+	streamer: ResultStreamer | null = null;
 
-/** Current message callback set via setMessageCallback so the pool can forward */
-let _activeCallbacks: GenerationCallbacks | null = null;
+	constructor(config: GenerationConfig, callbacks: GenerationCallbacks) {
+		this.id = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+		this.projectName = config.projectName || 'collection';
+		this.callbacks = callbacks;
+		this.useStreamingStorage = isFlagEnabled('enableStreamingStorage');
+	}
 
-/** IndexedDB streaming state — used when enableStreamingStorage is on */
-let _useStreamingStorage = false;
-let _idbSessionId: string | null = null;
+	get storageSessionId(): string {
+		return this.id;
+	}
+
+	cancelStreamer(): void {
+		if (this.streamer) {
+			this.streamer.cancel();
+			this.streamer = null;
+		}
+	}
+}
+
+/** Currently active session — null when not generating */
+let _activeSession: GenerationSession | null = null;
 
 // Bridge from pool → orchestrator
 setMessageCallback((data) => {
-	if (_activeCallbacks) {
-		routePoolMessage(data, _activeCallbacks);
+	if (_activeSession) {
+		routePoolMessage(data, _activeSession);
 	}
 });
 
@@ -104,13 +131,14 @@ export async function runGeneration(
 	config: GenerationConfig,
 	callbacks: GenerationCallbacks
 ): Promise<void> {
-	return recoverableWorkerOperation(
+	return withRetry(
 		async () => {
 			const timerId = performanceMonitor.startTimer('generation.runGeneration');
 
 			// 1 ─ Prepare layers for workers
-			const transferrableLayers = await recoverableFileOperation(
+			const transferrableLayers = await withRetry(
 				async () => prepareLayersForWorker(config.layers),
+				'file',
 				{
 					operation: 'prepareLayersForWorker',
 					enableRetry: true,
@@ -128,17 +156,27 @@ export async function runGeneration(
 			}
 
 			// 3 ─ Set up session
-			const sessionId = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-			_activeCallbacks = callbacks;
-			_activeProjectName = config.projectName || 'collection';
-			_useStreamingStorage = isFlagEnabled('enableStreamingStorage');
-			_idbSessionId = sessionId;
+			const session = new GenerationSession(config, callbacks);
+			_activeSession = session;
 
-			// 4 ─ Start streaming ZIP (unless IndexedDB path is active)
-			if (!_useStreamingStorage) {
-				startStreamingZip(sessionId, _activeProjectName);
-				_activeStreamingSession = sessionId;
-			}
+			// 4 ─ Create result streamer (handles ZIP vs storage branching internally)
+			const streamer = createResultStreamer({
+				sessionId: session.id,
+				projectName: session.projectName,
+				collectionSize: config.collectionSize,
+				onProgress: (event) => {
+					callbacks.onProgress({
+						type: 'progress',
+						payload: {
+							generatedCount: config.collectionSize,
+							totalCount: config.collectionSize,
+							statusText: event.message
+						}
+					});
+				}
+			});
+			streamer.start();
+			session.streamer = streamer;
 
 			try {
 				// 5 ─ Solve CSP (main-thread; single worker fallback omitted — main thread is fast enough)
@@ -160,69 +198,16 @@ export async function runGeneration(
 				});
 				await scheduler.scheduleBatches(solutions);
 
-				// 7 ─ Finalize
-				if (_useStreamingStorage) {
-					callbacks.onProgress({
-						type: 'progress',
-						payload: {
-							generatedCount: config.collectionSize,
-							totalCount: config.collectionSize,
-							statusText: 'Packaging from storage...'
-						}
-					});
-
-					await packageFromIndexedDBBySize(
-						_idbSessionId!,
-						_activeProjectName,
-						500 * 1024 * 1024,
-						async (progress) => {
-							callbacks.onProgress({
-								type: 'progress',
-								payload: {
-									generatedCount: config.collectionSize,
-									totalCount: config.collectionSize,
-									statusText: progress.message
-								}
-							});
-						}
-					);
-
-					clearSession(_idbSessionId!).catch(() => {});
-				} else {
-					callbacks.onProgress({
-						type: 'progress',
-						payload: {
-							generatedCount: config.collectionSize,
-							totalCount: config.collectionSize,
-							statusText: 'Finalizing ZIP...'
-						}
-					});
-
-					await finalizeStreamingZip(_activeProjectName, (progress) => {
-						callbacks.onProgress({
-							type: 'progress',
-							payload: {
-								generatedCount: config.collectionSize,
-								totalCount: config.collectionSize,
-								statusText: progress.message
-							}
-						});
-					});
-					_activeStreamingSession = null;
-				}
+				// 7 ─ Finalize via streamer
+				await streamer.finalize();
+				session.streamer = null;
 
 				// 8 ─ Done
 				performanceMonitor.stopTimer(timerId);
 				callbacks.onComplete({ images: [], metadata: [] });
 			} catch (error) {
-				// Clean up streaming on error
-				if (_activeStreamingSession) {
-					cancelStreamingZip();
-					_activeStreamingSession = null;
-				}
-				if (_useStreamingStorage && _idbSessionId) {
-					clearSession(_idbSessionId).catch(() => {});
-				}
+				// Clean up streamer on error
+				session.cancelStreamer();
 				performanceMonitor.stopTimer(timerId, { error: String(error) });
 
 				// Notify callbacks before re-throwing for retry
@@ -230,11 +215,10 @@ export async function runGeneration(
 				callbacks.onError(err);
 				throw err;
 			} finally {
-				_activeCallbacks = null;
-				_useStreamingStorage = false;
-				_idbSessionId = null;
+				_activeSession = null;
 			}
 		},
+		'worker',
 		{
 			operation: 'runGeneration',
 			enableRetry: true,
@@ -257,21 +241,13 @@ export async function runGeneration(
  * and re-initializes it for future use.
  */
 export async function cancelGeneration(): Promise<void> {
-	if (_activeStreamingSession) {
-		cancelStreamingZip();
-		_activeStreamingSession = null;
-	}
-	if (_useStreamingStorage && _idbSessionId) {
-		clearSession(_idbSessionId).catch(() => {});
-	}
-
-	if (_activeCallbacks) {
-		_activeCallbacks.onCancelled();
+	if (_activeSession) {
+		_activeSession.cancelStreamer();
+		_activeSession.callbacks.onCancelled();
+		_activeSession = null;
 	}
 
 	await terminateWorkerPool();
-	_activeCallbacks = null;
-
 	await initializeWorkerPool();
 }
 
@@ -310,8 +286,8 @@ export async function solveOnMainThread(
 
 	for (let i = 0; i < collectionSize; i++) {
 		if (i % 50 === 0) {
-			if (_activeCallbacks) {
-				_activeCallbacks.onProgress({
+			if (_activeSession) {
+				_activeSession.callbacks.onProgress({
 					type: 'progress',
 					payload: {
 						generatedCount: i,
@@ -397,7 +373,8 @@ type PoolForwardedMessage =
 			};
 	  };
 
-function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallbacks): void {
+function routePoolMessage(data: PoolForwardedMessage, session: GenerationSession): void {
+	const callbacks = session.callbacks;
 	switch (data.type) {
 		case 'progress':
 			callbacks.onProgress(data);
@@ -415,19 +392,19 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 		}
 
 		case 'chunk': {
-			// Intermediate chunk from worker — stream directly to ZIP or IndexedDB
+			// Intermediate chunk from worker — stream directly to ZIP or storage.
 			const msg = data;
-			if (_useStreamingStorage && _idbSessionId) {
+			if (session.useStreamingStorage) {
 				const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
 				streamBatch(
-					_idbSessionId,
+					session.storageSessionId,
 					firstIdx,
 					msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
 					msg.payload.metadata || []
 				).catch((err) => {
-					console.warn('IndexedDB stream failed:', err);
+					console.warn('Storage stream failed:', err);
 				});
-			} else if (msg.payload.images.length > 0 && _activeStreamingSession) {
+			} else if (msg.payload.images.length > 0 && session.streamer?.mode === 'zip-stream') {
 				addStreamingChunk(
 					msg.payload.images.map((img) => ({ name: img.name, data: img.imageData })),
 					(msg.payload.metadata || []) as unknown as {
@@ -442,13 +419,13 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 		}
 
 		case 'complete': {
-			// Final complete from a batch — stream remaining to ZIP or IndexedDB
+			// Final complete from a batch — stream remaining to ZIP or storage.
 			const msg = data as CompleteMessage;
 			if (msg.payload.images && msg.payload.images.length > 0) {
-				if (_useStreamingStorage && _idbSessionId) {
+				if (session.useStreamingStorage) {
 					const firstIdx = parseIndexFromName(msg.payload.images[0]?.name);
 					streamBatch(
-						_idbSessionId,
+						session.storageSessionId,
 						firstIdx,
 						msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
 						(msg.payload.metadata || []) as unknown as {
@@ -456,9 +433,9 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 							data: Record<string, unknown>;
 						}[]
 					).catch((err) => {
-						console.warn('IndexedDB stream failed:', err);
+						console.warn('Storage stream failed:', err);
 					});
-				} else if (_activeStreamingSession && msg.payload.isChunk) {
+				} else if (session.streamer?.mode === 'zip-stream' && msg.payload.isChunk) {
 					addStreamingChunk(
 						msg.payload.images.map((img) => ({ name: img.name, data: img.imageData })),
 						(msg.payload.metadata || []) as unknown as {
@@ -482,24 +459,12 @@ function routePoolMessage(data: PoolForwardedMessage, callbacks: GenerationCallb
 		}
 
 		case 'error':
-			if (_activeStreamingSession) {
-				cancelStreamingZip();
-				_activeStreamingSession = null;
-			}
-			if (_useStreamingStorage && _idbSessionId) {
-				clearSession(_idbSessionId).catch(() => {});
-			}
+			session.cancelStreamer();
 			callbacks.onError(new Error(data.payload.message));
 			break;
 
 		case 'cancelled':
-			if (_activeStreamingSession) {
-				cancelStreamingZip();
-				_activeStreamingSession = null;
-			}
-			if (_useStreamingStorage && _idbSessionId) {
-				clearSession(_idbSessionId).catch(() => {});
-			}
+			session.cancelStreamer();
 			callbacks.onCancelled();
 			break;
 	}

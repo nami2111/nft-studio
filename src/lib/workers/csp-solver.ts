@@ -1,10 +1,21 @@
 // CSP Solver for Collection Generation - Ultra Optimized
 // Enhanced with constraint ordering, early termination, and predictive caching
 // Delivers 40-60% performance improvement over standard AC-3
+//
+// Phase boundaries (composed inline; see csp/ folder for extracted helpers):
+//   1. initializeDomains() — populate per-layer trait pools
+//   2. precomputeConstraints() — build forward + reverse constraint graph
+//   3. ac3() — arc consistency propagation, prunes domains
+//   4. optimizedBacktrack() — MRV-ordered search with trail-based undo
+// Stats and constraint cache are isolated for testability and monitoring.
 
 import type { TransferrableLayer, TransferrableTrait } from '$lib/types/worker-messages';
 import { CombinationIndexer } from '$lib/utils/combination-indexer';
 import { logger } from '$lib/utils/logger';
+import { ConstraintCache } from './csp/constraint-cache';
+import { SolverStats, type SolverStatsSnapshot } from './csp/solver-stats';
+
+export type { SolverStatsSnapshot } from './csp/solver-stats';
 
 interface SolverContext {
 	layers: TransferrableLayer[];
@@ -51,71 +62,17 @@ interface DomainChangeFrame {
 }
 
 // Smart constraint cache for ruler rules
-class ConstraintCache {
-	compatiblePairs = new Map<string, Set<string>>();
-	constraintHashes = new Map<string, string>();
-	hitRate = 0;
-	accessCount = 0;
-	private hits = 0;
-
-	get(fromTraitId: string, fromLayerId: string, targetLayerId: string): Set<string> | undefined {
-		const cacheKey = `${fromLayerId}_${fromTraitId}_${targetLayerId}`;
-		this.accessCount++;
-		const result = this.compatiblePairs.get(cacheKey);
-		if (result) {
-			this.hits++;
-			this.hitRate = (this.hits / this.accessCount) * 100;
-		}
-		return result;
-	}
-
-	set(
-		fromTraitId: string,
-		fromLayerId: string,
-		targetLayerId: string,
-		compatibleTraits: Set<string>
-	): void {
-		const cacheKey = `${fromLayerId}_${fromTraitId}_${targetLayerId}`;
-		this.compatiblePairs.set(cacheKey, new Set(compatibleTraits));
-	}
-
-	clear(): void {
-		this.compatiblePairs.clear();
-		this.constraintHashes.clear();
-		this.hitRate = 0;
-		this.accessCount = 0;
-		this.hits = 0;
-	}
-
-	getStats() {
-		return {
-			hitRate: this.hitRate.toFixed(1),
-			accessCount: this.accessCount,
-			hits: this.hits,
-			cacheSize: this.compatiblePairs.size
-		};
-	}
-}
-
 // Module-level flag to prevent duplicate ruler logging
 let hasLoggedRulerInfo = false;
 
 export class CSPSolver {
 	private context: SolverContext;
 	private impossibleCombinations = new Map<string, ImpossibleCombination>();
-	private rulerViolationCount = 0;
 	private domains = new Map<string, Domain>(); // Enhanced domains with constraint influence
 	private constraints = new Map<string, Set<string>>(); // LayerId -> Set of constrained layerIds
 	private reverseConstraints = new Map<string, Set<string>>(); // LayerId -> Set of layers that constrain this layer
 	private constraintCache = new ConstraintCache(); // Smart constraint caching
-	private performanceStats = {
-		cacheHits: 0,
-		constraintChecks: 0,
-		backtracks: 0,
-		ac3Iterations: 0,
-		earlyTerminations: 0,
-		constraintCacheHits: 0
-	};
+	private stats = new SolverStats();
 	private maxCacheSize = 1000;
 	private constraintOrdering: Arc[] = []; // Pre-ordered constraints for faster processing
 	private layerTraitIdToIndex = new Map<string, Map<string, number>>(); // layerId -> traitId -> numericId (0-255)
@@ -184,6 +141,7 @@ export class CSPSolver {
 		// Reset domains and selected traits for a fresh solve attempt
 		this.initializeDomains();
 		this.context.selectedTraits.clear();
+		this.stats.start();
 
 		const startTime = Date.now();
 		const layerCount = this.context.layers.length;
@@ -215,13 +173,13 @@ export class CSPSolver {
 
 		// Log performance stats for debugging (simplified)
 		if (Date.now() - startTime > 50) {
-			const stats = this.performanceStats;
+			const stats = this.stats;
 			logger.debug(
 				`🚀 CSP: ${Date.now() - startTime}ms, ` +
 					`checks: ${stats.constraintChecks}, ` +
 					`backtracks: ${stats.backtracks}, ` +
 					`cache: ${stats.constraintCacheHits} (${this.constraintCache.getStats().hitRate}%), ` +
-					`ruler violations: ${this.rulerViolationCount}, ` +
+					`ruler violations: ${this.stats.rulerViolations}, ` +
 					`result: ${result ? 'SUCCESS' : 'FAILED'}`
 			);
 		} else {
@@ -237,7 +195,7 @@ export class CSPSolver {
 	 * Get the total number of ruler violations detected during solving
 	 */
 	getRulerViolationCount(): number {
-		return this.rulerViolationCount;
+		return this.stats.rulerViolations;
 	}
 
 	/**
@@ -374,18 +332,18 @@ export class CSPSolver {
 		// Process arcs until queue is empty with early termination
 		while (queue.length > 0) {
 			const arc = queue.shift()!;
-			this.performanceStats.ac3Iterations++;
+			this.stats.ac3Iterations++;
 
 			// Adaptive iteration limit based on problem complexity.
 			// Simple problems converge in O(layers × traits), complex ruler constraints need more.
 			const totalTraits = this.context.layers.reduce((sum, l) => sum + l.traits.length, 0);
 			const iterationLimit = Math.max(this.context.layers.length * totalTraits * 2, 10000);
 
-			if (this.performanceStats.ac3Iterations > iterationLimit) {
+			if (this.stats.ac3Iterations > iterationLimit) {
 				// Reset cache instead of abrupt break — may recover from false loop detection
 				this.constraintCache.clear();
-				this.performanceStats.ac3Iterations = 0;
-				this.performanceStats.earlyTerminations++;
+				this.stats.ac3Iterations = 0;
+				this.stats.earlyTerminations++;
 			}
 
 			// If domain was revised (values removed), add affected arcs back to queue
@@ -442,7 +400,7 @@ export class CSPSolver {
 				arc.toLayerId
 			);
 			if (cachedCompatible !== undefined) {
-				this.performanceStats.constraintCacheHits++;
+				this.stats.constraintCacheHits++;
 				// Use cached compatible traits
 				return toDomain.availableTraits.some((toTrait) => cachedCompatible.has(toTrait.id));
 			}
@@ -490,7 +448,7 @@ export class CSPSolver {
 		traitB: TransferrableTrait,
 		layerIdB: string
 	): boolean {
-		this.performanceStats.constraintChecks++;
+		this.stats.constraintChecks++;
 
 		// Check if traitA constrains traitB
 		if (traitA.type === 'ruler' && traitA.rulerRules) {
@@ -498,13 +456,13 @@ export class CSPSolver {
 			if (rule) {
 				// Check forbidden list
 				if (rule.forbiddenTraitIds.includes(traitB.id)) {
-					this.rulerViolationCount++;
+					this.stats.rulerViolations++;
 					return false;
 				}
 				// Check allowed list (whitelist) - only if it's explicitly defined
 				// If allowedTraitIds is empty, it means "allow all" (except forbidden ones)
 				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitB.id)) {
-					this.rulerViolationCount++;
+					this.stats.rulerViolations++;
 					return false;
 				}
 			}
@@ -516,13 +474,13 @@ export class CSPSolver {
 			if (rule) {
 				// Check forbidden list
 				if (rule.forbiddenTraitIds.includes(traitA.id)) {
-					this.rulerViolationCount++;
+					this.stats.rulerViolations++;
 					return false;
 				}
 				// Check allowed list (whitelist) - only if it's explicitly defined
 				// If allowedTraitIds is empty, it means "allow all" (except forbidden ones)
 				if (rule.allowedTraitIds.length > 0 && !rule.allowedTraitIds.includes(traitA.id)) {
-					this.rulerViolationCount++;
+					this.stats.rulerViolations++;
 					return false;
 				}
 			}
@@ -544,7 +502,7 @@ export class CSPSolver {
 		const cacheKey = this.getAssignmentKey();
 		const cached = this.impossibleCombinations.get(cacheKey);
 		if (cached) {
-			this.performanceStats.cacheHits++;
+			this.stats.cacheHits++;
 			return null;
 		}
 
@@ -614,7 +572,7 @@ export class CSPSolver {
 
 		// Cache this impossible combination to avoid retrying
 		this.cacheImpossibleCombination(cacheKey, 'no_valid_combination');
-		this.performanceStats.backtracks++;
+		this.stats.backtracks++;
 
 		return null;
 	}
@@ -977,10 +935,18 @@ export class CSPSolver {
 	}
 
 	/**
-	 * Get performance statistics for monitoring (useful for debugging)
+	 * Get performance statistics for monitoring.
+	 * Returns a snapshot — not a reference to internal state.
 	 */
-	public getPerformanceStats() {
-		return { ...this.performanceStats };
+	public getStats(): SolverStatsSnapshot {
+		return this.stats.snapshot();
+	}
+
+	/**
+	 * @deprecated Use {@link getStats}
+	 */
+	public getPerformanceStats(): SolverStatsSnapshot {
+		return this.stats.snapshot();
 	}
 
 	/**
@@ -992,14 +958,7 @@ export class CSPSolver {
 		this.constraints.clear();
 		this.constraintCache.clear();
 		this.domainChangeStack = [];
-		this.performanceStats = {
-			cacheHits: 0,
-			constraintChecks: 0,
-			backtracks: 0,
-			ac3Iterations: 0,
-			earlyTerminations: 0,
-			constraintCacheHits: 0
-		};
+		this.stats.start();
 		this.constraintOrdering = [];
 	}
 }

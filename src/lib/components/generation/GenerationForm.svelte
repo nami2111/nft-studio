@@ -1,33 +1,32 @@
 <script lang="ts">
-	import { project } from '$lib/stores';
+	import { useProjectStore, useGenerationStore } from '$lib/stores/facades';
 	import { runGeneration, cancelGeneration, type GenerationConfig, type GenerationCallbacks } from '$lib/domain/worker.service';
 	import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
-	import { getErrorInfo } from '$lib/utils/typed-errors';
-	import {
-		generationState,
-		startGeneration,
-		pauseGeneration,
-		completeGeneration,
-		resetState,
-		updateProgress,
-		addPreviews,
-		handleError
-	} from '$lib/stores/generation-progress.svelte';
+	import { isFlagEnabled } from '$lib/config/feature-flags';
+	import { formatStorageBytes, getStoragePressure } from '$lib/storage/capabilities';
 	import { MetadataStandard } from '$lib/domain/metadata/strategies';
+	import type { Layer } from '$lib/types/layer';
 	import { onDestroy } from 'svelte';
 	import GenerationProgress from './GenerationProgress.svelte';
 	import GenerationControls from './GenerationControls.svelte';
+
+	const projectStore = useProjectStore();
+	const generationStore = useGenerationStore();
 
 	// ─── Local UI state ──────────────────────────────────────
 	let collectionSize = $state<number | null>(100);
 	let isComponentDestroyed = $state(false);
 
+	const ESTIMATED_METADATA_BYTES_PER_ITEM = 4096;
+	const SAMPLING_IMAGE_COUNT = 3;
+	const SAMPLING_FALLBACK_BYTES_PER_PIXEL = 0.4;
+
 	// ─── Derived state from store ────────────────────────────
-	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
-	const isBackground = $derived(generationState.isBackground);
-	const isPaused = $derived(generationState.isPaused);
-	const previews = $derived(generationState.previews);
+	const isGenerating = $derived(generationStore.state.isGenerating && !generationStore.state.isBackground);
+	const isBackground = $derived(generationStore.state.isBackground);
+	const isPaused = $derived(generationStore.state.isPaused);
+	const previews = $derived(generationStore.state.previews);
 
 	// ─── Lifecycle ───────────────────────────────────────────
 	onDestroy(() => {
@@ -39,11 +38,11 @@
 		}
 
 		// Move to background if still generating
-		if (generationState.isGenerating && !generationState.isBackground) {
-			pauseGeneration('Component unmounted — continuing in background');
+		if (generationStore.state.isGenerating && !generationStore.state.isBackground) {
+			generationStore.actions.pauseGeneration('Component unmounted — continuing in background');
 			setTimeout(() => {
 				if (generationState.isGenerating && isComponentDestroyed) {
-					resetState();
+					generationStore.actions.resetState();
 				}
 			}, 600_000);
 		}
@@ -53,7 +52,7 @@
 	function buildCallbacks(): GenerationCallbacks {
 		return {
 			onProgress(msg: ProgressMessage) {
-				updateProgress(msg);
+				generationStore.actions.updateProgress(msg);
 
 				// If in background mode, skip UI feedback
 				if (isComponentDestroyed) return;
@@ -63,7 +62,7 @@
 
 			onPreview(newPreviews: { index: number; url: string }[]) {
 				if (!isComponentDestroyed) {
-					addPreviews(newPreviews);
+					generationStore.actions.addPreviews(newPreviews);
 				}
 			},
 
@@ -71,11 +70,11 @@
 				showSuccess('Generation complete', {
 					description: 'Your download has started.'
 				});
-				completeGeneration();
+				generationStore.actions.completeGeneration();
 			},
 
 			onError(error: Error) {
-				handleError({
+				generationStore.actions.handleError({
 					type: 'error',
 					payload: { message: error.message }
 				} as ErrorMessage);
@@ -87,19 +86,126 @@
 
 			onCancelled() {
 				showInfo('Generation has been cancelled.');
-				resetState();
+				generationStore.actions.resetState();
 			}
 		};
+	}
+
+	/**
+	 * Generate sample composite images and measure actual PNG sizes to estimate
+	 * total storage needed. Falls back to a conservative constant if sampling fails.
+	 */
+	async function estimateGenerationStorageBytesBySampling(
+		layers: Layer[],
+		outputSize: { width: number; height: number },
+		totalItems: number
+	): Promise<number> {
+		const sortedLayers = [...layers].sort((a, b) => a.order - b.order);
+		const sampleCombos: { order: number; imageData: ArrayBuffer }[][] = [];
+
+		for (let s = 0; s < SAMPLING_IMAGE_COUNT; s++) {
+			const combo: { order: number; imageData: ArrayBuffer }[] = [];
+			for (const layer of sortedLayers) {
+				if (layer.traits.length === 0) continue;
+				const traitIdx = s % layer.traits.length;
+				const trait = layer.traits[traitIdx];
+				combo.push({ order: layer.order, imageData: trait.imageData });
+			}
+			sampleCombos.push(combo);
+		}
+
+		const canvas = document.createElement('canvas');
+		canvas.width = outputSize.width;
+		canvas.height = outputSize.height;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) {
+			const fallbackBytes =
+				outputSize.width * outputSize.height * SAMPLING_FALLBACK_BYTES_PER_PIXEL * totalItems;
+			return fallbackBytes + ESTIMATED_METADATA_BYTES_PER_ITEM * totalItems;
+		}
+
+		let totalImageBytes = 0;
+		let validSamples = 0;
+
+		for (const combo of sampleCombos) {
+			try {
+				ctx.clearRect(0, 0, outputSize.width, outputSize.height);
+
+				const sortedCombo = combo.sort((a, b) => a.order - b.order);
+				for (const item of sortedCombo) {
+					const blob = new Blob([item.imageData], { type: 'image/png' });
+					const bitmap = await createImageBitmap(blob);
+					ctx.drawImage(bitmap, 0, 0, outputSize.width, outputSize.height);
+					bitmap.close();
+				}
+
+				const blobSize = await new Promise<number>((resolve) => {
+					canvas.toBlob((blob) => resolve(blob?.size ?? 0), 'image/png');
+				});
+
+				if (blobSize > 100) {
+					totalImageBytes += blobSize;
+					validSamples++;
+				}
+			} catch {
+				// Skip failed sample
+			}
+		}
+
+		const avgBytesPerImage =
+			validSamples > 0
+				? totalImageBytes / validSamples
+				: outputSize.width * outputSize.height * SAMPLING_FALLBACK_BYTES_PER_PIXEL;
+
+		const imageBytes = avgBytesPerImage * totalItems;
+		const metadataBytes = ESTIMATED_METADATA_BYTES_PER_ITEM * totalItems;
+		return imageBytes + metadataBytes;
+	}
+
+	async function hasStorageHeadroomForGeneration(
+		layers: Layer[],
+		outputSize: { width: number; height: number },
+		totalItems: number
+	): Promise<boolean> {
+		if (!isFlagEnabled('enableStreamingStorage')) {
+			return true;
+		}
+
+		const estimatedBytes = await estimateGenerationStorageBytesBySampling(
+			layers,
+			outputSize,
+			totalItems
+		);
+		const pressure = await getStoragePressure(estimatedBytes, { headroomMultiplier: 1.25 });
+
+		if (pressure.status === 'unknown') {
+			return true;
+		}
+
+		if (pressure.status === 'insufficient') {
+			showWarning('Insufficient storage', {
+				description: `This generation may need about ${formatStorageBytes(pressure.bytesNeeded)} but only ${formatStorageBytes(pressure.availableBytes)} is available. Free up disk space and try again.`
+			});
+			return false;
+		}
+
+		if (pressure.status === 'low') {
+			showWarning('Low storage space', {
+				description: `This generation may need about ${formatStorageBytes(pressure.bytesNeeded)}. Only ${formatStorageBytes(pressure.availableBytes)} is currently available, so generation may fail if storage fills up.`
+			});
+		}
+
+		return true;
 	}
 
 	// ─── Generate ────────────────────────────────────────────
 	async function handleGenerate(event?: MouseEvent) {
 		if (event) event.preventDefault();
 
-		resetState();
+		generationStore.actions.resetState();
 
 		try {
-			const projectData = project;
+			const projectData = projectStore.state;
 
 			// Validate project
 			if (projectData.layers.length === 0) {
@@ -122,20 +228,24 @@
 				showWarning('Missing image data. Please upload images for all traits.', { description: 'Validation Error' });
 				return;
 			}
+			const totalItems = collectionSize || 100;
+			if (!(await hasStorageHeadroomForGeneration(projectData.layers, projectData.outputSize, totalItems))) {
+				return;
+			}
 
 			// Start generation state
-			startGeneration({
+			generationStore.actions.startGeneration({
 				projectName: projectData.name || 'Untitled Collection',
 				projectDescription: projectData.description || '',
 				outputSize: projectData.outputSize,
 				layers: projectData.layers,
-				collectionSize: collectionSize || 100
+				collectionSize: totalItems
 			});
 
 			// Build config
 			const config: GenerationConfig = {
 				layers: projectData.layers,
-				collectionSize: collectionSize || 100,
+				collectionSize: totalItems,
 				outputSize: projectData.outputSize,
 				projectName: projectData.name || 'Untitled Collection',
 				projectDescription: projectData.description || '',

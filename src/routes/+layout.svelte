@@ -11,12 +11,25 @@
 	import WindowControls from '$lib/components/shared/WindowControls.svelte';
 	import SecurityPolicies from '$lib/components/project/SecurityPolicies.svelte';
 	import { setupSessionCleanup } from '$lib/utils/session-cleanup';
+	import {
+		createProjectFacade,
+		createGalleryFacade,
+		createGenerationFacade,
+		setProjectStoreContext,
+		setGalleryStoreContext,
+		setGenerationStoreContext
+	} from '$lib/stores/facades';
 
 	interface Props {
 		children?: Snippet;
 	}
 
 	const { children }: Props = $props();
+
+	// Set up store facades in context
+	setProjectStoreContext(createProjectFacade());
+	setGalleryStoreContext(createGalleryFacade());
+	setGenerationStoreContext(createGenerationFacade());
 
 	onMount(() => {
 		setupSessionCleanup();

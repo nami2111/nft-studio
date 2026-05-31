@@ -1,6 +1,9 @@
 /**
  * Enhanced Resource Management with Advanced Caching
- * Handles object URLs, caching, and intelligent memory management
+ * Handles object URLs, caching, and intelligent memory management.
+ *
+ * Memory pressure detection is delegated to {@link MemoryPressureMonitor}.
+ * This class owns the caches and the cleanup policy; the monitor decides when.
  */
 
 import { MEMORY, TIME } from '$lib/config/constants';
@@ -12,6 +15,7 @@ import {
 } from '$lib/utils/advanced-cache';
 import { formatFileSize } from '$lib/utils/formatters';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
+import { type CleanupIntensity, MemoryPressureMonitor } from './memory-pressure-monitor';
 
 export interface CacheConfig {
 	imageBitmap?: {
@@ -42,12 +46,8 @@ export class ResourceManager {
 		cacheMisses: 0,
 		memoryUsage: 0
 	};
-	private memoryPressureListener?: (event: Event) => void;
-	private cleanupTimeout: number | null = null;
+	private pressureMonitor: MemoryPressureMonitor;
 	private metricsCollectionInterval: number | null = null;
-	private memoryPressureInterval: number | null = null;
-	private componentCount = 0;
-	private cleanupCallback: (() => void) | null = null;
 
 	constructor(config: CacheConfig = {}) {
 		// Initialize specialized caches with optimized defaults
@@ -72,31 +72,18 @@ export class ResourceManager {
 			evictionPolicy: 'lru'
 		});
 
-		// Set up memory pressure event handling for proactive cleanup
-		this.setupMemoryPressureHandling();
+		// Delegate pressure detection to monitor — this class owns the cleanup policy
+		this.pressureMonitor = new MemoryPressureMonitor({
+			getCurrentUsageBytes: () => this.getCacheMetrics().overall.totalMemoryUsage,
+			onCleanup: (intensity) => this.handlePressureCleanup(intensity)
+		});
+		this.pressureMonitor.start();
 
-		// Set up periodic cache metrics collection
 		this.setupCacheMetricsCollection();
 	}
 
 	/**
-	 * Bind this ResourceManager to a component lifecycle
-	 * Call onMount in your component and pass the returned cleanup function to onDestroy
-	 */
-	setupLifecycle(onDestroy: () => void): () => void {
-		this.componentCount++;
-		return () => {
-			onDestroy();
-			this.componentCount--;
-			// If no components remain, perform cleanup
-			if (this.componentCount <= 0) {
-				this.performFullCleanup();
-			}
-		};
-	}
-
-	/**
-	 * Perform full cleanup when last component unmounts
+	 * Perform full cleanup when manager is destroyed
 	 */
 	private performFullCleanup(): void {
 		if (import.meta.env.DEV)
@@ -105,73 +92,21 @@ export class ResourceManager {
 	}
 
 	/**
-	 * Set up memory pressure event handling
+	 * Handle cleanup at varying intensity. Triggered by MemoryPressureMonitor.
+	 * Owns the policy: how many object URLs to evict at each level.
 	 */
-	private setupMemoryPressureHandling(): void {
-		if (typeof window === 'undefined') return;
+	private handlePressureCleanup(intensity: CleanupIntensity): void {
+		const fraction = intensity === 'aggressive' ? 0.2 : intensity === 'moderate' ? 0.1 : 0.05;
+		const cap = intensity === 'aggressive' ? 50 : intensity === 'moderate' ? 25 : 10;
 
-		this.memoryPressureListener = () => {
-			console.warn('Memory pressure detected, performing emergency cleanup');
-			this.handleMemoryPressure();
-		};
+		const urlsToClean = Math.min(this.objectUrls.size * fraction, cap);
+		const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
+		urlArray.forEach((url) => this.removeObjectUrl(url));
 
-		// Listen for memory pressure events (supported in some browsers)
-		if (typeof window !== 'undefined' && 'addEventListener' in window) {
-			window.addEventListener('memorypressure', this.memoryPressureListener);
-
-			// Also add a periodic cleanup check every 5 minutes
-			this.memoryPressureInterval = window.setInterval(
-				() => {
-					this.performPeriodicCleanup();
-				},
-				5 * 60 * 1000
-			);
+		if (intensity !== 'light') {
+			console.warn(`Memory pressure cleanup completed: ${intensity}`);
 		}
-	}
-
-	/**
-	 * Handle memory pressure by evicting cached resources
-	 */
-	private handleMemoryPressure(): void {
-		const currentUsage = this.getCacheMetrics().overall.totalMemoryUsage;
-
-		// If using more than 100MB, start aggressive cleanup
-		if (currentUsage > 100 * 1024 * 1024) {
-			// Clean up some object URLs
-			const urlsToClean = Math.min(this.objectUrls.size * 0.2, 50);
-			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
-			urlArray.forEach((url) => this.removeObjectUrl(url));
-
-			console.warn('Memory pressure cleanup completed: aggressive');
-		}
-		// If using more than 50MB, do moderate cleanup
-		else if (currentUsage > 50 * 1024 * 1024) {
-			// Clean up fewer object URLs
-			const urlsToClean = Math.min(this.objectUrls.size * 0.1, 25);
-			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
-			urlArray.forEach((url) => this.removeObjectUrl(url));
-
-			console.warn('Memory pressure cleanup completed: moderate');
-		}
-
 		this.updateMetrics();
-	}
-
-	/**
-	 * Perform periodic cleanup to prevent memory buildup
-	 */
-	private performPeriodicCleanup(): void {
-		const currentUsage = this.getCacheMetrics().overall.totalMemoryUsage;
-
-		// If using more than 20MB, perform light cleanup
-		if (currentUsage > 20 * 1024 * 1024) {
-			// Clean up some object URLs
-			const urlsToClean = Math.min(this.objectUrls.size * 0.05, 10);
-			const urlArray = Array.from(this.objectUrls).slice(0, urlsToClean);
-			urlArray.forEach((url) => this.removeObjectUrl(url));
-
-			this.updateMetrics();
-		}
 	}
 
 	/**
@@ -254,21 +189,7 @@ export class ResourceManager {
 	 * Destroy all resources and caches
 	 */
 	destroy(): void {
-		// Clean up event listeners and intervals
-		if (this.memoryPressureListener && typeof window !== 'undefined') {
-			window.removeEventListener('memorypressure', this.memoryPressureListener);
-			this.memoryPressureListener = undefined;
-		}
-
-		if (this.cleanupTimeout) {
-			clearInterval(this.cleanupTimeout);
-			this.cleanupTimeout = null;
-		}
-
-		if (this.memoryPressureInterval) {
-			clearInterval(this.memoryPressureInterval);
-			this.memoryPressureInterval = null;
-		}
+		this.pressureMonitor.stop();
 
 		if (this.metricsCollectionInterval) {
 			clearInterval(this.metricsCollectionInterval);

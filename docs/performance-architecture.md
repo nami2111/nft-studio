@@ -149,15 +149,15 @@ Project Validation ──► CSP Solving (AC-3 + MRV + Weighted Random)
                      │              │
                      └──────┬───────┘
                             ▼
-                    ZIP Export / IndexedDB Stream
+                    ZIP Export / Storage Stream
 ```
 
 ### Streaming Storage Mode
 
 When `enableStreamingStorage` is enabled:
 
-1. Each completed item is immediately written to IndexedDB
-2. ZIP creation reads from IndexedDB instead of memory
+1. Each completed item is immediately written to browser storage
+2. ZIP creation reads from storage instead of memory
 3. Peak memory usage reduced by 60-80% for large collections
 
 ## ZIP Export Pipeline
@@ -169,7 +169,7 @@ When `enableStreamingStorage` is enabled:
 | 3001+ items     | Multi-ZIP       | Split into multiple 1GB ZIP files                                          |
 | ≥ 500 items     | Worker Offload  | Dedicated one-shot ZIP Web Worker (if `enableZipWorkerOffloading` enabled) |
 | During gen      | Streaming ZIP   | Persistent worker accumulates chunks, flushes at 700MB raw                 |
-| IndexedDB mode  | Batch packaging | 500MB-bounded ZIP batches read from IndexedDB post-gen                     |
+| Storage stream  | Batch packaging | 500MB-bounded ZIP batches read from storage post-gen                       |
 
 ### ZIP Worker Volume Management
 

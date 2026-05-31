@@ -12,7 +12,6 @@
 	import CollectionStats from '$lib/components/gallery/CollectionStats.svelte';
 	import ItemDetail from '$lib/components/gallery/ItemDetail.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { clearAllCollections } from '$lib/utils/gallery-db';
 
 	const isLoading = $derived(galleryStore.isLoading);
 	const collections = $derived(galleryStore.collections);
@@ -99,14 +98,14 @@
 		selectedTraits = {};
 	}
 
-	function forceClearCache() {
+	async function forceClearCache() {
 		imageUrlCache.clear();
-		galleryStore.clearGallery();
+		await galleryStore.clearGallery();
 		window.location.reload();
 	}
 
 	onMount(() => {
-		clearAllCollections();
+		void galleryStore.loadFromStorage();
 	});
 </script>
 

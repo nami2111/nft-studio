@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 import { render, screen, cleanup } from '@testing-library/svelte';
 import RaritySlider from './RaritySlider.svelte';
 import { updateTraitRarity } from '$lib/stores';
-import { createLayerId, createTraitId } from '$lib/types/ids';
+import { unsafeCreateLayerId, unsafeCreateTraitId } from '$lib/types/ids';
 
 // Mock the updateTraitRarity function
 vi.mock('$lib/stores', () => ({
@@ -19,8 +19,8 @@ describe('RaritySlider', () => {
 	});
 	const mockLayerId = 'layer-1';
 	const mockTraitId = 'trait-1';
-	const layerIdTyped = createLayerId(mockLayerId);
-	const traitIdTyped = createTraitId(mockTraitId);
+	const layerIdTyped = unsafeCreateLayerId(mockLayerId);
+	const traitIdTyped = unsafeCreateTraitId(mockTraitId);
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -35,7 +35,7 @@ describe('RaritySlider', () => {
 			}
 		});
 
-		expect(screen.getByText('Epic')).toBeInTheDocument();
+		expect(screen.getByTestId('rarity-value')).toHaveTextContent('Epic');
 		expect(screen.getByTestId('rarity-slider')).toHaveAttribute('data-rarity', '3');
 	});
 

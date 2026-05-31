@@ -1,52 +1,52 @@
-import type { MetadataStrategy, GeneratedMetadata, MetadataAttribute } from './metadata.strategy';
+import { BaseMetadataStrategy } from './base.strategy';
+import type { GeneratedMetadata, MetadataAttribute, MetadataStrategy } from './metadata.strategy';
 import { MetadataStandard } from './metadata.strategy';
 
 export { MetadataStandard };
 
-export class ERC721Strategy implements MetadataStrategy {
+export class ERC721Strategy extends BaseMetadataStrategy {
 	name = MetadataStandard.ERC721;
 	description =
 		'Standard ERC-721 metadata format compatible with OpenSea and most EVM marketplaces.';
 
-	format(
+	protected buildPayload(
 		name: string,
 		description: string,
 		imageName: string,
 		attributes: MetadataAttribute[],
-		extraData?: Record<string, unknown>
+		extraData: Record<string, unknown>
 	): GeneratedMetadata {
 		return {
 			name,
 			description,
 			image: imageName,
-			external_url: extraData?.external_url as string | undefined,
-			animation_url: extraData?.animation_url as string | undefined,
-			youtube_url: extraData?.youtube_url as string | undefined,
-			background_color: extraData?.background_color as string | undefined,
-			attributes,
-			...extraData
+			external_url: extraData.external_url as string | undefined,
+			animation_url: extraData.animation_url as string | undefined,
+			youtube_url: extraData.youtube_url as string | undefined,
+			background_color: extraData.background_color as string | undefined,
+			attributes
 		};
 	}
 }
 
-export class SolanaStrategy implements MetadataStrategy {
+export class SolanaStrategy extends BaseMetadataStrategy {
 	name = MetadataStandard.SOLANA;
 	description =
 		'Metaplex standard for Solana, including symbol, seller_fee_basis_points, and properties.';
 
-	format(
+	protected buildPayload(
 		name: string,
 		description: string,
 		imageName: string,
 		attributes: MetadataAttribute[],
-		extraData?: Record<string, unknown>
+		extraData: Record<string, unknown>
 	): GeneratedMetadata {
-		const symbol = (extraData?.symbol as string) || '';
-		const sellerFeeBasisPoints = (extraData?.seller_fee_basis_points as number) || 0;
+		const symbol = (extraData.symbol as string) || '';
+		const sellerFeeBasisPoints = (extraData.seller_fee_basis_points as number) || 0;
 		const creators =
-			(extraData?.creators as Array<{ address?: string; share?: number } | string>) || [];
-		const collection = (extraData?.collection as Record<string, unknown>) || {};
-		const externalUrl = (extraData?.external_url as string) || '';
+			(extraData.creators as Array<{ address?: string; share?: number } | string>) || [];
+		const collection = (extraData.collection as Record<string, unknown>) || {};
+		const externalUrl = (extraData.external_url as string) || '';
 
 		return {
 			name,
@@ -59,15 +59,12 @@ export class SolanaStrategy implements MetadataStrategy {
 			collection,
 			properties: {
 				files: [
-					{
-						uri: imageName,
-						type: 'image/png'
-					},
-					...(extraData?.animation_url
+					{ uri: imageName, type: 'image/png' },
+					...(extraData.animation_url
 						? [{ uri: extraData.animation_url as string, type: 'video/mp4' }]
 						: [])
 				],
-				category: extraData?.animation_url ? 'video' : 'image',
+				category: extraData.animation_url ? 'video' : 'image',
 				creators: creators.map((c) => {
 					if (typeof c === 'string') {
 						return { address: c, share: 100 };
@@ -77,8 +74,7 @@ export class SolanaStrategy implements MetadataStrategy {
 						share: c.share !== undefined ? c.share : 100
 					};
 				})
-			},
-			...extraData
+			}
 		};
 	}
 }

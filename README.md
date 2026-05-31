@@ -8,7 +8,7 @@ Browser-based generative art collection designer. Built with SvelteKit 2, Svelte
 - **Trait System** — Rarity weights (1-5), Ruler Traits for compatibility rules, Strict Pair mode
 - **Real-time Preview** — Canvas preview with debounced updates and intelligent caching
 - **High-Performance Generation** — Up to 10,000 unique items via Web Worker pool with CSP solving
-- **Smart Export** — Streaming ZIP, optimized chunking, multi-ZIP, and IndexedDB batch packaging
+- **Smart Export** — Streaming ZIP, optimized chunking, multi-ZIP, and storage-backed batch packaging
 - **Three-Tier Caching** — ImageBitmap / ImageData / ArrayBuffer with LRU eviction
 - **Virtual Gallery** — Interactive trait filtering, rarity calculation, ZIP import
 - **PWA Support** — Installable app with offline capabilities
@@ -16,16 +16,16 @@ Browser-based generative art collection designer. Built with SvelteKit 2, Svelte
 
 ## Tech Stack
 
-| Category    | Technologies                                                |
-| ----------- | ----------------------------------------------------------- |
-| Frontend    | SvelteKit 2, Svelte 5 (runes), TypeScript                   |
-| Styling     | Tailwind CSS 4, NeoBr-UI, lucide-svelte                     |
-| Workers     | Multi-worker pool with dynamic scaling, work-stealing       |
-| Storage     | IndexedDB (gallery), LocalStorage (project settings), JSZip |
-| Validation  | Zod v4 schemas with branded types                           |
-| Testing     | Vitest 4 + jsdom, @testing-library/svelte                   |
-| Lint/Format | Oxlint + Oxfmt (via Vite+)                                  |
-| Deployment  | Juno (ICP static hosting)                                   |
+| Category    | Technologies                                                       |
+| ----------- | ------------------------------------------------------------------ |
+| Frontend    | SvelteKit 2, Svelte 5 (runes), TypeScript                          |
+| Styling     | Tailwind CSS 4, NeoBr-UI, lucide-svelte                            |
+| Workers     | Multi-worker pool with dynamic scaling, work-stealing              |
+| Storage     | OPFS-backed object storage, LocalStorage (project settings), JSZip |
+| Validation  | Zod v4 schemas with branded types                                  |
+| Testing     | Vitest 4 + jsdom, @testing-library/svelte                          |
+| Lint/Format | Oxlint + Oxfmt (via Vite+)                                         |
+| Deployment  | Juno (ICP static hosting)                                          |
 
 ## Getting Started
 
@@ -61,7 +61,7 @@ src/
 ├── lib/
 │   ├── components/    # UI: layer/, preview/, ui/ (NeoBr-UI wrappers)
 │   ├── domain/        # Business logic + Zod validation schemas
-│   ├── persistence/   # IndexedDB + LocalStorage abstraction
+│   ├── persistence/   # Object storage + LocalStorage abstraction
 │   ├── services/      # Application services (persistence, export, validation)
 │   ├── stores/        # Svelte 5 rune stores (*.svelte.ts)
 │   ├── types/         # Branded types (ProjectId, LayerId, TraitId)
@@ -93,10 +93,12 @@ GNStudio follows a layered, performance-first architecture:
 2. **Domain Layer** — Business logic, validation, worker orchestration
 3. **Store Layer** — Reactive state with auto-persistence (500ms debounce)
 4. **Worker Layer** — Multi-worker pool with dynamic scaling and health checks
-5. **Persistence Layer** — IndexedDB + LocalStorage with three-tier caching
+5. **Persistence Layer** — OPFS-backed object storage + LocalStorage with three-tier caching
 6. **Utils Layer** — Performance monitoring, error handling, memory management
 
-**Export Pipeline**: Two paths — streaming ZIP (persistent worker, 700MB volume flush) or IndexedDB streaming (size-bounded 500MB ZIP batches). Feature flags: `enableStreamingStorage` (default on), `enableZipWorkerOffloading` (default off).
+**Export Pipeline**: Two paths — streaming ZIP (persistent worker, 700MB volume flush) or storage streaming (size-bounded 500MB ZIP batches, OPFS when available with IndexedDB fallback). Feature flags: `enableStreamingStorage` (default on), `enableZipWorkerOffloading` (default off).
+
+Browser storage is private to the current browser profile and quota-managed by the browser. Users can export projects/collections to ZIP files when they need a portable copy.
 
 For detailed architecture, see `docs/architecture-diagrams.md` and `docs/performance-architecture.md`.
 
