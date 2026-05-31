@@ -37,6 +37,7 @@ describe('generation.orchestrator', () => {
 			{
 				id: unsafeCreateLayerId('layer-1'),
 				name: 'Background',
+				order: 0,
 				traits: [
 					{
 						id: unsafeCreateTraitId('trait-1'),
@@ -55,6 +56,7 @@ describe('generation.orchestrator', () => {
 			{
 				id: unsafeCreateLayerId('layer-2'),
 				name: 'Character',
+				order: 1,
 				traits: [
 					{
 						id: unsafeCreateTraitId('trait-3'),
@@ -82,35 +84,70 @@ describe('generation.orchestrator', () => {
 
 		vi.mocked(pool.getWorkerPoolStatus).mockReturnValue({
 			totalWorkers: 4,
-			activeWorkers: 0,
-			queuedTasks: 0
+			availableWorkers: 4,
+			queuedTasks: 0,
+			activeTasks: 0,
+			workerHealth: [],
+			workerStats: [],
+			complexityBreakdown: { low: 0, medium: 0, high: 0, veryHigh: 0 }
 		});
 
 		vi.mocked(projectDomain.prepareLayersForWorker).mockResolvedValue([
 			{
-				id: 'layer-1',
+				id: unsafeCreateLayerId('layer-1'),
 				name: 'Background',
+				order: 0,
 				traits: [
-					{ id: 'trait-1', name: 'Blue', imageData: new ArrayBuffer(100), rarityWeight: 5 },
-					{ id: 'trait-2', name: 'Red', imageData: new ArrayBuffer(100), rarityWeight: 5 }
+					{
+						id: unsafeCreateTraitId('trait-1'),
+						name: 'Blue',
+						imageData: new ArrayBuffer(100),
+						rarityWeight: 5
+					},
+					{
+						id: unsafeCreateTraitId('trait-2'),
+						name: 'Red',
+						imageData: new ArrayBuffer(100),
+						rarityWeight: 5
+					}
 				]
 			},
 			{
-				id: 'layer-2',
+				id: unsafeCreateLayerId('layer-2'),
 				name: 'Character',
+				order: 1,
 				traits: [
-					{ id: 'trait-3', name: 'Cat', imageData: new ArrayBuffer(100), rarityWeight: 5 },
-					{ id: 'trait-4', name: 'Dog', imageData: new ArrayBuffer(100), rarityWeight: 5 }
+					{
+						id: unsafeCreateTraitId('trait-3'),
+						name: 'Cat',
+						imageData: new ArrayBuffer(100),
+						rarityWeight: 5
+					},
+					{
+						id: unsafeCreateTraitId('trait-4'),
+						name: 'Dog',
+						imageData: new ArrayBuffer(100),
+						rarityWeight: 5
+					}
 				]
 			}
 		]);
 
-		vi.mocked(CSPSolver.prototype.solve).mockReturnValue([
-			['trait-1', 'trait-3'],
-			['trait-1', 'trait-4'],
-			['trait-2', 'trait-3'],
-			['trait-2', 'trait-4']
-		]);
+		const mockSolution = new Map<string, any>();
+		mockSolution.set(unsafeCreateLayerId('layer-1'), {
+			id: unsafeCreateTraitId('trait-1'),
+			name: 'Blue',
+			imageData: new ArrayBuffer(100),
+			rarityWeight: 5
+		});
+		mockSolution.set(unsafeCreateLayerId('layer-2'), {
+			id: unsafeCreateTraitId('trait-3'),
+			name: 'Cat',
+			imageData: new ArrayBuffer(100),
+			rarityWeight: 5
+		});
+
+		vi.mocked(CSPSolver.prototype.solve).mockReturnValue(mockSolution);
 
 		vi.mocked(pool.postMessageToPool).mockResolvedValue(undefined);
 	});
@@ -129,6 +166,7 @@ describe('generation.orchestrator', () => {
 				if (messageCallback) {
 					messageCallback({
 						type: 'complete',
+						taskId: 'test-task-id' as any,
 						payload: { images: [], metadata: [] }
 					});
 				}
@@ -152,6 +190,7 @@ describe('generation.orchestrator', () => {
 				if (messageCallback) {
 					messageCallback({
 						type: 'complete',
+						taskId: 'test-task-id' as any,
 						payload: { images: [], metadata: [] }
 					});
 				}
@@ -165,8 +204,12 @@ describe('generation.orchestrator', () => {
 		it('reinitializes pool if worker count too low', async () => {
 			vi.mocked(pool.getWorkerPoolStatus).mockReturnValue({
 				totalWorkers: 1,
-				activeWorkers: 0,
-				queuedTasks: 0
+				availableWorkers: 1,
+				queuedTasks: 0,
+				activeTasks: 0,
+				workerHealth: [],
+				workerStats: [],
+				complexityBreakdown: { low: 0, medium: 0, high: 0, veryHigh: 0 }
 			});
 
 			const promise = runGeneration(mockConfig, mockCallbacks);
@@ -176,6 +219,7 @@ describe('generation.orchestrator', () => {
 				if (messageCallback) {
 					messageCallback({
 						type: 'complete',
+						taskId: 'test-task-id' as any,
 						payload: { images: [], metadata: [] }
 					});
 				}

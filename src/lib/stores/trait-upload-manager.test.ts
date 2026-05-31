@@ -25,6 +25,7 @@ describe('TraitUploadManager', () => {
 		mockLayer = {
 			id: unsafeCreateLayerId('layer-1'),
 			name: 'Test Layer',
+			order: 0,
 			traits: []
 		};
 		vi.clearAllMocks();

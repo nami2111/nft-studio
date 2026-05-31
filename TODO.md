@@ -217,13 +217,36 @@ Single-tab UI works without these. Multi-tab fix requires pool changes.
 
 ---
 
-### Resource Manager Lifecycle
+### Resource Manager Lifecycle ✓
 
-- [ ] Replace component-counter with Svelte context per route
-- [ ] WeakMap-tracked instances for auto-cleanup
-- Files: `src/lib/stores/resource-manager.ts`, `src/routes/app/+layout.svelte`
+**Status**: Removed component counter. Added Svelte context-based lifecycle with WeakMap tracking. Public destroy() method for cleanup.
 
-### Gallery Trait Index Performance ✓
+**Files**:
+
+- `src/lib/stores/resource-manager.ts` (updated — removed componentCount, added destroy())
+- `src/lib/stores/resource-manager-context.ts` (new — context helpers)
+
+**Tasks**:
+
+- [x] Remove component-counter approach (dead code, never used)
+- [x] Add Svelte context helpers: createResourceManagerContext(), useResourceManager()
+- [x] WeakMap-tracked instances for verification
+- [x] Public destroy() method stops monitoring and clears caches
+- [x] Auto-cleanup on route unmount via onDestroy
+
+**Benefits**:
+
+- Route-scoped managers with automatic cleanup
+- No manual counter tracking (error-prone)
+- WeakMap ensures instances are GC-eligible
+- Context-based: components get manager from route layout
+- Fallback to global manager for standalone components
+
+**Usage**: Call `createResourceManagerContext('route-name')` in route +layout.svelte, components use `useResourceManager()`
+
+---
+
+### Utility Domain Reorganization
 
 **Status**: Replaced reactive SvelteMap/SvelteSet with plain Map/Set. Memoized naturalCompare(). Explicit rebuild method added.
 

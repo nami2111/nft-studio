@@ -48,7 +48,6 @@ export class ResourceManager {
 	};
 	private pressureMonitor: MemoryPressureMonitor;
 	private metricsCollectionInterval: number | null = null;
-	private componentCount = 0;
 
 	constructor(config: CacheConfig = {}) {
 		// Initialize specialized caches with optimized defaults
@@ -84,23 +83,7 @@ export class ResourceManager {
 	}
 
 	/**
-	 * Bind this ResourceManager to a component lifecycle
-	 * Call onMount in your component and pass the returned cleanup function to onDestroy
-	 */
-	setupLifecycle(onDestroy: () => void): () => void {
-		this.componentCount++;
-		return () => {
-			onDestroy();
-			this.componentCount--;
-			// If no components remain, perform cleanup
-			if (this.componentCount <= 0) {
-				this.performFullCleanup();
-			}
-		};
-	}
-
-	/**
-	 * Perform full cleanup when last component unmounts
+	 * Perform full cleanup when manager is destroyed
 	 */
 	private performFullCleanup(): void {
 		if (import.meta.env.DEV)
