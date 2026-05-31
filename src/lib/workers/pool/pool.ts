@@ -99,21 +99,11 @@ function findBestWorkerForTask(): number | null {
 }
 
 /**
- * Resolve task from pool by taskId (preferred) or workerIndex (fallback).
+ * Resolve task from pool by taskId.
+ * All task-related messages now have required taskId field.
  */
-function resolveTask(
-	messageTaskId: string | undefined,
-	workerIndex: number
-): WorkerTask | undefined {
-	if (messageTaskId && workerPool!.activeTasks.has(messageTaskId)) {
-		return workerPool!.activeTasks.get(messageTaskId);
-	}
-	for (const task of workerPool!.activeTasks.values()) {
-		if (task.assignedWorker === workerIndex) {
-			return task;
-		}
-	}
-	return undefined;
+function resolveTask(taskId: string): WorkerTask | undefined {
+	return workerPool!.activeTasks.get(taskId);
 }
 
 /**
@@ -151,9 +141,9 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	const data = event.data as OutgoingWorkerMessage;
 	const { type } = data;
 
-	if (type === 'ready') return;
+	// Control messages without taskId
+	if (type === 'ready' || type === 'pingResponse') return;
 	if (!type) return;
-	if (type === 'pingResponse') return;
 
 	if (workerIndex >= 0 && workerIndex < workerPool.workerStats.length) {
 		workerPool.workerStats[workerIndex].lastActivity = Date.now();
@@ -162,30 +152,38 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 		}
 	}
 
-	if (messageCallback) {
-		const taskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
-		let isInternal = false;
-		if (taskId && workerPool.activeTasks.has(taskId)) {
-			const task = workerPool.activeTasks.get(taskId);
-			isInternal = task?.message?.type === 'init-layers';
-		}
-		if (!isInternal) {
-			messageCallback(
-				data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-			);
-		}
-	}
+	// Task-related messages have required taskId
+	if (type === 'progress' || type === 'complete' || type === 'error' || type === 'cancelled' || type === 'preview' || type === 'chunk') {
+		const taskId = data.taskId;
 
-	if (type === 'preview') return;
-
-	if (type === 'complete' || type === 'error' || type === 'cancelled') {
-		const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
-		const task = resolveTask(messageTaskId, workerIndex);
-		if (task) {
-			finalizeTask(task, type, data, workerIndex);
+		// Forward to orchestrator callback (except internal init-layers tasks)
+		if (messageCallback) {
+			let isInternal = false;
+			if (workerPool.activeTasks.has(taskId)) {
+				const task = workerPool.activeTasks.get(taskId);
+				isInternal = task?.message?.type === 'init-layers';
+			}
+			if (!isInternal) {
+				messageCallback(
+					data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+				);
+			}
 		}
-		workerPool.workerStatus[workerIndex] = true;
-		processNextTask();
+
+		// Preview messages don't finalize tasks
+		if (type === 'preview') return;
+
+		// Finalize task on completion/error/cancellation
+		if (type === 'complete' || type === 'error' || type === 'cancelled') {
+			const task = resolveTask(taskId);
+			if (task) {
+				finalizeTask(task, type, data, workerIndex);
+			} else {
+				console.warn(`[pool] Received ${type} for unknown taskId: ${taskId}`);
+			}
+			workerPool.workerStatus[workerIndex] = true;
+			processNextTask();
+		}
 	}
 }
 

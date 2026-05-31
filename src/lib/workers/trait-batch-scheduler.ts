@@ -211,6 +211,7 @@ export class TraitBatchScheduler {
 		if (this.config.onMessage) {
 			this.config.onMessage({
 				type: 'complete',
+				taskId: '' as any, // Placeholder - orchestrator doesn't use taskId from scheduler
 				payload: {
 					images: [],
 					metadata: [],

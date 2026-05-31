@@ -41,7 +41,15 @@ import { createResultStreamer, type ResultStreamer } from './result-streamer';
 
 export interface GenerationCallbacks {
 	/** Called on every worker progress update */
-	onProgress: (msg: ProgressMessage) => void;
+	onProgress: (msg: {
+		type: 'progress';
+		payload: {
+			generatedCount: number;
+			totalCount: number;
+			statusText: string;
+			memoryUsage?: number | { used: number; available: number; units: string };
+		};
+	}) => void;
 	/** Called when live previews are available */
 	onPreview: (previews: { index: number; url: string }[]) => void;
 	/** Called when generation finishes (images & metadata are already streamed to ZIP) */

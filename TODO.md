@@ -189,12 +189,33 @@ Single-tab UI works without these. Multi-tab fix requires pool changes.
 
 ## Backlog
 
-### Worker Pool Message Type Safety
+### Worker Pool Message Type Safety ✓
 
-- [ ] Discriminated union with required `taskId` field
-- [ ] Exhaustive type guards in `resolveTask()`
-- [ ] Remove O(n) fallback scan — error on missing taskId
-- Files: `src/lib/workers/pool/pool.ts`
+**Status**: Discriminated union implemented. O(n) fallback removed. Required taskId for all worker responses.
+
+**Files**:
+
+- `src/lib/types/worker-messages.ts` (updated — separate BaseOutgoingMessage/BaseIncomingMessage)
+- `src/lib/workers/pool/pool.ts` (updated — O(1) resolveTask, exhaustive type guards)
+- `src/lib/workers/generation.worker.ts` (updated — taskId assertion)
+- `src/lib/workers/generation.orchestrator.ts` (updated — callback types)
+- `src/lib/workers/trait-batch-scheduler.ts` (updated — placeholder taskId)
+
+**Tasks**:
+
+- [x] Discriminated union with required `taskId` field for outgoing messages
+- [x] Exhaustive type guards in `handleWorkerMessage()`
+- [x] Remove O(n) fallback scan — error on missing taskId
+- [x] Separate BaseOutgoingMessage (requires taskId) from BaseIncomingMessage (optional taskId)
+
+**Benefits**:
+
+- O(1) task resolution (was O(n) fallback)
+- Type-safe message handling with exhaustive checks
+- Runtime errors prevented by required taskId
+- Clear separation: messages TO workers vs FROM workers
+
+---
 
 ### Resource Manager Lifecycle
 
