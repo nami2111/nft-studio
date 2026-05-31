@@ -1,20 +1,17 @@
 /**
  * Session Cleanup Utility
- * Clears all user data on browser tab close/refresh for privacy and storage management
+ * Clears temporary browser-session resources on tab close/refresh.
  */
 
 import { globalResourceManager } from '$lib/stores/resource-manager';
-import { SmartStorageStore } from '$lib/persistence/storage';
-
-const LOCAL_STORAGE_KEYS = ['gnstudio-project', 'gnstudio-gallery-selected-collection'];
-
-const PROJECT_STORAGE_KEY = 'gnstudio-project';
+import { cleanupStaleGenerationSessions } from './streaming-storage';
 
 let cleanupPerformed = false;
 
 export function setupSessionCleanup(): void {
 	if (typeof window === 'undefined') return;
 
+	void cleanupStaleGenerationSessions();
 	window.addEventListener('beforeunload', handlePageUnload);
 	window.addEventListener('pagehide', handlePageUnload);
 }
@@ -37,30 +34,15 @@ export async function cleanupAllData(): Promise<void> {
 	if (typeof window === 'undefined') return;
 
 	try {
-		clearLocalStorage();
-		await clearIndexedDB();
+		await clearTemporaryGenerationSessions();
 		clearResourceManager();
 	} catch (error) {
 		console.warn('Session cleanup encountered an error:', error);
 	}
 }
 
-function clearLocalStorage(): void {
-	try {
-		for (const key of LOCAL_STORAGE_KEYS) {
-			localStorage.removeItem(key);
-		}
-
-		const storage = new SmartStorageStore<unknown>(PROJECT_STORAGE_KEY);
-		storage.clear();
-	} catch (error) {
-		console.warn('Failed to clear localStorage:', error);
-	}
-}
-
-async function clearIndexedDB(): Promise<void> {
-	// Gallery data is persisted across sessions via IndexedDB.
-	// Other IndexedDB cleanup can be added here if needed in the future.
+async function clearTemporaryGenerationSessions(): Promise<void> {
+	await cleanupStaleGenerationSessions({ maxAgeMs: 0, preserveActiveWrites: false });
 }
 
 function clearResourceManager(): void {

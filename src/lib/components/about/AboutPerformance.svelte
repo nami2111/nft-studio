@@ -44,7 +44,7 @@
 										</div>
 										<div>
 											<strong class="text-foreground">Streaming Storage:</strong>
-											<p class="text-muted-foreground">Items stream to IndexedDB during generation, reducing peak memory by 60-80%.</p>
+											<p class="text-muted-foreground">Items stream to browser storage during generation, reducing peak memory by 60-80%.</p>
 										</div>
 										<div>
 											<strong class="text-foreground">ZIP Export:</strong>

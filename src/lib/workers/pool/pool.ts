@@ -73,9 +73,6 @@ function updateWorkerPerformance(
 	} else {
 		stats.averageTaskTime = stats.averageTaskTime * 0.7 + taskDuration * 0.3;
 	}
-	debugLog(
-		`Worker ${workerIndex} completed ${TaskComplexity[complexity]} task in ${taskDuration}ms (avg: ${Math.round(stats.averageTaskTime)}ms)`
-	);
 }
 
 /**
@@ -102,21 +99,11 @@ function findBestWorkerForTask(): number | null {
 }
 
 /**
- * Resolve task from pool by taskId (preferred) or workerIndex (fallback).
+ * Resolve task from pool by taskId.
+ * All task-related messages now have required taskId field.
  */
-function resolveTask(
-	messageTaskId: string | undefined,
-	workerIndex: number
-): WorkerTask | undefined {
-	if (messageTaskId && workerPool!.activeTasks.has(messageTaskId)) {
-		return workerPool!.activeTasks.get(messageTaskId);
-	}
-	for (const task of workerPool!.activeTasks.values()) {
-		if (task.assignedWorker === workerIndex) {
-			return task;
-		}
-	}
-	return undefined;
+function resolveTask(taskId: string): WorkerTask | undefined {
+	return workerPool!.activeTasks.get(taskId);
 }
 
 /**
@@ -154,9 +141,9 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	const data = event.data as OutgoingWorkerMessage;
 	const { type } = data;
 
-	if (type === 'ready') return;
+	// Control messages without taskId
+	if (type === 'ready' || type === 'pingResponse') return;
 	if (!type) return;
-	if (type === 'pingResponse') return;
 
 	if (workerIndex >= 0 && workerIndex < workerPool.workerStats.length) {
 		workerPool.workerStats[workerIndex].lastActivity = Date.now();
@@ -165,30 +152,38 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 		}
 	}
 
-	if (messageCallback) {
-		const taskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
-		let isInternal = false;
-		if (taskId && workerPool.activeTasks.has(taskId)) {
-			const task = workerPool.activeTasks.get(taskId);
-			isInternal = task?.message?.type === 'init-layers';
-		}
-		if (!isInternal) {
-			messageCallback(
-				data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-			);
-		}
-	}
+	// Task-related messages have required taskId
+	if (type === 'progress' || type === 'complete' || type === 'error' || type === 'cancelled' || type === 'preview' || type === 'chunk') {
+		const taskId = data.taskId;
 
-	if (type === 'preview') return;
-
-	if (type === 'complete' || type === 'error' || type === 'cancelled') {
-		const messageTaskId = (data as OutgoingWorkerMessage & { taskId?: string }).taskId;
-		const task = resolveTask(messageTaskId, workerIndex);
-		if (task) {
-			finalizeTask(task, type, data, workerIndex);
+		// Forward to orchestrator callback (except internal init-layers tasks)
+		if (messageCallback) {
+			let isInternal = false;
+			if (workerPool.activeTasks.has(taskId)) {
+				const task = workerPool.activeTasks.get(taskId);
+				isInternal = task?.message?.type === 'init-layers';
+			}
+			if (!isInternal) {
+				messageCallback(
+					data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
+				);
+			}
 		}
-		workerPool.workerStatus[workerIndex] = true;
-		processNextTask();
+
+		// Preview messages don't finalize tasks
+		if (type === 'preview') return;
+
+		// Finalize task on completion/error/cancellation
+		if (type === 'complete' || type === 'error' || type === 'cancelled') {
+			const task = resolveTask(taskId);
+			if (task) {
+				finalizeTask(task, type, data, workerIndex);
+			} else {
+				console.warn(`[pool] Received ${type} for unknown taskId: ${taskId}`);
+			}
+			workerPool.workerStatus[workerIndex] = true;
+			processNextTask();
+		}
 	}
 }
 
@@ -289,7 +284,6 @@ async function addSingleWorker(): Promise<void> {
  */
 async function addWorkers(count: number): Promise<void> {
 	if (!workerPool) return;
-	debugLog(`Adding ${count} worker(s) to pool`);
 	const promises: Promise<void>[] = [];
 	for (let i = 0; i < count; i++) {
 		promises.push(addSingleWorker());
@@ -302,7 +296,6 @@ async function addWorkers(count: number): Promise<void> {
  */
 function removeWorker(workerIndex: number): void {
 	if (!workerPool) return;
-	debugLog(`Removing worker ${workerIndex} with proper cleanup`);
 
 	if (workerPool.workers[workerIndex]) {
 		workerPool.workers[workerIndex].terminate();
@@ -324,9 +317,6 @@ function removeWorker(workerIndex: number): void {
 		if (task.reject) task.reject(new Error('Task cancelled due to worker removal'));
 		workerPool.activeTasks.delete(task.id);
 	}
-	debugLog(
-		`Worker ${workerIndex} removed successfully. Cleaned up ${removedTasks.length} queued tasks and freed resources.`
-	);
 }
 
 /**
@@ -435,7 +425,6 @@ function handleWorkerFailure(workerIndex: number, reason: string): void {
  */
 async function restartWorker(workerIndex: number): Promise<void> {
 	if (!workerPool) return;
-	debugLog(`Restarting worker ${workerIndex}`);
 	const oldWorker = workerPool.workers[workerIndex];
 	if (oldWorker) oldWorker.terminate();
 
@@ -448,7 +437,6 @@ async function restartWorker(workerIndex: number): Promise<void> {
 			handleWorkerMessage(e, workerIndex);
 		};
 		reassignWorkerTasks(workerIndex);
-		debugLog(`Worker ${workerIndex} restarted successfully`);
 	} catch (error) {
 		console.error(`Failed to restart worker ${workerIndex}:`, error);
 		throw error;
@@ -483,7 +471,6 @@ function reassignWorkerTasks(failedWorkerIndex: number): void {
  */
 function performHealthChecks(): void {
 	if (!workerPool) return;
-	debugLog('Running health checks on all workers');
 
 	for (let i = 0; i < workerPool.workers.length; i++) {
 		if (!workerPool.workers[i] || workerPool.workerHealth[i] === WorkerHealth.ERROR) continue;
@@ -504,7 +491,6 @@ function performHealthChecks(): void {
 		}
 
 		if (workerPool.workerHealth[i] === WorkerHealth.DEGRADED) {
-			debugLog(`Worker ${i} recovered from DEGRADED state`);
 			workerPool.workerHealth[i] = WorkerHealth.HEALTHY;
 		}
 		checkWorkerHealth(i);
@@ -596,10 +582,6 @@ function startBackgroundProcesses(healthCheckInterval: number): void {
 			workerPool.taskQueue = [];
 		}
 	}, 30000);
-
-	debugLog(
-		'Background processes started: health checks, dynamic scaling, and timeout monitoring enabled'
-	);
 }
 
 /**
@@ -634,7 +616,6 @@ function processNextTask(): void {
 		}
 
 		workerPool.workers[bestWorker].postMessage(messageToSend);
-		debugLog(`Task ${task.id} assigned to worker ${bestWorker} (complexity: ${task.complexity})`);
 		performDynamicScaling();
 	} catch (error) {
 		console.error(`Failed to post message to worker ${bestWorker}:`, error);
@@ -708,7 +689,6 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 				result.value.onmessage = (e: MessageEvent) => {
 					handleWorkerMessage(e, i);
 				};
-				debugLog(`Worker ${i} initialized successfully`);
 				processNextTask();
 			} else {
 				workerPool!.workers[i] = null as unknown as Worker;
@@ -721,9 +701,7 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 		const successfulWorkers = workerPool!.workers.filter(
 			(worker: Worker) => worker !== (null as unknown as Worker)
 		).length;
-		debugLog(
-			`Worker pool initialized with ${successfulWorkers}/${maxWorkers} workers (${initialWorkers} eagerly)`
-		);
+		debugLog(`Worker pool initialized: ${successfulWorkers}/${maxWorkers} workers ready`);
 
 		performanceMonitor.stopTimer(timerId);
 		startBackgroundProcesses(healthCheckInterval);
@@ -755,7 +733,6 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 
 	try {
 		await initializeWorkerPool(warmUpConfig);
-		debugLog(`Worker pool warmed up with ${warmUpCount} workers ready`);
 	} catch (error) {
 		console.error('Worker warm-up failed:', error);
 	}
@@ -783,7 +760,6 @@ export async function terminateWorkerPool(): Promise<void> {
 
 export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<T> {
 	const timerId = performanceMonitor.startTimer('worker.postMessageToPool', message.type);
-	debugLog('WorkerPool: postMessageToPool called with message:', message);
 	if (!workerPool) {
 		throw new Error('Worker pool not initialized. Call initializeWorkerPool() first.');
 	}

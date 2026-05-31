@@ -354,6 +354,12 @@ async function flushGenerationChunk(
 
 	const transferrables = imageBuffers.map((img) => img.buffer) as unknown as Transferable[];
 
+	// taskId must be present for all worker responses
+	if (!taskId) {
+		console.error('[worker] Missing taskId in flush, cannot send response');
+		return;
+	}
+
 	if (isFinal) {
 		const message: CompleteMessage = {
 			type: 'complete',

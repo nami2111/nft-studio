@@ -338,6 +338,7 @@ export async function retryWithErrorHandling<T>(
 /**
  * Create a wrapped function with automatic retry
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function withRetry<T extends (...args: any[]) => any>(
 	fn: T,
 	config?: Partial<RetryConfig>,

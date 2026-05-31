@@ -4,19 +4,9 @@
 	import { createTraitId, type TraitId } from '$lib/types/ids';
 	import TraitCard from '$lib/components/layer/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/layer/VirtualTraitList.svelte';
-	import {
-		project,
-		startLoading,
-		stopLoading,
-		loadingStates,
-		removeTrait,
-		updateTraitName,
-		addTrait,
-		updateLayerName,
-		removeLayer,
-		updateProjectDimensions
-	} from '$lib/stores';
-	import { Button } from '$lib/components/ui/button';
+	import { useProjectStore } from '$lib/stores/facades';
+	import { startLoading, stopLoading, loadingStates } from '$lib/stores';
+	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import Icon from '$components/shared/Icon.svelte';
 	import { Delete02Icon, Edit02Icon, CheckmarkBadge01Icon, Cancel01Icon, ArrowDown01Icon, ArrowRight01Icon, Upload01Icon, Image01Icon } from '@hugeicons/core-free-icons';
 	import { getImageDimensions } from '$lib/utils';
@@ -45,6 +35,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 
 	const { layer }: Props = $props();
 
+	const projectStore = useProjectStore();
 	const isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
@@ -148,7 +139,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 			return;
 		}
 
-		updateLayerName(layer.id, editedName);
+		projectStore.actions.updateLayerName(layer.id, editedName);
 		isEditing = false;
 	}
 
@@ -163,7 +154,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 
 	async function handleDeleteLayer() {
 		showLayerRemoved(layer.name);
-		removeLayer(layer.id);
+		projectStore.actions.removeLayer(layer.id);
 	}
 
 	async function handleFileUpload(files: FileList | null) {
@@ -237,7 +228,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 					}
 				} else {
 					// Set project dimensions from first image if not already set
-					updateProjectDimensions({ width, height });
+					projectStore.actions.updateProjectDimensions({ width, height });
 				}
 			}
 
@@ -254,7 +245,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 				// Add traits synchronously for immediate UI feedback
 				batch.forEach((file) => {
 					try {
-						addTrait(layer.id, file);
+						projectStore.actions.addTrait(layer.id, file);
 					} catch (error) {
 						console.error(`Error adding trait for ${file.name}:`, error);
 						errorCount++;
@@ -520,7 +511,12 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 	<CardContent class="p-4">
 		<div class="mb-3 flex items-center justify-between">
 			<div class="flex items-center space-x-2">
-				<Button variant="ghost" size="icon" onclick={() => (isExpanded = !isExpanded)}>
+				<Button
+					variant="ghost"
+					size="icon"
+					onclick={() => (isExpanded = !isExpanded)}
+					class={flatIconButtonClass}
+				>
 					{#if isExpanded}
 						<Icon icon={ArrowDown01Icon} class="h-4 w-4" />
 					{:else}
@@ -546,19 +542,29 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 			</div>
 			{#if !isEditing}
 				<div class="flex space-x-1">
-					<Button variant="ghost" size="icon" onclick={startEditing}
+					<Button variant="ghost" size="icon" onclick={startEditing} class={flatIconButtonClass}
 						><Icon icon={Edit02Icon} class="h-4 w-4" /></Button
 					>
-					<Button variant="ghost" size="icon" onclick={handleDeleteLayer}
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={handleDeleteLayer}
+						class={flatIconButtonClass}
 						><Icon icon={Delete02Icon} class="h-4 w-4 text-red-500" /></Button
 					>
 				</div>
 			{:else}
 				<div class="flex space-x-1">
-					<Button variant="ghost" size="icon" onclick={handleNameChange}
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={handleNameChange}
+						class={flatIconButtonClass}
 						><Icon icon={CheckmarkBadge01Icon} class="h-4 w-4" /></Button
 					>
-					<Button variant="ghost" size="icon" onclick={cancelEdit}><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button>
+					<Button variant="ghost" size="icon" onclick={cancelEdit} class={flatIconButtonClass}
+						><Icon icon={Cancel01Icon} class="h-4 w-4" /></Button
+					>
 				</div>
 			{/if}
 		</div>

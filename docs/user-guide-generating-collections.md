@@ -118,12 +118,13 @@ GNStudio provides multiple export strategies optimized for different collection 
 - **When active**: Default export path during generation (when `enableStreamingStorage` is disabled)
 - **Compatible with**: All modern browsers with Web Worker support
 
-### IndexedDB Streaming
+### Storage Streaming
 
-- **Behavior**: Images stream to IndexedDB during generation, then packaged into ZIP files in size-bounded batches after generation completes
+- **Behavior**: Images stream to browser object storage during generation, then packaged into ZIP files in size-bounded batches after generation completes
 - **Benefit**: Reduces peak memory usage by 60-80% for large collections; RAM stays bounded regardless of collection size
 - **When active**: Only when `enableStreamingStorage` feature flag is enabled (default: enabled)
 - **Batch sizing**: Each ZIP batch is capped at a target size (default 500MB), with multiple ZIP files downloaded sequentially
+- **Storage scope**: Browser storage is private to this browser profile and quota-managed by the browser
 
 ### Worker-Offloaded ZIP
 
@@ -135,12 +136,12 @@ GNStudio provides multiple export strategies optimized for different collection 
 
 GNStudio exposes feature flags to fine-tune the generation pipeline:
 
-| Flag                        | Description                                                                                             | Default  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
-| `enableStreamingStorage`    | Streams generated images to IndexedDB during generation, then packages into size-bounded ZIP batches    | Enabled  |
-| `enableLayerRef`            | Transfers layers by ID reference instead of full data per batch, reducing inter-worker message overhead | Disabled |
-| `enableAdaptiveBatchSize`   | Adjusts batch size based on collection size and device hardware capabilities                            | Enabled  |
-| `enableZipWorkerOffloading` | Offloads one-shot ZIP creation to a dedicated Web Worker for collections > 500 items                    | Disabled |
+| Flag                        | Description                                                                                                | Default  |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------- | -------- |
+| `enableStreamingStorage`    | Streams generated images to browser storage during generation, then packages into size-bounded ZIP batches | Enabled  |
+| `enableLayerRef`            | Transfers layers by ID reference instead of full data per batch, reducing inter-worker message overhead    | Disabled |
+| `enableAdaptiveBatchSize`   | Adjusts batch size based on collection size and device hardware capabilities                               | Enabled  |
+| `enableZipWorkerOffloading` | Offloads one-shot ZIP creation to a dedicated Web Worker for collections > 500 items                       | Disabled |
 
 Enable or disable flags in **Project Settings → Feature Flags** before starting generation.
 

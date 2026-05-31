@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { project, addLayer, reorderLayers } from '$lib/stores';
+	import { useProjectStore } from '$lib/stores/facades';
 	import type { LayerId } from '$lib/types/ids';
 	import LayerItem from '$lib/components/layer/LayerItem.svelte';
 
@@ -9,7 +9,8 @@
 	import { RefreshIcon } from '@hugeicons/core-free-icons';
 	import { showError, showSuccess } from '$lib/utils/error-handling';
 
-	const layers = $derived(project.layers);
+	const projectStore = useProjectStore();
+	const layers = $derived(projectStore.state.layers);
 	let isAddingLayer = $state(false);
 
 	async function handleAddLayer() {
@@ -18,7 +19,7 @@
 
 		try {
 			const newLayerName = `Layer ${layers.length + 1}`;
-			addLayer(newLayerName);
+			projectStore.actions.addLayer(newLayerName);
 			showSuccess('Layer added successfully.');
 		} catch (error) {
 			console.error('Failed to add layer:', error);
@@ -43,7 +44,7 @@
 		newLayers.splice(newIndex, 0, movedLayer);
 
 		const layerIds = newLayers.map((layer) => layer.id);
-		reorderLayers(layerIds);
+		projectStore.actions.reorderLayers(layerIds);
 		showSuccess('Layer moved successfully.');
 	}
 </script>

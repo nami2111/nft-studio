@@ -1,38 +1,191 @@
 /**
- * IndexedDB streaming helper for generation images and metadata.
+ * Streaming helper for generation images and metadata.
  * Used when enableStreamingStorage is true to avoid unbounded in-memory accumulation.
  */
 
-import { openDB, type IDBPDatabase } from 'idb';
+import { getStorageBackend } from '$lib/storage/backend';
+import { requestPersistentStorageOnce } from '$lib/storage/capabilities';
+import { storagePaths } from '$lib/storage/paths';
+import type { ObjectStorageBackend } from '$lib/storage/types';
 
-const DB_NAME = 'gnstudio-generation';
-const DB_VERSION = 1;
-const IMAGES_STORE = 'images';
-const METADATA_STORE = 'metadata';
+const LARGE_GENERATION_SESSION_BYTES = 50 * 1024 * 1024;
+const DEFAULT_STALE_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-let dbInstance: IDBPDatabase | null = null;
+interface GenerationSessionManifestItem {
+	index: number;
+	imageName?: string;
+	imageBytes: number;
+	metadataName?: string;
+}
 
-async function initDB(): Promise<IDBPDatabase> {
-	if (dbInstance) return dbInstance;
-	dbInstance = await openDB(DB_NAME, DB_VERSION, {
-		upgrade(db) {
-			if (!db.objectStoreNames.contains(IMAGES_STORE)) {
-				db.createObjectStore(IMAGES_STORE, { keyPath: 'key' });
+interface GenerationSessionManifest {
+	sessionId: string;
+	createdAt: number;
+	updatedAt: number;
+	items: GenerationSessionManifestItem[];
+}
+
+export interface CleanupStaleGenerationSessionsOptions {
+	activeSessionIds?: Iterable<string>;
+	maxAgeMs?: number;
+	now?: number;
+	preserveActiveWrites?: boolean;
+}
+
+export interface CleanupStaleGenerationSessionsResult {
+	removedSessionIds: string[];
+	skippedSessionIds: string[];
+	failedSessionIds: string[];
+}
+
+const sessionWriteQueues = new Map<string, Promise<void>>();
+
+function cloneJson<T>(value: T): T {
+	if (typeof structuredClone === 'function') {
+		return structuredClone(value);
+	}
+
+	return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function enqueueSessionWrite(sessionId: string, operation: () => Promise<void>): Promise<void> {
+	const previous = sessionWriteQueues.get(sessionId) ?? Promise.resolve();
+	const queued = previous.catch(() => {}).then(operation);
+
+	sessionWriteQueues.set(sessionId, queued);
+	queued.then(
+		() => {
+			if (sessionWriteQueues.get(sessionId) === queued) {
+				sessionWriteQueues.delete(sessionId);
 			}
-			if (!db.objectStoreNames.contains(METADATA_STORE)) {
-				db.createObjectStore(METADATA_STORE, { keyPath: 'key' });
+		},
+		() => {
+			if (sessionWriteQueues.get(sessionId) === queued) {
+				sessionWriteQueues.delete(sessionId);
 			}
 		}
+	);
+
+	return queued;
+}
+
+export async function waitForSessionWrites(
+	sessionId: string,
+	options: { ignoreErrors?: boolean } = {}
+): Promise<void> {
+	const queued = sessionWriteQueues.get(sessionId);
+	if (!queued) return;
+
+	if (options.ignoreErrors) {
+		await queued.catch(() => {});
+		return;
+	}
+
+	await queued;
+}
+
+async function getGenerationStorageBackend(): Promise<ObjectStorageBackend> {
+	return getStorageBackend();
+}
+
+function createEmptyManifest(sessionId: string): GenerationSessionManifest {
+	const now = Date.now();
+	return {
+		sessionId,
+		createdAt: now,
+		updatedAt: now,
+		items: []
+	};
+}
+
+function getManifestTimestamp(manifest: GenerationSessionManifest | null): number | null {
+	if (manifest?.updatedAt) return manifest.updatedAt;
+	if (manifest?.createdAt) return manifest.createdAt;
+	return null;
+}
+
+function parseSessionTimestamp(sessionId: string): number | null {
+	const match = /^gen-(\d+)-/.exec(sessionId);
+	if (!match) return null;
+
+	const timestamp = Number(match[1]);
+	return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function getSessionAgeMs(
+	sessionId: string,
+	manifest: GenerationSessionManifest | null,
+	now: number
+): number | null {
+	const timestamp = getManifestTimestamp(manifest) ?? parseSessionTimestamp(sessionId);
+	return timestamp === null ? null : now - timestamp;
+}
+
+function getActiveSessionIds(options: CleanupStaleGenerationSessionsOptions): Set<string> {
+	const activeSessionIds = new Set(options.activeSessionIds ?? []);
+	if (options.preserveActiveWrites !== false) {
+		for (const sessionId of sessionWriteQueues.keys()) {
+			activeSessionIds.add(sessionId);
+		}
+	}
+
+	return activeSessionIds;
+}
+
+async function readSessionManifest(
+	backend: ObjectStorageBackend,
+	sessionId: string
+): Promise<GenerationSessionManifest> {
+	return (
+		(await backend.json.readJson<GenerationSessionManifest>(
+			storagePaths.generationSessionManifest(sessionId)
+		)) ?? createEmptyManifest(sessionId)
+	);
+}
+
+async function writeSessionManifest(
+	backend: ObjectStorageBackend,
+	manifest: GenerationSessionManifest
+): Promise<void> {
+	await backend.json.writeJson(storagePaths.generationSessionManifest(manifest.sessionId), {
+		...manifest,
+		items: [...manifest.items].sort((a, b) => a.index - b.index),
+		updatedAt: Date.now()
 	});
-	return dbInstance;
 }
 
-function imageKey(sessionId: string, index: number): string {
-	return `${sessionId}-img-${index}`;
-}
+function mergeSessionManifest(
+	manifest: GenerationSessionManifest,
+	images: Array<{ index: number; name: string; bytes: number }>,
+	metadata: Array<{ index: number; name: string }>
+): GenerationSessionManifest {
+	const items = new Map<number, GenerationSessionManifestItem>();
 
-function metadataKey(sessionId: string, index: number): string {
-	return `${sessionId}-meta-${index}`;
+	for (const item of manifest.items) {
+		items.set(item.index, { ...item });
+	}
+
+	for (const image of images) {
+		const current = items.get(image.index) ?? { index: image.index, imageBytes: 0 };
+		items.set(image.index, {
+			...current,
+			imageName: image.name,
+			imageBytes: image.bytes
+		});
+	}
+
+	for (const meta of metadata) {
+		const current = items.get(meta.index) ?? { index: meta.index, imageBytes: 0 };
+		items.set(meta.index, {
+			...current,
+			metadataName: meta.name
+		});
+	}
+
+	return {
+		...manifest,
+		items: Array.from(items.values()).sort((a, b) => a.index - b.index)
+	};
 }
 
 export interface StreamedImage {
@@ -46,7 +199,7 @@ export interface StreamedMetadata {
 }
 
 /**
- * Stream images and metadata in bulk (more efficient than individual puts).
+ * Stream images and metadata in bulk.
  */
 export async function streamBatch(
 	sessionId: string,
@@ -54,46 +207,67 @@ export async function streamBatch(
 	images: StreamedImage[],
 	metadata: StreamedMetadata[]
 ): Promise<void> {
-	// Validate image data before storing
-	const emptyImages = images.filter((img) => !img.imageData || img.imageData.byteLength === 0);
+	const imageEntries = images.map((img, i) => ({
+		index: startIndex + i,
+		name: img.name,
+		imageData: img.imageData.slice(0)
+	}));
+	const metadataEntries = metadata.map((meta, i) => ({
+		index: startIndex + i,
+		name: meta.name,
+		data: cloneJson(meta.data)
+	}));
+
+	const emptyImages = imageEntries.filter(
+		(img) => !img.imageData || img.imageData.byteLength === 0
+	);
 	if (emptyImages.length > 0) {
 		console.error(
-			`❌ streamBatch: ${emptyImages.length} images have empty data at startIndex=${startIndex}:`,
+			`streamBatch: ${emptyImages.length} images have empty data at startIndex=${startIndex}:`,
 			emptyImages.map((img) => img.name)
 		);
 	}
 
-	const imageRecords = images.map((img, i) => ({
-		key: imageKey(sessionId, startIndex + i),
-		name: img.name,
-		imageData: img.imageData.slice()
-	}));
-	const metadataRecords = metadata.map((meta, i) => ({
-		key: metadataKey(sessionId, startIndex + i),
-		name: meta.name,
-		data: structuredClone(meta.data)
-	}));
+	return enqueueSessionWrite(sessionId, async () => {
+		const backend = await getGenerationStorageBackend();
 
-	const db = await initDB();
-	const tx = db.transaction([IMAGES_STORE, METADATA_STORE], 'readwrite');
-	const imageStore = tx.objectStore(IMAGES_STORE);
-	const metaStore = tx.objectStore(METADATA_STORE);
+		await Promise.all([
+			...imageEntries.map((img) =>
+				backend.binary.write(storagePaths.generationImage(sessionId, img.index), img.imageData)
+			),
+			...metadataEntries.map((meta) =>
+				backend.json.writeJson(storagePaths.generationMetadata(sessionId, meta.index), {
+					name: meta.name,
+					data: meta.data
+				})
+			)
+		]);
 
-	for (const record of imageRecords) {
-		imageStore.put(record);
-	}
+		const manifest = await readSessionManifest(backend, sessionId);
+		const mergedManifest = mergeSessionManifest(
+			manifest,
+			imageEntries.map((img) => ({
+				index: img.index,
+				name: img.name,
+				bytes: img.imageData.byteLength
+			})),
+			metadataEntries.map((meta) => ({
+				index: meta.index,
+				name: meta.name
+			}))
+		);
+		await writeSessionManifest(backend, mergedManifest);
 
-	for (const record of metadataRecords) {
-		metaStore.put(record);
-	}
-
-	await tx.done;
+		const sessionImageBytes = mergedManifest.items.reduce((sum, item) => sum + item.imageBytes, 0);
+		if (sessionImageBytes >= LARGE_GENERATION_SESSION_BYTES) {
+			void requestPersistentStorageOnce('generation-session');
+		}
+	});
 }
 
 /**
  * Iterate over image+metadata batches capped by total byte size.
- * Reads items sequentially, measuring actual sizes, and flushes when targetBytes is reached.
- * Only holds one batch in memory at a time (~500MB max), never loads all records upfront.
+ * Only holds one batch in memory at a time.
  */
 export async function iterateBySize(
 	sessionId: string,
@@ -104,136 +278,137 @@ export async function iterateBySize(
 		totalBatches: number
 	) => Promise<void>
 ): Promise<void> {
-	const db = await initDB();
-	const imagePrefix = `${sessionId}-img-`;
+	await waitForSessionWrites(sessionId);
 
-	const allImageKeys = (await db.getAllKeys(IMAGES_STORE)).filter(
-		(k): k is string => typeof k === 'string' && k.startsWith(imagePrefix)
-	);
+	const backend = await getGenerationStorageBackend();
+	const manifest = await readSessionManifest(backend, sessionId);
+	const items = manifest.items
+		.filter((item) => item.imageName && item.imageBytes > 0)
+		.sort((a, b) => a.index - b.index);
 
-	console.log(`🔍 iterateBySize: Found ${allImageKeys.length} image keys for session ${sessionId}`);
-
-	const indices = allImageKeys
-		.map((k) => parseInt(k.replace(imagePrefix, ''), 10))
-		.sort((a, b) => a - b);
-
-	if (indices.length === 0) {
-		console.warn(`⚠️ iterateBySize: No items found for session ${sessionId}`);
+	if (items.length === 0) {
+		console.warn(`iterateBySize: No items found for session ${sessionId}`);
 		return;
 	}
 
-	// First pass: measure sizes without loading full imageData into memory
-	// Read keys only, then probe sizes in small chunks to avoid IndexedDB limits
-	const sizes: number[] = new Array(indices.length);
-	const chunkSize = 20;
+	const effectiveTargetBytes = Math.max(1, targetBytes);
+	const totalSize = items.reduce((sum, item) => sum + item.imageBytes, 0);
+	const estimatedBatches = Math.max(1, Math.ceil(totalSize / effectiveTargetBytes));
 
-	for (let offset = 0; offset < indices.length; offset += chunkSize) {
-		const chunk = indices.slice(offset, offset + chunkSize);
-		const chunkKeys = chunk.map((idx) => imageKey(sessionId, idx));
-
-		const results = await Promise.all(
-			chunkKeys.map(async (k) => {
-				const record = (await db.get(IMAGES_STORE, k)) as
-					| { name: string; imageData: ArrayBuffer }
-					| undefined;
-				return record?.imageData?.byteLength || 0;
-			})
+	if (import.meta.env.DEV) {
+		console.log(
+			`iterateBySize: ${items.length} items, ${(totalSize / 1024 / 1024).toFixed(1)}MB total, ~${estimatedBatches} batches`
 		);
-
-		for (let i = 0; i < chunk.length; i++) {
-			sizes[offset + i] = results[i];
-		}
 	}
 
-	const totalSize = sizes.reduce((sum, s) => sum + s, 0);
-	const estimatedBatches = Math.max(1, Math.ceil(totalSize / targetBytes));
-
-	console.log(
-		`📊 iterateBySize: ${indices.length} items, ${(totalSize / 1024 / 1024).toFixed(1)}MB total, ~${estimatedBatches} batches at ${(targetBytes / 1024 / 1024).toFixed(0)}MB each`
-	);
-
-	// Second pass: accumulate by actual size, flush when target reached
-	const batchIndices: number[] = [];
+	const batchItems: GenerationSessionManifestItem[] = [];
 	let batchBytes = 0;
 	let batchIndex = 0;
 
 	const flushBatch = async (): Promise<void> => {
-		if (batchIndices.length === 0) return;
+		if (batchItems.length === 0) return;
 
 		const images: StreamedImage[] = [];
 		const metadata: StreamedMetadata[] = [];
 
-		for (const idx of batchIndices) {
-			const [imgRecord, metaRecord] = await Promise.all([
-				db.get(IMAGES_STORE, imageKey(sessionId, idx)) as Promise<
-					{ name: string; imageData: ArrayBuffer } | undefined
-				>,
-				db.get(METADATA_STORE, metadataKey(sessionId, idx)) as Promise<
-					{ name: string; data: Record<string, unknown> } | undefined
-				>
+		for (const item of batchItems) {
+			const [imageData, metaRecord] = await Promise.all([
+				backend.binary.read(storagePaths.generationImage(sessionId, item.index)),
+				item.metadataName
+					? backend.json.readJson<{ name: string; data: Record<string, unknown> }>(
+							storagePaths.generationMetadata(sessionId, item.index)
+						)
+					: Promise.resolve(null)
 			]);
 
-			if (imgRecord) {
-				images.push({ name: imgRecord.name, imageData: imgRecord.imageData });
+			if (imageData && item.imageName) {
+				images.push({ name: item.imageName, imageData });
 			}
+
 			if (metaRecord) {
 				metadata.push({ name: metaRecord.name, data: metaRecord.data });
 			}
 		}
 
-		const totalImageBytes = images.reduce((sum, img) => sum + (img.imageData?.byteLength || 0), 0);
-		if (import.meta.env.DEV) {
-			console.log(
-				`📦 iterateBySize batch ${batchIndex}: items=${images.length}, size=${(totalImageBytes / 1024 / 1024).toFixed(1)}MB`
-			);
+		if (images.length > 0 || metadata.length > 0) {
+			await callback({ images, metadata }, batchIndex, estimatedBatches);
 		}
 
-		await callback({ images, metadata }, batchIndex, estimatedBatches);
 		batchIndex++;
-		batchIndices.length = 0;
+		batchItems.length = 0;
 		batchBytes = 0;
 	};
 
-	for (let i = 0; i < indices.length; i++) {
-		const idx = indices[i];
-		const itemSize = sizes[i];
-
-		if (batchBytes + itemSize > targetBytes && batchIndices.length > 0) {
+	for (const item of items) {
+		if (batchBytes + item.imageBytes > effectiveTargetBytes && batchItems.length > 0) {
 			await flushBatch();
 		}
 
-		batchIndices.push(idx);
-		batchBytes += itemSize;
+		batchItems.push(item);
+		batchBytes += item.imageBytes;
 	}
 
-	if (batchIndices.length > 0) {
+	if (batchItems.length > 0) {
 		await flushBatch();
 	}
-
-	console.log(
-		`✅ iterateBySize complete: ${batchIndex} batches processed for session ${sessionId}`
-	);
 }
 
 /**
  * Clear all data for a generation session.
  */
 export async function clearSession(sessionId: string): Promise<void> {
-	const db = await initDB();
-	const imagePrefix = `${sessionId}-img-`;
-	const metaPrefix = `${sessionId}-meta-`;
+	await waitForSessionWrites(sessionId, { ignoreErrors: true });
 
-	const allImageKeys = (await db.getAllKeys(IMAGES_STORE)).filter(
-		(k): k is string => typeof k === 'string' && k.startsWith(imagePrefix)
-	);
-	const allMetaKeys = (await db.getAllKeys(METADATA_STORE)).filter(
-		(k): k is string => typeof k === 'string' && k.startsWith(metaPrefix)
-	);
+	const backend = await getGenerationStorageBackend();
+	await backend.binary.removeTree(storagePaths.generationSessionRoot(sessionId));
+	sessionWriteQueues.delete(sessionId);
+}
 
-	if (allImageKeys.length === 0 && allMetaKeys.length === 0) return;
+export async function cleanupStaleGenerationSessions(
+	options: CleanupStaleGenerationSessionsOptions = {}
+): Promise<CleanupStaleGenerationSessionsResult> {
+	const backend = await getGenerationStorageBackend();
+	const result: CleanupStaleGenerationSessionsResult = {
+		removedSessionIds: [],
+		skippedSessionIds: [],
+		failedSessionIds: []
+	};
 
-	const tx = db.transaction([IMAGES_STORE, METADATA_STORE], 'readwrite');
-	for (const key of allImageKeys) tx.objectStore(IMAGES_STORE).delete(key);
-	for (const key of allMetaKeys) tx.objectStore(METADATA_STORE).delete(key);
-	await tx.done;
+	const now = options.now ?? Date.now();
+	const maxAgeMs = Math.max(0, options.maxAgeMs ?? DEFAULT_STALE_SESSION_MAX_AGE_MS);
+	const activeSessionIds = getActiveSessionIds(options);
+
+	const sessionIds = await backend.binary.list(storagePaths.generationRoot());
+
+	for (const sessionId of sessionIds) {
+		if (activeSessionIds.has(sessionId)) {
+			result.skippedSessionIds.push(sessionId);
+			continue;
+		}
+
+		let manifest: GenerationSessionManifest | null = null;
+		try {
+			manifest = await backend.json.readJson<GenerationSessionManifest>(
+				storagePaths.generationSessionManifest(sessionId)
+			);
+		} catch {
+			manifest = null;
+		}
+
+		const sessionAgeMs = getSessionAgeMs(sessionId, manifest, now);
+		if (maxAgeMs > 0 && (sessionAgeMs === null || sessionAgeMs < maxAgeMs)) {
+			result.skippedSessionIds.push(sessionId);
+			continue;
+		}
+
+		try {
+			await waitForSessionWrites(sessionId, { ignoreErrors: true });
+			await backend.binary.removeTree(storagePaths.generationSessionRoot(sessionId));
+			result.removedSessionIds.push(sessionId);
+		} catch {
+			result.failedSessionIds.push(sessionId);
+		}
+	}
+
+	return result;
 }

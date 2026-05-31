@@ -1,7 +1,11 @@
 /**
- * Branded types for IDs to prevent mixing different types of IDs
- * These types provide compile-time safety by preventing accidental assignment
- * of different ID types to each other.
+ * Branded types for IDs to prevent mixing different types of IDs.
+ *
+ * Factories validate UUID v4 format by default — invalid input throws.
+ * Use `unsafeCreate*Id(s)` only in tests where readable short IDs matter
+ * and validation would be noise. Production code paths must use the
+ * validated factories so bad input crashes at the boundary, not deep
+ * inside a mutation.
  */
 
 // Base branded type
@@ -10,168 +14,154 @@ export interface Brand<T, B> {
 	readonly value: T;
 }
 
-// Create a branded type
 export type Branded<T, B> = T & Brand<T, B>;
 
-// Project ID type
 export type ProjectId = Branded<string, 'ProjectId'>;
-
-// Layer ID type
 export type LayerId = Branded<string, 'LayerId'>;
-
-// Trait ID type
 export type TraitId = Branded<string, 'TraitId'>;
-
-// Worker task ID type
 export type TaskId = Branded<string, 'TaskId'>;
-
-// Generation ID type
 export type GenerationId = Branded<string, 'GenerationId'>;
-
-// Export ID type
 export type ExportId = Branded<string, 'ExportId'>;
-
-// File ID type
 export type FileId = Branded<string, 'FileId'>;
 
-// Helper functions to create branded IDs
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Create a ProjectId from a string
+ * Validate that a string is a UUID. Returns true for canonical UUID format.
  */
+export function isUuid(value: unknown): value is string {
+	return typeof value === 'string' && UUID_RE.test(value);
+}
+
+function assertUuid(id: string, kind: string): void {
+	if (!UUID_RE.test(id)) {
+		throw new Error(`Invalid ${kind}: expected UUID, got "${id}"`);
+	}
+}
+
+// Validated factories — production use
+
 export function createProjectId(id: string): ProjectId {
+	assertUuid(id, 'ProjectId');
 	return id as ProjectId;
 }
 
-/**
- * Create a LayerId from a string
- */
 export function createLayerId(id: string): LayerId {
+	assertUuid(id, 'LayerId');
 	return id as LayerId;
 }
 
-/**
- * Create a TraitId from a string
- */
 export function createTraitId(id: string): TraitId {
+	assertUuid(id, 'TraitId');
 	return id as TraitId;
 }
 
-/**
- * Create a TaskId from a string
- */
 export function createTaskId(id: string): TaskId {
+	assertUuid(id, 'TaskId');
 	return id as TaskId;
 }
 
-/**
- * Create a GenerationId from a string
- */
 export function createGenerationId(id: string): GenerationId {
+	assertUuid(id, 'GenerationId');
 	return id as GenerationId;
 }
 
-/**
- * Create an ExportId from a string
- */
 export function createExportId(id: string): ExportId {
+	assertUuid(id, 'ExportId');
 	return id as ExportId;
 }
 
-/**
- * Create a FileId from a string
- */
 export function createFileId(id: string): FileId {
+	assertUuid(id, 'FileId');
 	return id as FileId;
 }
 
-/**
- * Extract the underlying string value from a branded ID
- */
+// Safe variants — return null on invalid, for boundary parsing
+
+export function safeCreateProjectId(id: string): ProjectId | null {
+	return UUID_RE.test(id) ? (id as ProjectId) : null;
+}
+
+export function safeCreateLayerId(id: string): LayerId | null {
+	return UUID_RE.test(id) ? (id as LayerId) : null;
+}
+
+export function safeCreateTraitId(id: string): TraitId | null {
+	return UUID_RE.test(id) ? (id as TraitId) : null;
+}
+
+// Unsafe variants — tests only. Skip validation for short readable IDs.
+
+export function unsafeCreateProjectId(id: string): ProjectId {
+	return id as ProjectId;
+}
+
+export function unsafeCreateLayerId(id: string): LayerId {
+	return id as LayerId;
+}
+
+export function unsafeCreateTraitId(id: string): TraitId {
+	return id as TraitId;
+}
+
+export function unsafeCreateTaskId(id: string): TaskId {
+	return id as TaskId;
+}
+
+// Extract underlying string
+
 export function getIdValue<T extends Branded<string, string>>(id: T): string {
 	return id as string;
 }
 
-/**
- * Type guard to check if a value is a ProjectId
- */
+// Type guards — check format, not just non-empty
+
 export function isProjectId(value: unknown): value is ProjectId {
-	return typeof value === 'string' && value.length > 0;
+	return isUuid(value);
 }
 
-/**
- * Type guard to check if a value is a LayerId
- */
 export function isLayerId(value: unknown): value is LayerId {
-	return typeof value === 'string' && value.length > 0;
+	return isUuid(value);
 }
 
-/**
- * Type guard to check if a value is a TraitId
- */
 export function isTraitId(value: unknown): value is TraitId {
-	return typeof value === 'string' && value.length > 0;
+	return isUuid(value);
 }
 
-/**
- * Type guard to check if a value is a TaskId
- */
 export function isTaskId(value: unknown): value is TaskId {
-	return typeof value === 'string' && value.length > 0;
+	return isUuid(value);
 }
 
-/**
- * Generate a new random ID of the specified type
- */
+// Generators
+
 export function generateId<T extends Branded<string, string>>(): T {
 	return crypto.randomUUID() as T;
 }
 
-/**
- * Generate a new random ProjectId
- */
 export function generateProjectId(): ProjectId {
 	return generateId<ProjectId>();
 }
 
-/**
- * Generate a new random LayerId
- */
 export function generateLayerId(): LayerId {
 	return generateId<LayerId>();
 }
 
-/**
- * Generate a new random TraitId
- */
 export function generateTraitId(): TraitId {
 	return generateId<TraitId>();
 }
 
-/**
- * Generate a new random TaskId
- */
 export function generateTaskId(): TaskId {
 	return generateId<TaskId>();
 }
 
-/**
- * Generate a new random GenerationId
- */
 export function generateGenerationId(): GenerationId {
 	return generateId<GenerationId>();
 }
 
-/**
- * Generate a new random ExportId
- */
 export function generateExportId(): ExportId {
 	return generateId<ExportId>();
 }
 
-/**
- * Generate a new random FileId
- */
 export function generateFileId(): FileId {
 	return generateId<FileId>();
 }

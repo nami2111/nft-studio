@@ -28,14 +28,22 @@ export interface TransferrableLayer {
 	height?: number;
 }
 
-// Base message interface with common properties
-interface BaseWorkerMessage {
+// Base message interface for messages FROM workers (outgoing)
+// These require taskId for O(1) task resolution in the pool
+interface BaseOutgoingMessage {
 	type: string;
-	taskId?: TaskId;
+	taskId: TaskId; // Required for O(1) task resolution
+}
+
+// Base message interface for messages TO workers (incoming)
+// These don't need taskId - workers track their own state
+interface BaseIncomingMessage {
+	type: string;
+	taskId?: TaskId; // Optional, assigned by pool when dispatching
 }
 
 // Progress update message
-export interface ProgressMessage extends BaseWorkerMessage {
+export interface ProgressMessage extends BaseOutgoingMessage {
 	type: 'progress';
 	payload: {
 		generatedCount: number;
@@ -52,7 +60,7 @@ export interface ProgressMessage extends BaseWorkerMessage {
 }
 
 // Generation complete message
-export interface CompleteMessage extends BaseWorkerMessage {
+export interface CompleteMessage extends BaseOutgoingMessage {
 	type: 'complete';
 	payload: {
 		images: { name: string; imageData: ArrayBuffer }[];
@@ -64,7 +72,7 @@ export interface CompleteMessage extends BaseWorkerMessage {
 }
 
 // Error message
-export interface ErrorMessage extends BaseWorkerMessage {
+export interface ErrorMessage extends BaseOutgoingMessage {
 	type: 'error';
 	payload: {
 		message: string;
@@ -74,12 +82,13 @@ export interface ErrorMessage extends BaseWorkerMessage {
 }
 
 // Worker ready message
-export interface ReadyMessage extends BaseWorkerMessage {
+export interface ReadyMessage {
 	type: 'ready';
+	taskId?: never; // Control message, no task association
 }
 
 // Generation cancelled message
-export interface CancelledMessage extends BaseWorkerMessage {
+export interface CancelledMessage extends BaseOutgoingMessage {
 	type: 'cancelled';
 	payload: {
 		generatedCount?: number;
@@ -89,7 +98,7 @@ export interface CancelledMessage extends BaseWorkerMessage {
 }
 
 // Preview generation message
-export interface PreviewMessage extends BaseWorkerMessage {
+export interface PreviewMessage extends BaseOutgoingMessage {
 	type: 'preview';
 	payload: {
 		indexes: number[];
@@ -99,7 +108,7 @@ export interface PreviewMessage extends BaseWorkerMessage {
 }
 
 // Batch generation message for parallel processing
-export interface BatchMessage extends BaseWorkerMessage {
+export interface BatchMessage extends BaseIncomingMessage {
 	type: 'batch';
 	payload: {
 		solutions: { index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[];
@@ -114,7 +123,7 @@ export interface BatchMessage extends BaseWorkerMessage {
 }
 
 // Initialize layers once in the worker (used with enableLayerRef)
-export interface InitLayersMessage extends BaseWorkerMessage {
+export interface InitLayersMessage extends BaseIncomingMessage {
 	type: 'init-layers';
 	payload: {
 		layers: TransferrableLayer[];
@@ -122,7 +131,7 @@ export interface InitLayersMessage extends BaseWorkerMessage {
 }
 
 // Batch generation by trait references (lightweight, no imageData duplication)
-export interface BatchRefMessage extends BaseWorkerMessage {
+export interface BatchRefMessage extends BaseIncomingMessage {
 	type: 'batch-ref';
 	payload: {
 		solutions: {
@@ -141,7 +150,7 @@ export interface BatchRefMessage extends BaseWorkerMessage {
 // Intermediate chunk of generation results streamed from worker before final completion.
 // This allows incremental flushing within a single batch task — images are transferred
 // via Transferables and the task stays active until a 'complete' message arrives.
-export interface GenerationChunkMessage extends BaseWorkerMessage {
+export interface GenerationChunkMessage extends BaseOutgoingMessage {
 	type: 'chunk';
 	payload: {
 		images: { name: string; imageData: ArrayBuffer }[];
@@ -152,6 +161,7 @@ export interface GenerationChunkMessage extends BaseWorkerMessage {
 }
 
 // Messages that can be sent from workers to the main thread
+// Discriminated union: task-related messages require taskId, control messages don't
 export type OutgoingWorkerMessage =
 	| ReadyMessage
 	| ProgressMessage
@@ -160,7 +170,7 @@ export type OutgoingWorkerMessage =
 	| CancelledMessage
 	| PreviewMessage
 	| GenerationChunkMessage
-	| { type: 'pingResponse'; pingResponse: string };
+	| { type: 'pingResponse'; pingResponse: string; taskId?: never };
 
 // Messages that can be sent to workers
 export type IncomingMessage =

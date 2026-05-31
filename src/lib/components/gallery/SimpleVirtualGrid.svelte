@@ -111,8 +111,8 @@
 	let imageUrls = $state<Record<string, string>>({});
 
 	// Request image URL creation (async, non-blocking)
-	// Falls back to IndexedDB when imageData is not in memory.
-	// DOES NOT cache error state for IndexedDB misses — images may be
+	// Falls back to durable storage when imageData is not in memory.
+	// DOES NOT cache error state for storage misses — images may be
 	// streaming in during import, so the next render will retry naturally.
 	function requestImageUrl(item: GalleryItem): string {
 		// Check if already loaded
@@ -126,7 +126,7 @@
 			(typeof item.imageData === 'string' || item.imageData.byteLength > 0);
 
 		if (!hasImageData && imageUrls[item.id] === undefined) {
-			// No data in memory — fetch from IndexedDB on demand
+			// No data in memory — fetch from storage on demand
 			if (!imageLoadQueue.has(item.id)) {
 				imageLoadQueue.add(item.id);
 
@@ -156,7 +156,7 @@
 					if (imageLoadQueue.has(item.id)) {
 						imageLoadQueue.delete(item.id);
 						// Don't set error — image may still be streaming in,
-						// next scroll/render will retry the IndexedDB fetch.
+						// next scroll/render will retry the storage fetch.
 					}
 				}, 30000);
 			}

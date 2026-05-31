@@ -1,6 +1,6 @@
 /**
  * Gallery Store - State management for gallery functionality
- * Uses Svelte 5 runes and IndexedDB for persistence
+ * Uses Svelte 5 runes and durable storage for persistence
  */
 
 import type {
@@ -13,19 +13,22 @@ import type {
 import { untrack } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
+import { runIndexedDbToOpfsMigration } from '$lib/storage/migrations';
 import {
-	initGalleryDB,
+	getAllCollections,
 	saveCollection,
 	saveItemImage,
 	getItemImage as fetchItemImage,
 	deleteCollection,
 	clearAllCollections,
 	getStorageEstimate
-} from '$lib/utils/gallery-db';
+} from '$lib/utils/gallery-storage';
 import { imageUrlCache } from '$lib/utils/object-url-cache';
 import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
 import { PERF_CONFIG } from '$lib/config/performance.config';
 import { productionMonitor } from '$lib/monitoring/performance-monitor';
+
+const SELECTED_COLLECTION_STORAGE_KEY = 'gnstudio-gallery-selected-collection';
 
 // Gallery store with Svelte 5 runes
 class GalleryStore {
@@ -33,12 +36,20 @@ class GalleryStore {
 	private filteredCache = new Map<string, GalleryItem[]>();
 	private readonly MAX_CACHE_ENTRIES = PERF_CONFIG.cache.galleryFilter.maxEntries;
 
+	// Memoized naturalCompare results
+	private compareCache = new Map<string, number>();
+
 	// Debounce timer for saves
 	private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 	private readonly SAVE_DEBOUNCE_MS = 1000; // 1 second debounce for gallery saves
 
 	// Natural numeric sorting function for names
 	private naturalCompare(a: string, b: string): number {
+		const cacheKey = `${a}\0${b}`;
+		if (this.compareCache.has(cacheKey)) {
+			return this.compareCache.get(cacheKey)!;
+		}
+
 		// Extract numbers from anywhere in the string (handles "Foxinity #1", "#001", etc.)
 		const extractNumber = (str: string): { num: number | null; index: number } => {
 			// Try to find number after common delimiters like #, -, space
@@ -57,19 +68,31 @@ class GalleryStore {
 		const aNum = extractNumber(a);
 		const bNum = extractNumber(b);
 
+		let result: number;
 		// If both have numbers, compare numerically
 		if (aNum.num !== null && bNum.num !== null) {
 			if (aNum.num !== bNum.num) {
-				return aNum.num - bNum.num;
+				result = aNum.num - bNum.num;
+			} else {
+				// If numbers are equal, use standard string comparison
+				result = a.localeCompare(b);
 			}
-			// If numbers are equal, use standard string comparison
-			return a.localeCompare(b);
+		} else if (aNum.num !== null) {
+			// If only one has a number, prioritize the one with numbers
+			result = -1;
+		} else if (bNum.num !== null) {
+			result = 1;
+		} else {
+			// Otherwise, use standard string comparison
+			result = a.localeCompare(b);
 		}
-		// If only one has a number, prioritize the one with numbers
-		if (aNum.num !== null) return -1;
-		if (bNum.num !== null) return 1;
-		// Otherwise, use standard string comparison
-		return a.localeCompare(b);
+
+		// Cache result (limit cache size)
+		if (this.compareCache.size > 10000) {
+			this.compareCache.clear();
+		}
+		this.compareCache.set(cacheKey, result);
+		return result;
 	}
 
 	/**
@@ -78,12 +101,12 @@ class GalleryStore {
 	 * This allows for near-instant set intersection filtering instead of O(N) scanning
 	 */
 	private buildTraitIndex(items: GalleryItem[]): {
-		index: SvelteMap<string, SvelteSet<string>>;
-		categories: SvelteMap<string, string[]>;
+		index: Map<string, Set<string>>;
+		categories: Map<string, string[]>;
 	} {
 		const startTiming = debugTime('Build trait index');
-		const index = new SvelteMap<string, SvelteSet<string>>();
-		const traitStats = new SvelteMap<string, SvelteSet<string>>();
+		const index = new Map<string, Set<string>>();
+		const traitStats = new Map<string, Set<string>>();
 
 		// Use untrack and avoid reactive overhead - this is critical for loop performance in Svelte 5
 		untrack(() => {
@@ -100,13 +123,13 @@ class GalleryStore {
 
 						// Update inverse index
 						if (!index.has(key)) {
-							index.set(key, new SvelteSet());
+							index.set(key, new Set());
 						}
 						index.get(key)!.add(item.id);
 
 						// Update categories for UI
 						if (!traitStats.has(layer)) {
-							traitStats.set(layer, new SvelteSet());
+							traitStats.set(layer, new Set());
 						}
 						traitStats.get(layer)!.add(value);
 					}
@@ -115,7 +138,7 @@ class GalleryStore {
 		});
 
 		// Format categories for UI (sorting values)
-		const categories = new SvelteMap<string, string[]>();
+		const categories = new Map<string, string[]>();
 		for (const [layer, values] of traitStats.entries()) {
 			categories.set(layer, Array.from(values).sort());
 		}
@@ -125,12 +148,32 @@ class GalleryStore {
 		return { index, categories };
 	}
 
+	/**
+	 * Explicitly rebuild trait index for current collection.
+	 * Call this after adding/removing items to refresh the index.
+	 */
+	rebuildTraitIndex(): void {
+		let sourceItems: GalleryItem[] = [];
+		if (this._state.selectedCollection) {
+			sourceItems = this._state.selectedCollection.items;
+		} else {
+			sourceItems = this._state.collections.flatMap((collection) => collection.items);
+		}
+
+		const currentCollectionId = this._state.selectedCollection?.id || 'all';
+		const { index, categories } = this.buildTraitIndex(sourceItems);
+		this._traitIndex = index;
+		this._traitCategories = categories;
+		this._traitIndexCollectionId = currentCollectionId;
+	}
+
 	// Track last logged storage usage to reduce log frequency
 	private _lastLoggedUsage: number | null = null;
 
 	// Trait index cache for efficient filtering - maps "layer:trait" to a Set of item IDs
-	private _traitIndex = new SvelteMap<string, SvelteSet<string>>();
-	private _traitCategories = new SvelteMap<string, string[]>();
+	// Use plain Map/Set instead of SvelteMap/SvelteSet to avoid reactive overhead
+	private _traitIndex = new Map<string, Set<string>>();
+	private _traitCategories = new Map<string, string[]>();
 	private _traitIndexCollectionId: string | null = null;
 
 	// Main state
@@ -185,6 +228,18 @@ class GalleryStore {
 
 	get allTraits() {
 		return Object.fromEntries(this._traitCategories.entries());
+	}
+
+	private persistSelectedCollection(collectionId: string | null): void {
+		if (typeof localStorage === 'undefined') {
+			return;
+		}
+
+		if (collectionId) {
+			localStorage.setItem(SELECTED_COLLECTION_STORAGE_KEY, collectionId);
+		} else {
+			localStorage.removeItem(SELECTED_COLLECTION_STORAGE_KEY);
+		}
 	}
 
 	// Fast filtered and sorted items with simple caching
@@ -379,6 +434,7 @@ class GalleryStore {
 			// Clear trait index when switching collections
 			this._traitIndex.clear();
 			this._traitIndexCollectionId = null;
+			this.persistSelectedCollection(collection?.id ?? null);
 		});
 	}
 
@@ -415,14 +471,14 @@ class GalleryStore {
 	// Collection management
 	addCollection(collection: GalleryCollection) {
 		this._state.collections.push(collection);
-		this.debouncedSaveToIndexedDB();
+		this.debouncedSaveToStorage();
 	}
 
 	updateCollection(id: string, updates: Partial<GalleryCollection>) {
 		const index = this._state.collections.findIndex((c) => c.id === id);
 		if (index !== -1) {
 			this._state.collections[index] = { ...this._state.collections[index], ...updates };
-			this.debouncedSaveToIndexedDB();
+			this.debouncedSaveToStorage();
 		}
 	}
 
@@ -434,9 +490,9 @@ class GalleryStore {
 		}
 		// Clear cache entries for removed collection
 		this.clearCollectionCache(id);
-		// Delete from IndexedDB
+		// Delete from durable storage.
 		await deleteCollection(id);
-		this.debouncedSaveToIndexedDB();
+		this.debouncedSaveToStorage();
 	}
 
 	/**
@@ -457,8 +513,8 @@ class GalleryStore {
 		}
 	}
 
-	// Database operations
-	private debouncedSaveToIndexedDB() {
+	// Storage operations
+	private debouncedSaveToStorage() {
 		// Clear any pending save
 		if (this.saveTimeout) {
 			clearTimeout(this.saveTimeout);
@@ -466,11 +522,11 @@ class GalleryStore {
 
 		// Schedule a new save with debounce
 		this.saveTimeout = setTimeout(() => {
-			this.saveToIndexedDB();
+			void this.saveToStorage();
 		}, this.SAVE_DEBOUNCE_MS);
 	}
 
-	private async saveToIndexedDB() {
+	private async saveToStorage() {
 		// Clear any pending save
 		if (this.saveTimeout) {
 			clearTimeout(this.saveTimeout);
@@ -478,9 +534,6 @@ class GalleryStore {
 		}
 
 		try {
-			// Initialize IndexedDB if not already done
-			await initGalleryDB();
-
 			// Save all collections in parallel for better performance
 			const savePromises = this._state.collections.map((collection) => saveCollection(collection));
 			await Promise.all(savePromises);
@@ -497,14 +550,7 @@ class GalleryStore {
 			});
 
 			// Save selected collection ID to localStorage (small, safe)
-			if (this._state.selectedCollection) {
-				localStorage.setItem(
-					'gnstudio-gallery-selected-collection',
-					this._state.selectedCollection.id
-				);
-			} else {
-				localStorage.removeItem('gnstudio-gallery-selected-collection');
-			}
+			this.persistSelectedCollection(this._state.selectedCollection?.id ?? null);
 
 			// Log storage usage for monitoring
 			const estimate = await getStorageEstimate();
@@ -519,6 +565,51 @@ class GalleryStore {
 		} catch (error) {
 			console.error('Failed to save gallery data:', error);
 			this.setError('Failed to save gallery data');
+		}
+	}
+
+	/**
+	 * Load durable gallery data into the store.
+	 */
+	async loadFromStorage(): Promise<void> {
+		if (this._state.collections.length > 0) {
+			return;
+		}
+
+		this.setLoading(true);
+		this.setError(null);
+
+		try {
+			await runIndexedDbToOpfsMigration().catch((error) => {
+				console.warn('IndexedDB to OPFS migration failed', error);
+			});
+			const collections = await getAllCollections();
+			const selectedCollectionId =
+				typeof localStorage !== 'undefined'
+					? localStorage.getItem(SELECTED_COLLECTION_STORAGE_KEY)
+					: null;
+			const selectedCollection =
+				collections.find((collection) => collection.id === selectedCollectionId) ??
+				collections[0] ??
+				null;
+
+			untrack(() => {
+				this._state.collections = collections;
+				this._state.selectedCollection = selectedCollection;
+				this._state.selectedItem = selectedCollection?.items[0] ?? null;
+				this._traitIndex.clear();
+				this._traitCategories.clear();
+				this._traitIndexCollectionId = null;
+				this.filteredCache.clear();
+				imageUrlCache.setCollectionSize(
+					collections.reduce((sum, collection) => sum + collection.totalSupply, 0)
+				);
+			});
+		} catch (error) {
+			console.error('Failed to load gallery data:', error);
+			this.setError('Failed to load gallery data');
+		} finally {
+			this.setLoading(false);
 		}
 	}
 	/**
@@ -576,7 +667,7 @@ class GalleryStore {
 	}
 
 	/**
-	 * Stream a single item image directly to IndexedDB during import.
+	 * Stream a single item image directly to storage during import.
 	 * Updates the item's imageFormat in $state.
 	 */
 	async streamItemImage(
@@ -591,13 +682,13 @@ class GalleryStore {
 			const item = collection.items.find((i) => i.id === itemId);
 			if (item) {
 				item.imageFormat = imageFormat;
+				this.debouncedSaveToStorage();
 			}
 		}
 	}
 
 	/**
-
-	 * Fetch a single item's image data from IndexedDB on demand.
+	 * Fetch a single item's image data from storage on demand.
 	 */
 	async getItemImage(itemId: string): Promise<ArrayBuffer | null> {
 		return fetchItemImage(itemId);
@@ -659,12 +750,21 @@ class GalleryStore {
 
 	// Utility methods
 	async clearGallery() {
+		if (this.saveTimeout) {
+			clearTimeout(this.saveTimeout);
+			this.saveTimeout = null;
+		}
+
 		this._state.collections = [];
 		this._state.selectedItem = null;
 		this._state.selectedCollection = null;
-		// Clear IndexedDB and localStorage
+		this._traitIndex.clear();
+		this._traitCategories.clear();
+		this._traitIndexCollectionId = null;
+		this.filteredCache.clear();
+		// Clear durable storage and localStorage.
 		await clearAllCollections();
-		localStorage.removeItem('gnstudio-gallery-selected-collection');
+		this.persistSelectedCollection(null);
 	}
 
 	exportCollection(collectionId: string) {

@@ -33,11 +33,6 @@ export class WorkerArrayBufferCache {
 		this.deviceMemoryGB = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
 		this.maxEntries = this.calculateOptimalEntries();
 		this.maxMemoryBytes = this.calculateOptimalMemory();
-
-		if (import.meta.env.DEV)
-			console.log(
-				`🧠 Enhanced Cache initialized: ${this.maxEntries} entries, ${(this.maxMemoryBytes / 1024 / 1024).toFixed(1)}MB max`
-			);
 	}
 
 	private calculateOptimalEntries(): number {
