@@ -250,6 +250,9 @@ let batchTimeout: ReturnType<typeof setTimeout> | null = null;
 function processBatchQueue(): void {
 	if (batchQueue.length === 0) return;
 
+	const startTime = performance.now();
+	const queueSize = batchQueue.length;
+
 	const traitUpdates: TraitBatchUpdate[] = [];
 	const layerUpdates: LayerBatchUpdate[] = [];
 
@@ -280,6 +283,12 @@ function processBatchQueue(): void {
 	}
 
 	persistenceService.save(project);
+
+	// Track flush time as performance metric
+	const flushTime = performance.now() - startTime;
+	if (import.meta.env.DEV) {
+		console.debug(`[perf] Batch flush: ${queueSize} items in ${flushTime.toFixed(2)}ms`);
+	}
 }
 
 function scheduleBatchPersist(): void {

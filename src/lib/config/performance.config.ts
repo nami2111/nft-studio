@@ -203,12 +203,27 @@ export function getOptimalBatchSize(collectionSize: number): number {
 
 /**
  * Calculate adaptive batch delay based on queue size
+ * Clamped to [100ms, 5000ms] to prevent extreme values
  */
 export function calculateAdaptiveDelay(
 	queueSize: number,
 	config: typeof PERF_CONFIG.batch.delay = PERF_CONFIG.batch.delay
 ): number {
-	return Math.min(config.max, Math.max(config.min, queueSize * config.base));
+	const calculated = Math.min(config.max, Math.max(config.min, queueSize * config.base));
+
+	// Hard bounds: 100ms minimum, 5s maximum
+	const ABSOLUTE_MIN = 100;
+	const ABSOLUTE_MAX = 5000;
+	const clamped = Math.min(ABSOLUTE_MAX, Math.max(ABSOLUTE_MIN, calculated));
+
+	// Log decisions in dev mode
+	if (import.meta.env.DEV && clamped !== calculated) {
+		console.debug(
+			`[perf] Adaptive delay clamped: ${calculated}ms → ${clamped}ms (queue: ${queueSize})`
+		);
+	}
+
+	return clamped;
 }
 
 /**

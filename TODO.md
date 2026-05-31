@@ -270,12 +270,29 @@ Single-tab UI works without these. Multi-tab fix requires pool changes.
 
 **Performance**: 2000 items filtered in 25ms (already fast, now faster with no reactive overhead)
 
-### Adaptive Debounce Bounds
+### Adaptive Debounce Bounds ✓
 
-- [ ] Clamp `calculateAdaptiveDelay()` to [100ms, 5s]
-- [ ] Log decisions in dev mode
-- [ ] Track flush times as performance metric
-- Files: `src/lib/config/performance.config.ts`
+**Status**: Clamped calculateAdaptiveDelay() to [100ms, 5s]. Added dev logging and flush time tracking.
+
+**Files**:
+
+- `src/lib/config/performance.config.ts` (updated — hard bounds, dev logging)
+- `src/lib/stores/project.store.svelte.ts` (updated — flush time tracking)
+
+**Tasks**:
+
+- [x] Clamp `calculateAdaptiveDelay()` to [100ms, 5s]
+- [x] Log decisions in dev mode when clamping occurs
+- [x] Track flush times as performance metric in processBatchQueue()
+
+**Benefits**:
+
+- Prevents extreme delays (no 10s+ waits or sub-100ms thrashing)
+- Dev logging shows when clamping occurs for tuning
+- Flush time tracking helps identify performance bottlenecks
+- Hard bounds independent of config (safety net)
+
+**Bounds**: ABSOLUTE_MIN = 100ms, ABSOLUTE_MAX = 5000ms
 
 ### Utility Domain Reorganization
 
