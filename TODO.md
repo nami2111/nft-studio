@@ -324,11 +324,30 @@ Single-tab UI works without these. Multi-tab fix requires pool changes.
 - Files: `src/lib/workers/csp-solver.ts`
 - **Risk**: Hot-path perf regression. Benchmark first.
 
-### Loading State Decoupling
+### Loading State Decoupling ✓
 
-- [ ] Move loading state out of project store re-exports
-- [ ] UI concern, not project state — should be its own facade
-- Files: `src/lib/stores/loading-state.svelte.ts`, `src/lib/stores/project.store.svelte.ts`
+**Status**: Already decoupled in separate file. Added facade for consistency with other stores.
+
+**Files**:
+
+- `src/lib/stores/loading-state.svelte.ts` (existing — already decoupled)
+- `src/lib/stores/facades/loading.facade.ts` (new — consistent interface)
+- `src/lib/stores/facades/index.ts` (updated — export loading facade)
+
+**Tasks**:
+
+- [x] Loading state already in separate file (not re-exported from project store)
+- [x] Create loading facade with { state, actions } interface
+- [x] Export from facades index
+
+**Benefits**:
+
+- Loading state is UI concern, not project state (already separated)
+- Facade provides consistent interface matching other stores
+- Components can use createLoadingFacade() like other facades
+- Direct imports still work (loading-state.svelte.ts)
+
+**Note**: Loading state was already properly decoupled. This task added facade for consistency.
 
 ### JSON Project Importer
 
