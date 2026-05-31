@@ -36,12 +36,20 @@ class GalleryStore {
 	private filteredCache = new Map<string, GalleryItem[]>();
 	private readonly MAX_CACHE_ENTRIES = PERF_CONFIG.cache.galleryFilter.maxEntries;
 
+	// Memoized naturalCompare results
+	private compareCache = new Map<string, number>();
+
 	// Debounce timer for saves
 	private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 	private readonly SAVE_DEBOUNCE_MS = 1000; // 1 second debounce for gallery saves
 
 	// Natural numeric sorting function for names
 	private naturalCompare(a: string, b: string): number {
+		const cacheKey = `${a}\0${b}`;
+		if (this.compareCache.has(cacheKey)) {
+			return this.compareCache.get(cacheKey)!;
+		}
+
 		// Extract numbers from anywhere in the string (handles "Foxinity #1", "#001", etc.)
 		const extractNumber = (str: string): { num: number | null; index: number } => {
 			// Try to find number after common delimiters like #, -, space
@@ -60,19 +68,31 @@ class GalleryStore {
 		const aNum = extractNumber(a);
 		const bNum = extractNumber(b);
 
+		let result: number;
 		// If both have numbers, compare numerically
 		if (aNum.num !== null && bNum.num !== null) {
 			if (aNum.num !== bNum.num) {
-				return aNum.num - bNum.num;
+				result = aNum.num - bNum.num;
+			} else {
+				// If numbers are equal, use standard string comparison
+				result = a.localeCompare(b);
 			}
-			// If numbers are equal, use standard string comparison
-			return a.localeCompare(b);
+		} else if (aNum.num !== null) {
+			// If only one has a number, prioritize the one with numbers
+			result = -1;
+		} else if (bNum.num !== null) {
+			result = 1;
+		} else {
+			// Otherwise, use standard string comparison
+			result = a.localeCompare(b);
 		}
-		// If only one has a number, prioritize the one with numbers
-		if (aNum.num !== null) return -1;
-		if (bNum.num !== null) return 1;
-		// Otherwise, use standard string comparison
-		return a.localeCompare(b);
+
+		// Cache result (limit cache size)
+		if (this.compareCache.size > 10000) {
+			this.compareCache.clear();
+		}
+		this.compareCache.set(cacheKey, result);
+		return result;
 	}
 
 	/**
@@ -81,12 +101,12 @@ class GalleryStore {
 	 * This allows for near-instant set intersection filtering instead of O(N) scanning
 	 */
 	private buildTraitIndex(items: GalleryItem[]): {
-		index: SvelteMap<string, SvelteSet<string>>;
-		categories: SvelteMap<string, string[]>;
+		index: Map<string, Set<string>>;
+		categories: Map<string, string[]>;
 	} {
 		const startTiming = debugTime('Build trait index');
-		const index = new SvelteMap<string, SvelteSet<string>>();
-		const traitStats = new SvelteMap<string, SvelteSet<string>>();
+		const index = new Map<string, Set<string>>();
+		const traitStats = new Map<string, Set<string>>();
 
 		// Use untrack and avoid reactive overhead - this is critical for loop performance in Svelte 5
 		untrack(() => {
@@ -103,13 +123,13 @@ class GalleryStore {
 
 						// Update inverse index
 						if (!index.has(key)) {
-							index.set(key, new SvelteSet());
+							index.set(key, new Set());
 						}
 						index.get(key)!.add(item.id);
 
 						// Update categories for UI
 						if (!traitStats.has(layer)) {
-							traitStats.set(layer, new SvelteSet());
+							traitStats.set(layer, new Set());
 						}
 						traitStats.get(layer)!.add(value);
 					}
@@ -118,7 +138,7 @@ class GalleryStore {
 		});
 
 		// Format categories for UI (sorting values)
-		const categories = new SvelteMap<string, string[]>();
+		const categories = new Map<string, string[]>();
 		for (const [layer, values] of traitStats.entries()) {
 			categories.set(layer, Array.from(values).sort());
 		}
@@ -128,12 +148,32 @@ class GalleryStore {
 		return { index, categories };
 	}
 
+	/**
+	 * Explicitly rebuild trait index for current collection.
+	 * Call this after adding/removing items to refresh the index.
+	 */
+	rebuildTraitIndex(): void {
+		let sourceItems: GalleryItem[] = [];
+		if (this._state.selectedCollection) {
+			sourceItems = this._state.selectedCollection.items;
+		} else {
+			sourceItems = this._state.collections.flatMap((collection) => collection.items);
+		}
+
+		const currentCollectionId = this._state.selectedCollection?.id || 'all';
+		const { index, categories } = this.buildTraitIndex(sourceItems);
+		this._traitIndex = index;
+		this._traitCategories = categories;
+		this._traitIndexCollectionId = currentCollectionId;
+	}
+
 	// Track last logged storage usage to reduce log frequency
 	private _lastLoggedUsage: number | null = null;
 
 	// Trait index cache for efficient filtering - maps "layer:trait" to a Set of item IDs
-	private _traitIndex = new SvelteMap<string, SvelteSet<string>>();
-	private _traitCategories = new SvelteMap<string, string[]>();
+	// Use plain Map/Set instead of SvelteMap/SvelteSet to avoid reactive overhead
+	private _traitIndex = new Map<string, Set<string>>();
+	private _traitCategories = new Map<string, string[]>();
 	private _traitIndexCollectionId: string | null = null;
 
 	// Main state
