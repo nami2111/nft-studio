@@ -64,3 +64,5 @@ AGENTS.md
 /coverage
 /tmp
 .agents/
+.codex/
+codedb.snapshot
