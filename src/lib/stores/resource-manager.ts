@@ -54,22 +54,19 @@ export class ResourceManager {
 		this.imageBitmapCache = new ImageBitmapCache({
 			maxSize: config.imageBitmap?.maxSize || MEMORY.IMAGE_BITMAP_CACHE_MAX_SIZE,
 			maxEntries: config.imageBitmap?.maxEntries || MEMORY.IMAGE_BITMAP_CACHE_MAX_ENTRIES,
-			defaultTtl: config.imageBitmap?.ttl || MEMORY.IMAGE_BITMAP_CACHE_TTL,
-			evictionPolicy: 'lru'
+			defaultTtl: config.imageBitmap?.ttl || MEMORY.IMAGE_BITMAP_CACHE_TTL
 		});
 
 		this.imageCache = new ImageDataCache({
 			maxSize: config.imageData?.maxSize || MEMORY.IMAGE_DATA_CACHE_MAX_SIZE,
 			maxEntries: config.imageData?.maxEntries || MEMORY.IMAGE_DATA_CACHE_MAX_ENTRIES,
-			defaultTtl: config.imageData?.ttl || MEMORY.IMAGE_DATA_CACHE_TTL,
-			evictionPolicy: 'lru'
+			defaultTtl: config.imageData?.ttl || MEMORY.IMAGE_DATA_CACHE_TTL
 		});
 
 		this.arrayBufferCache = new ArrayBufferCache({
 			maxSize: config.arrayBuffer?.maxSize || MEMORY.ARRAY_BUFFER_CACHE_MAX_SIZE,
 			maxEntries: config.arrayBuffer?.maxEntries || MEMORY.ARRAY_BUFFER_CACHE_MAX_ENTRIES,
-			defaultTtl: config.arrayBuffer?.ttl || TIME.BUFFER_CACHE_TTL,
-			evictionPolicy: 'lru'
+			defaultTtl: config.arrayBuffer?.ttl || TIME.BUFFER_CACHE_TTL
 		});
 
 		// Delegate pressure detection to monitor — this class owns the cleanup policy

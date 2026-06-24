@@ -11,9 +11,8 @@ import type {
 	GallerySortOption
 } from '$lib/types/gallery';
 import { untrack } from 'svelte';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteSet } from 'svelte/reactivity';
 import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
-import { runIndexedDbToOpfsMigration } from '$lib/storage/migrations';
 import {
 	getAllCollections,
 	saveCollection,
@@ -26,7 +25,7 @@ import {
 import { imageUrlCache } from '$lib/utils/object-url-cache';
 import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
 import { PERF_CONFIG } from '$lib/config/performance.config';
-import { productionMonitor } from '$lib/monitoring/performance-monitor';
+import { productionMonitor } from '$lib/utils/performance-monitor';
 
 const SELECTED_COLLECTION_STORAGE_KEY = 'gnstudio-gallery-selected-collection';
 
@@ -580,9 +579,6 @@ class GalleryStore {
 		this.setError(null);
 
 		try {
-			await runIndexedDbToOpfsMigration().catch((error) => {
-				console.warn('IndexedDB to OPFS migration failed', error);
-			});
 			const collections = await getAllCollections();
 			const selectedCollectionId =
 				typeof localStorage !== 'undefined'

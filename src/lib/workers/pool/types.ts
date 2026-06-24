@@ -1,12 +1,4 @@
-import type { GenerationWorkerMessage } from '$lib/types/worker-messages';
-
-// Task complexity levels
-export enum TaskComplexity {
-	LOW = 1,
-	MEDIUM = 2,
-	HIGH = 3,
-	VERY_HIGH = 4
-}
+import type { WorkerPoolDispatchMessage } from '$lib/types/worker-messages';
 
 // Worker health status
 export enum WorkerHealth {
@@ -23,7 +15,6 @@ export interface WorkerPoolConfig {
 	maxConcurrentTasks?: number;
 	workerInitializationTimeout?: number;
 	minWorkers?: number;
-	taskComplexityBasedScaling?: boolean;
 	healthCheckInterval?: number;
 	maxRestarts?: number;
 }
@@ -31,13 +22,11 @@ export interface WorkerPoolConfig {
 // Task interface
 export interface WorkerTask<T = unknown> {
 	id: string;
-	message: GenerationWorkerMessage;
+	message: WorkerPoolDispatchMessage;
 	resolve: (value: T) => void;
 	reject: (reason?: unknown) => void;
 	assignedWorker?: number;
 	timestamp: number;
-	complexity: TaskComplexity;
-	estimatedDuration?: number;
 }
 
 // Worker pool interface

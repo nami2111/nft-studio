@@ -1,3 +1,6 @@
+<script lang="ts">
+</script>
+
 					<section class="animate-in fade-in duration-300">
 						<div class="border-border bg-card rounded-lg border">
 							<div class="border-border border-b px-4 py-3 sm:px-6 sm:py-4">

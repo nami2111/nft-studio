@@ -4,9 +4,6 @@ import type { GalleryItem } from '$lib/types/gallery';
 import * as galleryStorage from '$lib/utils/gallery-storage';
 
 vi.mock('$lib/utils/gallery-storage');
-vi.mock('$lib/storage/migrations', () => ({
-	runIndexedDbToOpfsMigration: vi.fn().mockResolvedValue(undefined)
-}));
 
 describe('gallery.store', () => {
 	beforeEach(() => {

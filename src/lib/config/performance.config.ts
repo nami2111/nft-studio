@@ -184,24 +184,6 @@ export const PERF_CONFIG = {
 } as const;
 
 /**
- * Type helper for performance config
- */
-export type PerformanceConfig = typeof PERF_CONFIG;
-
-/**
- * Get optimal batch size based on collection size
- */
-export function getOptimalBatchSize(collectionSize: number): number {
-	if (collectionSize <= 1000) {
-		return 25; // More frequent updates for small collections
-	} else if (collectionSize <= 10000) {
-		return 50; // Medium frequency for medium collections
-	} else {
-		return 100; // Less frequent for large collections
-	}
-}
-
-/**
  * Calculate adaptive batch delay based on queue size
  * Clamped to [100ms, 5000ms] to prevent extreme values
  */
@@ -224,35 +206,4 @@ export function calculateAdaptiveDelay(
 	}
 
 	return clamped;
-}
-
-/**
- * Get optimal worker count based on device capabilities.
- * Pass overrideCores and/or overrideMemoryGB to avoid hardware fingerprinting.
- */
-export function getOptimalWorkerCount(
-	maxWorkers = PERF_CONFIG.generation.workers.maxWorkers,
-	overrideCores?: number,
-	overrideMemoryGB?: number
-): number {
-	if (typeof navigator === 'undefined') return overrideCores ?? 4;
-
-	const cores = overrideCores ?? navigator.hardwareConcurrency ?? 4;
-	// deviceMemory is experimental - use type assertion
-	const memoryGB =
-		overrideMemoryGB ?? (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
-
-	// Use configured CPU utilization, capped by memory
-	const byCores = Math.floor(cores * PERF_CONFIG.generation.workers.cpuUtilization);
-	const byMemory = Math.floor(memoryGB * 2); // 2 workers per GB
-
-	return Math.min(byCores, byMemory, maxWorkers);
-}
-
-/**
- * Get the performance configuration
- * Allows dynamic configuration access for monitoring and testing
- */
-export function getPerformanceConfig(): PerformanceConfig {
-	return PERF_CONFIG;
 }

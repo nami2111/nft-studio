@@ -72,7 +72,8 @@ vi.mock('$lib/stores/generation-progress.svelte', () => ({
 	cancelGeneration: vi.fn(),
 	updateProgress: vi.fn(),
 	addPreviews: vi.fn(),
-	handleError: vi.fn()
+	handleError: vi.fn(),
+	cleanupGenerationState: vi.fn()
 }));
 
 // Real child components are used (unmocked) to avoid Svelte 5 render issues.
