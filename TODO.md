@@ -28,23 +28,33 @@ Green gate passed: `tsc --noEmit` clean, 481 tests pass.
   `getOptimalBatchSize`, `getOptimalWorkerCount`, `PerformanceConfig` type — all 0 callers.
   Kept `calculateAdaptiveDelay`, `PERF_CONFIG`.
 
-## Phase 2 — Storage spine collapse (~1.2–1.7k lines) [biggest, do carefully]
+## Phase 2 — Storage: delete completed migration subsystem (~1.16k lines) [DONE ✅]
 
-3 layers → 2. Call `storage/` backends from `persistence.service` directly; delete the
-`persistence/` store wrappers in between. Verify each sub-claim with grep first.
+OPFS migration confirmed complete (product call). The completed migration machinery +
+its boot-path triggers were the real bloat. The `persistence/` "wrapper layer" the audit
+flagged turned out to be **load-bearing legacy-fallback / data-safety code — NOT cut.**
+Green gate passed: `tsc --noEmit` clean, 476 tests pass.
 
-- [ ] **Delete `persistence/indexeddb.ts` (84L)** [R]. Only caller is `persistence.service`,
-  which already has a legacy path via SmartStorageStore. Confirm + remove.
-- [ ] **Delete `LocalStorageStore` + `SmartStorageStore` from `persistence/storage.ts`
-  (~256L)** [R]. `LocalStorageStore` has 0 production users. Route `persistence.service`
-  to backends directly.
-- [ ] **Decide `migrations/indexeddb-to-opfs.ts` (662L)** [R]. Currently runs in boot path
-  inside a `.catch`. If OPFS adoption complete → delete. Else → lazy-import only when a
-  migration is actually needed (not on every boot). **Needs product call — do not blind-delete.**
-- [ ] **Dedup ArrayBuffer serialize/restore helpers (~80L)** [R]. Same logic in
-  `persistence/storage.ts`, `opfs.ts`, `indexeddb-legacy.ts`. One shared
-  `utils/storage-serialization.ts`.
-- [ ] **Delete `storage/telemetry.ts` (26L)** [R→verify] if unused after Phase 1 repoint.
+- [x] **Deleted entire `src/lib/storage/migrations/` dir (1,125L)** — `indexeddb-to-opfs.ts`
+  (662) + its test (187) + `legacy-cleanup.ts` (113) + its test (105) + `types.ts` (38) +
+  `index.ts` (20). Removed the 2 boot-path call sites (`persistence.service.loadProject`,
+  `gallery.store.loadFromStorage`) + a stale mock in `gallery.store.test`.
+- [x] **Deleted `storage/telemetry.ts` (26L)** [V]. Both exports
+  (`measureStorageOperation`, `logStorageDebugSummary`) had 0 importers.
+
+### Audit overclaims corrected — NOT cut (load-bearing):
+- `persistence/indexeddb.ts` — `loadProjectFromLegacyStorage`/`deleteLegacyProject` are
+  active legacy-fallback reads in `persistence.service`. Data-safety net. Keep.
+- `LocalStorageStore` + `SmartStorageStore` (`persistence/storage.ts`) — `SmartStorageStore`
+  is `persistence.service.metaStorage` (legacy save/load path); it depends on
+  `LocalStorageStore` + the sync helpers + `createCompactVersion` internally. Whole chain
+  is coupled and live. The audit's "0 production users" was a grep artifact (excluded the
+  defining file). Keep.
+- ArrayBuffer serialize/restore dedup (~80L) — skipped: touches the data-serialization path
+  for marginal gain. Not worth the risk now.
+
+Reality: audit's ~1.2–1.7k estimate was mostly `persistence/`, which is real. The migration
+dir delivered the bulk (~1.16k) on its own and was the only safe cut here.
 
 ## Phase 3 — Project mutation spine + facades (~480 lines) [DONE ✅]
 

@@ -13,7 +13,6 @@ import type {
 import { untrack } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
-import { runIndexedDbToOpfsMigration } from '$lib/storage/migrations';
 import {
 	getAllCollections,
 	saveCollection,
@@ -580,9 +579,6 @@ class GalleryStore {
 		this.setError(null);
 
 		try {
-			await runIndexedDbToOpfsMigration().catch((error) => {
-				console.warn('IndexedDB to OPFS migration failed', error);
-			});
 			const collections = await getAllCollections();
 			const selectedCollectionId =
 				typeof localStorage !== 'undefined'
