@@ -71,17 +71,28 @@ Green gate passed: `tsc --noEmit` clean, 481 tests pass.
 Note: `routes/app/+page.svelte` uses a `projectStore` object export from
 `project.store.svelte` directly — unrelated to facades, left untouched.
 
-## Phase 4 — Cache consolidation (~800 lines) [R, highest-risk logic]
+## Phase 4 — Cache: kill redundant timer + dead policies (~90 lines) [DONE ✅]
 
-3 hand-rolled caches → 1 generic Map + evict-on-limit. Has perf implications — bench before/after.
+**The 800L "merge 3 caches → 1" was rejected — false premise.** The three caches do three
+different jobs and share only the shallow Map-and-evict shape:
+- `advanced-cache.ts` — generic main-thread LRU/TTL with typed subclasses + metrics feeding
+  `performanceMonitor`.
+- `object-url-cache.ts` — blob-URL **lifecycle** (lazy revocation + recreation to dodge
+  ERR_FILE_NOT_FOUND on live DOM refs, collection-size-aware thresholds). Not a generic cache.
+- `workers/cache/array-buffer.cache.ts` — worker-side, device-memory-sized, frequency/size
+  eviction score, no timers (no `window` in a worker).
+A unified cache would need config switches for all three behaviors — that's *more* complexity,
+not less. Kept all three. Did the one bounded, safe cut the audit got right:
 
-- [ ] **Merge `advanced-cache.ts` (489L) + `object-url-cache.ts` (383L) +
-  `workers/cache/array-buffer.cache.ts` (217L)** → one `lru-cache.ts` (~80L). Each
-  reimplements LRU eviction. Object-URL cache adds blob revocation — keep that as a thin
-  `onEvict` hook, not a separate class.
-- [ ] **Kill `advanced-cache`'s internal 30s memory-pressure timer** — it races
-  `MemoryPressureMonitor`. Drive eviction from the single monitor.
-- [ ] Bench gallery scroll + generation memory before/after. Revert if regression.
+- [x] **Killed `AdvancedCache`'s internal 30s memory-pressure timer** [V]. `resource-manager`
+  already delegates pressure detection to `MemoryPressureMonitor` (the single authority);
+  the cache's own `adaptToMemoryPressure` timer raced it. Removed timer + method + 2 dead
+  fields. No bench needed — deleting a timer that fought the monitor is strictly better.
+- [x] **Removed dead `evictionPolicy` option + `lfu`/`ttl` branches** [V]. Every caller passes
+  `'lru'`; the other two `evictEntry` branches were unreachable. Collapsed to LRU-only,
+  dropped the option from the interface + 3 `resource-manager` call sites.
+
+Net ~90L from `advanced-cache.ts`. `object-url-cache.ts` + worker cache left intact.
 
 ## Phase 5 — Smaller shrinks (~700 lines) [R, opportunistic]
 
