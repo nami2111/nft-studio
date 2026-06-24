@@ -413,12 +413,12 @@ describe('generation.orchestrator', () => {
 
 		it('cancels the active session streamer and fires onCancelled exactly once', async () => {
 			// Keep finalize pending so the session stays active until we cancel.
-			let _resolveFinalize!: () => void;
+			let resolveFinalize!: () => void;
 			const streamer = mockStreamer({
 				finalize: vi.fn(
 					() =>
 						new Promise<void>((r) => {
-							_resolveFinalize = r;
+							resolveFinalize = r;
 						})
 				)
 			});
@@ -432,9 +432,33 @@ describe('generation.orchestrator', () => {
 			expect(streamer.cancel).toHaveBeenCalled();
 			expect(mockCallbacks.onCancelled).toHaveBeenCalledTimes(1);
 
-			// Release the held run so it can settle without hanging.
-			_resolveFinalize();
-			promise.catch(() => {});
+			// Release the held run. Cancellation must not turn into completion or error.
+			resolveFinalize();
+			await promise;
+
+			expect(mockCallbacks.onComplete).not.toHaveBeenCalled();
+			expect(mockCallbacks.onError).not.toHaveBeenCalled();
+		});
+
+		it('swallows worker-pool termination errors after cancellation', async () => {
+			let rejectPoolTask!: (error: Error) => void;
+			vi.mocked(pool.postMessageToPool).mockImplementation(
+				() =>
+					new Promise((_, reject) => {
+						rejectPoolTask = reject;
+					})
+			);
+
+			const promise = runGeneration(mockConfig, mockCallbacks);
+			await vi.waitFor(() => expect(pool.postMessageToPool).toHaveBeenCalled());
+
+			await cancelGeneration();
+			rejectPoolTask(new Error('Worker pool terminated'));
+			await promise;
+
+			expect(mockCallbacks.onCancelled).toHaveBeenCalledTimes(1);
+			expect(mockCallbacks.onComplete).not.toHaveBeenCalled();
+			expect(mockCallbacks.onError).not.toHaveBeenCalled();
 		});
 	});
 });

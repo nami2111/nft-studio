@@ -86,6 +86,8 @@ class GenerationSession {
 	readonly callbacks: GenerationCallbacks;
 	readonly useStreamingStorage: boolean;
 	streamer: ResultStreamer | null = null;
+	private cancelled = false;
+	private cancellationNotified = false;
 
 	constructor(config: GenerationConfig, callbacks: GenerationCallbacks) {
 		this.id = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -96,6 +98,20 @@ class GenerationSession {
 
 	get storageSessionId(): string {
 		return this.id;
+	}
+
+	get isCancelled(): boolean {
+		return this.cancelled;
+	}
+
+	markCancelled(): void {
+		this.cancelled = true;
+	}
+
+	notifyCancelled(): void {
+		if (this.cancellationNotified) return;
+		this.cancellationNotified = true;
+		this.callbacks.onCancelled();
 	}
 
 	cancelStreamer(): void {
@@ -181,8 +197,10 @@ export async function runGeneration(
 				const solutions = await solveOnMainThread(
 					transferrableLayers,
 					config.collectionSize,
-					config.strictPairConfig
+					config.strictPairConfig,
+					() => session.isCancelled
 				);
+				if (session.isCancelled) return;
 
 				// 6 ─ Schedule batches to worker pool
 				const scheduler = new TraitBatchScheduler({
@@ -195,15 +213,22 @@ export async function runGeneration(
 					extraData: config.extraData
 				});
 				await scheduler.scheduleBatches(solutions);
+				if (session.isCancelled) return;
 
 				// 7 ─ Finalize via streamer
 				await streamer.finalize();
 				session.streamer = null;
+				if (session.isCancelled) return;
 
 				// 8 ─ Done
 				performanceMonitor.stopTimer(timerId);
 				callbacks.onComplete({ images: [], metadata: [] });
 			} catch (error) {
+				if (session.isCancelled) {
+					performanceMonitor.stopTimer(timerId, { cancelled: true });
+					return;
+				}
+
 				// Clean up streamer on error
 				session.cancelStreamer();
 				performanceMonitor.stopTimer(timerId, { error: String(error) });
@@ -213,7 +238,9 @@ export async function runGeneration(
 				callbacks.onError(err);
 				throw err;
 			} finally {
-				_activeSession = null;
+				if (_activeSession === session) {
+					_activeSession = null;
+				}
 			}
 		},
 		'worker',
@@ -240,8 +267,9 @@ export async function runGeneration(
  */
 export async function cancelGeneration(): Promise<void> {
 	if (_activeSession) {
+		_activeSession.markCancelled();
 		_activeSession.cancelStreamer();
-		_activeSession.callbacks.onCancelled();
+		_activeSession.notifyCancelled();
 		_activeSession = null;
 	}
 
@@ -258,7 +286,8 @@ export async function cancelGeneration(): Promise<void> {
 export async function solveOnMainThread(
 	layers: TransferrableLayer[],
 	collectionSize: number,
-	strictPairConfig?: StrictPairConfig
+	strictPairConfig?: StrictPairConfig,
+	shouldCancel: () => boolean = () => false
 ): Promise<{ index: number; traits: { layerId: string; trait: TransferrableTrait }[] }[]> {
 	const usedCombinations = new Map<string, Set<bigint | string>>();
 
@@ -283,6 +312,11 @@ export async function solveOnMainThread(
 	const preSolveTimer = performanceMonitor.startTimer('generation.preSolve');
 
 	for (let i = 0; i < collectionSize; i++) {
+		if (shouldCancel()) {
+			performanceMonitor.stopTimer(preSolveTimer, { cancelled: true });
+			return [];
+		}
+
 		if (i % 50 === 0) {
 			if (_activeSession) {
 				_activeSession.callbacks.onProgress({
@@ -444,8 +478,9 @@ function routePoolMessage(data: PoolForwardedWorkerMessage, session: GenerationS
 			break;
 
 		case 'cancelled':
+			session.markCancelled();
 			session.cancelStreamer();
-			callbacks.onCancelled();
+			session.notifyCancelled();
 			break;
 	}
 }

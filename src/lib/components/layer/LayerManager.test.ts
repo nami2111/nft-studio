@@ -11,60 +11,46 @@ import LayerManager from './LayerManager.svelte';
 import { createMockProject, mockLayer } from '../test-utils';
 import type { Project, Layer } from '$lib/types';
 
-import { project, addLayer, reorderLayers } from '$lib/stores';
 import { showError, showSuccess } from '$lib/utils/error-handling';
 
-// Mock dependencies
-vi.mock('$lib/stores', async () => {
-	let internalState = {
+const mockProjectState = vi.hoisted(() => ({
+	current: {
 		id: '123',
 		name: 'Test Project',
 		description: 'Test Description',
 		layers: [],
 		outputSize: { width: 100, height: 100 },
 		strictPairConfig: { method: 'none', count: 0 }
-	};
+	} as unknown as Project
+}));
 
-	const projectProxy = {
-		get id() {
-			return internalState.id;
-		},
-		get name() {
-			return internalState.name;
-		},
-		get description() {
-			return internalState.description;
-		},
-		get layers() {
-			return internalState.layers;
-		},
-		get outputSize() {
-			return internalState.outputSize;
-		},
-		get strictPairConfig() {
-			return internalState.strictPairConfig;
-		},
-		// Setter to allow tests to update the state
-		set: (newState: any) => {
-			internalState = newState;
-		}
-	};
+const mockProjectActions = vi.hoisted(() => ({
+	addLayer: vi.fn(),
+	reorderLayers: vi.fn(),
+	removeLayer: vi.fn(),
+	updateLayerName: vi.fn(),
+	addTrait: vi.fn(),
+	removeTrait: vi.fn(),
+	updateTraitName: vi.fn(),
+	updateTraitRarity: vi.fn(),
+	updateProjectDimensions: vi.fn()
+}));
 
+vi.mock('$lib/stores/facades', () => ({
+	useProjectStore: () => ({
+		get state() {
+			return mockProjectState.current;
+		},
+		actions: mockProjectActions
+	})
+}));
+
+// Mock dependencies
+vi.mock('$lib/stores', async () => {
 	return {
-		project: projectProxy,
-		addLayer: vi.fn(),
-		reorderLayers: vi.fn(),
-		// Additional exports required by LayerItem
 		loadingStates: writable({}),
 		startLoading: vi.fn(),
-		stopLoading: vi.fn(),
-		removeLayer: vi.fn(),
-		updateLayerName: vi.fn(),
-		addTrait: vi.fn(),
-		removeTrait: vi.fn(),
-		updateTraitName: vi.fn(),
-		updateTraitRarity: vi.fn(),
-		updateProjectDimensions: vi.fn()
+		stopLoading: vi.fn()
 	};
 });
 
@@ -104,11 +90,14 @@ vi.mock('$components/shared/Icon.svelte', () => ({
 
 describe('LayerManager', () => {
 	let mockProject: Project;
-	let mockProjectStore: any;
+
+	function setProject(project: Project): void {
+		mockProjectState.current = project;
+	}
 
 	beforeEach(() => {
 		mockProject = createMockProject();
-		mockProjectStore = writable(mockProject);
+		setProject(mockProject);
 
 		// Reset all mocks
 		vi.clearAllMocks();
@@ -120,8 +109,7 @@ describe('LayerManager', () => {
 
 	describe('Initial State', () => {
 		it('renders with empty state when no layers exist', () => {
-			// const { project } = require('$lib/stores');
-			(project as any).set({ ...mockProject, layers: [] });
+			setProject({ ...mockProject, layers: [] });
 
 			render(LayerManager);
 
@@ -131,8 +119,7 @@ describe('LayerManager', () => {
 		});
 
 		it('renders with existing layers', () => {
-			// const { project } = require('$lib/stores');
-			(project as any).set(mockProject);
+			setProject(mockProject);
 
 			render(LayerManager);
 
@@ -150,8 +137,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 
@@ -162,20 +148,19 @@ describe('LayerManager', () => {
 	describe('Add Layer', () => {
 		it('adds a new layer when add button is clicked', async () => {
 			// Explicitly set empty project to avoid state leakage from previous tests
-			(project as any).set({ ...mockProject, layers: [] });
-			(addLayer as any).mockImplementation(() => {});
+			setProject({ ...mockProject, layers: [] });
+			mockProjectActions.addLayer.mockImplementation(() => {});
 
 			render(LayerManager);
 
 			const addButton = screen.getByText(/add layer/i);
 			await fireEvent.click(addButton);
 
-			expect(addLayer).toHaveBeenCalledWith('Layer 1');
+			expect(mockProjectActions.addLayer).toHaveBeenCalledWith('Layer 1');
 			expect(showSuccess).toHaveBeenCalledWith('Layer added successfully.');
 		});
 
 		it('generates sequential layer names', async () => {
-			// const { addLayer } = require('$lib/stores');
 			const projectWith2Layers = {
 				...mockProject,
 				layers: [
@@ -184,8 +169,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWith2Layers);
+			setProject(projectWith2Layers);
 
 			render(LayerManager);
 
@@ -193,16 +177,16 @@ describe('LayerManager', () => {
 			// await fireEvent.click(addButton);
 
 			// Debug: Log validation
-			// console.log('Expected Layer 1, called with:', (addLayer as any).mock.calls);
+			// console.log('Expected Layer 1, called with:', mockProjectActions.addLayer.mock.calls);
 
-			// expect(addLayer).toHaveBeenCalledWith('Layer 1');
+			// expect(mockProjectActions.addLayer).toHaveBeenCalledWith('Layer 1');
 			// expect(showSuccess).toHaveBeenCalledWith('Layer added successfully.');
 		});
 
 		it.skip('shows loading state while adding layer', async () => {
 			// Skipped: addLayer is synchronous in store, so loading state is instantaneous and hard to test without refactoring store
 			let resolveAdd: (value: unknown) => void;
-			(addLayer as any).mockReturnValue(
+			mockProjectActions.addLayer.mockReturnValue(
 				new Promise((resolve) => {
 					resolveAdd = resolve;
 				})
@@ -229,7 +213,7 @@ describe('LayerManager', () => {
 		it.skip('prevents multiple simultaneous add operations', async () => {
 			// Skipped: See above logic regarding synchronous addLayer
 			let resolveAdd: (value: unknown) => void;
-			(addLayer as any).mockReturnValue(
+			mockProjectActions.addLayer.mockReturnValue(
 				new Promise((resolve) => {
 					resolveAdd = resolve;
 				})
@@ -244,13 +228,13 @@ describe('LayerManager', () => {
 			await fireEvent.click(addButton);
 
 			// Should only call addLayer once
-			expect(addLayer).toHaveBeenCalledTimes(1);
+			expect(mockProjectActions.addLayer).toHaveBeenCalledTimes(1);
 		});
 
 		it('handles add layer errors gracefully', async () => {
 			const testError = new Error('Failed to create layer');
 			// addLayer is synchronous in store, so we must throw synchronously, not return rejected promise
-			(addLayer as any).mockImplementation(() => {
+			mockProjectActions.addLayer.mockImplementation(() => {
 				throw testError;
 			});
 
@@ -279,8 +263,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project, reorderLayers, showSuccess } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 
@@ -288,7 +271,11 @@ describe('LayerManager', () => {
 			const upButtons = screen.getAllByTestId('move-up-btn');
 			await fireEvent.click(upButtons[1]); // Second up button is for layer-2
 
-			expect(reorderLayers).toHaveBeenCalledWith(['layer-2', 'layer-1', 'layer-3']);
+			expect(mockProjectActions.reorderLayers).toHaveBeenCalledWith([
+				'layer-2',
+				'layer-1',
+				'layer-3'
+			]);
 			expect(showSuccess).toHaveBeenCalledWith('Layer moved successfully.');
 		});
 
@@ -302,8 +289,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project, reorderLayers, showSuccess } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 
@@ -311,7 +297,11 @@ describe('LayerManager', () => {
 			const downButtons = screen.getAllByTestId('move-down-btn');
 			await fireEvent.click(downButtons[1]); // Second down button is for layer-2
 
-			expect(reorderLayers).toHaveBeenCalledWith(['layer-1', 'layer-3', 'layer-2']);
+			expect(mockProjectActions.reorderLayers).toHaveBeenCalledWith([
+				'layer-1',
+				'layer-3',
+				'layer-2'
+			]);
 			expect(showSuccess).toHaveBeenCalledWith('Layer moved successfully.');
 		});
 
@@ -325,8 +315,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 
@@ -346,8 +335,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 
@@ -358,8 +346,6 @@ describe('LayerManager', () => {
 		});
 
 		it('prevents moving up when layer is already at top', async () => {
-			// const { reorderLayers } = require('$lib/stores');
-
 			const projectWith3Layers = {
 				...mockProject,
 				layers: [
@@ -369,8 +355,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 
@@ -379,12 +364,10 @@ describe('LayerManager', () => {
 			await fireEvent.click(upButtons[0]); // First up button is disabled, but let's test
 
 			// Should not call reorderLayers
-			expect(reorderLayers).not.toHaveBeenCalled();
+			expect(mockProjectActions.reorderLayers).not.toHaveBeenCalled();
 		});
 
 		it('prevents moving down when layer is already at bottom', async () => {
-			// const { reorderLayers } = require('$lib/stores');
-
 			const projectWith3Layers = {
 				...mockProject,
 				layers: [
@@ -394,8 +377,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 
@@ -404,12 +386,10 @@ describe('LayerManager', () => {
 			await fireEvent.click(downButtons[2]); // Last down button is disabled, but let's test
 
 			// Should not call reorderLayers
-			expect(reorderLayers).not.toHaveBeenCalled();
+			expect(mockProjectActions.reorderLayers).not.toHaveBeenCalled();
 		});
 
 		it('handles layer not found gracefully', async () => {
-			// const { reorderLayers } = require('$lib/stores');
-
 			render(LayerManager);
 
 			// Try to move a layer that doesn't exist
@@ -429,13 +409,9 @@ describe('LayerManager', () => {
 				layers: [{ ...mockLayer, id: 'layer-1', name: 'Background', order: 0, traits: [] }]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWithLayers);
+			setProject(projectWithLayers);
 
 			render(LayerManager);
-
-			// Debug output to analyze render state
-			screen.debug();
 
 			// Should verify layer item content
 			expect(screen.getByText('↑')).toBeInTheDocument();
@@ -448,8 +424,7 @@ describe('LayerManager', () => {
 				layers: [{ ...mockLayer, id: 'layer-1', name: 'Background', order: 0, traits: [] }]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWithLayers);
+			setProject(projectWithLayers);
 
 			render(LayerManager);
 
@@ -468,7 +443,7 @@ describe('LayerManager', () => {
 		});
 
 		it('handles reorderLayers errors gracefully', async () => {
-			(reorderLayers as any).mockImplementation(() => {
+			mockProjectActions.reorderLayers.mockImplementation(() => {
 				throw new Error('Reorder failed');
 			});
 
@@ -481,8 +456,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 
@@ -501,8 +475,7 @@ describe('LayerManager', () => {
 				layers: [{ ...mockLayer, id: 'layer-1', name: 'Background', order: 0, traits: [] }]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWithLayers);
+			setProject(projectWithLayers);
 
 			render(LayerManager);
 
@@ -520,8 +493,7 @@ describe('LayerManager', () => {
 				]
 			};
 
-			// const { project } = require('$lib/stores');
-			(project as any).set(projectWith3Layers);
+			setProject(projectWith3Layers);
 
 			render(LayerManager);
 

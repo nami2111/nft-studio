@@ -6,41 +6,40 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
-import { writable } from 'svelte/store';
 import TraitCard from './TraitCard.svelte';
 import { createMockProject, mockTrait, createMockFile } from '../test-utils';
-import { project, removeTrait, updateTraitName } from '$lib/stores';
 import { toast } from 'svelte-sonner';
 import type { Project, Trait } from '$lib/types';
 
-// Mock dependencies
-vi.mock('$lib/stores', () => {
-	// Create a reactive-like object using a plain object that we update via Object.assign
-	// for Svelte 5 to track properties.
-	const project = {
+const mockProjectState = vi.hoisted(() => ({
+	current: {
 		id: 'mock-project',
 		name: 'Mock Project',
-		layers: [],
-		set: function (newState: any) {
-			Object.assign(this, newState);
-		},
-		subscribe: (fn: any) => {
-			// Basic subscribe mock for compatibility
-			return () => {};
-		}
-	};
+		layers: []
+	} as unknown as Project
+}));
 
-	return {
-		project,
-		removeTrait: vi.fn(),
-		updateTraitName: vi.fn(),
-		updateTraitRarity: vi.fn()
-	};
-});
+const mockProjectActions = vi.hoisted(() => ({
+	removeTrait: vi.fn(),
+	updateTraitName: vi.fn(),
+	updateTraitRarity: vi.fn(),
+	updateTraitRulerRules: vi.fn()
+}));
+
+vi.mock('$lib/stores/facades', () => ({
+	useProjectStore: () => ({
+		get state() {
+			return mockProjectState.current;
+		},
+		actions: mockProjectActions
+	})
+}));
 
 vi.mock('$lib/types/ids', () => ({
+	createProjectId: (id: string) => `project:${id}`,
 	createLayerId: (id: string) => `layer:${id}`,
 	createTraitId: (id: string) => `trait:${id}`,
+	unsafeCreateProjectId: (id: string) => `project:${id}`,
 	unsafeCreateLayerId: (id: string) => `layer:${id}`,
 	unsafeCreateTraitId: (id: string) => `trait:${id}`
 }));
@@ -76,6 +75,10 @@ describe('TraitCard', () => {
 	let mockProject: Project;
 	let layerId: string;
 
+	function setProject(project: Project): void {
+		mockProjectState.current = project;
+	}
+
 	beforeEach(() => {
 		mockTrait = {
 			...mockTrait,
@@ -98,7 +101,7 @@ describe('TraitCard', () => {
 		global.confirm = vi.fn(() => true);
 
 		// Setup initial store state
-		project.set(mockProject);
+		setProject(mockProject);
 
 		// Mock IntersectionObserver globally
 		global.IntersectionObserver = vi.fn().mockImplementation(function (callback) {
@@ -268,7 +271,11 @@ describe('TraitCard', () => {
 			const saveButton = screen.getByTestId('save-button').closest('button');
 			fireEvent.click(saveButton!);
 
-			expect(updateTraitName).toHaveBeenCalledWith('layer:layer-1', 'trait:trait-1', newName);
+			expect(mockProjectActions.updateTraitName).toHaveBeenCalledWith(
+				'layer:layer-1',
+				'trait:trait-1',
+				newName
+			);
 			expect(toast.success).toHaveBeenCalledWith('Trait name updated.');
 		});
 
@@ -287,7 +294,11 @@ describe('TraitCard', () => {
 			fireEvent.input(nameInput, { target: { value: newName } });
 			fireEvent.keyDown(nameInput, { key: 'Enter' });
 
-			expect(updateTraitName).toHaveBeenCalledWith('layer:layer-1', 'trait:trait-1', newName);
+			expect(mockProjectActions.updateTraitName).toHaveBeenCalledWith(
+				'layer:layer-1',
+				'trait:trait-1',
+				newName
+			);
 			expect(toast.success).toHaveBeenCalledWith('Trait name updated.');
 		});
 
@@ -383,7 +394,7 @@ describe('TraitCard', () => {
 			const deleteButton = screen.getByTestId('delete-button').closest('button');
 			fireEvent.click(deleteButton!);
 
-			expect(removeTrait).toHaveBeenCalledWith('layer:layer-1', 'trait:trait-1');
+			expect(mockProjectActions.removeTrait).toHaveBeenCalledWith('layer:layer-1', 'trait:trait-1');
 			expect(toast.success).toHaveBeenCalledWith(`Trait "${mockTrait.name}" has been deleted.`);
 		});
 
@@ -397,14 +408,14 @@ describe('TraitCard', () => {
 			const deleteButton = screen.getByTestId('delete-button').closest('button');
 			fireEvent.click(deleteButton!);
 
-			expect(removeTrait).not.toHaveBeenCalled();
+			expect(mockProjectActions.removeTrait).not.toHaveBeenCalled();
 		});
 
 		it('shows error message when deletion fails', async () => {
 			global.confirm = vi.fn(() => true);
 
 			const testError = new Error('Delete failed');
-			removeTrait.mockImplementation(() => {
+			mockProjectActions.removeTrait.mockImplementation(() => {
 				throw testError;
 			});
 
@@ -557,7 +568,7 @@ describe('TraitCard', () => {
 
 	describe('Error Scenarios', () => {
 		it('handles missing layer data gracefully', () => {
-			project.set({ ...mockProject, layers: [] });
+			setProject({ ...mockProject, layers: [] });
 
 			render(TraitCard, {
 				props: { trait: mockTrait, layerId: 'non-existent-layer' }
