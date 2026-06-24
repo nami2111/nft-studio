@@ -146,7 +146,7 @@
 			<div class="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center">
 				<Checkbox
 					checked={selected}
-					onCheckedChange={onToggleSelection}
+					onchange={() => onToggleSelection?.()}
 					aria-label="Select trait"
 					data-testid="trait-select-checkbox"
 				/>

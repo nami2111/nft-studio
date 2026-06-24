@@ -11,7 +11,7 @@ import type {
 	GallerySortOption
 } from '$lib/types/gallery';
 import { untrack } from 'svelte';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteSet } from 'svelte/reactivity';
 import { updateCollectionWithRarity, RarityMethod } from '$lib/domain/rarity-calculator';
 import { runIndexedDbToOpfsMigration } from '$lib/storage/migrations';
 import {

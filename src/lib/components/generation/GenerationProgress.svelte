@@ -15,7 +15,15 @@
 
 	const progress = $derived(generationState.progress);
 	const statusText = $derived(generationState.statusText);
-	const memoryUsage = $derived(generationState.memoryUsage);
+	const memoryUsageDisplay = $derived.by(() => {
+		const memory = generationState.memoryUsage;
+		if (memory === null) return null;
+		if (typeof memory === 'number') return `${Math.round(memory / 1024 / 1024)}MB`;
+		if (memory.units.toLowerCase() === 'bytes') {
+			return `${Math.round(memory.used / 1024 / 1024)}MB / ${Math.round(memory.available / 1024 / 1024)}MB`;
+		}
+		return `${memory.used} / ${memory.available} ${memory.units}`;
+	});
 	const currentSessionId = $derived(generationState.sessionId);
 	const itemsPerSecond = $derived(generationState.itemsPerSecond);
 	const eta = $derived(generationState.eta);
@@ -25,7 +33,7 @@
 		const text = generationState.statusText;
 		if (!generationState.isGenerating && generationState.completionTime) return 'complete';
 		if (text.includes('Solving')) return 'solving';
-		if (text.includes('Packaging')) return 'packaging';
+		if (text.includes('Packaging') || text.includes('Finalizing')) return 'packaging';
 		if (text.includes('Batch') || text.includes('batch')) return 'generating';
 		if (generationState.isGenerating) return 'generating';
 		return 'idle';
@@ -69,9 +77,9 @@
 	{/if}
 
 	<!-- Phase Indicator -->
-	{#if currentSessionId && (isGenerating || generationState.statusText.includes('Packaging'))}
+	{#if currentSessionId && (isGenerating || generationState.statusText.includes('Packaging') || generationState.statusText.includes('Finalizing'))}
 		<div class="flex items-center gap-1.5 text-xs" in:fade>
-			{#each ['solving', 'generating', 'packaging'] as p}
+			{#each ['solving', 'generating', 'packaging'] as p (p)}
 				<div
 					class="flex items-center gap-1 rounded-full px-2.5 py-1 transition-all duration-300 {p === phase
 						? 'bg-primary/10 text-primary font-medium'
@@ -189,12 +197,8 @@
 				</div>
 			{/if}
 
-			{#if memoryUsage}
-				<p class="text-muted-foreground text-sm">
-					Memory: {Math.round(memoryUsage.used / 1024 / 1024)}MB / {Math.round(
-						memoryUsage.available / 1024 / 1024
-					)}MB
-				</p>
+			{#if memoryUsageDisplay}
+				<p class="text-muted-foreground text-sm">Memory: {memoryUsageDisplay}</p>
 			{/if}
 
 			<!-- Error Display -->

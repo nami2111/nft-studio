@@ -1,12 +1,9 @@
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import type {
-	CancelledMessage,
-	CompleteMessage,
 	ErrorMessage,
-	GenerationWorkerMessage,
 	OutgoingWorkerMessage,
-	PreviewMessage,
-	ProgressMessage
+	PoolForwardedWorkerMessage,
+	WorkerPoolDispatchMessage
 } from '$lib/types/worker-messages';
 import {
 	workerPool,
@@ -153,7 +150,14 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	}
 
 	// Task-related messages have required taskId
-	if (type === 'progress' || type === 'complete' || type === 'error' || type === 'cancelled' || type === 'preview' || type === 'chunk') {
+	if (
+		type === 'progress' ||
+		type === 'complete' ||
+		type === 'error' ||
+		type === 'cancelled' ||
+		type === 'preview' ||
+		type === 'chunk'
+	) {
 		const taskId = data.taskId;
 
 		// Forward to orchestrator callback (except internal init-layers tasks)
@@ -164,9 +168,7 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 				isInternal = task?.message?.type === 'init-layers';
 			}
 			if (!isInternal) {
-				messageCallback(
-					data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-				);
+				messageCallback(data as PoolForwardedWorkerMessage);
 			}
 		}
 
@@ -758,7 +760,7 @@ export async function terminateWorkerPool(): Promise<void> {
 	debugLog('Worker pool terminated');
 }
 
-export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<T> {
+export function postMessageToPool<T>(message: WorkerPoolDispatchMessage): Promise<T> {
 	const timerId = performanceMonitor.startTimer('worker.postMessageToPool', message.type);
 	if (!workerPool) {
 		throw new Error('Worker pool not initialized. Call initializeWorkerPool() first.');

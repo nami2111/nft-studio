@@ -8,16 +8,16 @@ import {
 	startGeneration,
 	pauseGeneration,
 	completeGeneration,
-	cancelGeneration,
 	updateProgress,
 	addPreviews,
 	handleError,
 	resetState,
 	cleanupGenerationState,
 	type GenerationState,
-	type StartGenerationConfig
+	type StartGenerationConfig,
+	type GenerationProgressUpdate
 } from '../generation-progress.svelte';
-import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
+import type { ErrorMessage } from '$lib/types/worker-messages';
 
 export interface GenerationStoreFacade {
 	state: GenerationState;
@@ -25,8 +25,7 @@ export interface GenerationStoreFacade {
 		startGeneration: (config: StartGenerationConfig) => string;
 		pauseGeneration: (reason?: string) => void;
 		completeGeneration: () => void;
-		cancelGeneration: () => void;
-		updateProgress: (data: ProgressMessage) => void;
+		updateProgress: (data: GenerationProgressUpdate) => void;
 		addPreviews: (previews: { index: number; url: string }[]) => void;
 		handleError: (msg: ErrorMessage) => void;
 		resetState: () => void;
@@ -41,7 +40,6 @@ export function createGenerationFacade(): GenerationStoreFacade {
 			startGeneration,
 			pauseGeneration,
 			completeGeneration,
-			cancelGeneration,
 			updateProgress,
 			addPreviews,
 			handleError,

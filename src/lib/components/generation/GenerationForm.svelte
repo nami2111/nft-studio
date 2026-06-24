@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { useProjectStore, useGenerationStore } from '$lib/stores/facades';
 	import { runGeneration, cancelGeneration, type GenerationConfig, type GenerationCallbacks } from '$lib/domain/worker.service';
-	import type { ProgressMessage, ErrorMessage } from '$lib/types/worker-messages';
+	import type { ErrorMessage } from '$lib/types/worker-messages';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
 	import { isFlagEnabled } from '$lib/config/feature-flags';
 	import { formatStorageBytes, getStoragePressure } from '$lib/storage/capabilities';
 	import { MetadataStandard } from '$lib/domain/metadata/strategies';
+	import { validateGenerationRequest } from '$lib/domain/generation.validation';
 	import type { Layer } from '$lib/types/layer';
 	import { onDestroy } from 'svelte';
 	import GenerationProgress from './GenerationProgress.svelte';
@@ -41,7 +42,7 @@
 		if (generationStore.state.isGenerating && !generationStore.state.isBackground) {
 			generationStore.actions.pauseGeneration('Component unmounted — continuing in background');
 			setTimeout(() => {
-				if (generationState.isGenerating && isComponentDestroyed) {
+				if (generationStore.state.isGenerating && isComponentDestroyed) {
 					generationStore.actions.resetState();
 				}
 			}, 600_000);
@@ -51,7 +52,7 @@
 	// ─── Orchestrator callbacks ──────────────────────────────
 	function buildCallbacks(): GenerationCallbacks {
 		return {
-			onProgress(msg: ProgressMessage) {
+			onProgress(msg) {
 				generationStore.actions.updateProgress(msg);
 
 				// If in background mode, skip UI feedback
@@ -207,28 +208,16 @@
 		try {
 			const projectData = projectStore.state;
 
-			// Validate project
-			if (projectData.layers.length === 0) {
-				showWarning('Project must have at least one layer.', { description: 'Validation Error' });
-				return;
-			}
-			if (projectData.outputSize.width <= 0 || projectData.outputSize.height <= 0) {
-				showWarning('Project output size not set. Please upload an image first.', { description: 'Validation Error' });
-				return;
-			}
-			const emptyLayers = projectData.layers.filter((l) => l.traits.length === 0);
-			if (emptyLayers.length > 0) {
-				showWarning(`The following layers have no traits: ${emptyLayers.map((l) => l.name).join(', ')}`, { description: 'Validation Error' });
-				return;
-			}
-			const missingImages = projectData.layers.flatMap((l) =>
-				l.traits.filter((t) => !t.imageData || t.imageData.byteLength === 0)
-			);
-			if (missingImages.length > 0) {
-				showWarning('Missing image data. Please upload images for all traits.', { description: 'Validation Error' });
-				return;
-			}
 			const totalItems = collectionSize || 100;
+			const validation = validateGenerationRequest({
+				layers: projectData.layers,
+				outputSize: projectData.outputSize,
+				collectionSize: totalItems
+			});
+			if (!validation.success) {
+				showWarning(validation.message, { description: validation.description });
+				return;
+			}
 			if (!(await hasStorageHeadroomForGeneration(projectData.layers, projectData.outputSize, totalItems))) {
 				return;
 			}
@@ -268,13 +257,23 @@
 				title: 'Generation Failed',
 				description: 'An unknown error occurred during generation. Please try again.'
 			});
-			resetState();
+			generationStore.actions.resetState();
 		}
 	}
 
 	// ─── Cancel ──────────────────────────────────────────────
-	function handleCancel() {
-		cancelGeneration();
+	async function handleCancel() {
+		try {
+			await cancelGeneration();
+			if (generationStore.state.isGenerating) {
+				generationStore.actions.resetState();
+			}
+		} catch (error) {
+			showError(error, {
+				title: 'Cancel Failed',
+				description: 'Unable to stop generation. Please try again.'
+			});
+		}
 	}
 </script>
 

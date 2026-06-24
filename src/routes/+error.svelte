@@ -5,7 +5,9 @@
 	import Icon from '$components/shared/Icon.svelte';
 	import { Home01Icon, RefreshIcon, Alert02Icon } from '@hugeicons/core-free-icons';
 
-	const { status, message } = $derived($page.error ?? {});
+	const errorInfo = $derived($page.error as { status?: number; message?: string } | null);
+	const status = $derived(errorInfo?.status);
+	const message = $derived(errorInfo?.message);
 </script>
 
 <svelte:head>
@@ -39,7 +41,7 @@
 		</p>
 
 		<div class="flex items-center justify-center gap-3">
-			<Button variant="default" onclick={() => goto('/')}>
+			<Button variant="default" onclick={() => void goto('/')}>
 				<Icon icon={Home01Icon} class="mr-2 h-4 w-4" />
 				Go Home
 			</Button>

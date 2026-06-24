@@ -11,10 +11,9 @@
 	import { Delete02Icon, Edit02Icon, CheckmarkBadge01Icon, Cancel01Icon, ArrowDown01Icon, ArrowRight01Icon, Upload01Icon, Image01Icon } from '@hugeicons/core-free-icons';
 	import { getImageDimensions } from '$lib/utils';
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
-	import { onMount, onDestroy, untrack } from 'svelte';
+	import { mount, onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-import { mount } from 'svelte';
-import NeedsReupload from '$components/ui/NeedsReupload.svelte';
+	import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 	import {
 		showSuccess,
 		showError,
@@ -85,7 +84,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 				// Delete all selected traits
 				let deletedCount = 0;
 				selectedTraits.forEach((traitId) => {
-					removeTrait(layer.id, traitId);
+					projectStore.actions.removeTrait(layer.id, traitId);
 					deletedCount++;
 				});
 				showBulkTraitDeleteSuccess(deletedCount);
@@ -114,7 +113,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 			if (trait) {
 				const newName = `${bulkNewName}_${count + 1}`;
 				if (newName.length <= 100) {
-					updateTraitName(layer.id, traitId, newName);
+					projectStore.actions.updateTraitName(layer.id, traitId, newName);
 					successCount++;
 				}
 			}
@@ -214,7 +213,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 			// Validate project dimensions match (fail fast)
 			if (firstImageDimensions) {
 				const { width, height } = firstImageDimensions;
-				const projectData = project;
+				const projectData = projectStore.state;
 				if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
 					// Allow some flexibility for rounding errors (±1 pixel)
 					if (

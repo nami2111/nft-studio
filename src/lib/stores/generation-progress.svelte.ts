@@ -10,7 +10,7 @@
 
 import type { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
 import type { Layer, StrictPairConfig } from '$lib/types/layer';
-import type { ErrorMessage, ProgressMessage } from '$lib/types/worker-messages';
+import type { ErrorMessage } from '$lib/types/worker-messages';
 
 export interface StartGenerationConfig {
 	projectName: string;
@@ -20,6 +20,16 @@ export interface StartGenerationConfig {
 	collectionSize: number;
 	strictPairConfig?: StrictPairConfig;
 	metadataStandard?: MetadataStandard;
+}
+
+export interface GenerationProgressUpdate {
+	type: 'progress';
+	payload: {
+		generatedCount: number;
+		totalCount: number;
+		statusText: string;
+		memoryUsage?: number | { used: number; available: number; units: string };
+	};
 }
 
 // ─── State Type ───────────────────────────────────────────────
@@ -110,14 +120,9 @@ export function completeGeneration(): void {
 	generationState.statusText = 'Generation completed';
 }
 
-export function cancelGeneration(): void {
-	if (!generationState.isGenerating) return;
-	resetState();
-}
-
 // ─── Progress Updates ─────────────────────────────────────────
 
-export function updateProgress(data: ProgressMessage): void {
+export function updateProgress(data: GenerationProgressUpdate): void {
 	if (!generationState.isGenerating) return;
 
 	const { generatedCount, totalCount, statusText, memoryUsage } = data.payload;

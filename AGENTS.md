@@ -8,15 +8,15 @@ Browser-based generative art collection designer. SvelteKit 2 (static adapter) +
 
 **Package manager**: `pnpm` (not npm/yarn)
 
-| Command | Description |
-|---|---|
-| `vp run build` | Build for production (runs `tsc --noEmit` + `vp build` + comment removal) |
-| `vp check` | Format + lint + type check |
-| `vp lint` | Lint with Oxlint (type-aware) |
-| `vp fmt` | Format with Oxfmt |
-| `vp test` | Run all tests (vitest + jsdom) |
-| `vp test run src/lib/domain/validation.test.ts` | Run single test file |
-| `pnpm verify-lockfile` | Verify pnpm-lock.yaml integrity |
+| Command                                         | Description                                                               |
+| ----------------------------------------------- | ------------------------------------------------------------------------- |
+| `vp run build`                                  | Build for production (runs `tsc --noEmit` + `vp build` + comment removal) |
+| `vp check`                                      | Format + lint + type check                                                |
+| `vp lint`                                       | Lint with Oxlint (type-aware)                                             |
+| `vp fmt`                                        | Format with Oxfmt                                                         |
+| `vp test`                                       | Run all tests (vitest + jsdom)                                            |
+| `vp test run src/lib/domain/validation.test.ts` | Run single test file                                                      |
+| `pnpm verify-lockfile`                          | Verify pnpm-lock.yaml integrity                                           |
 
 **Order for verification**: `vp fmt` → `vp lint` → `vp test`
 
@@ -73,6 +73,7 @@ src/
 - Projects with traits are skipped during auto-save to avoid broken references
 
 ## How to navigate this repo
+
 - Use `codedb_tree` first to orient.
 - Use `codedb_context` with a natural-language task when starting work
   on an unfamiliar area — one call replaces 3–5 search/word/symbol calls.

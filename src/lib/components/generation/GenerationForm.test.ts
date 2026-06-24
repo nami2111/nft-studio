@@ -48,6 +48,29 @@ vi.mock('$lib/stores', async () => {
 	};
 });
 
+vi.mock('$lib/stores/facades', () => ({
+	useProjectStore: vi.fn(() => ({
+		get state() {
+			return mockProjectState;
+		}
+	})),
+	useGenerationStore: vi.fn(() => ({
+		get state() {
+			return generationStateMock;
+		},
+		actions: {
+			startGeneration: vi.fn(),
+			pauseGeneration: vi.fn(),
+			completeGeneration: vi.fn(),
+			updateProgress: vi.fn(),
+			addPreviews: vi.fn(),
+			handleError: vi.fn(),
+			resetState: vi.fn(),
+			cleanupGenerationState: vi.fn()
+		}
+	}))
+}));
+
 vi.mock('$lib/domain/worker.service', () => ({
 	runGeneration: vi.fn(),
 	cancelGeneration: vi.fn()
@@ -72,7 +95,8 @@ vi.mock('$lib/stores/generation-progress.svelte', () => ({
 	cancelGeneration: vi.fn(),
 	updateProgress: vi.fn(),
 	addPreviews: vi.fn(),
-	handleError: vi.fn()
+	handleError: vi.fn(),
+	cleanupGenerationState: vi.fn()
 }));
 
 // Real child components are used (unmocked) to avoid Svelte 5 render issues.

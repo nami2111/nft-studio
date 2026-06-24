@@ -172,6 +172,15 @@ export type OutgoingWorkerMessage =
 	| GenerationChunkMessage
 	| { type: 'pingResponse'; pingResponse: string; taskId?: never };
 
+// Task-related messages forwarded from the worker pool to the orchestrator.
+export type PoolForwardedWorkerMessage =
+	| ProgressMessage
+	| CompleteMessage
+	| ErrorMessage
+	| CancelledMessage
+	| PreviewMessage
+	| GenerationChunkMessage;
+
 // Messages that can be sent to workers
 export type IncomingMessage =
 	| BatchMessage
@@ -183,11 +192,14 @@ export type IncomingMessage =
 	| { type: 'initialize' }
 	| { type: 'ping'; pingId: string };
 
-// Worker pool message types
-export type GenerationWorkerMessage =
+// Messages that the worker pool can dispatch to generation workers.
+export type WorkerPoolDispatchMessage =
 	| BatchMessage
 	| InitLayersMessage
 	| BatchRefMessage
 	| {
 			type: 'cancel';
 	  };
+
+/** @deprecated Use WorkerPoolDispatchMessage. */
+export type GenerationWorkerMessage = WorkerPoolDispatchMessage;

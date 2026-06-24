@@ -12,11 +12,9 @@
 
 import type { Layer, StrictPairConfig } from '$lib/types/layer';
 import type {
-	CancelledMessage,
 	CompleteMessage,
-	ErrorMessage,
+	PoolForwardedWorkerMessage,
 	PreviewMessage,
-	ProgressMessage,
 	TransferrableLayer,
 	TransferrableTrait
 } from '$lib/types/worker-messages';
@@ -348,32 +346,20 @@ function cloneTraitForSolution(trait: TransferrableTrait): TransferrableTrait {
 /**
  * Parse the 0-based index from a generated image filename (e.g. "42.png" → 41).
  */
-function parseIndexFromName(name: string | undefined): number {
+export function parseIndexFromName(name: string | undefined): number {
 	if (!name) return 0;
-	const num = parseInt(name, 10);
-	return Number.isNaN(num) ? 0 : num - 1;
+	const base = name.replace(/\.[^.]+$/, '');
+	const match = base.match(/(\d+)$/);
+	if (!match) return 0;
+	const num = Number.parseInt(match[1], 10);
+	return Number.isNaN(num) || num <= 0 ? 0 : num - 1;
 }
 
 /**
  * Route a message from the worker pool to the appropriate callback.
  * Handles ZIP streaming for chunk messages internally.
  */
-/** All messages the pool forwards to us, including chunk which isn't in the formal union */
-type PoolForwardedMessage =
-	| CompleteMessage
-	| ErrorMessage
-	| CancelledMessage
-	| ProgressMessage
-	| PreviewMessage
-	| {
-			type: 'chunk';
-			payload: {
-				images: { name: string; imageData: ArrayBuffer }[];
-				metadata: { name: string; data: Record<string, unknown> }[];
-			};
-	  };
-
-function routePoolMessage(data: PoolForwardedMessage, session: GenerationSession): void {
+function routePoolMessage(data: PoolForwardedWorkerMessage, session: GenerationSession): void {
 	const callbacks = session.callbacks;
 	switch (data.type) {
 		case 'progress':
@@ -400,7 +386,10 @@ function routePoolMessage(data: PoolForwardedMessage, session: GenerationSession
 					session.storageSessionId,
 					firstIdx,
 					msg.payload.images.map((img) => ({ name: img.name, imageData: img.imageData })),
-					msg.payload.metadata || []
+					(msg.payload.metadata || []) as unknown as {
+						name: string;
+						data: Record<string, unknown>;
+					}[]
 				).catch((err) => {
 					console.warn('Storage stream failed:', err);
 				});
@@ -445,15 +434,6 @@ function routePoolMessage(data: PoolForwardedMessage, session: GenerationSession
 					);
 					msg.payload.images.length = 0;
 				}
-			}
-			if (!msg.payload.isChunk) {
-				callbacks.onComplete({
-					images: msg.payload.images || [],
-					metadata: (msg.payload.metadata || []) as unknown as {
-						name: string;
-						data: Record<string, unknown>;
-					}[]
-				});
 			}
 			break;
 		}

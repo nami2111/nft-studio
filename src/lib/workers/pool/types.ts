@@ -1,4 +1,4 @@
-import type { GenerationWorkerMessage } from '$lib/types/worker-messages';
+import type { WorkerPoolDispatchMessage } from '$lib/types/worker-messages';
 
 // Task complexity levels
 export enum TaskComplexity {
@@ -31,7 +31,7 @@ export interface WorkerPoolConfig {
 // Task interface
 export interface WorkerTask<T = unknown> {
 	id: string;
-	message: GenerationWorkerMessage;
+	message: WorkerPoolDispatchMessage;
 	resolve: (value: T) => void;
 	reject: (reason?: unknown) => void;
 	assignedWorker?: number;
