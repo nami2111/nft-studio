@@ -4,8 +4,18 @@
 	import { createTraitId, type TraitId } from '$lib/types/ids';
 	import TraitCard from '$lib/components/layer/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/layer/VirtualTraitList.svelte';
-	import { useProjectStore } from '$lib/stores/facades';
-	import { startLoading, stopLoading, loadingStates } from '$lib/stores';
+	import {
+		startLoading,
+		stopLoading,
+		loadingStates,
+		project,
+		addTrait,
+		removeTrait,
+		removeLayer,
+		updateLayerName,
+		updateTraitName,
+		updateProjectDimensions
+	} from '$lib/stores';
 	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import Icon from '$components/shared/Icon.svelte';
 	import { Delete02Icon, Edit02Icon, CheckmarkBadge01Icon, Cancel01Icon, ArrowDown01Icon, ArrowRight01Icon, Upload01Icon, Image01Icon } from '@hugeicons/core-free-icons';
@@ -34,7 +44,6 @@
 
 	const { layer }: Props = $props();
 
-	const projectStore = useProjectStore();
 	const isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
@@ -84,7 +93,7 @@
 				// Delete all selected traits
 				let deletedCount = 0;
 				selectedTraits.forEach((traitId) => {
-					projectStore.actions.removeTrait(layer.id, traitId);
+					removeTrait(layer.id, traitId);
 					deletedCount++;
 				});
 				showBulkTraitDeleteSuccess(deletedCount);
@@ -113,7 +122,7 @@
 			if (trait) {
 				const newName = `${bulkNewName}_${count + 1}`;
 				if (newName.length <= 100) {
-					projectStore.actions.updateTraitName(layer.id, traitId, newName);
+					updateTraitName(layer.id, traitId, newName);
 					successCount++;
 				}
 			}
@@ -138,7 +147,7 @@
 			return;
 		}
 
-		projectStore.actions.updateLayerName(layer.id, editedName);
+		updateLayerName(layer.id, editedName);
 		isEditing = false;
 	}
 
@@ -153,7 +162,7 @@
 
 	async function handleDeleteLayer() {
 		showLayerRemoved(layer.name);
-		projectStore.actions.removeLayer(layer.id);
+		removeLayer(layer.id);
 	}
 
 	async function handleFileUpload(files: FileList | null) {
@@ -213,7 +222,7 @@
 			// Validate project dimensions match (fail fast)
 			if (firstImageDimensions) {
 				const { width, height } = firstImageDimensions;
-				const projectData = projectStore.state;
+				const projectData = project;
 				if (projectData.outputSize.width > 0 && projectData.outputSize.height > 0) {
 					// Allow some flexibility for rounding errors (±1 pixel)
 					if (
@@ -227,7 +236,7 @@
 					}
 				} else {
 					// Set project dimensions from first image if not already set
-					projectStore.actions.updateProjectDimensions({ width, height });
+					updateProjectDimensions({ width, height });
 				}
 			}
 
@@ -244,7 +253,7 @@
 				// Add traits synchronously for immediate UI feedback
 				batch.forEach((file) => {
 					try {
-						projectStore.actions.addTrait(layer.id, file);
+						addTrait(layer.id, file);
 					} catch (error) {
 						console.error(`Error adding trait for ${file.name}:`, error);
 						errorCount++;

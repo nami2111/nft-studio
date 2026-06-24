@@ -4,7 +4,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import type { Trait } from '$lib/types/layer';
 	import RaritySlider from '$lib/components/layer/RaritySlider.svelte';
-	import { useProjectStore } from '$lib/stores/facades';
+	import { project, removeTrait, updateTraitName, updateTraitRulerRules } from '$lib/stores';
 	import { createLayerId, createTraitId } from '$lib/types/ids';
 	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
@@ -30,7 +30,6 @@
 		showSelection = false
 	}: Props = $props();
 
-	const projectStore = useProjectStore();
 	const layerIdTyped = $derived(createLayerId(layerId));
 	const traitIdTyped = $derived(createTraitId(trait.id));
 
@@ -41,14 +40,14 @@
 	let observer: IntersectionObserver | null = $state(null);
 
 	// Get current layer and all layers for ruler rules manager
-	const currentLayer = $derived(projectStore.state.layers.find((l) => l.id === layerIdTyped));
-	const allLayers = $derived(projectStore.state.layers);
+	const currentLayer = $derived(project.layers.find((l) => l.id === layerIdTyped));
+	const allLayers = $derived(project.layers);
 
 	function handleRemoveTrait() {
 		// Simple confirmation dialog
 		if (confirm(`Are you sure you want to delete "${trait.name}"?`)) {
 			try {
-				projectStore.actions.removeTrait(layerIdTyped, traitIdTyped);
+				removeTrait(layerIdTyped, traitIdTyped);
 				toast.success(`Trait "${trait.name}" has been deleted.`);
 			} catch (error) {
 				console.error('Failed to delete trait:', error);
@@ -70,14 +69,14 @@
 			return;
 		}
 
-		projectStore.actions.updateTraitName(layerIdTyped, traitIdTyped, editedName);
+		updateTraitName(layerIdTyped, traitIdTyped, editedName);
 		toast.success('Trait name updated.');
 		isEditing = false;
 	}
 
 	// Handle ruler rules update
 	function handleRulerRulesUpdate(rules: import('$lib/types/layer').RulerRule[]) {
-		projectStore.actions.updateTraitRulerRules(layerIdTyped, traitIdTyped, rules);
+		updateTraitRulerRules(layerIdTyped, traitIdTyped, rules);
 	}
 
 	function cancelEdit() {

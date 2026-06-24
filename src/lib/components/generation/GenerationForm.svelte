@@ -1,5 +1,15 @@
 <script lang="ts">
-	import { useProjectStore, useGenerationStore } from '$lib/stores/facades';
+	import { project } from '$lib/stores';
+	import {
+		generationState,
+		startGeneration,
+		pauseGeneration,
+		completeGeneration,
+		updateProgress,
+		addPreviews,
+		handleError,
+		resetState
+	} from '$lib/stores/generation-progress.svelte';
 	import { runGeneration, cancelGeneration, type GenerationConfig, type GenerationCallbacks } from '$lib/domain/worker.service';
 	import type { ErrorMessage } from '$lib/types/worker-messages';
 	import { showError, showSuccess, showInfo, showWarning } from '$lib/utils/error-handling';
@@ -12,9 +22,6 @@
 	import GenerationProgress from './GenerationProgress.svelte';
 	import GenerationControls from './GenerationControls.svelte';
 
-	const projectStore = useProjectStore();
-	const generationStore = useGenerationStore();
-
 	// ─── Local UI state ──────────────────────────────────────
 	let collectionSize = $state<number | null>(100);
 	let isComponentDestroyed = $state(false);
@@ -24,10 +31,10 @@
 	const SAMPLING_FALLBACK_BYTES_PER_PIXEL = 0.4;
 
 	// ─── Derived state from store ────────────────────────────
-	const isGenerating = $derived(generationStore.state.isGenerating && !generationStore.state.isBackground);
-	const isBackground = $derived(generationStore.state.isBackground);
-	const isPaused = $derived(generationStore.state.isPaused);
-	const previews = $derived(generationStore.state.previews);
+	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
+	const isBackground = $derived(generationState.isBackground);
+	const isPaused = $derived(generationState.isPaused);
+	const previews = $derived(generationState.previews);
 
 	// ─── Lifecycle ───────────────────────────────────────────
 	onDestroy(() => {
@@ -39,11 +46,11 @@
 		}
 
 		// Move to background if still generating
-		if (generationStore.state.isGenerating && !generationStore.state.isBackground) {
-			generationStore.actions.pauseGeneration('Component unmounted — continuing in background');
+		if (generationState.isGenerating && !generationState.isBackground) {
+			pauseGeneration('Component unmounted — continuing in background');
 			setTimeout(() => {
-				if (generationStore.state.isGenerating && isComponentDestroyed) {
-					generationStore.actions.resetState();
+				if (generationState.isGenerating && isComponentDestroyed) {
+					resetState();
 				}
 			}, 600_000);
 		}
@@ -53,7 +60,7 @@
 	function buildCallbacks(): GenerationCallbacks {
 		return {
 			onProgress(msg) {
-				generationStore.actions.updateProgress(msg);
+				updateProgress(msg);
 
 				// If in background mode, skip UI feedback
 				if (isComponentDestroyed) return;
@@ -63,7 +70,7 @@
 
 			onPreview(newPreviews: { index: number; url: string }[]) {
 				if (!isComponentDestroyed) {
-					generationStore.actions.addPreviews(newPreviews);
+					addPreviews(newPreviews);
 				}
 			},
 
@@ -71,11 +78,11 @@
 				showSuccess('Generation complete', {
 					description: 'Your download has started.'
 				});
-				generationStore.actions.completeGeneration();
+				completeGeneration();
 			},
 
 			onError(error: Error) {
-				generationStore.actions.handleError({
+				handleError({
 					type: 'error',
 					payload: { message: error.message }
 				} as ErrorMessage);
@@ -87,7 +94,7 @@
 
 			onCancelled() {
 				showInfo('Generation has been cancelled.');
-				generationStore.actions.resetState();
+				resetState();
 			}
 		};
 	}
@@ -203,10 +210,10 @@
 	async function handleGenerate(event?: MouseEvent) {
 		if (event) event.preventDefault();
 
-		generationStore.actions.resetState();
+		resetState();
 
 		try {
-			const projectData = projectStore.state;
+			const projectData = project;
 
 			const totalItems = collectionSize || 100;
 			const validation = validateGenerationRequest({
@@ -223,7 +230,7 @@
 			}
 
 			// Start generation state
-			generationStore.actions.startGeneration({
+			startGeneration({
 				projectName: projectData.name || 'Untitled Collection',
 				projectDescription: projectData.description || '',
 				outputSize: projectData.outputSize,
@@ -257,7 +264,7 @@
 				title: 'Generation Failed',
 				description: 'An unknown error occurred during generation. Please try again.'
 			});
-			generationStore.actions.resetState();
+			resetState();
 		}
 	}
 
@@ -265,8 +272,8 @@
 	async function handleCancel() {
 		try {
 			await cancelGeneration();
-			if (generationStore.state.isGenerating) {
-				generationStore.actions.resetState();
+			if (generationState.isGenerating) {
+				resetState();
 			}
 		} catch (error) {
 			showError(error, {

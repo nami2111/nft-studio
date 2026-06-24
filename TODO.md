@@ -46,15 +46,20 @@ Green gate passed: `tsc --noEmit` clean, 481 tests pass.
   `utils/storage-serialization.ts`.
 - [ ] **Delete `storage/telemetry.ts` (26L)** [R→verify] if unused after Phase 1 repoint.
 
-## Phase 3 — Project mutation spine + facades (~480 lines) [V, refactor]
+## Phase 3 — Project mutation spine + facades (~480 lines) [DONE ✅]
 
-4 layers → 2. Facades are pure 1:1 passthrough; 8 components already import stores
-directly *and* via facades (dual path proves the layer adds nothing).
+4 layers → 2. Facades were pure 1:1 passthrough over module-level singleton stores;
+context added nothing (every facade pointed at the same singleton).
+Green gate passed: `tsc --noEmit` clean, 481 tests pass.
 
-- [ ] **Delete `src/lib/stores/facades/` (483L)** [V]. Repoint the ~6 components +
-  `+layout.svelte` that use facade creators to import stores directly. Tests
-  (`GenerationForm.test`, `LayerManager.test`, `TraitCard.test`) reference facades — update.
-- [ ] **Delete `resource-manager-context.ts` (61L)** [R→verify]. 0 callsites reported. Confirm.
+- [x] **Deleted `src/lib/stores/facades/` (483L)** [V]. Repointed 5 components +
+  `+layout.svelte` to import stores directly (`$lib/stores` barrel for project,
+  `generation-progress.svelte` for generation). Updated 3 tests (`GenerationForm`,
+  `LayerManager`, `TraitCard`) — facade mocks swapped for direct-store mocks.
+- [x] **Deleted `resource-manager-context.ts` (61L)** [V]. 0 callsites confirmed.
+
+Note: `routes/app/+page.svelte` uses a `projectStore` object export from
+`project.store.svelte` directly — unrelated to facades, left untouched.
 
 ## Phase 4 — Cache consolidation (~800 lines) [R, highest-risk logic]
 

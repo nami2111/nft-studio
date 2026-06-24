@@ -26,13 +26,14 @@ const mockProjectActions = vi.hoisted(() => ({
 	updateTraitRulerRules: vi.fn()
 }));
 
-vi.mock('$lib/stores/facades', () => ({
-	useProjectStore: () => ({
-		get state() {
-			return mockProjectState.current;
-		},
-		actions: mockProjectActions
-	})
+vi.mock('$lib/stores', () => ({
+	get project() {
+		return mockProjectState.current;
+	},
+	removeTrait: mockProjectActions.removeTrait,
+	updateTraitName: mockProjectActions.updateTraitName,
+	updateTraitRarity: mockProjectActions.updateTraitRarity,
+	updateTraitRulerRules: mockProjectActions.updateTraitRulerRules
 }));
 
 vi.mock('$lib/types/ids', () => ({

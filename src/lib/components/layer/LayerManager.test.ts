@@ -36,21 +36,25 @@ const mockProjectActions = vi.hoisted(() => ({
 	updateProjectDimensions: vi.fn()
 }));
 
-vi.mock('$lib/stores/facades', () => ({
-	useProjectStore: () => ({
-		get state() {
-			return mockProjectState.current;
-		},
-		actions: mockProjectActions
-	})
-}));
-
-// Mock dependencies
+// Mock dependencies — project state + mutators consumed by LayerManager and the
+// unmocked LayerItem child.
 vi.mock('$lib/stores', async () => {
 	return {
+		get project() {
+			return mockProjectState.current;
+		},
 		loadingStates: writable({}),
 		startLoading: vi.fn(),
-		stopLoading: vi.fn()
+		stopLoading: vi.fn(),
+		addLayer: mockProjectActions.addLayer,
+		reorderLayers: mockProjectActions.reorderLayers,
+		removeLayer: mockProjectActions.removeLayer,
+		updateLayerName: mockProjectActions.updateLayerName,
+		addTrait: mockProjectActions.addTrait,
+		removeTrait: mockProjectActions.removeTrait,
+		updateTraitName: mockProjectActions.updateTraitName,
+		updateTraitRarity: mockProjectActions.updateTraitRarity,
+		updateProjectDimensions: mockProjectActions.updateProjectDimensions
 	};
 });
 
