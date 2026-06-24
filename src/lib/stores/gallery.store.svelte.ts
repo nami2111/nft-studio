@@ -26,7 +26,7 @@ import {
 import { imageUrlCache } from '$lib/utils/object-url-cache';
 import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
 import { PERF_CONFIG } from '$lib/config/performance.config';
-import { productionMonitor } from '$lib/monitoring/performance-monitor';
+import { productionMonitor } from '$lib/utils/performance-monitor';
 
 const SELECTED_COLLECTION_STORAGE_KEY = 'gnstudio-gallery-selected-collection';
 

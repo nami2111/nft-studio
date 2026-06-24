@@ -1,4 +1,4 @@
-import { productionMonitor } from '$lib/monitoring/performance-monitor';
+import { productionMonitor } from '$lib/utils/performance-monitor';
 import { logger } from '$lib/utils/logger';
 import type { BrowserStorageEstimate, StorageBackendKind, StorageCapabilities } from './types';
 

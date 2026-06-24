@@ -11,7 +11,7 @@ import {
 import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
 import type { GalleryCollection, GalleryItem } from '$lib/types/gallery';
-import { productionMonitor } from '$lib/monitoring/performance-monitor';
+import { productionMonitor } from '$lib/utils/performance-monitor';
 
 interface GalleryIndex {
 	collectionIds: string[];
