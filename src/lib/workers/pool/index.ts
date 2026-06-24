@@ -7,8 +7,6 @@ export {
 	cleanupOldTasks,
 	getOptimalWorkerCount,
 	setMessageCallback,
-	calculateTaskComplexity,
 	getDeviceCapabilities,
-	TaskComplexity,
 	WorkerHealth
 } from './pool';

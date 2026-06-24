@@ -1,13 +1,5 @@
 import type { WorkerPoolDispatchMessage } from '$lib/types/worker-messages';
 
-// Task complexity levels
-export enum TaskComplexity {
-	LOW = 1,
-	MEDIUM = 2,
-	HIGH = 3,
-	VERY_HIGH = 4
-}
-
 // Worker health status
 export enum WorkerHealth {
 	HEALTHY = 'healthy',
@@ -23,7 +15,6 @@ export interface WorkerPoolConfig {
 	maxConcurrentTasks?: number;
 	workerInitializationTimeout?: number;
 	minWorkers?: number;
-	taskComplexityBasedScaling?: boolean;
 	healthCheckInterval?: number;
 	maxRestarts?: number;
 }
@@ -36,8 +27,6 @@ export interface WorkerTask<T = unknown> {
 	reject: (reason?: unknown) => void;
 	assignedWorker?: number;
 	timestamp: number;
-	complexity: TaskComplexity;
-	estimatedDuration?: number;
 }
 
 // Worker pool interface

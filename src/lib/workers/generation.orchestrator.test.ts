@@ -108,8 +108,7 @@ describe('generation.orchestrator', () => {
 			queuedTasks: 0,
 			activeTasks: 0,
 			workerHealth: [],
-			workerStats: [],
-			complexityBreakdown: { low: 0, medium: 0, high: 0, veryHigh: 0 }
+			workerStats: []
 		});
 
 		vi.mocked(projectDomain.prepareLayersForWorker).mockResolvedValue([
@@ -246,8 +245,7 @@ describe('generation.orchestrator', () => {
 				queuedTasks: 0,
 				activeTasks: 0,
 				workerHealth: [],
-				workerStats: [],
-				complexityBreakdown: { low: 0, medium: 0, high: 0, veryHigh: 0 }
+				workerStats: []
 			});
 
 			const promise = runGeneration(mockConfig, mockCallbacks);

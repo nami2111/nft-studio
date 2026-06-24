@@ -94,25 +94,35 @@ not less. Kept all three. Did the one bounded, safe cut the audit got right:
 
 Net ~90L from `advanced-cache.ts`. `object-url-cache.ts` + worker cache left intact.
 
-## Phase 5 — Smaller shrinks (~700 lines) [R, opportunistic]
+## Phase 5 — Mostly overclaims; one real cut (~70 lines) [DONE ✅]
 
-- [ ] **Merge 3 error modules** (`error-handler` 466 + `error-handling` 261 +
-  `typed-errors` 255) into one; they cross-import and dup retry+toast logic. ~200L.
-- [ ] **Fold validation 3→1**: delete `services/validation.service.ts`, move
-  `generation.validation.ts` (1 UI caller) into the form. Keep `domain/validation.ts`. ~200L.
-- [ ] **3 memory monitors → 1** (`memory-monitor` + `memory-pressure-monitor` +
-  `workers/memory/memory.manager`). One callback monitor; inline canvas pool into
-  `generation.worker`. ~140L.
-- [ ] **Prune `retry.ts` (413L)**: callers use 3 configs + `withRetry`; ~200L is
-  predicate/config dispatch. Collapse to options objects. ~150L.
-- [ ] **Inline `result-streamer.ts`** (2 identical-interface classes on a flag) +
-  `trait-batch-scheduler.ts` (1-method wrapper, 1 caller). ~150L.
-- [ ] **Flatten metadata strategy** (`base.strategy` + `metadata.strategy` interface for 2
-  impls that share nothing) → 2 standalone fns. ~91L.
-- [ ] **pool.ts**: drop `TaskComplexity` enum+calc (feeds only stats logging, not
-  scheduling), unused `getOptimalWorkerCount`/`warmUpWorkers`, phantom `WorkerTask<T>`. ~130L.
-- [ ] **Collapse `toast.ts`** (dups error-handling toasts, ~1 live caller) +
-  `logger.ts`/`simple-debug.ts` (trivial console wrappers). ~130L.
+Verified each item. Most dissolved on inspection — same pattern as Phases 2 & 4.
+Green gate passed: `tsc --noEmit` clean, 474 tests pass.
+
+- [x] **Removed `TaskComplexity` subsystem from worker pool** [V]. Genuinely dead
+  instrumentation: `calculateTaskComplexity` computed a score stored on every task, but
+  `updateWorkerPerformance` **ignored** its `complexity` param and `complexityBreakdown` was
+  read only by tests — nothing scheduled on it. Deleted the enum, the calc fn, the
+  `complexity`/`estimatedDuration` task fields, the dead `taskComplexityBasedScaling` config
+  flag, and the stats breakdown. Updated 4 test files. (`pool.ts` ~55L + `types.ts` ~13L.)
+
+### Overclaims — NOT cut (verified legit or false economy):
+- **Merge 3 error modules** — skipped: 982L of cross-importing error/retry/toast logic; a
+  blind merge is a risky refactor for dedup gain. Not dead.
+- **Fold validation 3→1** — `services/validation.service.ts` is a *used* throw-wrapper over
+  `domain/validation` (1 caller: project.store) + aggregate form validation + project
+  factory. Not a passthrough. Marginal; left.
+- **3 memory monitors → 1** — only **2** exist (`memory-pressure-monitor` +
+  worker-side `memory.manager`); no `memory-monitor.ts`. Audit miscounted. Different surfaces
+  (main vs worker). Left.
+- **Prune `retry.ts`** — real config/predicate dispatch used by callers; refactor risk >
+  reward. Left.
+- **Inline `result-streamer` / `trait-batch-scheduler`** — both legit: `result-streamer` has
+  2 *different* flag-switched impls (zip vs storage); `trait-batch-scheduler` does adaptive
+  sizing + windowed dispatch + layer-ref logic. Not trivial wrappers. Left.
+- **Flatten metadata strategy** — `MetadataStandard` + strategy types imported by 8 files;
+  load-bearing shared type, not a dead 1-impl interface. Left.
+- **Collapse `toast.ts`** — 1 consumer but many functions; marginal churn. Left.
 
 ---
 
@@ -126,7 +136,22 @@ Net ~90L from `advanced-cache.ts`. `object-url-cache.ts` + worker cache left int
 - **storage/ backends** (opfs, indexeddb-legacy, memory) — clean abstraction; the bloat is
   the `persistence/` layer *above* them.
 
-## Net target
+## Net result (all phases done)
 
-~3.5–4.2k lines removed, 0 dependencies removed (none were the problem). Phases 1+3 are
-verified and safe; 2+4 need grep confirmation and a bench gate; 5 is opportunistic.
+| Phase | Cut | Lines |
+|---|---|---|
+| 1 | dead code (project.service, monitoring shim, dead constants/sanitization/config) | ~500 |
+| 3 | facades + resource-manager-context | ~544 |
+| 2 | completed OPFS migration subsystem + telemetry | ~1,160 |
+| 4 | AdvancedCache racing pressure timer + dead eviction policies | ~90 |
+| 5 | dead `TaskComplexity` worker-pool instrumentation | ~70 |
+| **Total** | | **~2,360 source + deleted test files** |
+
+**0 dependencies removed** — none were ever the problem.
+
+Reality vs the audit's ~3.5–4.2k headline: the gap was real. The big estimates leaned on
+`persistence/` (load-bearing legacy-fallback / data-safety), the cache "merge" (3 distinct
+jobs, false economy), and Phase-5 items that were mostly legit code or shared types. Every
+`[R]` claim got grep-verified; roughly half were overclaims and were left in place with the
+reason recorded above. What got cut was genuinely dead or strictly redundant, and every
+phase ended green (`tsc --noEmit` + full test suite).
