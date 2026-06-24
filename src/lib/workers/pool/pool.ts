@@ -1,12 +1,9 @@
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import type {
-	CancelledMessage,
-	CompleteMessage,
 	ErrorMessage,
-	GenerationWorkerMessage,
 	OutgoingWorkerMessage,
-	PreviewMessage,
-	ProgressMessage
+	PoolForwardedWorkerMessage,
+	WorkerPoolDispatchMessage
 } from '$lib/types/worker-messages';
 import {
 	workerPool,
@@ -18,50 +15,12 @@ import {
 } from './state';
 import { safeStructuredClone } from './sanitize';
 import type { WorkerPoolConfig, WorkerTask, WorkerPool as WorkerPoolType } from './types';
-import { TaskComplexity, WorkerHealth, TASK_TIMEOUT_MS } from './types';
-
-/**
- * Calculate task complexity based on collection size and layers
- */
-function calculateTaskComplexity(
-	layers: unknown[],
-	collectionSize: number,
-	_size: { width: number; height: number }
-): TaskComplexity {
-	const layerCount = Array.isArray(layers) ? layers.length : 1;
-	const totalPixels = _size.width * _size.height;
-
-	let complexityScore = 0;
-	if (collectionSize <= 100) complexityScore += 1;
-	else if (collectionSize <= 1000) complexityScore += 2;
-	else if (collectionSize <= 5000) complexityScore += 3;
-	else complexityScore += 4;
-
-	if (layerCount <= 3) complexityScore += 1;
-	else if (layerCount <= 10) complexityScore += 2;
-	else if (layerCount <= 20) complexityScore += 3;
-	else complexityScore += 4;
-
-	if (totalPixels <= 250000) complexityScore += 1;
-	else if (totalPixels <= 1000000) complexityScore += 2;
-	else if (totalPixels <= 2250000) complexityScore += 3;
-	else complexityScore += 4;
-
-	const avgScore = complexityScore / 3;
-	if (avgScore <= 1.5) return TaskComplexity.LOW;
-	if (avgScore <= 2.5) return TaskComplexity.MEDIUM;
-	if (avgScore <= 3.5) return TaskComplexity.HIGH;
-	return TaskComplexity.VERY_HIGH;
-}
+import { WorkerHealth, TASK_TIMEOUT_MS } from './types';
 
 /**
  * Update worker performance statistics
  */
-function updateWorkerPerformance(
-	workerIndex: number,
-	complexity: TaskComplexity,
-	taskDuration: number
-): void {
+function updateWorkerPerformance(workerIndex: number, taskDuration: number): void {
 	if (!workerPool) return;
 	if (workerIndex < 0 || workerIndex >= workerPool.workerStats.length) return;
 
@@ -117,7 +76,7 @@ function finalizeTask(
 ): void {
 	if (type === 'complete') {
 		task.resolve(data);
-		updateWorkerPerformance(workerIndex, task.complexity, Date.now() - task.timestamp);
+		updateWorkerPerformance(workerIndex, Date.now() - task.timestamp);
 	} else if (type === 'error') {
 		task.reject(new Error((data as ErrorMessage).payload?.message || 'Worker error'));
 		if (workerIndex >= 0 && workerIndex < workerPool!.workerStats.length) {
@@ -153,7 +112,14 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 	}
 
 	// Task-related messages have required taskId
-	if (type === 'progress' || type === 'complete' || type === 'error' || type === 'cancelled' || type === 'preview' || type === 'chunk') {
+	if (
+		type === 'progress' ||
+		type === 'complete' ||
+		type === 'error' ||
+		type === 'cancelled' ||
+		type === 'preview' ||
+		type === 'chunk'
+	) {
 		const taskId = data.taskId;
 
 		// Forward to orchestrator callback (except internal init-layers tasks)
@@ -164,9 +130,7 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 				isInternal = task?.message?.type === 'init-layers';
 			}
 			if (!isInternal) {
-				messageCallback(
-					data as CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-				);
+				messageCallback(data as PoolForwardedWorkerMessage);
 			}
 		}
 
@@ -664,7 +628,6 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 				maxConcurrentTasks: config?.maxConcurrentTasks || maxWorkers,
 				workerInitializationTimeout,
 				minWorkers,
-				taskComplexityBasedScaling: true,
 				healthCheckInterval,
 				maxRestarts: config?.maxRestarts || 3
 			},
@@ -727,7 +690,6 @@ export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 		...config,
 		maxWorkers: warmUpCount,
 		minWorkers: Math.max(1, Math.min(config?.minWorkers ?? warmUpCount, warmUpCount)),
-		taskComplexityBasedScaling: true,
 		healthCheckInterval: config?.healthCheckInterval ?? 30000
 	};
 
@@ -758,7 +720,7 @@ export async function terminateWorkerPool(): Promise<void> {
 	debugLog('Worker pool terminated');
 }
 
-export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<T> {
+export function postMessageToPool<T>(message: WorkerPoolDispatchMessage): Promise<T> {
 	const timerId = performanceMonitor.startTimer('worker.postMessageToPool', message.type);
 	if (!workerPool) {
 		throw new Error('Worker pool not initialized. Call initializeWorkerPool() first.');
@@ -767,25 +729,13 @@ export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<
 
 	return new Promise<T>((resolve, reject) => {
 		const taskId = `${Date.now()}-${Math.random()}`;
-		let complexity = TaskComplexity.MEDIUM;
-
-		const msg = message as { type: string; payload?: Record<string, unknown> };
-		if (msg.type === 'batch' && msg.payload) {
-			const p = msg.payload as {
-				layers: unknown[];
-				solutions: unknown[];
-				outputSize: { width: number; height: number };
-			};
-			complexity = calculateTaskComplexity(p.layers, p.solutions.length, p.outputSize);
-		}
 
 		const task: WorkerTask<T> = {
 			id: taskId,
 			message,
 			resolve,
 			reject,
-			timestamp: Date.now(),
-			complexity
+			timestamp: Date.now()
 		};
 
 		if (workerPool) workerPool.taskQueue.push(task as unknown as WorkerTask);
@@ -809,31 +759,12 @@ function getPoolStatus(): {
 		averageTaskTime: number;
 		workerCount: number;
 	}[];
-	complexityBreakdown: { low: number; medium: number; high: number; veryHigh: number };
 } | null {
 	if (!workerPool) return null;
 
 	const availableWorkers = workerPool.workerStatus.filter(
 		(status, index) => workerPool!.workers[index] && status
 	).length;
-
-	const complexityBreakdown = { low: 0, medium: 0, high: 0, veryHigh: 0 };
-	workerPool.taskQueue.forEach((task) => {
-		switch (task.complexity) {
-			case TaskComplexity.LOW:
-				complexityBreakdown.low++;
-				break;
-			case TaskComplexity.MEDIUM:
-				complexityBreakdown.medium++;
-				break;
-			case TaskComplexity.HIGH:
-				complexityBreakdown.high++;
-				break;
-			case TaskComplexity.VERY_HIGH:
-				complexityBreakdown.veryHigh++;
-				break;
-		}
-	});
 
 	return {
 		totalWorkers: workerPool.workers.filter((worker) => worker !== (null as unknown as Worker))
@@ -847,8 +778,7 @@ function getPoolStatus(): {
 			errorCount: stats.errorCount,
 			averageTaskTime: Math.round(stats.averageTaskTime),
 			workerCount: 1
-		})),
-		complexityBreakdown
+		}))
 	};
 }
 
@@ -873,9 +803,7 @@ export function getOptimalWorkerCount(collectionSize: number): number {
 
 // Export for testing
 export {
-	calculateTaskComplexity,
 	getDeviceCapabilities,
-	TaskComplexity,
 	WorkerHealth,
 	handleWorkerFailure,
 	reassignWorkerTasks,

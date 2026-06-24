@@ -589,6 +589,9 @@ export class PerformanceMonitor {
 // Global performance monitor instance
 export const performanceMonitor = new PerformanceMonitor();
 
+// Backward-compatible alias (was src/lib/monitoring/performance-monitor.ts)
+export const productionMonitor = performanceMonitor;
+
 /**
  * Decorator for automatically timing function execution
  * @param operationName - Name of the operation for logging

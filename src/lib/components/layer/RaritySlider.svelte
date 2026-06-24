@@ -29,7 +29,8 @@
 	});
 
 	// Handle slider value change
-	function handleSliderChange(newValue: number) {
+	function handleSliderChange(newValue: unknown) {
+		if (typeof newValue !== 'number') return;
 		const normalized = normalizeRarity(newValue);
 		if (currentValue !== normalized) {
 			currentValue = normalized;

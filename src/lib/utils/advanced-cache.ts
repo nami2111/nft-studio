@@ -29,7 +29,6 @@ export interface CacheOptions<T> {
 	maxSize?: number; // Maximum memory size in bytes
 	maxEntries?: number; // Maximum number of entries
 	defaultTtl?: number; // Default TTL in milliseconds
-	evictionPolicy?: 'lru' | 'lfu' | 'ttl'; // Eviction strategy
 	sizeEstimator?: (data: T) => number; // Function to estimate data size
 	onEvict?: (key: string, entry: CacheEntry<T>) => void; // Callback when entry is evicted
 }
@@ -40,17 +39,13 @@ export class AdvancedCache<T = unknown> {
 	private options: Required<CacheOptions<T>>;
 	private cleanupTimer?: number;
 	private metricsUpdateTimer?: number;
-	private memoryPressureTimer?: number;
 	private pendingMetricsUpdate = false;
-	private lastMemoryPressureCheck = 0;
-	private readonly MEMORY_PRESSURE_CHECK_INTERVAL = 30000; // 30 seconds
 
 	constructor(options: CacheOptions<T> = {}) {
 		this.options = {
 			maxSize: options.maxSize || 50 * 1024 * 1024, // 50MB default
 			maxEntries: options.maxEntries || 1000,
 			defaultTtl: options.defaultTtl || 30 * 60 * 1000, // 30 minutes default
-			evictionPolicy: options.evictionPolicy || 'lru',
 			sizeEstimator: options.sizeEstimator || ((data: unknown) => this.defaultSizeEstimator(data)),
 			onEvict: options.onEvict || (() => {})
 		};
@@ -68,20 +63,10 @@ export class AdvancedCache<T = unknown> {
 			hitRate: 0
 		};
 
-		// Start cleanup timer for TTL entries
+		// Start cleanup timer for TTL entries.
+		// ponytail: memory-pressure adaptation lives in MemoryPressureMonitor (single
+		// authority); this cache no longer runs its own competing 30s pressure timer.
 		this.startCleanupTimer();
-
-		// Start memory pressure check timer (run every 30 seconds)
-		this.startMemoryPressureTimer();
-	}
-
-	/**
-	 * Start automatic memory pressure timer
-	 */
-	private startMemoryPressureTimer(): void {
-		this.memoryPressureTimer = window.setInterval(() => {
-			this.adaptToMemoryPressure();
-		}, this.MEMORY_PRESSURE_CHECK_INTERVAL) as unknown as number;
 	}
 
 	/**
@@ -251,10 +236,6 @@ export class AdvancedCache<T = unknown> {
 			clearTimeout(this.metricsUpdateTimer);
 			this.metricsUpdateTimer = undefined;
 		}
-		if (this.memoryPressureTimer) {
-			clearInterval(this.memoryPressureTimer);
-			this.memoryPressureTimer = undefined;
-		}
 		this.clear();
 	}
 
@@ -312,91 +293,18 @@ export class AdvancedCache<T = unknown> {
 	}
 
 	/**
-	 * Adapt cache limits based on memory pressure
-	 */
-	private adaptToMemoryPressure(): void {
-		if (typeof window === 'undefined' || !('performance' in window)) return;
-
-		try {
-			// Check memory usage if available
-			const memoryInfo = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
-			if (memoryInfo) {
-				const usedMB = memoryInfo.usedJSHeapSize / 1024 / 1024;
-
-				// High memory usage - reduce cache limits
-				if (usedMB > 500) {
-					this.options.maxEntries = Math.floor(this.options.maxEntries * 0.7);
-					this.options.maxSize = Math.floor(this.options.maxSize * 0.7);
-				}
-				// Medium memory usage - moderate reduction
-				else if (usedMB > 300) {
-					this.options.maxEntries = Math.floor(this.options.maxEntries * 0.85);
-					this.options.maxSize = Math.floor(this.options.maxSize * 0.85);
-				}
-				// Low memory usage - restore to original limits if significantly below thresholds
-				else if (usedMB < 100) {
-					this.options.maxEntries = Math.min(
-						this.options.maxEntries * 1.1,
-						this.options.maxEntries * 2 // Cap at 2x original
-					);
-					this.options.maxSize = Math.min(
-						this.options.maxSize * 1.1,
-						this.options.maxSize * 2 // Cap at 2x original
-					);
-				}
-			}
-		} catch (error) {
-			// Memory API not available or not allowed
-			console.debug('Memory pressure adaptation not available:', error);
-		}
-	}
-
-	/**
-	 * Evict an entry based on policy
+	 * Evict the least-recently-used entry.
+	 * ponytail: LRU is the only policy any caller uses; lfu/ttl branches were dead.
 	 */
 	private evictEntry(): void {
 		if (this.cache.size === 0) return;
 
-		let keyToEvict: string;
 		const entries = Array.from(this.cache.entries());
-
-		switch (this.options.evictionPolicy) {
-			case 'lru':
-				// Least Recently Used
-				keyToEvict = entries.reduce(
-					(oldest, [key, entry]) =>
-						entry.accessTime < oldest.entry.accessTime ? { key, entry } : oldest,
-					{ key: entries[0][0], entry: entries[0][1] }
-				).key;
-				break;
-
-			case 'lfu':
-				// Least Frequently Used
-				keyToEvict = entries.reduce(
-					(least, [key, entry]) =>
-						entry.accessCount < least.entry.accessCount ? { key, entry } : least,
-					{ key: entries[0][0], entry: entries[0][1] }
-				).key;
-				break;
-
-			case 'ttl':
-				// Shortest TTL remaining
-				keyToEvict = entries.reduce(
-					(shortest, [key, entry]) => {
-						if (!entry.ttl) return { key, entry };
-						const remaining = entry.ttl - (Date.now() - entry.createTime);
-						const shortestRemaining = shortest.entry.ttl
-							? shortest.entry.ttl - (Date.now() - shortest.entry.createTime)
-							: Infinity;
-						return remaining < shortestRemaining ? { key, entry } : shortest;
-					},
-					{ key: entries[0][0], entry: entries[0][1] }
-				).key;
-				break;
-
-			default:
-				keyToEvict = entries[0][0];
-		}
+		const keyToEvict = entries.reduce(
+			(oldest, [key, entry]) =>
+				entry.accessTime < oldest.entry.accessTime ? { key, entry } : oldest,
+			{ key: entries[0][0], entry: entries[0][1] }
+		).key;
 
 		this.delete(keyToEvict);
 		this.metrics.evictions++;

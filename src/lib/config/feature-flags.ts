@@ -1,7 +1,7 @@
 /**
  * Runtime feature flag system for phased rollout of optimizations.
- * All Phase 2/3/4 flags default to false. Phase 1 changes ship unconditionally.
  * Flags can be toggled via environment variables (VITE_ENABLE_*).
+ * Existing VITE_DISABLE_* flags are still honored for backward compatibility.
  */
 
 export interface FeatureFlags {
@@ -17,22 +17,44 @@ export interface FeatureFlags {
 	enableZipWorkerOffloading: boolean;
 }
 
-function readEnvFlag(name: string): boolean {
+function readEnvValue(name: string): unknown {
 	try {
-		const value = import.meta.env?.[name];
-		return value === 'true' || value === true;
+		return import.meta.env?.[name];
 	} catch {
-		return false;
+		return undefined;
 	}
 }
 
-const defaultFlags: FeatureFlags = {
-	enableStreamingStorage: import.meta.env?.VITE_DISABLE_STREAMING_STORAGE !== 'true',
-	enableOpfsStorage: import.meta.env?.VITE_ENABLE_OPFS_STORAGE !== 'false',
+function parseEnvBoolean(value: unknown): boolean | undefined {
+	if (value === true || value === 'true') return true;
+	if (value === false || value === 'false') return false;
+	return undefined;
+}
 
-	enableLayerRef: readEnvFlag('VITE_ENABLE_LAYER_REF'),
-	enableAdaptiveBatchSize: import.meta.env?.VITE_DISABLE_ADAPTIVE_BATCH_SIZE !== 'true',
-	enableZipWorkerOffloading: readEnvFlag('VITE_ENABLE_ZIP_WORKER_OFFLOADING')
+function readEnvFlag(name: string, defaultValue: boolean): boolean {
+	return parseEnvBoolean(readEnvValue(name)) ?? defaultValue;
+}
+
+function readDefaultOnFlag(enableName: string, disableName: string): boolean {
+	const enabled = parseEnvBoolean(readEnvValue(enableName));
+	if (enabled !== undefined) return enabled;
+	const disabled = parseEnvBoolean(readEnvValue(disableName));
+	if (disabled !== undefined) return !disabled;
+	return true;
+}
+
+const defaultFlags: FeatureFlags = {
+	enableStreamingStorage: readDefaultOnFlag(
+		'VITE_ENABLE_STREAMING_STORAGE',
+		'VITE_DISABLE_STREAMING_STORAGE'
+	),
+	enableOpfsStorage: readEnvFlag('VITE_ENABLE_OPFS_STORAGE', true),
+	enableLayerRef: readEnvFlag('VITE_ENABLE_LAYER_REF', false),
+	enableAdaptiveBatchSize: readDefaultOnFlag(
+		'VITE_ENABLE_ADAPTIVE_BATCH_SIZE',
+		'VITE_DISABLE_ADAPTIVE_BATCH_SIZE'
+	),
+	enableZipWorkerOffloading: readEnvFlag('VITE_ENABLE_ZIP_WORKER_OFFLOADING', false)
 };
 
 let runtimeOverrides: Partial<FeatureFlags> = {};

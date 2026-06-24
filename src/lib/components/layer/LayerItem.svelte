@@ -4,17 +4,26 @@
 	import { createTraitId, type TraitId } from '$lib/types/ids';
 	import TraitCard from '$lib/components/layer/TraitCard.svelte';
 	import VirtualTraitList from '$lib/components/layer/VirtualTraitList.svelte';
-	import { useProjectStore } from '$lib/stores/facades';
-	import { startLoading, stopLoading, loadingStates } from '$lib/stores';
+	import {
+		startLoading,
+		stopLoading,
+		loadingStates,
+		project,
+		addTrait,
+		removeTrait,
+		removeLayer,
+		updateLayerName,
+		updateTraitName,
+		updateProjectDimensions
+	} from '$lib/stores';
 	import { Button, flatIconButtonClass } from '$lib/components/ui/button';
 	import Icon from '$components/shared/Icon.svelte';
 	import { Delete02Icon, Edit02Icon, CheckmarkBadge01Icon, Cancel01Icon, ArrowDown01Icon, ArrowRight01Icon, Upload01Icon, Image01Icon } from '@hugeicons/core-free-icons';
 	import { getImageDimensions } from '$lib/utils';
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
-	import { onMount, onDestroy, untrack } from 'svelte';
+	import { mount, onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-import { mount } from 'svelte';
-import NeedsReupload from '$components/ui/NeedsReupload.svelte';
+	import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 	import {
 		showSuccess,
 		showError,
@@ -35,7 +44,6 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 
 	const { layer }: Props = $props();
 
-	const projectStore = useProjectStore();
 	const isUploading = $derived(loadingStates[`layer-upload-${layer.id}`] as boolean);
 
 	let uploadProgress = $state(0); // Track upload progress
@@ -139,7 +147,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 			return;
 		}
 
-		projectStore.actions.updateLayerName(layer.id, editedName);
+		updateLayerName(layer.id, editedName);
 		isEditing = false;
 	}
 
@@ -154,7 +162,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 
 	async function handleDeleteLayer() {
 		showLayerRemoved(layer.name);
-		projectStore.actions.removeLayer(layer.id);
+		removeLayer(layer.id);
 	}
 
 	async function handleFileUpload(files: FileList | null) {
@@ -228,7 +236,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 					}
 				} else {
 					// Set project dimensions from first image if not already set
-					projectStore.actions.updateProjectDimensions({ width, height });
+					updateProjectDimensions({ width, height });
 				}
 			}
 
@@ -245,7 +253,7 @@ import NeedsReupload from '$components/ui/NeedsReupload.svelte';
 				// Add traits synchronously for immediate UI feedback
 				batch.forEach((file) => {
 					try {
-						projectStore.actions.addTrait(layer.id, file);
+						addTrait(layer.id, file);
 					} catch (error) {
 						console.error(`Error adding trait for ${file.name}:`, error);
 						errorCount++;

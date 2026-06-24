@@ -9,11 +9,6 @@ import type {
 	BatchMessage,
 	InitLayersMessage,
 	BatchRefMessage,
-	CancelledMessage,
-	CompleteMessage,
-	ErrorMessage,
-	PreviewMessage,
-	ProgressMessage,
 	TransferrableLayer
 } from '$lib/types/worker-messages';
 import { isFlagEnabled } from '$lib/config/feature-flags';
@@ -44,9 +39,6 @@ export interface BatchConfig {
 	projectDescription: string;
 	metadataStandard?: import('$lib/domain/metadata/metadata.strategy').MetadataStandard;
 	extraData?: Record<string, unknown>;
-	onMessage?: (
-		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	) => void;
 }
 
 export interface Solution {
@@ -205,20 +197,6 @@ export class TraitBatchScheduler {
 			}
 
 			await Promise.all(windowPromises);
-		}
-
-		// Send completion message to the UI
-		if (this.config.onMessage) {
-			this.config.onMessage({
-				type: 'complete',
-				taskId: '' as any, // Placeholder - orchestrator doesn't use taskId from scheduler
-				payload: {
-					images: [],
-					metadata: [],
-					generatedCount: collectionSize,
-					totalCount: collectionSize
-				}
-			} as CompleteMessage);
 		}
 	}
 }

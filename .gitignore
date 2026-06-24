@@ -54,13 +54,13 @@ CRUSH.md
 
 target
 .crush
-AGENTS.md
-CLAUDE.md
 GEMINI.md
 QWEN.md
-AGENTS.md
 .mcp.json
 .pi-lens/
 /coverage
 /tmp
 .agents/
+.codex/
+codedb.snapshot
+.codegraph/

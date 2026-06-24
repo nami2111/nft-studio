@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { logger } from '$lib/utils/logger';
 
 interface ZipMessage {
 	type: 'zip-project';
@@ -41,7 +42,7 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 	const hasFiles = pendingFiles.length > 0;
 	const filesToFlush = pendingFiles.length;
 	const sizeToFlush = pendingSize;
-	console.log(
+	logger.debug(
 		`[zip-worker] flushVolume: isFinal=${isFinal}, hasFiles=${hasFiles}, filesToFlush=${filesToFlush}, sizeToFlush=${(sizeToFlush / 1024 / 1024).toFixed(1)}MB`
 	);
 
@@ -64,7 +65,7 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 		if (cutIndex === 0) cutIndex = pendingFiles.length;
 		filesToZip = pendingFiles.slice(0, cutIndex);
 		bytesToZip = filesToZip.reduce((sum, f) => sum + f.data.byteLength, 0);
-		console.log(
+		logger.debug(
 			`[zip-worker] Truncating flush to ${filesToZip.length} files (${(bytesToZip / 1024 / 1024).toFixed(1)}MB) to stay near threshold`
 		);
 	}
@@ -88,13 +89,13 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 		let partIndex = volumeIndex;
 
 		if (filesToZip.length > 0 || isFinal) {
-			console.log(
+			logger.debug(
 				`[zip-worker] Generating ZIP volume ${volumeIndex + 1} with ${filesToZip.length} files...`
 			);
 			content = await zip.generateAsync({ type: 'arraybuffer' });
 			volumeIndex++;
 			partIndex = volumeIndex;
-			console.log(
+			logger.debug(
 				`[zip-worker] ZIP volume ${partIndex} generated: ${(content.byteLength / 1024 / 1024).toFixed(1)}MB`
 			);
 		}
@@ -112,7 +113,7 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 				},
 				[content] as unknown as Transferable[]
 			);
-			console.log(`[zip-worker] Posted ZIP volume ${partIndex} to main thread`);
+			logger.debug(`[zip-worker] Posted ZIP volume ${partIndex} to main thread`);
 		} else if (isFinal) {
 			(self as unknown as Worker).postMessage({
 				type: 'zip-complete',
@@ -122,7 +123,7 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 					isFinal: true
 				}
 			});
-			console.log(`[zip-worker] Posted final completion signal (no files)`);
+			logger.debug(`[zip-worker] Posted final completion signal (no files)`);
 		}
 	} catch (error) {
 		console.error(`[zip-worker] ZIP generation failed:`, error);
@@ -143,7 +144,7 @@ async function flushAndDrain(): Promise<void> {
 		await flushVolume(false);
 		// Check if more data accumulated while we were flushing
 		while (pendingSize >= MAX_ZIP_RAW_SIZE) {
-			console.log(
+			logger.debug(
 				`[zip-worker] Drain: more data accumulated, flushing ${(pendingSize / 1024 / 1024).toFixed(1)}MB`
 			);
 			await flushVolume(false);
@@ -210,7 +211,7 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 			volumeIndex = 0;
 			totalFilesAdded = 0;
 			messagesReceived = 0;
-			console.log(`[zip-worker] New task started: ${taskId}`);
+			logger.debug(`[zip-worker] New task started: ${taskId}`);
 		}
 
 		try {
@@ -235,7 +236,7 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 			}
 
 			if (messagesReceived % 20 === 0 || isFinal) {
-				console.log(
+				logger.debug(
 					`[zip-worker] Message #${messagesReceived}: received ${chunkSize} files (${(chunkBytes / 1024 / 1024).toFixed(1)}MB), pending=${pendingFiles.length} files, ${(pendingSize / 1024 / 1024).toFixed(1)}MB, isFinal=${isFinal}`
 				);
 			}
@@ -250,7 +251,7 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 			});
 
 			if (isFinal) {
-				console.log(
+				logger.debug(
 					`[zip-worker] Finalizing: totalFilesAdded=${totalFilesAdded}, pendingFiles=${pendingFiles.length}, pendingSize=${(pendingSize / 1024 / 1024).toFixed(1)}MB`
 				);
 				// Wait for any in-progress flush to complete
@@ -258,7 +259,7 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 					await new Promise((r) => setTimeout(r, 10));
 				}
 				await flushVolume(true);
-				console.log(`[zip-worker] Final flush complete`);
+				logger.debug(`[zip-worker] Final flush complete`);
 				currentTaskId = null;
 				pendingFiles = [];
 				pendingSize = 0;
@@ -266,11 +267,11 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 				totalFilesAdded = 0;
 				messagesReceived = 0;
 			} else if (pendingSize >= MAX_ZIP_RAW_SIZE && !isFlushing) {
-				console.log(
+				logger.debug(
 					`[zip-worker] Size threshold reached (${(pendingSize / 1024 / 1024).toFixed(1)}MB >= ${(MAX_ZIP_RAW_SIZE / 1024 / 1024).toFixed(0)}MB), flushing...`
 				);
 				await flushAndDrain();
-				console.log(`[zip-worker] Flush complete, volumeIndex now=${volumeIndex}`);
+				logger.debug(`[zip-worker] Flush complete, volumeIndex now=${volumeIndex}`);
 			}
 		} catch (error) {
 			console.error(`[zip-worker] Error processing chunk:`, error);

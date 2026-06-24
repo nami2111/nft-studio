@@ -6,19 +6,15 @@
 	import StrictPair from '$lib/components/layer/StrictPair.svelte';
 	import { projectStore } from '$lib/stores/project.store.svelte';
 	import type { StrictPairConfig } from '$lib/types/layer';
-	import { onMount, type Component } from 'svelte';
+	import type { Component } from 'svelte';
 
 	const currentProject = $derived(projectStore.currentProject);
 
 	// Lazy-loaded components for code splitting
 	let LayerManager = $state<Component | null>(null);
-	let PerformanceMonitor = $state<Component | null>(null);
-	let CacheMonitor = $state<Component | null>(null);
 
 	// Loading states for lazy components
 	let isLoadingLayerManager = $state(false);
-	let isLoadingPerformanceMonitor = $state(false);
-	let isLoadingCacheMonitor = $state(false);
 
 	// Handle Strict Pair config updates
 	function handleStrictPairUpdate(config: StrictPairConfig) {
@@ -42,46 +38,6 @@
 		}
 	}
 
-	// Lazy load Performance Monitor (for development/optimization)
-	async function loadPerformanceMonitor() {
-		if (!PerformanceMonitor && !isLoadingPerformanceMonitor) {
-			isLoadingPerformanceMonitor = true;
-			try {
-				const module = await import('$lib/components/monitor/PerformanceMonitor.svelte');
-				PerformanceMonitor = module.default as unknown as Component;
-			} catch (error) {
-				console.error('Failed to load PerformanceMonitor:', error);
-			} finally {
-				isLoadingPerformanceMonitor = false;
-			}
-		}
-	}
-
-	// Lazy load Cache Monitor
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async function loadCacheMonitor() {
-		if (!CacheMonitor && !isLoadingCacheMonitor) {
-			isLoadingCacheMonitor = true;
-			try {
-				const module = await import('$lib/components/monitor/CacheMonitor.svelte');
-				CacheMonitor = module.default as unknown as Component;
-			} catch (error) {
-				console.error('Failed to load CacheMonitor:', error);
-			} finally {
-				isLoadingCacheMonitor = false;
-			}
-		}
-	}
-
-	// Load development tools only in development mode
-	onMount(() => {
-		if (import.meta.env.DEV) {
-			// Preload performance monitor after a delay in development
-			setTimeout(() => {
-				loadPerformanceMonitor();
-			}, 2000);
-		}
-	});
 </script>
 
 <svelte:head>

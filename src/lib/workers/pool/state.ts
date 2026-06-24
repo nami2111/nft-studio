@@ -1,10 +1,4 @@
-import type {
-	CancelledMessage,
-	CompleteMessage,
-	ErrorMessage,
-	PreviewMessage,
-	ProgressMessage
-} from '$lib/types/worker-messages';
+import type { PoolForwardedWorkerMessage } from '$lib/types/worker-messages';
 import type { WorkerPool } from './types';
 
 // Global worker pool instance
@@ -15,18 +9,10 @@ export function setWorkerPool(pool: WorkerPool | null): void {
 }
 
 // Callback for forwarding messages to clients
-export let messageCallback:
-	| ((
-			data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	  ) => void)
-	| null = null;
+export let messageCallback: ((data: PoolForwardedWorkerMessage) => void) | null = null;
 
 // Set message callback for client components to receive worker messages
-export function setMessageCallback(
-	callback: (
-		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	) => void
-): void {
+export function setMessageCallback(callback: (data: PoolForwardedWorkerMessage) => void): void {
 	messageCallback = callback;
 }
 

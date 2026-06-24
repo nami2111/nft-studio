@@ -7,7 +7,7 @@ import {
 	addWorkers,
 	removeIdleWorkers
 } from '../pool';
-import { WorkerHealth, type WorkerPool, TaskComplexity } from '../types';
+import { WorkerHealth, type WorkerPool } from '../types';
 
 function makeMockWorkerPool(overrides: Partial<WorkerPool> = {}): WorkerPool {
 	const base: WorkerPool = {
@@ -129,7 +129,6 @@ describe('reassignWorkerTasks', () => {
 			id: 'task-1',
 			assignedWorker: 0,
 			timestamp: Date.now() - 5000,
-			complexity: TaskComplexity.MEDIUM,
 			_resolve: undefined,
 			_reject: undefined
 		} as any;
@@ -138,7 +137,6 @@ describe('reassignWorkerTasks', () => {
 			id: 'task-2',
 			assignedWorker: 1, // Different worker — should NOT be moved
 			timestamp: Date.now() - 5000,
-			complexity: TaskComplexity.LOW,
 			_resolve: undefined,
 			_reject: undefined
 		} as any;
@@ -216,8 +214,7 @@ describe('performDynamicScaling', () => {
 				.map((_, i) => ({
 					id: `task-${i}`,
 					assignedWorker: undefined,
-					timestamp: Date.now(),
-					complexity: TaskComplexity.LOW
+					timestamp: Date.now()
 				}))
 		});
 		// High maxWorkers so we can add
@@ -258,8 +255,7 @@ describe('performDynamicScaling', () => {
 				.map((_, i) => ({
 					id: `task-${i}`,
 					assignedWorker: undefined,
-					timestamp: Date.now(),
-					complexity: TaskComplexity.MEDIUM
+					timestamp: Date.now()
 				})),
 			config: { maxWorkers: 4, minWorkers: 1, maxRestarts: 3 }
 		});
