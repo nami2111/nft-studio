@@ -73,8 +73,7 @@
     "overrides": {
         "@neobr/svelte": {
             "@neobr/tailwind-preset": "npm:@neobr/tailwind-preset@1.0.4"
-        },
-        "cookie": "^0.7.0"
+        }
     },
     "packageManager": "pnpm@11.9.0"
 }
