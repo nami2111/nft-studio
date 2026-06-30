@@ -2,8 +2,8 @@
 
 @import 'tw-animate-css';
 
-/* NeoBr-UI Design System - Import the brutalist preset */
-@import '@neobr/tailwind-preset/style';
+/* NeoBr-UI Design System */
+@import '@neobr/svelte/style';
 
 /* Ensure Tailwind scans the NeoBr-UI component library */
 @source '../node_modules/@neobr/svelte/dist';
@@ -77,6 +77,8 @@
 
 /* Map chart colors to Tailwind theme */
 @theme inline {
+	--color-border: var(--color-foreground);
+	--color-input: var(--color-foreground);
 	--color-chart-1: var(--chart-1);
 	--color-chart-2: var(--chart-2);
 	--color-chart-3: var(--chart-3);
