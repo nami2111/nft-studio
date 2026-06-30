@@ -5,6 +5,7 @@ no behavior change. Confidence tags: **[V]** grep-verified, **[R]** agent-report
 (verify before cutting). Each phase ends green: `pnpm test` + `pnpm check` pass.
 
 The bloat is two stacked spines. Collapsing each to 2 layers is the structural win:
+
 - **Project mutations, 4 layers:** `collection-design-mutator` → `project.store` → `project.facade`, plus orphan `project.service`.
 - **Storage, 3 layers:** `storage/` backends → `persistence/` stores → `persistence.service`.
 
@@ -17,16 +18,16 @@ Green gate passed: `tsc --noEmit` clean, 481 tests pass.
 
 - [x] **Deleted `src/lib/domain/project.service.ts` (296L)** [V]. Zero importers confirmed.
 - [x] **Deleted `src/lib/monitoring/performance-monitor.ts` shim** [V]. Added `productionMonitor`
-  alias to `utils/performance-monitor.ts`; repointed 3 importers (`gallery.store`,
-  `storage/telemetry`, `utils/gallery-storage`). Empty `monitoring/` dir removed.
+      alias to `utils/performance-monitor.ts`; repointed 3 importers (`gallery.store`,
+      `storage/telemetry`, `utils/gallery-storage`). Empty `monitoring/` dir removed.
 - [x] **Deleted dead `constants.ts` objects** [V]. `FILE_SIZE`, `BATCH`, `VALIDATION`, `UI`,
-  `WORKER`, `CACHE` — all verified 0 imports. Kept `MEMORY`, `TIME` (ResourceManager).
+      `WORKER`, `CACHE` — all verified 0 imports. Kept `MEMORY`, `TIME` (ResourceManager).
 - [x] **Deleted dead `sanitization.ts` exports** [V]. `escapeText`, `createSafeElement`,
-  `sanitizeSVG` — 0 imports. Kept `sanitizeHTML` (called internally by `initTrustedTypesPolicy`
-  — audit was wrong to list it dead), `isTrustedTypesSupported`, `initTrustedTypesPolicy`.
+      `sanitizeSVG` — 0 imports. Kept `sanitizeHTML` (called internally by `initTrustedTypesPolicy`
+      — audit was wrong to list it dead), `isTrustedTypesSupported`, `initTrustedTypesPolicy`.
 - [x] **Pruned `performance.config.ts` helpers** [V]. Dropped `getPerformanceConfig`,
-  `getOptimalBatchSize`, `getOptimalWorkerCount`, `PerformanceConfig` type — all 0 callers.
-  Kept `calculateAdaptiveDelay`, `PERF_CONFIG`.
+      `getOptimalBatchSize`, `getOptimalWorkerCount`, `PerformanceConfig` type — all 0 callers.
+      Kept `calculateAdaptiveDelay`, `PERF_CONFIG`.
 
 ## Phase 2 — Storage: delete completed migration subsystem (~1.16k lines) [DONE ✅]
 
@@ -36,13 +37,14 @@ flagged turned out to be **load-bearing legacy-fallback / data-safety code — N
 Green gate passed: `tsc --noEmit` clean, 476 tests pass.
 
 - [x] **Deleted entire `src/lib/storage/migrations/` dir (1,125L)** — `indexeddb-to-opfs.ts`
-  (662) + its test (187) + `legacy-cleanup.ts` (113) + its test (105) + `types.ts` (38) +
-  `index.ts` (20). Removed the 2 boot-path call sites (`persistence.service.loadProject`,
-  `gallery.store.loadFromStorage`) + a stale mock in `gallery.store.test`.
+      (662) + its test (187) + `legacy-cleanup.ts` (113) + its test (105) + `types.ts` (38) +
+      `index.ts` (20). Removed the 2 boot-path call sites (`persistence.service.loadProject`,
+      `gallery.store.loadFromStorage`) + a stale mock in `gallery.store.test`.
 - [x] **Deleted `storage/telemetry.ts` (26L)** [V]. Both exports
-  (`measureStorageOperation`, `logStorageDebugSummary`) had 0 importers.
+      (`measureStorageOperation`, `logStorageDebugSummary`) had 0 importers.
 
 ### Audit overclaims corrected — NOT cut (load-bearing):
+
 - `persistence/indexeddb.ts` — `loadProjectFromLegacyStorage`/`deleteLegacyProject` are
   active legacy-fallback reads in `persistence.service`. Data-safety net. Keep.
 - `LocalStorageStore` + `SmartStorageStore` (`persistence/storage.ts`) — `SmartStorageStore`
@@ -63,9 +65,9 @@ context added nothing (every facade pointed at the same singleton).
 Green gate passed: `tsc --noEmit` clean, 481 tests pass.
 
 - [x] **Deleted `src/lib/stores/facades/` (483L)** [V]. Repointed 5 components +
-  `+layout.svelte` to import stores directly (`$lib/stores` barrel for project,
-  `generation-progress.svelte` for generation). Updated 3 tests (`GenerationForm`,
-  `LayerManager`, `TraitCard`) — facade mocks swapped for direct-store mocks.
+      `+layout.svelte` to import stores directly (`$lib/stores` barrel for project,
+      `generation-progress.svelte` for generation). Updated 3 tests (`GenerationForm`,
+      `LayerManager`, `TraitCard`) — facade mocks swapped for direct-store mocks.
 - [x] **Deleted `resource-manager-context.ts` (61L)** [V]. 0 callsites confirmed.
 
 Note: `routes/app/+page.svelte` uses a `projectStore` object export from
@@ -75,22 +77,23 @@ Note: `routes/app/+page.svelte` uses a `projectStore` object export from
 
 **The 800L "merge 3 caches → 1" was rejected — false premise.** The three caches do three
 different jobs and share only the shallow Map-and-evict shape:
+
 - `advanced-cache.ts` — generic main-thread LRU/TTL with typed subclasses + metrics feeding
   `performanceMonitor`.
 - `object-url-cache.ts` — blob-URL **lifecycle** (lazy revocation + recreation to dodge
   ERR_FILE_NOT_FOUND on live DOM refs, collection-size-aware thresholds). Not a generic cache.
 - `workers/cache/array-buffer.cache.ts` — worker-side, device-memory-sized, frequency/size
   eviction score, no timers (no `window` in a worker).
-A unified cache would need config switches for all three behaviors — that's *more* complexity,
-not less. Kept all three. Did the one bounded, safe cut the audit got right:
+  A unified cache would need config switches for all three behaviors — that's _more_ complexity,
+  not less. Kept all three. Did the one bounded, safe cut the audit got right:
 
 - [x] **Killed `AdvancedCache`'s internal 30s memory-pressure timer** [V]. `resource-manager`
-  already delegates pressure detection to `MemoryPressureMonitor` (the single authority);
-  the cache's own `adaptToMemoryPressure` timer raced it. Removed timer + method + 2 dead
-  fields. No bench needed — deleting a timer that fought the monitor is strictly better.
+      already delegates pressure detection to `MemoryPressureMonitor` (the single authority);
+      the cache's own `adaptToMemoryPressure` timer raced it. Removed timer + method + 2 dead
+      fields. No bench needed — deleting a timer that fought the monitor is strictly better.
 - [x] **Removed dead `evictionPolicy` option + `lfu`/`ttl` branches** [V]. Every caller passes
-  `'lru'`; the other two `evictEntry` branches were unreachable. Collapsed to LRU-only,
-  dropped the option from the interface + 3 `resource-manager` call sites.
+      `'lru'`; the other two `evictEntry` branches were unreachable. Collapsed to LRU-only,
+      dropped the option from the interface + 3 `resource-manager` call sites.
 
 Net ~90L from `advanced-cache.ts`. `object-url-cache.ts` + worker cache left intact.
 
@@ -100,16 +103,17 @@ Verified each item. Most dissolved on inspection — same pattern as Phases 2 & 
 Green gate passed: `tsc --noEmit` clean, 474 tests pass.
 
 - [x] **Removed `TaskComplexity` subsystem from worker pool** [V]. Genuinely dead
-  instrumentation: `calculateTaskComplexity` computed a score stored on every task, but
-  `updateWorkerPerformance` **ignored** its `complexity` param and `complexityBreakdown` was
-  read only by tests — nothing scheduled on it. Deleted the enum, the calc fn, the
-  `complexity`/`estimatedDuration` task fields, the dead `taskComplexityBasedScaling` config
-  flag, and the stats breakdown. Updated 4 test files. (`pool.ts` ~55L + `types.ts` ~13L.)
+      instrumentation: `calculateTaskComplexity` computed a score stored on every task, but
+      `updateWorkerPerformance` **ignored** its `complexity` param and `complexityBreakdown` was
+      read only by tests — nothing scheduled on it. Deleted the enum, the calc fn, the
+      `complexity`/`estimatedDuration` task fields, the dead `taskComplexityBasedScaling` config
+      flag, and the stats breakdown. Updated 4 test files. (`pool.ts` ~55L + `types.ts` ~13L.)
 
 ### Overclaims — NOT cut (verified legit or false economy):
+
 - **Merge 3 error modules** — skipped: 982L of cross-importing error/retry/toast logic; a
   blind merge is a risky refactor for dedup gain. Not dead.
-- **Fold validation 3→1** — `services/validation.service.ts` is a *used* throw-wrapper over
+- **Fold validation 3→1** — `services/validation.service.ts` is a _used_ throw-wrapper over
   `domain/validation` (1 caller: project.store) + aggregate form validation + project
   factory. Not a passthrough. Marginal; left.
 - **3 memory monitors → 1** — only **2** exist (`memory-pressure-monitor` +
@@ -118,7 +122,7 @@ Green gate passed: `tsc --noEmit` clean, 474 tests pass.
 - **Prune `retry.ts`** — real config/predicate dispatch used by callers; refactor risk >
   reward. Left.
 - **Inline `result-streamer` / `trait-batch-scheduler`** — both legit: `result-streamer` has
-  2 *different* flag-switched impls (zip vs storage); `trait-batch-scheduler` does adaptive
+  2 _different_ flag-switched impls (zip vs storage); `trait-batch-scheduler` does adaptive
   sizing + windowed dispatch + layer-ref logic. Not trivial wrappers. Left.
 - **Flatten metadata strategy** — `MetadataStandard` + strategy types imported by 8 files;
   load-bearing shared type, not a dead 1-impl interface. Left.
@@ -134,18 +138,18 @@ Green gate passed: `tsc --noEmit` clean, 474 tests pass.
 - **rarity-calculator.ts** (634L), **csp-solver.ts** core, **combination-indexer.ts** —
   real domain complexity, not bloat.
 - **storage/ backends** (opfs, indexeddb-legacy, memory) — clean abstraction; the bloat is
-  the `persistence/` layer *above* them.
+  the `persistence/` layer _above_ them.
 
 ## Net result (all phases done)
 
-| Phase | Cut | Lines |
-|---|---|---|
-| 1 | dead code (project.service, monitoring shim, dead constants/sanitization/config) | ~500 |
-| 3 | facades + resource-manager-context | ~544 |
-| 2 | completed OPFS migration subsystem + telemetry | ~1,160 |
-| 4 | AdvancedCache racing pressure timer + dead eviction policies | ~90 |
-| 5 | dead `TaskComplexity` worker-pool instrumentation | ~70 |
-| **Total** | | **~2,360 source + deleted test files** |
+| Phase     | Cut                                                                              | Lines                                  |
+| --------- | -------------------------------------------------------------------------------- | -------------------------------------- |
+| 1         | dead code (project.service, monitoring shim, dead constants/sanitization/config) | ~500                                   |
+| 3         | facades + resource-manager-context                                               | ~544                                   |
+| 2         | completed OPFS migration subsystem + telemetry                                   | ~1,160                                 |
+| 4         | AdvancedCache racing pressure timer + dead eviction policies                     | ~90                                    |
+| 5         | dead `TaskComplexity` worker-pool instrumentation                                | ~70                                    |
+| **Total** |                                                                                  | **~2,360 source + deleted test files** |
 
 **0 dependencies removed** — none were ever the problem.
 
