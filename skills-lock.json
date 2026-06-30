@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "neobr-ui-builder": {
+      "source": "nami2111/NeoBr-UI",
+      "sourceType": "github",
+      "skillPath": "skills/neobr-ui-builder/SKILL.md",
+      "computedHash": "0a6adbeb0948b636a43852452eaf8c04cac9ac86e7bca6228f98818f0bf37a87"
+    },
+    "neobr-ui-theming": {
+      "source": "nami2111/NeoBr-UI",
+      "sourceType": "github",
+      "skillPath": "skills/neobr-ui-theming/SKILL.md",
+      "computedHash": "86ce90debe4b08c9e7580b60dfb01fb33c30c9649058815075a42ba8637f8c98"
+    }
+  }
+}
