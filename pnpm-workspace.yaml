@@ -1,3 +1,9 @@
+allowBuilds:
+  '@hugeicons/svelte': set this to true or false
+
+minimumReleaseAgeExclude:
+  - '@neobr/svelte@2.0.1'
+
 onlyBuiltDependencies:
   - '@hugeicons/svelte'
 
