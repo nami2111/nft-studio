@@ -9,12 +9,13 @@ Baseline before starting:
 
 ---
 
-## 1. Untrack `stats.html` (1.8 MB) — trivial, do first
+## 1. Untrack `stats.html` (1.8 MB) — trivial, do first ✅
 **Why:** generated rollup-visualizer artifact, regenerated every build.
-- [ ] Add `stats.html` to `.gitignore`.
-- [ ] `git rm --cached stats.html`
-- [ ] Confirm the build still emits it (it's a build output, not a source).
-- **Verify:** `git status` shows it ignored; `git ls-files | grep stats.html` returns nothing.
+**Note:** The `rollup-plugin-visualizer` plugin is no longer installed in the project; `stats.html` was a stale committed artifact. Untracked anyway.
+- [x] Add `stats.html` to `.gitignore`.
+- [x] `git rm --cached stats.html`
+- [x] Confirmed the build no longer emits it (plugin not installed); `vite.config.ts` only references it in PWA `ignorePatterns` (correct).
+- **Verified:** `git ls-files | grep stats.html` returns nothing; `git check-ignore stats.html` confirms it's ignored.
 
 ---
 
