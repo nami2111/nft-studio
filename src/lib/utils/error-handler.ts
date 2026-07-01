@@ -10,21 +10,7 @@
 import type { ErrorContext, ErrorOptions } from './error-handling';
 import { showError } from './error-handling';
 import { type RetryConfig, RetryConfigs, retryWithErrorHandling } from './retry';
-import {
-	AppError,
-	FileError,
-	GenerationError,
-	GenerationExecutionError,
-	GenerationValidationError,
-	getErrorInfo,
-	isRecoverableError,
-	NetworkError,
-	StorageError,
-	ValidationError,
-	WorkerError,
-	WorkerInitializationError,
-	WorkerTimeoutError
-} from './typed-errors';
+import { AppError, ErrorCodes, getErrorInfo, isRecoverableError } from './typed-errors';
 
 export type ErrorCategory =
 	| 'storage'
@@ -48,7 +34,8 @@ export interface ErrorHandlerOptions extends ErrorOptions {
 interface CategorySpec {
 	title: string;
 	description: string;
-	ErrorClass: (new (msg: string, ctx?: Record<string, unknown>) => AppError) | null;
+	code: string;
+	recoverable: boolean;
 	retryConfig: Partial<RetryConfig>;
 	isRetryable: (error: unknown) => boolean;
 }
@@ -56,7 +43,7 @@ interface CategorySpec {
 // Retry condition helpers
 
 function isStorageRetryable(error: unknown): boolean {
-	if (error instanceof StorageError) return true;
+	if (error instanceof AppError && error.code === ErrorCodes.STORAGE_ERROR) return true;
 	if (error instanceof Error && error.name === 'QuotaExceededError') return true;
 	if (
 		error instanceof Error &&
@@ -69,7 +56,7 @@ function isStorageRetryable(error: unknown): boolean {
 }
 
 function isFileRetryable(error: unknown): boolean {
-	if (error instanceof FileError) return true;
+	if (error instanceof AppError && error.code === ErrorCodes.FILE_ERROR) return true;
 	if (error instanceof Error && error.message.includes('busy')) return true;
 	if (
 		error instanceof Error &&
@@ -80,21 +67,22 @@ function isFileRetryable(error: unknown): boolean {
 }
 
 function isWorkerRetryable(error: unknown): boolean {
-	if (error instanceof WorkerInitializationError) return true;
-	if (error instanceof WorkerTimeoutError) return true;
-	if (error instanceof WorkerError) return true;
+	if (error instanceof AppError && error.code === ErrorCodes.WORKER_ERROR) return true;
 	if (error instanceof Error && error.message.includes('Worker is not defined')) return false;
 	return false;
 }
 
 function isGenerationRetryable(error: unknown): boolean {
-	if (error instanceof GenerationExecutionError) return true;
+	if (error instanceof AppError && error.code === ErrorCodes.GENERATION_ERROR) {
+		const type = error.context?.type;
+		if (type === 'validation') return false;
+		if (type === 'execution') return true;
+	}
 	if (
 		error instanceof Error &&
 		(error.message.includes('memory') || error.message.includes('out of memory'))
 	)
 		return true;
-	if (error instanceof GenerationValidationError) return false;
 	return false;
 }
 
@@ -102,7 +90,8 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 	storage: {
 		title: 'Storage Operation Failed',
 		description: 'Failed to access storage. Please check your browser settings.',
-		ErrorClass: StorageError,
+		code: ErrorCodes.STORAGE_ERROR,
+		recoverable: true,
 		retryConfig: {
 			...RetryConfigs.default,
 			maxAttempts: 5,
@@ -117,21 +106,24 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 	file: {
 		title: 'File Operation Failed',
 		description: 'Failed to process file. Please check the file and try again.',
-		ErrorClass: FileError,
+		code: ErrorCodes.FILE_ERROR,
+		recoverable: true,
 		retryConfig: { ...RetryConfigs.file, retryCondition: isFileRetryable },
 		isRetryable: isFileRetryable
 	},
 	validation: {
 		title: 'Validation Error',
 		description: 'Invalid input provided. Please check your data.',
-		ErrorClass: ValidationError,
+		code: ErrorCodes.VALIDATION_ERROR,
+		recoverable: true,
 		retryConfig: { ...RetryConfigs.default, maxAttempts: 1 },
 		isRetryable: () => false
 	},
 	worker: {
 		title: 'Worker Operation Failed',
 		description: 'Failed to execute worker operation. Please try again.',
-		ErrorClass: WorkerError,
+		code: ErrorCodes.WORKER_ERROR,
+		recoverable: true,
 		retryConfig: {
 			...RetryConfigs.server,
 			maxAttempts: 3,
@@ -144,7 +136,8 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 	generation: {
 		title: 'Generation Failed',
 		description: 'Failed to generate items. Please check your project configuration.',
-		ErrorClass: GenerationError,
+		code: ErrorCodes.GENERATION_ERROR,
+		recoverable: true,
 		retryConfig: {
 			...RetryConfigs.server,
 			maxAttempts: 2,
@@ -157,7 +150,8 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 	network: {
 		title: 'Network Operation Failed',
 		description: 'Failed to connect to the network. Please check your internet connection.',
-		ErrorClass: NetworkError,
+		code: ErrorCodes.NETWORK_ERROR,
+		recoverable: true,
 		retryConfig: {
 			...RetryConfigs.network,
 			retryCondition: (error: unknown) => RetryConfigs.network.retryCondition?.(error) ?? false
@@ -167,19 +161,30 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 	generic: {
 		title: 'Operation Failed',
 		description: 'An unexpected error occurred. Please try again.',
-		ErrorClass: null,
+		code: ErrorCodes.UNHANDLED_ERROR,
+		recoverable: true,
 		retryConfig: { ...RetryConfigs.default },
 		isRetryable: isRecoverableError
 	}
 };
 
 function detectCategory(error: unknown): ErrorCategory {
-	if (error instanceof StorageError) return 'storage';
-	if (error instanceof FileError) return 'file';
-	if (error instanceof ValidationError) return 'validation';
-	if (error instanceof WorkerError) return 'worker';
-	if (error instanceof GenerationError) return 'generation';
-	if (error instanceof NetworkError) return 'network';
+	if (error instanceof AppError) {
+		switch (error.code) {
+			case ErrorCodes.STORAGE_ERROR:
+				return 'storage';
+			case ErrorCodes.FILE_ERROR:
+				return 'file';
+			case ErrorCodes.VALIDATION_ERROR:
+				return 'validation';
+			case ErrorCodes.WORKER_ERROR:
+				return 'worker';
+			case ErrorCodes.GENERATION_ERROR:
+				return 'generation';
+			case ErrorCodes.NETWORK_ERROR:
+				return 'network';
+		}
+	}
 
 	if (error instanceof Error) {
 		const msg = error.message.toLowerCase();
@@ -208,18 +213,14 @@ function toAppError(
 	};
 
 	const message = error instanceof Error ? error.message : String(error);
-	const Spec = CATEGORIES[category];
+	const spec = CATEGORIES[category];
 
-	if (Spec.ErrorClass === null) {
-		return new AppError(
-			message,
-			'UNHANDLED_ERROR',
-			enhancedContext as Record<string, unknown>,
-			true
-		);
-	}
-
-	return new Spec.ErrorClass(message, enhancedContext as Record<string, unknown>);
+	return new AppError(
+		message,
+		spec.code,
+		enhancedContext as Record<string, unknown>,
+		spec.recoverable
+	);
 }
 
 /**
@@ -352,7 +353,7 @@ export function getDetailedErrorInfo(error: unknown): ReturnType<typeof getError
 export function createTypedError(error: unknown, context?: Record<string, unknown>): AppError {
 	if (error instanceof AppError) return error;
 	const errorInfo = getErrorInfo(error);
-	return new AppError(errorInfo.message, 'CONVERTED_ERROR', context, true);
+	return new AppError(errorInfo.message, ErrorCodes.CONVERTED_ERROR, context, true);
 }
 
 // ============================================================================

@@ -11,7 +11,7 @@ import {
 	isErrorRecoverable,
 	withSafeOperation
 } from './error-handler';
-import { AppError, ConfigurationError, NetworkError, ValidationError } from './typed-errors';
+import { AppError, ErrorCodes } from './typed-errors';
 
 // Mock showError from sibling module to avoid toast dependency
 vi.mock('./error-handling', () => ({
@@ -23,13 +23,15 @@ vi.mock('./error-handling', () => ({
 
 describe('isErrorRecoverable', () => {
 	it('returns true for recoverable AppErrors', () => {
-		expect(isErrorRecoverable(new ValidationError('invalid'))).toBe(true);
-		expect(isErrorRecoverable(new NetworkError('down'))).toBe(true);
+		expect(isErrorRecoverable(new AppError('invalid', ErrorCodes.VALIDATION_ERROR, {}, true))).toBe(
+			true
+		);
+		expect(isErrorRecoverable(new AppError('down', ErrorCodes.NETWORK_ERROR, {}, true))).toBe(true);
 		expect(isErrorRecoverable(new AppError('msg', 'CODE', {}, true))).toBe(true);
 	});
 
 	it('returns false for non-recoverable AppErrors', () => {
-		expect(isErrorRecoverable(new ConfigurationError('bad'))).toBe(false);
+		expect(isErrorRecoverable(new AppError('bad', ErrorCodes.CONFIGURATION_ERROR))).toBe(false);
 		expect(isErrorRecoverable(new AppError('msg', 'CODE', {}, false))).toBe(false);
 	});
 
@@ -73,16 +75,16 @@ describe('getDetailedErrorInfo', () => {
 
 describe('createTypedError', () => {
 	it('returns the same error if already AppError', () => {
-		const original = new ValidationError('bad');
+		const original = new AppError('bad', ErrorCodes.VALIDATION_ERROR);
 		const result = createTypedError(original);
 		expect(result).toBe(original);
-		expect(result).toBeInstanceOf(ValidationError);
+		expect(result).toBeInstanceOf(AppError);
 	});
 
 	it('wraps plain Error into AppError with CONVERTED_ERROR code', () => {
 		const err = createTypedError(new Error('something broke'));
 		expect(err).toBeInstanceOf(AppError);
-		expect(err.code).toBe('CONVERTED_ERROR');
+		expect(err.code).toBe(ErrorCodes.CONVERTED_ERROR);
 		expect(err.message).toBe('something broke');
 	});
 

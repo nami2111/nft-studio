@@ -3,17 +3,10 @@
  */
 
 import { toast } from 'svelte-sonner';
-import {
-	AppError,
-	FileError as FileSystemError,
-	NetworkError,
-	StorageError,
-	ValidationError,
-	WorkerError
-} from './typed-errors';
+import { AppError } from './typed-errors';
 
-// Re-export unified error classes for backward compatibility
-export { AppError, FileSystemError, NetworkError, StorageError, ValidationError, WorkerError };
+// Re-export AppError for backward compatibility
+export { AppError };
 
 export interface ErrorOptions {
 	title?: string;

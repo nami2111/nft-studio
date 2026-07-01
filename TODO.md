@@ -74,20 +74,29 @@ Only `withRetry` (retry.ts version) and `createDebouncedRetry` were truly dead.
 
 ---
 
-## 4. Flatten error hierarchy — `typed-errors.ts` (~-180 lines)
+## 4. Flatten error hierarchy — `typed-errors.ts` (~-180 lines) ✅
 
 **Why:** 22 classes, 14 used once; subclass-per-domain adds no behavior over a code field.
-Higher-touch — do after 2 & 3 so the error surface is already smaller.
 
-- [ ] Introduce `AppError { code: string; context?: Record<string,unknown> }`.
-- [ ] Replace `new XxxError(...)` sites with `new AppError('XXX', ...)` (81 total
-      instantiation sites across the tree — grep `new \w*Error(`).
-- [ ] Keep any class that `instanceof` checks actually depend on; grep
-      `instanceof .*Error` first and preserve those branches (convert to `code ===` checks).
-- [ ] Update `error-handler.ts` `createTypedError` / category mapping accordingly.
-- **Files:** `src/lib/utils/typed-errors.ts` (+ every `new *Error` call site).
-- **Verify:** `grep -rn "instanceof .*Error" src` → all map to retained checks; tests green.
-- **Risk:** medium — do in its own commit, lean on tests.
+**What was done:**
+
+- [x] `AppError { code: string; context?: Record<string,unknown> }` already existed — kept as the sole error class.
+- [x] Deleted 22 error subclasses and 7 type-guard functions — replaced with `ErrorCodes` const.
+- [x] Only 2 prod instantiation sites existed (`error-handling.ts` creates `new AppError(...)` directly — already correct).
+- [x] `instanceof` checks converted to `error.code === ErrorCodes.XXX` checks in `error-handler.ts`
+      (retryable checks, category detection, `toAppError`, `detectCategory`).
+- [x] `error-handling.ts` re-export simplified to just `AppError` (removed `FileSystemError`, `NetworkError`,
+      `StorageError`, `ValidationError`, `WorkerError` re-exports — all aliases for deleted classes).
+- [x] `error-handler.ts` `CategorySpec` changed from `ErrorClass` constructor pattern to `code` + `recoverable` fields.
+- [x] `createTypedError` updated to use `ErrorCodes.CONVERTED_ERROR`.
+- [x] Rewrote `typed-errors.test.ts` — tests for AppError, ErrorCodes, getErrorInfo, isRecoverableError.
+- [x] Rewrote `error-handler.test.ts` — uses `AppError` + `ErrorCodes` instead of deleted subclasses.
+- **Files:** `src/lib/utils/typed-errors.ts`, `src/lib/utils/typed-errors.test.ts`,
+  `src/lib/utils/error-handler.ts`, `src/lib/utils/error-handler.test.ts`,
+  `src/lib/utils/error-handling.ts`.
+- **Verified:** `pnpm check` clean; 40 test files / 472 tests green.
+  `grep -rn "instanceof .*Error" src` → all remaining are `instanceof AppError`, `instanceof Error`, or `instanceof DOMException` — none reference deleted classes.
+- **Net:** ~-180 lines removed from `typed-errors.ts`, ~-50 lines from `error-handler.ts` simplification.
 
 ---
 
