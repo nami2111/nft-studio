@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
-import { RetryConditions, RetryConfigs, RetryOperation, retry, withRetry } from './retry';
+import { RetryConditions, RetryConfigs, RetryOperation, retry } from './retry';
 
 describe('RetryOperation', () => {
 	beforeEach(() => {
@@ -195,35 +195,6 @@ describe('retry() convenience function', () => {
 
 		expect(result.success).toBe(true);
 		expect(result.data).toBe('data');
-	});
-});
-
-describe('withRetry() wrapper', () => {
-	it('retries the wrapped function', async () => {
-		let calls = 0;
-		const fn = withRetry(
-			async (x: number) => {
-				calls++;
-				if (calls < 2) throw new Error('fail');
-				return x * 2;
-			},
-			{ maxAttempts: 3, initialDelayMs: 10, jitter: false }
-		);
-
-		const result = await fn(5);
-		expect(result).toBe(10);
-		expect(calls).toBe(2);
-	});
-
-	it('propagates error after all retries fail', async () => {
-		const fn = withRetry(
-			async () => {
-				throw new Error('persistent');
-			},
-			{ maxAttempts: 2, initialDelayMs: 10, jitter: false }
-		);
-
-		await expect(fn()).rejects.toThrow('persistent');
 	});
 });
 

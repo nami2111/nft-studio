@@ -45,27 +45,32 @@ Note: `recoverableWorkerOperation` appears only in a **stale test comment**
 
 ---
 
-## 3. Remove unused retry framework — `retry.ts` (~-200 lines)
+## 3. Remove unused retry framework — `retry.ts` (~-200 lines) ✅
 
 **Why:** only `retry()` (19 calls) and `withRetry()` used; rest is dead.
 
-- [ ] Delete `RetryOperation`, `RetryConditions`, `RetryConfigs`,
-      `retryWithErrorHandling`, `createDebouncedRetry` (all 0 prod callers).
-- [ ] Keep `retry()` and `retry.ts`'s `withRetry` **only if** still used — NOTE:
-      prod `withRetry` imports come from `error-handler.ts`, not `retry.ts`
-      (`retry.ts`'s `withRetry` is referenced only in `retry.test.ts`). Confirm, then
-      delete `retry.ts`'s `withRetry` too if truly test-only.
-- [ ] Prune `retry.test.ts` to cover only what remains.
-- **Files:** `src/lib/utils/retry.ts`, `src/lib/utils/retry.test.ts`.
-- **Verify:** `grep -rn "RetryOperation\|RetryConfigs\|createDebouncedRetry" src` empty; tests green.
+**Correction from audit:** `RetryConfigs` and `retryWithErrorHandling` are **actively used** by
+`error-handler.ts` (imported and called in the CATEGORIES table and `withRetry` function).
+`RetryConditions` is used internally by `RetryConfigs`. They cannot be deleted.
+Only `withRetry` (retry.ts version) and `createDebouncedRetry` were truly dead.
 
-## 3b. De-duplicate `withRetry`
+- [x] Deleted `withRetry` from retry.ts — only referenced in `retry.test.ts` (test-only).
+      Prod `withRetry` imports come from `error-handler.ts`, not `retry.ts`.
+- [x] Deleted `createDebouncedRetry` — 0 callers anywhere (not even tests).
+- [x] Kept `RetryOperation`, `RetryConditions`, `RetryConfigs`, `retryWithErrorHandling`,
+      `retry` — all used by `error-handler.ts` or internally within retry.ts.
+- [x] Pruned `retry.test.ts`: removed `withRetry` import and its test block (2 tests).
+- **Files:** `src/lib/utils/retry.ts`, `src/lib/utils/retry.test.ts`.
+- **Net:** ~76 lines removed from retry.ts, 28 lines from retry.test.ts.
+- **Verified:** `pnpm check` clean; 40 test files / 472 tests green (2 fewer tests from removed withRetry block).
+
+## 3b. De-duplicate `withRetry` ✅
 
 **Why:** defined in both `retry.ts:342` and `error-handler.ts:297`.
 
-- [ ] Standardize on `error-handler.ts`'s `withRetry` (the one prod imports).
-- [ ] After task 3, ensure only one definition survives.
-- **Verify:** `grep -rn "export.*withRetry" src` → single hit.
+- [x] Standardized on `error-handler.ts`'s `withRetry` (the one prod imports).
+- [x] After task 3, only one definition survives.
+- **Verified:** `grep -rn "export.*withRetry" src` → single hit (`error-handler.ts:295`).
 
 ---
 
