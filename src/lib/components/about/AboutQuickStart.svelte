@@ -57,10 +57,10 @@
 													4
 												</div>
 												<div>
-													<h4 class="text-foreground font-medium">Upload Artwork</h4>
-													<p class="text-muted-foreground text-sm">
-														Drag & drop PNG files into organized layers
-													</p>
+														<h4 class="text-foreground font-medium">Upload Artwork</h4>
+														<p class="text-muted-foreground text-sm">
+															Drag & drop PNG, JPG, WebP, or GIF files into organized layers
+														</p>
 												</div>
 											</div>
 											<div class="flex items-start space-x-4">

@@ -26,14 +26,14 @@
 													<p>• Collection statistics and insights</p>
 												</div>
 											</div>
-											<div>
-												<h4 class="text-foreground mb-3 font-semibold">Advanced Filtering</h4>
-												<div class="text-muted-foreground space-y-2 text-sm">
-													<p>• Search by item name and description</p>
-													<p>• Multi-layer trait filtering</p>
-													<p>• Sort by rarity, name, or generation date</p>
-													<p>• Real-time filter results</p>
-												</div>
+												<div>
+													<h4 class="text-foreground mb-3 font-semibold">Advanced Filtering</h4>
+													<div class="text-muted-foreground space-y-2 text-sm">
+														<p>• Search by item name and description</p>
+														<p>• Multi-layer trait filtering</p>
+														<p>• Sort by rarity or natural item name</p>
+														<p>• Real-time filter results</p>
+													</div>
 											</div>
 										</div>
 									</div>
@@ -98,15 +98,16 @@
 										</p>
 
 										<div class="border-border bg-muted rounded-lg border p-4">
-											<h4 class="text-foreground mb-2 font-semibold">Supported Import Features:</h4>
-											<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
-												<li>ZIP files with images/ and metadata/ folder structure</li>
-												<li>Automatic metadata parsing and organization</li>
-												<li>Automatic rarity calculation and ranking system</li>
-												<li>Support for various metadata formats and trait structures</li>
-												<li>Duplicate collection name handling with automatic numbering</li>
-												<li>Real-time preview during import process</li>
-											</ul>
+													<h4 class="text-foreground mb-2 font-semibold">Supported Import Features:</h4>
+												<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
+													<li>ZIP files with images/ and metadata/ folder structure</li>
+													<li>PNG, JPG, WebP, and GIF image entries</li>
+													<li>Automatic metadata parsing and organization</li>
+													<li>Automatic rarity calculation and ranking system</li>
+													<li>Support for various metadata formats and trait structures</li>
+													<li>Duplicate collection name handling with automatic numbering</li>
+													<li>Progress updates while images stream to browser storage</li>
+												</ul>
 										</div>
 									</div>
 
@@ -189,14 +190,14 @@
 												</ul>
 											</div>
 											<div>
-												<h4 class="text-foreground mb-2 font-semibold">Sorting & Filtering</h4>
-												<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
-													<li>Natural numeric sorting ("Foxinity #1", "#001")</li>
-													<li>O(1) trait index lookups for instant filtering</li>
-													<li>Multi-layer AND/OR trait filter combinations</li>
-													<li>Real-time search with debounced input</li>
-												</ul>
-											</div>
+													<h4 class="text-foreground mb-2 font-semibold">Sorting & Filtering</h4>
+													<ul class="text-muted-foreground ml-4 list-disc space-y-1 text-sm">
+														<li>Natural numeric sorting ("Foxinity #1", "#001")</li>
+														<li>O(1) trait index lookups for instant filtering</li>
+														<li>OR matching within a layer and AND matching across layers</li>
+														<li>Reactive search through the gallery store</li>
+													</ul>
+												</div>
 										</div>
 									</div>
 								</div>

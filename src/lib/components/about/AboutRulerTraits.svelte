@@ -128,7 +128,7 @@
 											creating large collections
 										</li>
 										<li>
-											<strong>Use Preview Mode:</strong> The preview system automatically filters to show only compatible trait combinations
+											<strong>Check Preview Results:</strong> Use previews and small generations to verify that rules produce the combinations you expect
 										</li>
 										<li>
 											<strong>Monitor Rules:</strong> AC-3 pruning runs once per generation, not per item, for efficient validation
