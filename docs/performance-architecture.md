@@ -87,13 +87,13 @@ Tasks are classified by complexity for optimal routing:
 - Workers marked as `HEALTHY`, `DEGRADED`, or `UNRESPONSIVE`
 - Automatic restart for failed workers (up to 3 attempts)
 - Work-stealing from overloaded workers to idle ones
-- 30-second timeout monitoring for stuck tasks
+- 120-second timeout monitoring for stuck tasks
 
 ### Scheduling
 
 - **Work Stealing**: New tasks assigned to the least-loaded worker (based on task count and average task time)
 - **Adaptive Batch Size**: Batch sizes adjusted based on collection size, worker count, and resolution
-- **Timeout Recovery**: Stuck tasks are detected and reassigned after 30 seconds
+- **Timeout Recovery**: Stuck tasks are detected and cleared after 120 seconds
 
 ## CSP Solver Performance
 
@@ -226,8 +226,4 @@ Average task time (per worker)
 
 ## Development Monitoring
 
-Dev-only components available in the UI:
-
-- `PerformanceMonitor.svelte` - Real-time performance dashboard
-- `CacheMonitor.svelte` - Cache hit rates and memory usage per tier
-- Worker pool status indicators in the generation progress panel
+Development monitoring is currently exposed through code APIs and logs: `performanceMonitor`, cache metrics, memory-pressure helpers, and worker-pool status. The current tree does not include standalone performance dashboard components.

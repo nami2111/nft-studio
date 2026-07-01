@@ -44,7 +44,7 @@ Before generating your collection:
 
 ### 2. Generation Settings
 
-Access the custom generation modal to configure your collection:
+Use the generation controls to configure your collection:
 
 #### Collection Size
 
@@ -75,7 +75,7 @@ The CSP solver guarantees every generated item has a unique trait combination, p
 ### 3. Starting Generation
 
 1. **Click "Generate Collection"** in the main interface
-2. **Review settings** in the custom generation modal
+2. **Review generation settings**
 3. **Set collection size** based on your needs
 4. **Click "Start Generation"** to begin the process
 
@@ -131,6 +131,7 @@ GNStudio provides multiple export strategies optimized for different collection 
 - **Best for**: Collections with more than 500 items
 - **Behavior**: ZIP creation runs in a dedicated Web Worker
 - **Benefit**: Keeps the main thread responsive during compression
+- **When active**: Only when `enableZipWorkerOffloading` is enabled
 
 ## Feature Flags
 
@@ -143,7 +144,7 @@ GNStudio exposes feature flags to fine-tune the generation pipeline:
 | `enableAdaptiveBatchSize`   | Adjusts batch size based on collection size and device hardware capabilities                               | Enabled  |
 | `enableZipWorkerOffloading` | Offloads one-shot ZIP creation to a dedicated Web Worker for collections > 500 items                       | Disabled |
 
-Enable or disable flags in **Project Settings → Feature Flags** before starting generation.
+Enable or disable flags with `VITE_ENABLE_*` / `VITE_DISABLE_*` environment variables before running the app. See [Feature Flags](./feature-flags.md).
 
 ## Monitoring Progress
 
@@ -312,7 +313,6 @@ For large collections:
 
 #### Memory Errors
 
-- **Reduce chunk size** in performance settings
 - **Clear browser cache** before large generations
 - **Use progressive preview** to reduce memory usage
 - **Restart browser** if memory issues persist
@@ -326,10 +326,9 @@ For large collections:
 
 ### Recovery Options
 
-- **Resume generation** from last completed chunk
-- **Export partial results** if generation is interrupted
-- **Save project state** before starting large generations
-- **Use auto-save feature** for project recovery
+- **Cancel and rerun** after reducing collection size or closing other tabs
+- **Save/export the project** before starting large generations
+- **Use auto-saved project state** to recover the current design after refresh
 
 ## Best Practices
 
@@ -371,6 +370,6 @@ After successful generation:
 ## Related Documentation
 
 - [Adding Traits](./user-guide-adding-traits.md)
-- [Project Management](../README.md#project-management)
-- [Export Options](../README.md#export-options)
-- [Performance Optimization](../README.md#performance-optimizations)
+- [Gallery Mode](./user-guide-gallery-mode.md)
+- [Performance Architecture](./performance-architecture.md)
+- [Feature Flags](./feature-flags.md)

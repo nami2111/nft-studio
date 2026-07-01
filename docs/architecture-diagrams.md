@@ -20,13 +20,13 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 - **Trait Management Components** (`layer/`):
   - `TraitCard.svelte`: Individual trait management with ruler trait controls
   - `VirtualTraitList.svelte`: Efficient rendering of large trait collections
-  - `TraitUpload.svelte`: Drag-and-drop file handling with progress tracking
+  - `file-upload-handler.ts`: Drag-and-drop file validation and upload helpers
 
 - **Gallery Components** (`gallery/`):
   - `SimpleVirtualGrid.svelte`: High-performance virtual scrolling for item collections
   - `GalleryImport.svelte`: ZIP import with automatic metadata parsing
   - `ItemDetail.svelte`: Interactive item information panel with trait filtering
-  - `TraitFilter.svelte`: Multi-layer trait filtering system
+  - `CollectionStats.svelte`: Collection-level rarity and import statistics
 
 - **Preview & Generation System** (`generation/`):
   - `Preview.svelte`: Real-time canvas preview with debounced updates (200ms)
@@ -62,7 +62,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Automatic metadata parsing and validation
   - Error recovery with exponential backoff
 
-- **`loading-state.ts` & `loading-state.svelte.ts`**: Centralized loading management
+- **`loading-state.svelte.ts`**: Centralized loading management
   - Performance metrics tracking
   - Progress state coordination across components
   - Loading state persistence and recovery
@@ -76,10 +76,14 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Separate schemas for import/export vs runtime operations
   - Rich error context for debugging and user feedback
 
-- **`project.domain.ts` & `project.service.ts`**: Project business logic
-  - Factory pattern for entity creation
-  - Project lifecycle management
-  - Integration with worker orchestration
+- **`collection-design-mutator.ts`**: In-place project mutation helpers
+  - Project metadata, layer, trait, ruler-rule, and strict-pair mutations
+  - Mutation results indicate whether persistence is needed
+  - Used by `project.store.svelte.ts` as the write path for project state
+
+- **`project.domain.ts`**: Worker preparation helpers
+  - Converts project layers into transferable worker payloads
+  - Keeps browser-only file/image handling outside the worker code
 
 - **`rarity-calculator.ts`**: Advanced rarity calculation algorithms
   - Natural numeric sorting for item names
@@ -95,7 +99,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 
 ##### Advanced Worker Pool with Dynamic Scaling and Health Monitoring
 
-- **`worker.pool.ts`**: Sophisticated worker pool management
+- **`pool/pool.ts`**: Sophisticated worker pool management
   - Dynamic scaling based on device capabilities (CPU cores, memory, mobile detection)
   - Task complexity classification (LOW to VERY_HIGH)
   - Work-stealing algorithm for optimal task distribution
@@ -106,11 +110,10 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Transferable ArrayBuffer objects for zero-copy performance
   - Progressive generation with streaming updates
 
-- **`generation.worker.client.ts`**: Worker client interface
-  - CSP solver pre-computes all unique trait combinations upfront
-  - TraitBatchScheduler dispatches solved batches to the worker pool
-  - Real-time progress reporting
-  - Error handling with automatic retry logic
+- **`generation.orchestrator.ts`**: Generation pipeline entry point
+  - Prepares layers, solves trait combinations, schedules batches, and streams results
+  - Routes pool progress, preview, completion, cancellation, and errors to UI callbacks
+  - Uses one active generation session at a time
 
 - **`csp-solver.ts`**: Constraint Satisfaction Problem solver
   - AC-3 arc consistency for domain pruning (60-80% search space reduction)
@@ -127,10 +130,10 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 
 - **Pool Orchestrator** (`src/lib/workers/pool/pool.ts`): 913-line main pool manager
   - Dynamic scaling based on `navigator.hardwareConcurrency` and `deviceMemory`
-  - Health monitoring with 30-second ping checks
+  - Health monitoring with 30-second interval checks
   - Task complexity classification (LOW/MEDIUM/HIGH/VERY_HIGH)
   - Work-stealing algorithm for load balancing
-  - Timeout monitoring: 30-second timeout for stuck tasks
+  - Timeout monitoring: 120-second timeout for stuck tasks
   - Auto-restart for failed workers (up to 3 times)
 
 ##### Constraint Satisfaction Solver
@@ -224,7 +227,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 - **LRU Eviction**: Frequency scoring with single-pass top-k selection (O(n))
 - **Memory Pressure Levels**: Aggressive cleanup at 800MB, moderate at 500MB, light at 200MB
 
-### Intelligent Worker Pool
+### Worker Pool
 
 - **Device-Aware Scaling**: Automatically adjusts worker count based on:
   - CPU core count (75% utilization target)
@@ -232,11 +235,7 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Mobile detection (50% worker reduction)
   - Task complexity (collection size, layers, resolution)
 
-- **Health Monitoring**: Continuous worker health checks with:
-  - Ping-based responsiveness testing
-  - Automatic restart for failed workers
-  - Configurable restart limits and error thresholds
-  - Performance degradation detection
+- **Health Monitoring**: Worker status, task counts, task timing, timeouts, and error counts are tracked in pool state. `TASK_TIMEOUT_MS` is currently 120 seconds.
 
 ### Memory Management
 
