@@ -159,7 +159,7 @@ describe('runGeneration', () => {
 			projectDescription: 'desc'
 		};
 
-		// runGeneration wraps operations in recoverableWorkerOperation which
+		// runGeneration wraps operations in withRetry which
 		// retries then throws after exhausting attempts
 		try {
 			await runGeneration(config, callbacks);

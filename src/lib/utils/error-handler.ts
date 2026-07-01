@@ -4,9 +4,7 @@
  * Single entry point for retry + error reporting:
  *   - `withRetry(op, category, options)` — recoverable async operations
  *   - `handleTypedError(error, category, options)` — turn unknowns into typed errors with user-facing messaging
- *
- * Deprecated wrappers (`recoverableXxxOperation`, `handleXxxError`) remain as
- * one-line shims for back-compat; remove after callers migrate.
+ *   - `handleError` / `handleStorageError` — thin category shims over `handleTypedError`
  */
 
 import type { ErrorContext, ErrorOptions } from './error-handling';
@@ -358,7 +356,8 @@ export function createTypedError(error: unknown, context?: Record<string, unknow
 }
 
 // ============================================================================
-// Deprecated compat shims — remove after callers migrate to withRetry/handleTypedError
+// Deprecated compat shims — kept for back-compat; only the two with live
+// callers survive. The other 11 zero-caller wrappers were removed.
 // ============================================================================
 
 /** @deprecated Use {@link handleTypedError} */
@@ -375,92 +374,4 @@ export async function handleStorageError<T>(
 	options: ErrorHandlerOptions = {}
 ): Promise<T | undefined> {
 	return handleTypedError<T>(error, 'storage', options);
-}
-
-/** @deprecated Use {@link handleTypedError} with category 'file' */
-export async function handleFileError<T>(
-	error: unknown,
-	options: ErrorHandlerOptions = {}
-): Promise<T | undefined> {
-	return handleTypedError<T>(error, 'file', options);
-}
-
-/** @deprecated Use {@link handleTypedError} with category 'validation' */
-export async function handleValidationError<T>(
-	error: unknown,
-	options: ErrorHandlerOptions = {}
-): Promise<T | undefined> {
-	return handleTypedError<T>(error, 'validation', options);
-}
-
-/** @deprecated Use {@link handleTypedError} with category 'worker' */
-export async function handleWorkerError<T>(
-	error: unknown,
-	options: ErrorHandlerOptions = {}
-): Promise<T | undefined> {
-	return handleTypedError<T>(error, 'worker', options);
-}
-
-/** @deprecated Use {@link handleTypedError} with category 'generation' */
-export async function handleGenerationError<T>(
-	error: unknown,
-	options: ErrorHandlerOptions = {}
-): Promise<T | undefined> {
-	return handleTypedError<T>(error, 'generation', options);
-}
-
-/** @deprecated Use {@link handleTypedError} with category 'network' */
-export async function handleNetworkError<T>(
-	error: unknown,
-	options: ErrorHandlerOptions = {}
-): Promise<T | undefined> {
-	return handleTypedError<T>(error, 'network', options);
-}
-
-/** @deprecated Use {@link withRetry} */
-export async function recoverableOperation<T>(
-	operation: () => Promise<T>,
-	options: ErrorHandlerOptions = {}
-): Promise<T> {
-	return withRetry(operation, 'generic', options);
-}
-
-/** @deprecated Use {@link withRetry} with category 'storage' */
-export async function recoverableStorageOperation<T>(
-	operation: () => Promise<T>,
-	options: ErrorHandlerOptions = {}
-): Promise<T> {
-	return withRetry(operation, 'storage', options);
-}
-
-/** @deprecated Use {@link withRetry} with category 'file' */
-export async function recoverableFileOperation<T>(
-	operation: () => Promise<T>,
-	options: ErrorHandlerOptions = {}
-): Promise<T> {
-	return withRetry(operation, 'file', options);
-}
-
-/** @deprecated Use {@link withRetry} with category 'worker' */
-export async function recoverableWorkerOperation<T>(
-	operation: () => Promise<T>,
-	options: ErrorHandlerOptions = {}
-): Promise<T> {
-	return withRetry(operation, 'worker', options);
-}
-
-/** @deprecated Use {@link withRetry} with category 'generation' */
-export async function recoverableGenerationOperation<T>(
-	operation: () => Promise<T>,
-	options: ErrorHandlerOptions = {}
-): Promise<T> {
-	return withRetry(operation, 'generation', options);
-}
-
-/** @deprecated Use {@link withRetry} with category 'network' */
-export async function recoverableNetworkOperation<T>(
-	operation: () => Promise<T>,
-	options: ErrorHandlerOptions = {}
-): Promise<T> {
-	return withRetry(operation, 'network', options);
 }
