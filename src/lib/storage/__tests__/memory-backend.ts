@@ -1,4 +1,4 @@
-import type { BinaryObjectStore, JsonObjectStore, ObjectStorageBackend } from './types';
+import type { BinaryObjectStore, JsonObjectStore, ObjectStorageBackend } from '../types';
 
 function cloneBuffer(data: ArrayBuffer): ArrayBuffer {
 	return data.slice(0);
