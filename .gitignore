@@ -22,9 +22,6 @@ static/workers
 
 target
 
-# Build analysis output (regenerated each build)
-stats.html
-
 # Rust/WASM build artifacts
 src/lib/wasm/pkg/
 src/lib/wasm/target/
