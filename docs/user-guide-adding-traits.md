@@ -64,6 +64,7 @@ For each layer, you can add multiple traits:
 
 - **PNG** (recommended for transparency)
 - **JPG/JPEG** (for opaque images)
+- **GIF/WebP** (accepted by the upload UI)
 - **Maximum file size**: 10MB per trait
 - **Recommended dimensions**: Match your project output size
 
@@ -214,12 +215,12 @@ GNStudio supports both ERC-721 and Solana (Metaplex) metadata standards for gene
 After adding all your traits:
 
 1. [Generate your item collection](./user-guide-generating-collections.md)
-2. [Export your project](../README.md#export-options)
-3. [Manage your project settings](../README.md#project-management)
+2. [Generate your item collection](./user-guide-generating-collections.md#export-options)
+3. [Use Gallery Mode](./user-guide-gallery-mode.md)
 
 ## Related Documentation
 
 - [Generating Collections](./user-guide-generating-collections.md)
-- [Project Management](../README.md#project-management)
-- [Layer Management](../README.md#layer-management)
-- [Export Options](../README.md#export-options)
+- [Ruler Traits](./user-guide-ruler-traits.md)
+- [Strict Pair Mode](./user-guide-strict-pair.md)
+- [Gallery Mode](./user-guide-gallery-mode.md)

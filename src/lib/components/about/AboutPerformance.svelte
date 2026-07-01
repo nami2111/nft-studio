@@ -41,18 +41,18 @@
 											<strong class="text-foreground">Memory Pressure:</strong>
 											<p class="text-muted-foreground">Automatic cleanup at 200MB (light), 500MB (moderate), 800MB (high) thresholds.</p>
 										</div>
-										<div>
-											<strong class="text-foreground">Worker Pool:</strong>
-											<p class="text-muted-foreground">Device-aware dynamic scaling with health monitoring, work stealing, and auto-restart.</p>
-										</div>
-										<div>
-											<strong class="text-foreground">Streaming Storage:</strong>
-											<p class="text-muted-foreground">Items stream to browser storage during generation, reducing peak memory by 60-80%.</p>
-										</div>
-										<div>
-											<strong class="text-foreground">ZIP Export:</strong>
-											<p class="text-muted-foreground">Standard, chunked, and multi-ZIP (1GB splits) with dedicated worker offloading.</p>
-										</div>
+											<div>
+												<strong class="text-foreground">Worker Pool:</strong>
+												<p class="text-muted-foreground">Device-aware scaling with task timing, health state, worker restart, and 120-second task timeout handling.</p>
+											</div>
+											<div>
+												<strong class="text-foreground">Streaming Storage:</strong>
+												<p class="text-muted-foreground">Items stream to browser storage during generation, then package into bounded ZIP batches.</p>
+											</div>
+											<div>
+												<strong class="text-foreground">ZIP Export:</strong>
+												<p class="text-muted-foreground">Standard, chunked, multi-ZIP, streaming ZIP, and optional dedicated worker offloading.</p>
+											</div>
 									</div>
 								</div>
 							</div>

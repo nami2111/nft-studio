@@ -19,10 +19,10 @@
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
 												<span class="text-foreground text-sm">Bulk Trait Operations</span>
 											</div>
-											<div class="flex items-center space-x-3">
-												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-												<span class="text-foreground text-sm">Smart Trait Filtering</span>
-											</div>
+												<div class="flex items-center space-x-3">
+													<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+													<span class="text-foreground text-sm">Layer Trait Search</span>
+												</div>
 											<div class="flex items-center space-x-3">
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
 												<span class="text-foreground text-sm">Layer Reordering</span>
@@ -45,14 +45,14 @@
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
 												<span class="text-foreground text-sm">Multi-Worker Pool</span>
 											</div>
-											<div class="flex items-center space-x-3">
-												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-												<span class="text-foreground text-sm">Three-Tier Caching</span>
-											</div>
-											<div class="flex items-center space-x-3">
-												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-												<span class="text-foreground text-sm">Streaming Storage</span>
-											</div>
+												<div class="flex items-center space-x-3">
+													<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+													<span class="text-foreground text-sm">Object URL & Image Caching</span>
+												</div>
+												<div class="flex items-center space-x-3">
+													<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+													<span class="text-foreground text-sm">Storage Streaming</span>
+												</div>
 											<div class="flex items-center space-x-3">
 												<div class="h-2 w-2 rounded-full bg-gray-600"></div>
 												<span class="text-foreground text-sm">Memory Pressure Management</span>

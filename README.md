@@ -19,7 +19,7 @@ Browser-based generative art collection designer. Built with SvelteKit 2, Svelte
 | Category    | Technologies                                                       |
 | ----------- | ------------------------------------------------------------------ |
 | Frontend    | SvelteKit 2, Svelte 5 (runes), TypeScript                          |
-| Styling     | Tailwind CSS 4, NeoBr-UI, lucide-svelte                            |
+| Styling     | Tailwind CSS 4, NeoBr-UI, Hugeicons                                |
 | Workers     | Multi-worker pool with dynamic scaling, work-stealing              |
 | Storage     | OPFS-backed object storage, LocalStorage (project settings), JSZip |
 | Validation  | Zod v4 schemas with branded types                                  |
@@ -59,13 +59,14 @@ vp preview
 ```
 src/
 ├── lib/
-│   ├── components/    # UI: layer/, preview/, ui/ (NeoBr-UI wrappers)
+│   ├── components/    # UI: layer/, generation/, gallery/, ui/ wrappers
 │   ├── domain/        # Business logic + Zod validation schemas
-│   ├── persistence/   # Object storage + LocalStorage abstraction
+│   ├── storage/       # OPFS/IndexedDB object storage backends
+│   ├── persistence/   # Legacy project persistence helpers
 │   ├── services/      # Application services (persistence, export, validation)
 │   ├── stores/        # Svelte 5 rune stores (*.svelte.ts)
 │   ├── types/         # Branded types (ProjectId, LayerId, TraitId)
-│   ├── utils/         # Optimization: sprite-packer, combination-indexer
+│   ├── utils/         # Cache, formatting, storage, retry, and monitoring helpers
 │   └── workers/       # Web workers: generation, ZIP, worker pool
 └── satellite/         # Juno satellite config
 ```
@@ -92,8 +93,8 @@ GNStudio follows a layered, performance-first architecture:
 1. **UI Layer** — Svelte 5 components with runes-based reactivity
 2. **Domain Layer** — Business logic, validation, worker orchestration
 3. **Store Layer** — Reactive state with auto-persistence (500ms debounce)
-4. **Worker Layer** — Multi-worker pool with dynamic scaling and health checks
-5. **Persistence Layer** — OPFS-backed object storage + LocalStorage with three-tier caching
+4. **Worker Layer** — CSP solving, batch scheduling, worker pool, ZIP worker
+5. **Storage Layer** — OPFS-backed object storage with IndexedDB fallback
 6. **Utils Layer** — Performance monitoring, error handling, memory management
 
 **Export Pipeline**: Two paths — streaming ZIP (persistent worker, 700MB volume flush) or storage streaming (size-bounded 500MB ZIP batches, OPFS when available with IndexedDB fallback). Feature flags: `enableStreamingStorage` (default on), `enableZipWorkerOffloading` (default off).
@@ -147,6 +148,6 @@ MIT — see [LICENSE](LICENSE).
 
 - [SvelteKit](https://kit.svelte.dev/) and Svelte 5
 - [NeoBr-UI](https://github.com/nami2111/NeoBr-UI) design system
-- [Lucide](https://lucide.dev/) icons
+- [Hugeicons](https://hugeicons.com/) icons
 - [Tailwind CSS](https://tailwindcss.com/)
 - [Juno](https://juno.build/) for static hosting

@@ -108,7 +108,9 @@ gnstudio/
 │   ├── onboarding.md        # Developer onboarding guide
 │   ├── architecture-diagrams.md  # Detailed architecture documentation
 │   ├── coding-standards.md  # Code style and conventions
-│   └── user-guides/         # User documentation for features
+│   ├── user-guide-*.md      # User documentation for features
+│   ├── api-documentation.md # Current public module API overview
+│   └── feature-flags.md     # Runtime feature flags
 ├── scripts/                 # Build and utility scripts
 ├── src/                     # Source code
 │   ├── lib/                 # Core application code
@@ -117,19 +119,18 @@ gnstudio/
 │   │   │   ├── gallery/     # Gallery and collection components
 │   │   │   ├── generation/  # Generation and preview components
 │   │   │   ├── layout/      # Page layout and structural components
-│   │   │   ├── monitor/     # Performance monitoring components
 │   │   │   ├── project/     # Project management components
 │   │   │   ├── shared/      # Common shared components
-│   │   │   └── ui/          # Base UI component library (Shadcn-like)
+│   │   │   └── ui/          # NeoBr-UI wrapper components
 │   │   ├── stores/           # State management with Svelte 5 runes
 │   │   │   ├── project.store.svelte.ts  # Main project state
 │   │   │   ├── gallery.store.svelte.ts  # Gallery collection state
 │   │   │   ├── resource-manager.ts     # Memory and cache management
 │   │   │   └── file-operations.ts      # Import/export functionality
 │   │   ├── domain/           # Business logic and validation
-│   │   │   ├── validation.ts          # Logic-based validation
+│   │   │   ├── validation.ts          # Zod schemas and compatibility helpers
 │   │   │   ├── project.domain.ts      # Project business logic
-│   │   │   ├── worker.service.ts      # Worker orchestration
+│   │   │   ├── collection-design-mutator.ts # In-place project mutations
 │   │   │   ├── rarity-calculator.ts   # Rarity calculation algorithms
 │   │   │   └── metadata/              # Metadata output strategies
 │   │   │       ├── metadata.strategy.ts  # Strategy interface & types
@@ -147,7 +148,7 @@ gnstudio/
 │   │   │   │   ├── types.ts          # Pool type definitions
 │   │   │   │   ├── sanitize.ts       # Worker data sanitization
 │   │   │   │   └── index.ts          # Pool public API
-│   │   │   ├── worker.pool.ts        # Legacy pool (re-export)
+│   │   │   ├── generation.orchestrator.ts # Generation pipeline entry point
 │   │   │   └── generation.worker.ts  # Canvas-based generation
 │   │   ├── utils/            # Performance and utility functions
 │   │   │   ├── performance-monitor.ts  # Performance tracking
@@ -174,7 +175,7 @@ gnstudio/
 ├── package.json              # Project configuration and dependencies
 ├── tsconfig.json             # TypeScript configuration
 ├── vite.config.ts            # Vite build configuration
-├── tailwind.config.js        # Tailwind CSS configuration
+├── tailwind.config.ts        # Tailwind CSS compatibility config
 └── README.md                 # Project overview and features
 ```
 
@@ -224,7 +225,7 @@ vp fmt
 vp run build
 
 # Preview the built application
-vp run preview
+vp preview
 ```
 
 ## Feature Flags
@@ -332,7 +333,7 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 | `vp test`                | Run tests                  |
 | `vp test watch`          | Run tests in watch mode    |
 | `vp test run --coverage` | Run tests with coverage    |
-| `vp run preview`         | Preview production build   |
+| `vp preview`             | Preview production build   |
 
 ## Getting Help
 
@@ -347,8 +348,8 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 
 1. Create the component in `src/lib/components/`
 2. Follow existing patterns for props and events
-3. Add stories for documentation (if using Storybook)
-4. Write tests for the component
+3. Write focused tests when the component has non-trivial behavior
+4. Update docs when the user workflow changes
 
 ### Adding a New Feature
 
@@ -382,11 +383,7 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 - [User Guide: Ruler Traits](./user-guide-ruler-traits.md)
 - [AGENTS.md](../AGENTS.md) - Agent development guidelines
 
-## UI Flow Screenshots
-
-> **Note**: Screenshots will be added as the UI evolves. This section documents the expected user interface flow.
-
-### Main Application Interface
+## Main Application Flow
 
 - **Project Management**: Create, save, and load item projects
 - **Layer Management**: Add, remove, and reorder layers for your item collection
@@ -410,5 +407,3 @@ Follow the coding standards documented in `docs/coding-standards.md`:
 4. Preview individual items
 5. Generate complete collection
 6. Export as ZIP package
-
-> **TODO**: Add actual screenshots once UI is stable and production-ready.

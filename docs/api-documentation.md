@@ -36,22 +36,41 @@ export function updateProject(updates: Partial<Project>): void;
 export function updateProjectName(name: string): void;
 export function updateProjectDescription(description: string): void;
 export function updateProjectMetadataStandard(standard: MetadataStandard): void;
+export function updateProjectDimensions(dimensions: ProjectDimensions): void;
+export function updateProjectSymbol(symbol: string): void;
+export function updateProjectSellerFee(fee: number): void;
+export function updateProjectExternalUrl(url: string): void;
+export function updateProjectAnimationUrl(url: string): void;
+export function updateProjectCreators(creators: { address: string; share: number }[]): void;
 export function isProjectValid(): boolean;
 export function totalTraitCount(): number;
 export function projectNeedsZipLoad(): boolean;
+export function resetProject(): void;
 ```
 
 #### Layer Management
 
 ```typescript
 export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void;
-export function updateLayersBatch(batch: Array<{ id: LayerId; updates: Partial<Layer> }>): void;
+export function addLayer(name: string): void;
+export function removeLayer(layerId: LayerId): void;
+export function updateLayerName(layerId: LayerId, name: string): void;
+export function reorderLayers(layerIds: LayerId[]): void;
+export function updateLayersBatch(
+	updates: Array<{ layerId: LayerId; updates: Partial<Layer> }>
+): void;
 ```
 
 #### Trait Management
 
 ```typescript
 export function updateTrait(layerId: LayerId, traitId: TraitId, updates: Partial<Trait>): void;
+export async function addTrait(layerId: LayerId, file: File): Promise<void>;
+export function removeTrait(layerId: LayerId, traitId: TraitId): void;
+export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string): void;
+export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeight: number): void;
+export function toggleTraitType(layerId: LayerId, traitId: TraitId): TraitType | undefined;
+export function updateTraitRulerRules(layerId: LayerId, traitId: TraitId, rules: RulerRule[]): void;
 export function updateTraitsBatch(
 	batch: Array<{ layerId: LayerId; traitId: TraitId; updates: Partial<Trait> }>
 ): void;
@@ -61,57 +80,48 @@ export function flushBatch(): void;
 
 ## Domain Services API
 
-### Project Service (`src/lib/domain/project.service.ts`)
+### Collection Design Mutator (`src/lib/domain/collection-design-mutator.ts`)
 
-Pure business logic functions for project, layer, and trait operations. All functions return new instances (immutable).
-
-#### Factory & Queries
+Project edits are implemented as in-place mutations over the current Svelte state object. Mutators return a `MutationResult` so the store can decide whether to persist.
 
 ```typescript
-/** Creates a default project with generated ID and default 1000×1000 dimensions. */
-export function createProject(): Project;
+export interface MutationResult {
+	changed: boolean;
+}
 
-/** Calculates total possible unique combinations across all layers. */
-export function calculateTotalCombinations(project: Project): number;
-
-/** Validates project structure (all layers have traits, no duplicate names). */
-export function validateProjectStructure(project: Project): boolean;
-```
-
-#### Project Operations
-
-```typescript
-export function updateProjectName(project: Project, name: string): Project;
-export function updateProjectDescription(project: Project, description: string): Project;
-export function updateProjectDimensions(project: Project, width: number, height: number): Project;
-```
-
-#### Layer Operations
-
-```typescript
-export function addLayer(project: Project, name?: string): Project;
-export function removeLayer(project: Project, layerId: string): Project;
-export function updateLayerName(project: Project, layerId: string, name: string): Project;
-export function reorderLayers(project: Project, layerIds: string[]): Project;
-```
-
-#### Trait Operations
-
-```typescript
-export async function addTrait(project: Project, layerId: string, file: File): Promise<Project>;
-export function removeTrait(project: Project, layerId: string, traitId: string): Project;
-export function updateTraitName(
+export function updateProjectName(project: Project, name: string): MutationResult;
+export function updateProjectDescription(project: Project, description: string): MutationResult;
+export function updateProjectDimensions(
 	project: Project,
-	layerId: string,
-	traitId: string,
-	name: string
-): Project;
-export function updateTraitRarity(
+	dimensions: ProjectDimensions
+): MutationResult;
+export function addLayer(project: Project, name: string): LayerMutationResult;
+export function removeLayer(project: Project, layerId: LayerId): MutationResult;
+export function updateLayer(
 	project: Project,
-	layerId: string,
-	traitId: string,
-	rarityWeight: number
-): Project;
+	layerId: LayerId,
+	updates: Partial<Layer>
+): MutationResult;
+export function updateTrait(
+	project: Project,
+	layerId: LayerId,
+	traitId: TraitId,
+	updates: Partial<Trait>
+): MutationResult;
+export function updateStrictPairConfig(
+	project: Project,
+	projectId: ProjectId,
+	config: StrictPairConfig
+): MutationResult;
+export function replaceProject(target: Project, source: Project): MutationResult;
+export function resetProject(project: Project, defaultProject: Project): MutationResult;
+```
+
+### Project Domain (`src/lib/domain/project.domain.ts`)
+
+```typescript
+/** Convert UI project layers into worker-safe transferable layer payloads. */
+export async function prepareLayersForWorker(layers: Layer[]): Promise<TransferrableLayer[]>;
 ```
 
 ### Rarity Calculator (`src/lib/domain/rarity-calculator.ts`)
@@ -292,32 +302,51 @@ export async function packageFromStorageBySize(
 
 ## Worker API
 
-### Generation Worker Client (`src/lib/workers/generation.worker.client.ts`)
+### Generation Orchestrator (`src/lib/workers/generation.orchestrator.ts`)
 
-Orchestrates the full generation pipeline: CSP solving → trait batching → worker pool dispatch.
+Single entry point for the full generation pipeline: layer preparation → CSP solving → trait batching → worker pool dispatch → result streaming.
 
 ```typescript
+export interface GenerationCallbacks {
+	onProgress: (msg: GenerationProgressUpdate) => void;
+	onPreview: (previews: { index: number; url: string }[]) => void;
+	onComplete: (result: {
+		images: { name: string; imageData: ArrayBuffer }[];
+		metadata: { name: string; data: Record<string, unknown> }[];
+	}) => void;
+	onError: (error: Error) => void;
+	onCancelled: () => void;
+}
+
+export interface GenerationConfig {
+	layers: Layer[];
+	collectionSize: number;
+	outputSize: { width: number; height: number };
+	projectName: string;
+	projectDescription: string;
+	metadataStandard?: MetadataStandard;
+	strictPairConfig?: StrictPairConfig;
+	extraData?: Record<string, unknown>;
+}
+
 /**
- * Start generation of a complete collection.
- * 1. Pre-solves all unique trait combinations via CSPSolver.
- * 2. Delegates batch rendering to TraitBatchScheduler → worker pool.
+ * Run one generation session. The app currently supports one active session at a time.
  */
-export async function startGeneration(
-	layers: TransferrableLayer[],
-	collectionSize: number,
-	outputSize: { width: number; height: number },
-	projectName: string,
-	projectDescription: string,
-	metadataStandard?: MetadataStandard,
-	strictPairConfig?: StrictPairConfig,
-	extraData?: Record<string, unknown>,
-	onMessage?: (
-		data: CompleteMessage | ErrorMessage | CancelledMessage | ProgressMessage | PreviewMessage
-	) => void
+export async function runGeneration(
+	config: GenerationConfig,
+	callbacks: GenerationCallbacks
 ): Promise<void>;
 
 /** Cancel generation and terminate all active workers. */
-export function cancelGeneration(): void;
+export async function cancelGeneration(): Promise<void>;
+
+/** Solve trait combinations directly on the main thread. */
+export async function solveOnMainThread(
+	layers: TransferrableLayer[],
+	collectionSize: number,
+	strictPairConfig?: StrictPairConfig,
+	isCancelled?: () => boolean
+): Promise<Solution[]>;
 ```
 
 ### CSP Solver (`src/lib/workers/csp-solver.ts`)
@@ -370,20 +399,33 @@ export class TraitBatchScheduler {
 }
 ```
 
-### Worker Pool (`src/lib/workers/worker.pool.ts`)
+### Worker Pool (`src/lib/workers/pool/pool.ts`)
 
 Multi-worker pool with dynamic scaling, health checks, and work-stealing scheduling.
 
 ```typescript
 export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<void>;
 export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void>;
-export function postMessageToPool<T>(message: GenerationWorkerMessage): Promise<T>;
-export function terminateWorkerPool(): void;
-export function getWorkerPoolStatus(): WorkerPoolStatus | null;
+export async function terminateWorkerPool(): Promise<void>;
+export function postMessageToPool<T>(message: WorkerPoolDispatchMessage): Promise<T>;
+export function getWorkerPoolStatus(): {
+	totalWorkers: number;
+	availableWorkers: number;
+	queuedTasks: number;
+	activeTasks: number;
+	workerHealth: WorkerHealth[];
+	workerStats: Array<{
+		taskCount: number;
+		errorCount: number;
+		averageTaskTime: number;
+		workerCount: number;
+	}>;
+} | null;
 export function cleanupOldTasks(thresholdMs?: number): void;
-export function setMessageCallback(callback: (data: WorkerMessage) => void): void;
 export function getOptimalWorkerCount(collectionSize: number): number;
 ```
+
+Pool message forwarding is configured through `setMessageCallback()` from `src/lib/workers/pool/state.ts`; `generation.orchestrator.ts` owns that bridge.
 
 ## Error Handling
 

@@ -41,7 +41,7 @@
 												</li>
 												<li class="flex items-center">
 													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-													Project persistence with ZIP import/export
+													Project persistence with browser storage and ZIP import/export
 												</li>
 												<li class="flex items-center">
 													<div class="mr-3 h-1.5 w-1.5 rounded-full bg-gray-400"></div>
@@ -55,9 +55,10 @@
 												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">SvelteKit 2 & Svelte 5</span>
 												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">TypeScript</span>
 												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Tailwind CSS 4</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">NeoBr-UI</span>
 												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Web Workers</span>
 												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Canvas API</span>
-												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">OPFS</span>
+												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">OPFS / IndexedDB</span>
 												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Zod</span>
 												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">Juno / ICP</span>
 												<span class="text-foreground rounded bg-gray-100 px-3 py-1 text-xs font-medium dark:bg-gray-800">PWA</span>
