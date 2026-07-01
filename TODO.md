@@ -186,14 +186,15 @@ never selects it.
 
 ---
 
-## 8. Delete one-shot codemod script — `standardize-comments.js` (~-60 lines)
+## 8. Delete one-shot codemod script — `standardize-comments.js` (~-60 lines) ✅
 
 **Why:** npm script with no CI/other caller; pairs with `postbuild` `remove-comments.js`.
 
-- [ ] Delete `scripts/standardize-comments.js`.
-- [ ] Remove the `standardize-comments` entry from `package.json` scripts.
-- [ ] Sanity-check `remove-comments.js` (postbuild) is still wanted; leave if intentional.
-- **Verify:** `grep -rn "standardize-comments" .` (excl. node_modules) → empty.
+- [x] Deleted `scripts/standardize-comments.js`.
+- [x] Removed the `standardize-comments` entry from `package.json` scripts.
+- [x] Sanity-checked `remove-comments.js` (postbuild) — still used in `"postbuild"` script, left as-is.
+- **Verified:** `grep -rn "standardize-comments" .` (excl. node_modules) → empty;
+  `pnpm check` clean; 39 test files / 440 tests green.
 
 ---
 
