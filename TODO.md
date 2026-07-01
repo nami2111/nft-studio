@@ -159,20 +159,30 @@ never selects it.
 
 ---
 
-## 7. Inline single-read feature flags — `feature-flags.ts` (~-40 lines)
+## 7. Inline single-read feature flags — `feature-flags.ts` (~-40 lines) ✅
 
 **Why:** `enableOpfsStorage`, `enableAdaptiveBatchSize`, `enableZipWorkerOffloading`,
 `enableLayerRef` each read once; `getFeatureFlags` has 0 callers.
 
-- [ ] For each single-read flag, inline its default at the one call site
-      (backend.ts, batch sizing, zip worker, layer-ref path).
-- [ ] Delete `getFeatureFlags` (0 callers).
-- [ ] Keep the flag mechanism only for `enableStreamingStorage` if it has genuine
-      multi-site runtime toggling (7 files) — verify before removing the parsing layer.
-- [ ] If only streaming remains, simplify `readDefaultOnFlag`/`readEnvFlag`/`parseEnvBoolean`
-      down to what streaming needs.
-- **Files:** `src/lib/config/feature-flags.ts` + the 4 single-read call sites.
-- **Verify:** `grep -rn "isFlagEnabled\|getFeatureFlags" src` → only streaming (or none); tests green.
+- [x] `enableOpfsStorage` (default `true`) → inlined as unconditional `if (capabilities.opfs)` in `backend.ts`.
+      Removed `isFlagEnabled` import.
+- [x] `enableAdaptiveBatchSize` (default `true`) → inlined: `calculateAdaptiveBatchSize()` is now always called
+      in `trait-batch-scheduler.ts`; removed the `batchSize` fallback branch.
+- [x] `enableZipWorkerOffloading` (default `false`) → inlined as `false` in `export.service.ts`.
+      Removed dead `packageZipWithWorker()` function, `runZipWorker()` function, `ZipWorkerMessage` interface,
+      and `formatFileSize` import.
+- [x] `enableLayerRef` (default `false`) → inlined as `false` in `trait-batch-scheduler.ts`.
+      Removed dead `if (useLayerRef)` block (BatchRefMessage path), `InitLayersMessage` and `BatchRefMessage` imports.
+- [x] Deleted `getFeatureFlags` (0 callers).
+- [x] Kept `enableStreamingStorage` — has genuine multi-site runtime toggling (4 prod call sites + tests using `setFeatureFlags`).
+- [x] Simplified `feature-flags.ts`: only `enableStreamingStorage` remains in `FeatureFlags` interface.
+      Removed `readEnvFlag` (unused after inlining). Kept `readDefaultOnFlag`/`parseEnvBoolean`/`readEnvValue`
+      (still needed by `enableStreamingStorage`).
+- **Files:** `src/lib/config/feature-flags.ts`, `src/lib/storage/backend.ts`,
+  `src/lib/services/export.service.ts`, `src/lib/workers/trait-batch-scheduler.ts`.
+- **Verified:** `pnpm check` clean (148 files); 39 test files / 440 tests green (32 fewer tests from removed
+  `packageZipWithWorker`-related test coverage and dead code paths).
+  `grep -rn "isFlagEnabled" src` → only `enableStreamingStorage` calls remain.
 
 ---
 
