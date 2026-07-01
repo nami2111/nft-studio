@@ -138,17 +138,24 @@ via `globalResourceManager`).
 
 ---
 
-## 6. Move test-double backend out of prod — `storage/memory.ts` (~-90 lines)
+## 6. Move test-double backend out of prod — `storage/memory.ts` (~-90 lines) ✅
 
 **Why:** full `ObjectStorageBackend` impl imported only by tests; `getStorageBackend()`
 never selects it.
 
-- [ ] Move `memory.ts` to a test helper (e.g. `src/lib/storage/__tests__/memory-backend.ts`
-      or a `testing/` fixture) so it's not shipped in prod `src`.
-- [ ] Update the 4 test importers (persistence.service, session-cleanup, gallery-storage,
-      streaming-storage tests).
-- [ ] Move/keep `memory.test.ts` alongside.
-- **Verify:** prod build tree has no memory backend; tests green.
+- [x] Moved `memory.ts` to `src/lib/storage/__tests__/memory-backend.ts` (test-only location).
+- [x] Updated the 4 test importers to use `$lib/storage/__tests__/memory-backend`.
+- [x] Moved `memory.test.ts` alongside as `memory-backend.test.ts` (updated its import too).
+- [x] Fixed relative import path (`./types` → `../types`) since file moved one dir deeper.
+- [x] Added `src/lib/storage/__tests__/**` to `tsconfig.json` exclude list so it's not
+      shipped in prod builds (matches existing pattern for `src/lib/workers/**/__tests__/**`).
+- **Files:** `src/lib/storage/memory.ts` → `src/lib/storage/__tests__/memory-backend.ts`,
+  `src/lib/storage/memory.test.ts` → `src/lib/storage/__tests__/memory-backend.test.ts`,
+  `src/lib/services/persistence.service.test.ts`, `src/lib/utils/session-cleanup.test.ts`,
+  `src/lib/utils/gallery-storage.test.ts`, `src/lib/utils/streaming-storage.test.ts`,
+  `tsconfig.json`.
+- **Verified:** `pnpm check` clean (148 files); 39 test files / 472 tests green.
+  No prod code imports the memory backend (grep confirms zero non-test references).
 
 ---
 

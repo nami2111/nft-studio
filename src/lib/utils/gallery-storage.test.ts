@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { setStorageBackendForTesting } from '$lib/storage/backend';
-import { createMemoryStorageBackend } from '$lib/storage/memory';
+import { createMemoryStorageBackend } from '$lib/storage/__tests__/memory-backend';
 import { storagePaths } from '$lib/storage/paths';
 import type { ObjectStorageBackend } from '$lib/storage/types';
 import type { GalleryCollection, GalleryItem } from '$lib/types/gallery';
