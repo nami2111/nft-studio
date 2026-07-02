@@ -219,7 +219,8 @@
 			const validation = validateGenerationRequest({
 				layers: projectData.layers,
 				outputSize: projectData.outputSize,
-				collectionSize: totalItems
+				collectionSize: totalItems,
+				strictPairConfig: projectData.strictPairConfig
 			});
 			if (!validation.success) {
 				showWarning(validation.message, { description: validation.description });

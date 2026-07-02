@@ -106,4 +106,51 @@ describe('validateGenerationRequest', () => {
 			message: 'Collection size cannot exceed 10000 items.'
 		});
 	});
+
+	it('blocks Strict Pair enabled with no active combinations', () => {
+		const result = validateGenerationRequest({
+			layers: [layer()],
+			outputSize: { width: 100, height: 100 },
+			collectionSize: 10,
+			strictPairConfig: {
+				enabled: true,
+				layerCombinations: [
+					{ id: 'c1', layerIds: [unsafeCreateLayerId('layer-1')], description: '', active: false }
+				]
+			}
+		});
+
+		expect(result).toMatchObject({
+			success: false,
+			message:
+				'Strict Pair is enabled but has no active layer combinations. Add at least one active combination, or disable Strict Pair.'
+		});
+	});
+
+	it('accepts Strict Pair enabled with at least one active combination', () => {
+		const result = validateGenerationRequest({
+			layers: [layer()],
+			outputSize: { width: 100, height: 100 },
+			collectionSize: 10,
+			strictPairConfig: {
+				enabled: true,
+				layerCombinations: [
+					{ id: 'c1', layerIds: [unsafeCreateLayerId('layer-1')], description: '', active: true }
+				]
+			}
+		});
+
+		expect(result.success).toBe(true);
+	});
+
+	it('ignores Strict Pair combinations when disabled', () => {
+		const result = validateGenerationRequest({
+			layers: [layer()],
+			outputSize: { width: 100, height: 100 },
+			collectionSize: 10,
+			strictPairConfig: { enabled: false, layerCombinations: [] }
+		});
+
+		expect(result.success).toBe(true);
+	});
 });
