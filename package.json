@@ -15,7 +15,6 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "vp lint",
 		"format": "vp fmt . --write",
-		"standardize-comments": "node scripts/standardize-comments.js",
 		"test": "vp test",
 		"test:watch": "vp test watch",
 		"test:coverage": "vp test run --coverage",

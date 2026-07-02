@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { createMemoryStorageBackend } from './memory';
+import { createMemoryStorageBackend } from './memory-backend';
 
 describe('memory storage backend', () => {
 	it('round-trips binary data without sharing references', async () => {

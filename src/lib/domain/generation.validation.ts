@@ -1,9 +1,10 @@
-import type { Layer } from '$lib/types/layer';
+import type { Layer, StrictPairConfig } from '$lib/types/layer';
 
 export interface GenerationValidationRequest {
 	layers: Layer[];
 	outputSize: { width: number; height: number };
 	collectionSize: number;
+	strictPairConfig?: StrictPairConfig;
 }
 
 export type GenerationValidationResult =
@@ -28,10 +29,21 @@ function fail(message: string): GenerationValidationResult {
 export function validateGenerationRequest(
 	request: GenerationValidationRequest
 ): GenerationValidationResult {
-	const { layers, outputSize, collectionSize } = request;
+	const { layers, outputSize, collectionSize, strictPairConfig } = request;
 
 	if (layers.length === 0) {
 		return fail('Project must have at least one layer.');
+	}
+
+	// Strict Pair enabled but no active combinations = no uniqueness enforcement at all,
+	// which would silently allow duplicate NFTs. Block with a clear message instead.
+	if (
+		strictPairConfig?.enabled &&
+		!strictPairConfig.layerCombinations.some((combination) => combination.active)
+	) {
+		return fail(
+			'Strict Pair is enabled but has no active layer combinations. Add at least one active combination, or disable Strict Pair.'
+		);
 	}
 
 	if (outputSize.width <= 0 || outputSize.height <= 0) {

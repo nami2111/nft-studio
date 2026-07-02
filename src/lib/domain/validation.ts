@@ -38,6 +38,18 @@ export const RulerRuleSchema = z.object({
 	forbiddenTraitIds: z.array(IdSchema).default([])
 });
 
+// Strict Pair schemas
+export const LayerCombinationSchema = z.object({
+	id: IdSchema,
+	layerIds: z.array(IdSchema).default([]),
+	description: z.string().max(500).default(''),
+	active: z.boolean().default(true)
+});
+export const StrictPairConfigSchema = z.object({
+	enabled: z.boolean().default(false),
+	layerCombinations: z.array(LayerCombinationSchema).default([])
+});
+
 // Project schemas
 export const ProjectDimensionsSchema = z.object({
 	width: z.number().int().min(1).max(10000),
@@ -67,7 +79,8 @@ export const ProjectSchema = z.object({
 	name: NameSchema,
 	description: DescriptionSchema,
 	outputSize: ProjectDimensionsSchema,
-	layers: z.array(LayerSchema)
+	layers: z.array(LayerSchema),
+	strictPairConfig: StrictPairConfigSchema.optional()
 });
 
 // Import/export schemas (more lenient for compatibility)
@@ -96,7 +109,8 @@ export const ImportedProjectSchema = z.object({
 	name: NameSchema,
 	description: DescriptionSchema.optional(),
 	outputSize: ProjectDimensionsSchema.optional(),
-	layers: z.array(ImportedLayerSchema)
+	layers: z.array(ImportedLayerSchema),
+	strictPairConfig: StrictPairConfigSchema.optional()
 });
 
 // File validation schemas

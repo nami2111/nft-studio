@@ -1,5 +1,4 @@
 import type { Project } from '$lib/types/project';
-import { isFlagEnabled } from '$lib/config/feature-flags';
 import { MemoryMonitor } from '$lib/utils/memory-monitor';
 import { iterateBySize } from '$lib/utils/streaming-storage';
 
@@ -9,15 +8,6 @@ export interface ExportOptions {
 	metadata: { name: string; data: Record<string, unknown> }[];
 	startTime?: number;
 	onProgress?: (progress: { processed: number; total: number; message: string }) => void;
-}
-
-interface ZipWorkerMessage {
-	type: 'zip-project';
-	taskId: string;
-	payload: {
-		projectData: string;
-		imageFiles: Array<{ path: string; data: ArrayBuffer }>;
-	};
 }
 
 interface ZipChunkMessage {
@@ -59,32 +49,6 @@ function registerBlobUrlCleanup(url: string): void {
 			activeBlobUrls.clear();
 		});
 	}
-}
-
-function runZipWorker(message: ZipWorkerMessage, transfer?: Transferable[]): Promise<ArrayBuffer> {
-	return new Promise((resolve, reject) => {
-		const worker = new Worker(new URL('../workers/zip.worker.ts', import.meta.url), {
-			type: 'module'
-		});
-
-		worker.postMessage(message, { transfer });
-
-		worker.onmessage = (e: MessageEvent) => {
-			const data = e.data;
-			if (data.type === 'zip-complete') {
-				worker.terminate();
-				resolve(data.payload.buffer as ArrayBuffer);
-			} else if (data.type === 'zip-error') {
-				worker.terminate();
-				reject(new Error(data.payload?.error || 'ZIP worker error'));
-			}
-		};
-
-		worker.onerror = (err) => {
-			worker.terminate();
-			reject(new Error(err.message || 'ZIP worker failed'));
-		};
-	});
 }
 
 /**
@@ -291,23 +255,10 @@ function downloadZipBuffer(buffer: ArrayBuffer, filename: string): void {
 export async function packageZip(options: ExportOptions): Promise<void> {
 	const { project, images, metadata, onProgress } = options;
 
-	// Use ZIP worker offloading when enabled and collection is large enough
-	const useZipWorker = isFlagEnabled('enableZipWorkerOffloading') && images.length > 500;
-
 	try {
 		// Start memory monitoring for large exports
 		if (images.length > 500) {
 			MemoryMonitor.start();
-		}
-
-		if (useZipWorker) {
-			await packageZipWithWorker({
-				project,
-				images,
-				metadata,
-				onProgress
-			});
-			return;
 		}
 
 		// Use optimized approach for large collections
@@ -333,76 +284,6 @@ export async function packageZip(options: ExportOptions): Promise<void> {
 		// Stop memory monitoring
 		MemoryMonitor.stop();
 	}
-}
-
-/**
- * Offload ZIP creation to a dedicated web worker.
- */
-async function packageZipWithWorker(options: ExportOptions): Promise<void> {
-	const { project, images, metadata, onProgress } = options;
-
-	const transferList: ArrayBuffer[] = [];
-	const imageFiles = images.map((img) => {
-		transferList.push(img.imageData);
-		return {
-			path: `images/${img.name}`,
-			data: img.imageData
-		};
-	});
-
-	// Add metadata as JSON files
-	for (const meta of metadata) {
-		const encoded = new TextEncoder().encode(JSON.stringify(meta.data, null, 2));
-		const buffer = encoded.buffer.slice(
-			encoded.byteOffset,
-			encoded.byteOffset + encoded.byteLength
-		);
-		transferList.push(buffer);
-		imageFiles.push({
-			path: `metadata/${meta.name}`,
-			data: buffer
-		});
-	}
-
-	onProgress?.({
-		processed: 0,
-		total: images.length + metadata.length,
-		message: 'Offloading ZIP creation to worker...'
-	});
-
-	// Capture total before clearing arrays so progress reports correctly
-	const totalItems = images.length + metadata.length;
-
-	// Clear source arrays - buffers are transferred to worker
-	images.length = 0;
-	metadata.length = 0;
-
-	const projectData = JSON.stringify({
-		name: project.name,
-		description: project.description,
-		outputSize: project.outputSize
-	});
-
-	const buffer = await runZipWorker(
-		{
-			type: 'zip-project',
-			taskId: `zip-${Date.now()}`,
-			payload: {
-				projectData,
-				imageFiles
-			}
-		},
-		transferList
-	);
-
-	const blob = new Blob([buffer], { type: 'application/zip' });
-	downloadBlob(blob, `${project.name || 'collection'}.zip`);
-
-	onProgress?.({
-		processed: totalItems,
-		total: totalItems,
-		message: 'ZIP created and download started'
-	});
 }
 
 /**

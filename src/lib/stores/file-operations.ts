@@ -68,7 +68,8 @@ function stripImageData(project: Project) {
 				type: trait.type,
 				rulerRules: trait.rulerRules
 			}))
-		}))
+		})),
+		strictPairConfig: project.strictPairConfig
 	};
 }
 
@@ -225,6 +226,7 @@ async function parseAndHydrateProject(zip: JSZip, fileName: string): Promise<Pro
 	const idRemap = remapProjectIds(storedProject);
 	await hydrateTraitImages(zip, storedProject, idRemap);
 	rewriteRulerRules(storedProject, idRemap);
+	rewriteStrictPairConfig(storedProject, idRemap);
 
 	return storedProject;
 }
@@ -302,6 +304,20 @@ function rewriteRulerRules(project: Project, remap: IdRemap): void {
 			}));
 		}
 	}
+}
+
+function rewriteStrictPairConfig(project: Project, remap: IdRemap): void {
+	if (!project.strictPairConfig) return;
+
+	project.strictPairConfig = {
+		...project.strictPairConfig,
+		layerCombinations: project.strictPairConfig.layerCombinations.map((combination) => ({
+			...combination,
+			layerIds: combination.layerIds.map(
+				(layerId) => (remap.layers.get(layerId) ?? layerId) as LayerId
+			)
+		}))
+	};
 }
 
 function finalizeImportedProject(project: Project): Project {

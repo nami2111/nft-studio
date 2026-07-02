@@ -55,6 +55,9 @@ CRUSH.md
 target
 .crush
 GEMINI.md
+
+# Build analysis output (regenerated each build)
+stats.html
 QWEN.md
 .mcp.json
 .pi-lens/

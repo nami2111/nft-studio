@@ -1,4 +1,3 @@
-import { isFlagEnabled } from '$lib/config/feature-flags';
 import { getStorageCapabilities } from './capabilities';
 import { createIndexedDbLegacyStorageBackend } from './indexeddb-legacy';
 import { createOpfsStorageBackend } from './opfs';
@@ -19,7 +18,7 @@ export async function getStorageBackend(): Promise<ObjectStorageBackend> {
 
 	const capabilities = getStorageCapabilities();
 
-	if (isFlagEnabled('enableOpfsStorage') && capabilities.opfs) {
+	if (capabilities.opfs) {
 		opfsBackend ??= createOpfsStorageBackend();
 
 		if (await opfsBackend.available()) {
