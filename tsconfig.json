@@ -21,7 +21,6 @@
 		"src/lib/components/**/*.test.ts",
 		"src/lib/domain/validation.test.ts",
 		"src/lib/workers/**/__tests__/**",
-		"src/lib/storage/__tests__/**",
 		"src/lib/workers/worker.pool.test.ts",
 		"src/lib/stores/generation-progress.test.ts",
 		"src/lib/components/test-setup.ts",
