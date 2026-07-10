@@ -1,5 +1,5 @@
 allowBuilds:
-  '@hugeicons/svelte': set this to true or false
+  '@hugeicons/svelte': true
 
 minimumReleaseAgeExclude:
   - '@neobr/svelte@2.0.1'

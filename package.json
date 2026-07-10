@@ -74,5 +74,5 @@
 			"@neobr/tailwind-preset": "npm:@neobr/tailwind-preset@1.0.4"
 		}
 	},
-	"packageManager": "pnpm@11.9.0"
+	"packageManager": "pnpm@11.10.0"
 }
