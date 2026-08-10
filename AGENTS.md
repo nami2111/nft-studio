@@ -1,5 +1,11 @@
 # GNStudio - Agent Guidelines
 
+## Memory (NWron MCP)
+
+- Before answering questions about this project's history, decisions, or setup, call `remember` first and ground your answer in what it returns.
+- After reaching a decision, changing an architecture choice, or learning a fact worth keeping, call `memorize` to persist it.
+- On session start, call `recent` to scan what's already known.
+
 ## Project Overview
 
 Browser-based generative art collection designer. SvelteKit 2 (static adapter) + Svelte 5 runes + TypeScript. Deployed to Juno.
