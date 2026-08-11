@@ -6,7 +6,6 @@ export {
 	registerLayersPayload,
 	getWorkerPoolStatus,
 	cleanupOldTasks,
-	getOptimalWorkerCount,
 	setMessageCallback,
 	getDeviceCapabilities,
 	WorkerHealth

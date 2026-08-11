@@ -694,24 +694,13 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 	if (workerPool) return;
 
-	const { coreCount } = getDeviceCapabilities();
-	// Respect caller's maxWorkers if provided and reasonable,
-	// otherwise compute a sensible default based on device cores.
-	const requestedMax = config?.maxWorkers;
-	const computedMax = Math.max(2, Math.floor(coreCount / 2) - 2);
-	const warmUpCount =
-		requestedMax != null && requestedMax > 0 ? Math.min(requestedMax, computedMax) : computedMax;
-	debugLog(`Warming up worker pool with ${warmUpCount} workers...`);
-
-	const warmUpConfig: WorkerPoolConfig = {
-		...config,
-		maxWorkers: warmUpCount,
-		minWorkers: Math.max(1, Math.min(config?.minWorkers ?? warmUpCount, warmUpCount)),
-		healthCheckInterval: config?.healthCheckInterval ?? 30000
-	};
+	// Warm to full generation capacity. initializeWorkerPool sizes maxWorkers
+	// from cores + device memory (capped 6/8); the old floor(coreCount/2)-2
+	// clamp left 8-core machines capped at 2 workers for the whole run.
+	debugLog('Warming up worker pool to full generation capacity...');
 
 	try {
-		await initializeWorkerPool(warmUpConfig);
+		await initializeWorkerPool(config);
 	} catch (error) {
 		console.error('Worker warm-up failed:', error);
 	}
@@ -852,13 +841,6 @@ export function cleanupOldTasks(thresholdMs: number = 3000): void {
 			workerPool.activeTasks.delete(taskId);
 		}
 	}
-}
-
-export function getOptimalWorkerCount(collectionSize: number): number {
-	if (collectionSize > 50000) return Math.min(4, navigator.hardwareConcurrency - 1);
-	else if (collectionSize > 10000) return Math.min(6, navigator.hardwareConcurrency);
-	else if (collectionSize > 5000) return Math.min(8, navigator.hardwareConcurrency);
-	else return Math.min(10, navigator.hardwareConcurrency + 1);
 }
 
 // Export for testing
