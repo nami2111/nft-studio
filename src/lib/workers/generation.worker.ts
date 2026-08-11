@@ -463,10 +463,17 @@ self.addEventListener('message', (e: MessageEvent) => {
 					metadataStandard,
 					extraData
 				} = (message as BatchRefMessage).payload;
-				const resolvedSolutions = solutions.map((s) => ({
-					index: s.index,
-					traits: resolveTraitRefs(s.traitRefs)
-				}));
+				const resolvedSolutions = solutions.map((s) => {
+					const traits = resolveTraitRefs(s.traitRefs);
+					// Fail loudly if refs can't resolve (e.g. this worker missed its
+					// init-layers) instead of silently producing blank items.
+					if (traits.length !== s.traitRefs.length) {
+						throw new Error(
+							`Item ${s.index}: resolved ${traits.length}/${s.traitRefs.length} trait refs — layer refs not initialized`
+						);
+					}
+					return { index: s.index, traits };
+				});
 				const layers = Array.from(layerMap.values());
 				try {
 					await handleBatchGeneration(

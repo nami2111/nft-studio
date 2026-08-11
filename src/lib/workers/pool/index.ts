@@ -3,6 +3,7 @@ export {
 	warmUpWorkers,
 	terminateWorkerPool,
 	postMessageToPool,
+	registerLayersPayload,
 	getWorkerPoolStatus,
 	cleanupOldTasks,
 	getOptimalWorkerCount,

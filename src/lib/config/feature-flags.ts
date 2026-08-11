@@ -1,10 +1,11 @@
 /**
  * Runtime feature flag system for streaming storage.
  *
- * Other flags (enableOpfsStorage, enableAdaptiveBatchSize, enableZipWorkerOffloading,
- * enableLayerRef) were each read at exactly one call site with a fixed default —
- * they've been inlined as constants. Only enableStreamingStorage remains because
- * it has genuine multi-site runtime toggling via setFeatureFlags (used in tests).
+ * Other flags (enableOpfsStorage, enableAdaptiveBatchSize, enableZipWorkerOffloading)
+ * were each read at exactly one call site with a fixed default — they've been
+ * inlined as constants. Layer-ref messaging (init-layers / batch-ref) is enabled
+ * unconditionally in the trait-batch-scheduler. Only enableStreamingStorage remains
+ * because it has genuine multi-site runtime toggling via setFeatureFlags (used in tests).
  */
 
 export interface FeatureFlags {

@@ -1,6 +1,7 @@
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import type {
 	ErrorMessage,
+	InitLayersMessage,
 	OutgoingWorkerMessage,
 	PoolForwardedWorkerMessage,
 	WorkerPoolDispatchMessage
@@ -16,6 +17,10 @@ import {
 import { safeStructuredClone } from './sanitize';
 import type { WorkerPoolConfig, WorkerTask, WorkerPool as WorkerPoolType } from './types';
 import { WorkerHealth, TASK_TIMEOUT_MS } from './types';
+
+// Layer-ref init payload for auto-initializing workers created after a
+// generation registers its layers (dynamic scaling / restart).
+let activeLayersPayload: InitLayersMessage['payload'] | null = null;
 
 /**
  * Update worker performance statistics
@@ -236,6 +241,11 @@ async function addSingleWorker(): Promise<void> {
 			handleWorkerMessage(e, workerIndex);
 		};
 
+		// Auto-init fresh workers from the registered layer payload (scaling).
+		if (activeLayersPayload) {
+			void queueInitLayers();
+		}
+
 		processNextTask();
 		debugLog(`Added worker ${workerIndex} successfully`);
 	} catch (error) {
@@ -400,6 +410,13 @@ async function restartWorker(workerIndex: number): Promise<void> {
 		newWorker.onmessage = (e: MessageEvent) => {
 			handleWorkerMessage(e, workerIndex);
 		};
+
+		// Re-init the replacement before its reassigned ref-batches dispatch.
+		// The fresh worker is the only idle candidate, so it takes the init
+		// task first (this also makes reassignment ordering safe).
+		if (activeLayersPayload) {
+			await queueInitLayers();
+		}
 		reassignWorkerTasks(workerIndex);
 	} catch (error) {
 		console.error(`Failed to restart worker ${workerIndex}:`, error);
@@ -716,6 +733,7 @@ export async function terminateWorkerPool(): Promise<void> {
 		task.reject(new Error('Worker pool terminated'));
 	}
 
+	activeLayersPayload = null;
 	setWorkerPool(null);
 	debugLog('Worker pool terminated');
 }
@@ -745,6 +763,48 @@ export function postMessageToPool<T>(message: WorkerPoolDispatchMessage): Promis
 
 export function getWorkerPoolStatus(): ReturnType<typeof getPoolStatus> {
 	return getPoolStatus();
+}
+
+/**
+ * Queue an init-layers task for the current worker set. Used both to init
+ * all workers before a ref-mode generation and to re-init workers created
+ * or restarted after a layer payload was registered. Resolves when the
+ * worker completes init, rejects if init fails.
+ */
+function queueInitLayers(): Promise<void> {
+	if (!workerPool || !activeLayersPayload) return Promise.resolve();
+
+	return new Promise<void>((resolve, reject) => {
+		const task: WorkerTask<void> = {
+			id: `init-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`,
+			message: { type: 'init-layers', payload: activeLayersPayload! },
+			resolve,
+			reject,
+			timestamp: Date.now()
+		};
+		workerPool!.taskQueue.push(task as unknown as WorkerTask);
+		processNextTask();
+	});
+}
+
+/**
+ * Register the layer/trait payload for a generation. Queues one init-layers
+ * task per currently-alive worker so every worker holds the layer reference
+ * maps before any batch-ref tasks are dispatched, and keeps the payload for
+ * workers created later (dynamic scaling, restart). Returns the init tasks
+ * so the scheduler can await them before dispatching ref-batches.
+ */
+export function registerLayersPayload(payload: InitLayersMessage['payload']): Promise<void>[] {
+	activeLayersPayload = payload;
+	if (!workerPool) return [];
+
+	const initTasks: Promise<void>[] = [];
+	for (let i = 0; i < workerPool.workers.length; i++) {
+		if (workerPool.workers[i]) {
+			initTasks.push(queueInitLayers());
+		}
+	}
+	return initTasks;
 }
 
 function getPoolStatus(): {
