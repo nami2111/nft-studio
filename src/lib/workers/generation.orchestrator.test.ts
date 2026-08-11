@@ -169,6 +169,7 @@ describe('generation.orchestrator', () => {
 		vi.mocked(CSPSolver.prototype.solve).mockReturnValue(mockSolution);
 
 		vi.mocked(pool.postMessageToPool).mockResolvedValue(undefined);
+		vi.mocked(pool.registerLayersPayload).mockReturnValue([]);
 	});
 
 	afterEach(() => {

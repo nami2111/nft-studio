@@ -167,7 +167,7 @@ type QueuedGeneratedItem = {
 async function generateIsolatedItem(
 	index: number,
 	solutionTraits: { trait: TransferrableTrait; layerId: string }[],
-	layers: TransferrableLayer[],
+	layerNameById: Map<string, string>,
 	targetWidth: number,
 	targetHeight: number,
 	projectName: string,
@@ -199,7 +199,7 @@ async function generateIsolatedItem(
 
 		const metadataStrategy = getMetadataStrategy(metadataStandard);
 		const attributes = solutionTraits.map((st) => ({
-			trait_type: layers.find((l) => l.id === st.layerId)?.name || 'Unknown',
+			trait_type: layerNameById.get(st.layerId) || 'Unknown',
 			value: st.trait.name
 		}));
 
@@ -254,6 +254,9 @@ async function handleBatchGeneration(
 ) {
 	perfMonitor.startBatch(solutions.length);
 
+	// Prebuilt layer id → name for metadata; avoids layers.find per trait per item.
+	const layerNameById = new Map(layers.map((l) => [l.id, l.name]));
+
 	const CHUNK_FLUSH_SIZE = 10;
 	let chunkImages: { name: string; blob: Blob }[] = [];
 	let chunkMetadata: { name: string; data: object }[] = [];
@@ -265,7 +268,7 @@ async function handleBatchGeneration(
 			const item = await generateIsolatedItem(
 				solution.index,
 				solution.traits,
-				layers,
+				layerNameById,
 				outputSize.width,
 				outputSize.height,
 				projectName,
@@ -463,10 +466,17 @@ self.addEventListener('message', (e: MessageEvent) => {
 					metadataStandard,
 					extraData
 				} = (message as BatchRefMessage).payload;
-				const resolvedSolutions = solutions.map((s) => ({
-					index: s.index,
-					traits: resolveTraitRefs(s.traitRefs)
-				}));
+				const resolvedSolutions = solutions.map((s) => {
+					const traits = resolveTraitRefs(s.traitRefs);
+					// Fail loudly if refs can't resolve (e.g. this worker missed its
+					// init-layers) instead of silently producing blank items.
+					if (traits.length !== s.traitRefs.length) {
+						throw new Error(
+							`Item ${s.index}: resolved ${traits.length}/${s.traitRefs.length} trait refs — layer refs not initialized`
+						);
+					}
+					return { index: s.index, traits };
+				});
 				const layers = Array.from(layerMap.values());
 				try {
 					await handleBatchGeneration(

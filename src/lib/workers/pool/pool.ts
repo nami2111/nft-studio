@@ -1,6 +1,7 @@
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import type {
 	ErrorMessage,
+	InitLayersMessage,
 	OutgoingWorkerMessage,
 	PoolForwardedWorkerMessage,
 	WorkerPoolDispatchMessage
@@ -16,6 +17,16 @@ import {
 import { safeStructuredClone } from './sanitize';
 import type { WorkerPoolConfig, WorkerTask, WorkerPool as WorkerPoolType } from './types';
 import { WorkerHealth, TASK_TIMEOUT_MS } from './types';
+
+// Layer-ref init payload for auto-initializing workers created after a
+// generation registers its layers (dynamic scaling / restart).
+let activeLayersPayload: InitLayersMessage['payload'] | null = null;
+
+// Workers currently being created by dynamic scaling. Guards the async
+// check-then-act in performDynamicScaling: without it, many queued tasks →
+// many processNextTask → many scaling calls see a low worker count before
+// any createWorker() resolves and stampede far past maxWorkers.
+let pendingWorkerCreations = 0;
 
 /**
  * Update worker performance statistics
@@ -214,9 +225,14 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
  */
 async function addSingleWorker(): Promise<void> {
 	if (!workerPool) return;
+	pendingWorkerCreations++;
 
 	try {
 		const newWorker = await createWorker(workerPool.config.workerInitializationTimeout || 5000);
+		if (!workerPool) {
+			newWorker.terminate();
+			return;
+		}
 		const workerIndex = workerPool.workers.length;
 
 		workerPool.workers.push(newWorker);
@@ -236,10 +252,17 @@ async function addSingleWorker(): Promise<void> {
 			handleWorkerMessage(e, workerIndex);
 		};
 
+		// Auto-init fresh workers from the registered layer payload (scaling).
+		if (activeLayersPayload) {
+			void queueInitLayers();
+		}
+
 		processNextTask();
 		debugLog(`Added worker ${workerIndex} successfully`);
 	} catch (error) {
 		console.error('Failed to add worker:', error);
+	} finally {
+		pendingWorkerCreations--;
 	}
 }
 
@@ -400,6 +423,13 @@ async function restartWorker(workerIndex: number): Promise<void> {
 		newWorker.onmessage = (e: MessageEvent) => {
 			handleWorkerMessage(e, workerIndex);
 		};
+
+		// Re-init the replacement before its reassigned ref-batches dispatch.
+		// The fresh worker is the only idle candidate, so it takes the init
+		// task first (this also makes reassignment ordering safe).
+		if (activeLayersPayload) {
+			await queueInitLayers();
+		}
 		reassignWorkerTasks(workerIndex);
 	} catch (error) {
 		console.error(`Failed to restart worker ${workerIndex}:`, error);
@@ -479,7 +509,7 @@ function performDynamicScaling(): void {
 	const maxWorkers =
 		configuredMaxWorkers ?? Math.min(Math.max(1, cores - 1) + 2, memGB >= 16 ? 8 : 6);
 
-	if (currentWorkerCount >= maxWorkers) return;
+	if (currentWorkerCount + pendingWorkerCreations >= maxWorkers) return;
 
 	const highQueueThreshold = 20;
 	const lowQueueThreshold = 5;
@@ -488,9 +518,13 @@ function performDynamicScaling(): void {
 	if (
 		(queueLength > highQueueThreshold ||
 			(queueLength > 0 && activeTaskCount >= currentWorkerCount)) &&
-		currentWorkerCount < maxWorkers
+		currentWorkerCount + pendingWorkerCreations < maxWorkers
 	) {
-		const workersToAdd = Math.min(2, maxWorkers - currentWorkerCount);
+		const workersToAdd = Math.min(
+			2,
+			maxWorkers - currentWorkerCount - pendingWorkerCreations
+		);
+		if (workersToAdd <= 0) return;
 		addWorkers(workersToAdd).catch((error) => {
 			console.error('Failed to add workers during dynamic scaling:', error);
 		});
@@ -677,24 +711,13 @@ export async function initializeWorkerPool(config?: WorkerPoolConfig): Promise<v
 export async function warmUpWorkers(config?: WorkerPoolConfig): Promise<void> {
 	if (workerPool) return;
 
-	const { coreCount } = getDeviceCapabilities();
-	// Respect caller's maxWorkers if provided and reasonable,
-	// otherwise compute a sensible default based on device cores.
-	const requestedMax = config?.maxWorkers;
-	const computedMax = Math.max(2, Math.floor(coreCount / 2) - 2);
-	const warmUpCount =
-		requestedMax != null && requestedMax > 0 ? Math.min(requestedMax, computedMax) : computedMax;
-	debugLog(`Warming up worker pool with ${warmUpCount} workers...`);
-
-	const warmUpConfig: WorkerPoolConfig = {
-		...config,
-		maxWorkers: warmUpCount,
-		minWorkers: Math.max(1, Math.min(config?.minWorkers ?? warmUpCount, warmUpCount)),
-		healthCheckInterval: config?.healthCheckInterval ?? 30000
-	};
+	// Warm to full generation capacity. initializeWorkerPool sizes maxWorkers
+	// from cores + device memory (capped 6/8); the old floor(coreCount/2)-2
+	// clamp left 8-core machines capped at 2 workers for the whole run.
+	debugLog('Warming up worker pool to full generation capacity...');
 
 	try {
-		await initializeWorkerPool(warmUpConfig);
+		await initializeWorkerPool(config);
 	} catch (error) {
 		console.error('Worker warm-up failed:', error);
 	}
@@ -716,6 +739,8 @@ export async function terminateWorkerPool(): Promise<void> {
 		task.reject(new Error('Worker pool terminated'));
 	}
 
+	activeLayersPayload = null;
+	pendingWorkerCreations = 0;
 	setWorkerPool(null);
 	debugLog('Worker pool terminated');
 }
@@ -745,6 +770,51 @@ export function postMessageToPool<T>(message: WorkerPoolDispatchMessage): Promis
 
 export function getWorkerPoolStatus(): ReturnType<typeof getPoolStatus> {
 	return getPoolStatus();
+}
+
+/**
+ * Queue an init-layers task for the current worker set. Used both to init
+ * all workers before a ref-mode generation and to re-init workers created
+ * or restarted after a layer payload was registered. Resolves when the
+ * worker completes init, rejects if init fails.
+ */
+function queueInitLayers(): Promise<void> {
+	if (!workerPool || !activeLayersPayload) return Promise.resolve();
+
+	return new Promise<void>((resolve, reject) => {
+		const task: WorkerTask<void> = {
+			id: `init-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`,
+			message: { type: 'init-layers', payload: activeLayersPayload! },
+			resolve,
+			reject,
+			timestamp: Date.now()
+		};
+		// Unshift (front) so a freshly added/restarted worker — the only idle
+		// candidate while others are busy — draws its init before any queued
+		// batch-ref task it could otherwise grab uninited.
+		workerPool!.taskQueue.unshift(task as unknown as WorkerTask);
+		processNextTask();
+	});
+}
+
+/**
+ * Register the layer/trait payload for a generation. Queues one init-layers
+ * task per currently-alive worker so every worker holds the layer reference
+ * maps before any batch-ref tasks are dispatched, and keeps the payload for
+ * workers created later (dynamic scaling, restart). Returns the init tasks
+ * so the scheduler can await them before dispatching ref-batches.
+ */
+export function registerLayersPayload(payload: InitLayersMessage['payload']): Promise<void>[] {
+	activeLayersPayload = payload;
+	if (!workerPool) return [];
+
+	const initTasks: Promise<void>[] = [];
+	for (let i = 0; i < workerPool.workers.length; i++) {
+		if (workerPool.workers[i]) {
+			initTasks.push(queueInitLayers());
+		}
+	}
+	return initTasks;
 }
 
 function getPoolStatus(): {
@@ -792,13 +862,6 @@ export function cleanupOldTasks(thresholdMs: number = 3000): void {
 			workerPool.activeTasks.delete(taskId);
 		}
 	}
-}
-
-export function getOptimalWorkerCount(collectionSize: number): number {
-	if (collectionSize > 50000) return Math.min(4, navigator.hardwareConcurrency - 1);
-	else if (collectionSize > 10000) return Math.min(6, navigator.hardwareConcurrency);
-	else if (collectionSize > 5000) return Math.min(8, navigator.hardwareConcurrency);
-	else return Math.min(10, navigator.hardwareConcurrency + 1);
 }
 
 // Export for testing
