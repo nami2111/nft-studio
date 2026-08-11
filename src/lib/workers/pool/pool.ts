@@ -22,6 +22,12 @@ import { WorkerHealth, TASK_TIMEOUT_MS } from './types';
 // generation registers its layers (dynamic scaling / restart).
 let activeLayersPayload: InitLayersMessage['payload'] | null = null;
 
+// Workers currently being created by dynamic scaling. Guards the async
+// check-then-act in performDynamicScaling: without it, many queued tasks →
+// many processNextTask → many scaling calls see a low worker count before
+// any createWorker() resolves and stampede far past maxWorkers.
+let pendingWorkerCreations = 0;
+
 /**
  * Update worker performance statistics
  */
@@ -219,9 +225,14 @@ async function createWorker(timeoutMs: number = 5000): Promise<Worker> {
  */
 async function addSingleWorker(): Promise<void> {
 	if (!workerPool) return;
+	pendingWorkerCreations++;
 
 	try {
 		const newWorker = await createWorker(workerPool.config.workerInitializationTimeout || 5000);
+		if (!workerPool) {
+			newWorker.terminate();
+			return;
+		}
 		const workerIndex = workerPool.workers.length;
 
 		workerPool.workers.push(newWorker);
@@ -250,6 +261,8 @@ async function addSingleWorker(): Promise<void> {
 		debugLog(`Added worker ${workerIndex} successfully`);
 	} catch (error) {
 		console.error('Failed to add worker:', error);
+	} finally {
+		pendingWorkerCreations--;
 	}
 }
 
@@ -496,7 +509,7 @@ function performDynamicScaling(): void {
 	const maxWorkers =
 		configuredMaxWorkers ?? Math.min(Math.max(1, cores - 1) + 2, memGB >= 16 ? 8 : 6);
 
-	if (currentWorkerCount >= maxWorkers) return;
+	if (currentWorkerCount + pendingWorkerCreations >= maxWorkers) return;
 
 	const highQueueThreshold = 20;
 	const lowQueueThreshold = 5;
@@ -505,9 +518,13 @@ function performDynamicScaling(): void {
 	if (
 		(queueLength > highQueueThreshold ||
 			(queueLength > 0 && activeTaskCount >= currentWorkerCount)) &&
-		currentWorkerCount < maxWorkers
+		currentWorkerCount + pendingWorkerCreations < maxWorkers
 	) {
-		const workersToAdd = Math.min(2, maxWorkers - currentWorkerCount);
+		const workersToAdd = Math.min(
+			2,
+			maxWorkers - currentWorkerCount - pendingWorkerCreations
+		);
+		if (workersToAdd <= 0) return;
 		addWorkers(workersToAdd).catch((error) => {
 			console.error('Failed to add workers during dynamic scaling:', error);
 		});
@@ -723,6 +740,7 @@ export async function terminateWorkerPool(): Promise<void> {
 	}
 
 	activeLayersPayload = null;
+	pendingWorkerCreations = 0;
 	setWorkerPool(null);
 	debugLog('Worker pool terminated');
 }
@@ -771,7 +789,10 @@ function queueInitLayers(): Promise<void> {
 			reject,
 			timestamp: Date.now()
 		};
-		workerPool!.taskQueue.push(task as unknown as WorkerTask);
+		// Unshift (front) so a freshly added/restarted worker — the only idle
+		// candidate while others are busy — draws its init before any queued
+		// batch-ref task it could otherwise grab uninited.
+		workerPool!.taskQueue.unshift(task as unknown as WorkerTask);
 		processNextTask();
 	});
 }

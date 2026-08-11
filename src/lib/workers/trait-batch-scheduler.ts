@@ -11,7 +11,6 @@ import type { BatchRefMessage, TransferrableLayer } from '$lib/types/worker-mess
 import { getWorkerPoolStatus, postMessageToPool, registerLayersPayload } from './pool';
 
 const BATCH_CONFIG = {
-	WINDOW_SIZE: 4,
 	ADAPTIVE: {
 		LARGE_THRESHOLD: 10000,
 		MEDIUM_THRESHOLD: 1000,
@@ -98,11 +97,10 @@ export class TraitBatchScheduler {
 		const effectiveBatchSize = calculateAdaptiveBatchSize(collectionSize, workerCount, outputSize);
 
 		const totalBatches = Math.ceil(solutions.length / effectiveBatchSize);
-		const windowSize = getWorkerPoolStatus()?.totalWorkers || BATCH_CONFIG.WINDOW_SIZE;
 
 		if (import.meta.env.DEV)
 			console.log(
-				`📦 [ref-mode] init ${workerCount} workers, dispatch ${totalBatches} ref-batches (batchSize=${effectiveBatchSize}, window=${windowSize})...`
+				`📦 [ref-mode] init ${workerCount} workers, dispatch ${totalBatches} ref-batches (batchSize=${effectiveBatchSize})...`
 			);
 
 		// Initialize the layer/trait reference maps in every worker before any
@@ -110,20 +108,20 @@ export class TraitBatchScheduler {
 		const initTasks = registerLayersPayload({ layers });
 		await Promise.all(initTasks);
 
-		// FIND-3: Process batches in windows to prevent unbounded queue growth.
-		// Each window awaits completion before dispatching the next window,
-		// allowing solution data from processed windows to be GC'd.
-		for (let b = 0; b < totalBatches; b += windowSize) {
-			const windowPromises: Promise<unknown>[] = [];
-			const windowEnd = Math.min(b + windowSize, totalBatches);
+		// Ref-mode batches carry only tiny {layerId,traitId} refs (no image
+		// buffers), so dispatch them ALL up front and let the pool's queue keep
+		// every worker saturated. This replaces FIND-3's windowing, which bounded
+		// cloned-buffer memory in the old full-batch mode — waiting on windows
+		// here kept taskQueue ~0 and starved dynamic scaling (workers 4/8 unused).
+		const batchPromises: Promise<unknown>[] = [];
+		for (let b = 0; b < totalBatches; b++) {
+			const batchSolutions = solutions.slice(
+				b * effectiveBatchSize,
+				(b + 1) * effectiveBatchSize
+			);
 
-			for (let w = b; w < windowEnd; w++) {
-				const batchSolutions = solutions.slice(
-					w * effectiveBatchSize,
-					(w + 1) * effectiveBatchSize
-				);
-
-				const message: BatchRefMessage = {
+			batchPromises.push(
+				postMessageToPool({
 					type: 'batch-ref',
 					payload: {
 						solutions: batchSolutions.map((s) => ({
@@ -137,11 +135,10 @@ export class TraitBatchScheduler {
 						metadataStandard,
 						extraData
 					}
-				};
-				windowPromises.push(postMessageToPool(message));
-			}
-
-			await Promise.all(windowPromises);
+				} as BatchRefMessage)
+			);
 		}
+
+		await Promise.all(batchPromises);
 	}
 }

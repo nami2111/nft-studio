@@ -3,6 +3,14 @@
 Deep research of the generation pipeline (Jul 2026). Biggest wins first.
 All findings verified against current code. Reference file: generation.orchestrator → trait-batch-scheduler → worker pool → generation.worker → export.
 
+## Perf profile (measured, 1000 items @ 1120×1120, 8 workers)
+
+- solve (CSP): **~0.2s** — negligible
+- render: **~9.1s** — PNG `convertToBlob` is **~90%** of it (~65ms/item; compose only ~5ms)
+- finalize (storage read + zip): **~3.2s**
+
+Render is **native PNG-encode bound** — flat across 4/8/26 workers (machine saturated at ~8). No structural pipeline fix remains; that stratum (ref-mode, pool cap, worker saturation) is fully shipped. To go faster either (a) accept as the 1.25MP PNG floor, (b) add a WebP/JPEG **output mode** for non-NFT bulk (≈3–4× faster encode; lossy — never for artifact-grade PNG), or (c) reduce output resolution. Tried-and-rejected: 26-worker profile (thrash, no win), windowed dispatch (starved scaling).
+
 ## TL;DR
 
 | # | Change | Impact | Effort |

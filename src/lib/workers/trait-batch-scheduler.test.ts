@@ -139,4 +139,21 @@ describe('TraitBatchScheduler', () => {
 			}
 		}
 	});
+
+	it('dispatches all ref-batches up front (no window throttling that starves workers)', async () => {
+		// 100 items, batchSize=25 → 4 batches, but pool has only 2 workers.
+		const scheduler = new TraitBatchScheduler({
+			layers: makeLayers(),
+			collectionSize: 100,
+			outputSize: { width: 100, height: 100 },
+			projectName: 'Test',
+			projectDescription: 'Test'
+		});
+
+		await scheduler.scheduleBatches(makeSolutions(100));
+
+		// All batches dispatched to the pool queue up-front; the pool runs them
+		// across all (incl. dynamically scaled) workers.
+		expect(pool.postMessageToPool).toHaveBeenCalledTimes(4);
+	});
 });
