@@ -59,7 +59,7 @@ for (const layer of layers) {
 Example:
 
 ```typescript
-const LOCAL_STORE = new LocalStorageStore<Project>(PROJECT_STORAGE_KEY); // migrated to persistence layer
+const backend = await getStorageBackend(); // OPFS or IndexedDB object storage
 ```
 
 ## Formatting Standards

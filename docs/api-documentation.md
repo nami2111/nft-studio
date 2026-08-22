@@ -223,9 +223,8 @@ export interface ExportOptions {
 
 ```typescript
 /**
- * Route to the optimal export strategy based on collection size and feature flags.
- * Uses ZIP worker offloading when enableZipWorkerOffloading is enabled and images > 500.
- * Falls back to optimized (chunked) for > 1000 items, standard for ≤ 1000.
+ * Route to the optimal export strategy based on collection size and file sizes:
+ * multi-ZIP splitting for > 3000 items or large files, optimized (chunked) otherwise.
  */
 export async function packageZip(options: ExportOptions): Promise<void>;
 ```
@@ -602,158 +601,54 @@ export function showError(error: unknown, options?: ErrorOptions): void;
 export function showSuccess(message: string, options?: ErrorOptions): void;
 export function showInfo(message: string, options?: ErrorOptions): void;
 export function showWarning(message: string, options?: ErrorOptions): void;
-
-/** Wrap an async function with toast-based error handling (renamed from withErrorHandling). */
-export async function withToastErrorHandling<T>(
-	operation: () => Promise<T>,
-	context?: ErrorContext,
-	fallbackMessage?: string
-): Promise<T>;
-
-/** Create a wrapped function with automatic toast error handling. */
-export function wrapWithToastErrorHandling<T extends (...args: any[]) => Promise<any>>(
-	fn: T,
-	context?: ErrorContext,
-	fallbackMessage?: string
-): T;
-
-/** Create a retry wrapper with toast notifications on failure. */
-export function createRetry<T>(
-	operation: () => Promise<T>,
-	config?: Partial<RetryConfig>
-): () => Promise<T>;
 ```
+
+## Retry
+
+Retry lives in `src/lib/utils/error-handler.ts` — no separate module.
+
+```typescript
+/** Retry an async operation using the strategy registered for `category`.
+ *  On terminal failure, shows a toast with a Retry action and rethrows. */
+export async function withRetry<T>(
+	operation: () => Promise<T>,
+	category?: ErrorCategory, // 'storage' | 'file' | 'validation' | 'worker' | 'generation' | 'network' | 'generic'
+	options?: ErrorHandlerOptions // retryConfig?: Partial<RetryConfig> overrides per-category defaults
+): Promise<T>;
+```
+
+Per-category retry strategies (attempts, delays, retryable predicates) are
+registered in the internal `CATEGORIES` table; `retryConfig` in options
+overrides individual fields.
 
 ## Performance & Retry Utilities
 
 ### Performance Monitor (`src/lib/utils/performance-monitor.ts`)
 
-Unified performance monitoring with timers, cache metrics, database queries, alerts, and batch tracking.
+Minimal monitoring: operation timers (warns >5s) and database query timing (warns >100ms).
 
 ```typescript
 export class PerformanceMonitor {
-	// Lifecycle
-	setEnabled(enabled: boolean): void;
-	isEnabled(): boolean;
-	clear(): void;
-	clearOperation(operation: string): void;
-	resetAllMetrics(): void;
-
 	// Timers
-	startTimer(operation: string, id?: string): string;
+	startTimer(operation: string): string;
 	stopTimer(timerId: string, metadata?: Record<string, unknown>): number;
 
-	// Metrics
-	recordMetric(operation: string, duration: number, metadata?: Record<string, unknown>): void;
-	getStats(operation: string): PerformanceStats | null;
-	getAllStats(): Record<string, PerformanceStats>;
-	getAverageTime(operation: string): number;
-	getLastDuration(operation: string): number;
-	getMetricsInRange(startTime: number, endTime: number): Record<string, PerformanceStats>;
-	generateReport(): PerformanceReport; // includes summary: totalOperations, slowestOperation, etc.
-	logSummary(): void;
-
-	// Cache Monitoring
-	recordCacheHit(cacheName: string): void;
-	recordCacheMiss(cacheName: string): void;
-	recordCacheEviction(cacheName: string, memoryFreed: number): void;
-	updateCacheMemoryUsage(cacheName: string, memoryUsage: number): void;
-	getCacheHitRate(cacheName: string): number;
-
-	// Database Monitoring
+	// Database query timing
 	recordDatabaseQuery(operation: string, duration: number): void;
 	getDatabaseMetrics(): { queryCount: number; averageQueryTime: number };
 
-	// Memory Monitoring
-	captureMemoryMetrics(): void;
-	getAverageMemoryUsage(minutes?: number): number;
-
-	// Alerts
-	createAlert(data: { metric: string; value: number; threshold: number; severity: string; message: string }): void;
-	getAlerts(minutes?: number): Array<...>;
-
-	// Batch Progress Tracking
-	startBatch(totalCount: number): void;
-	recordBatchItem(timePerItem: number): void;
-	finishBatch(): void;
+	clear(): void;
 }
 
-/** Global singleton instance, used by production code. */
+/** Global singleton (also exported as `productionMonitor` alias). */
 export const performanceMonitor = new PerformanceMonitor();
 
-/** ES decorator for automatically timing method execution. */
-export function timed(operationName?: string, metadata?: Record<string, unknown>): MethodDecorator;
-
-/** Wrap a function with automatic startTimer/stopTimer tracking. */
-export function withTiming<T>(fn: T, operationName: string, metadata?: Record<string, unknown>): T;
-
 /** Measure a single async/sync operation with timing. */
-export async function measureOperation<T>(operation: () => Promise<T> | T, operationName: string, metadata?: Record<string, unknown>): Promise<T>;
-```
-
-### Retry Utilities (`src/lib/utils/retry.ts`)
-
-Configurable retry with exponential backoff, jitter, conditions, and presets.
-
-```typescript
-export class RetryOperation<T> {
-	constructor(operation: () => Promise<T>, config?: Partial<RetryConfig>, context?: ErrorContext);
-	async execute(): Promise<RetryResult<T>>;
-}
-
-/** Convenience function: create + execute in one call. */
-export async function retry<T>(
-	operation: () => Promise<T>,
-	config?: Partial<RetryConfig>,
-	context?: ErrorContext
-): Promise<RetryResult<T>>;
-
-/** Wrap any async function with automatic retry. */
-export function withRetry<T>(fn: T, config?: Partial<RetryConfig>, context?: ErrorContext): T;
-
-/** Retry condition predicates. */
-export const RetryConditions = {
-	isNetworkError, // Error name 'NetworkError'/'TypeError', message 'network'/'ECONNREFUSED'/'ETIMEDOUT'
-	isServerError, // status >= 500
-	isRateLimitError, // status === 429
-	isTimeoutError, // name 'TimeoutError' or message 'timeout'/'TIMEDOUT'
-	isResourceUnavailable, // message 'unavailable'/'busy'/'overloaded'
-	isRecoverable // OR of all above
-};
-
-/** Pre-configured retry configs. */
-export const RetryConfigs = {
-	network: {
-		maxAttempts: 3,
-		initialDelayMs: 1000,
-		backoffFactor: 2,
-		jitter: true
-	},
-	server: {
-		maxAttempts: 5,
-		initialDelayMs: 2000,
-		backoffFactor: 2,
-		jitter: true
-	},
-	rateLimit: {
-		maxAttempts: 10,
-		initialDelayMs: 1000,
-		backoffFactor: 1.5,
-		jitter: true
-	},
-	file: {
-		maxAttempts: 3,
-		initialDelayMs: 500,
-		backoffFactor: 2,
-		jitter: false
-	},
-	default: {
-		maxAttempts: 3,
-		initialDelayMs: 1000,
-		backoffFactor: 2,
-		jitter: true
-	}
-};
+export async function measureOperation<T>(
+	operation: () => Promise<T> | T,
+	operationName: string,
+	metadata?: Record<string, unknown>
+): Promise<T>;
 ```
 
 ## Validation
@@ -975,16 +870,10 @@ export const persistenceService = new PersistenceService();
 
 ```typescript
 export interface FeatureFlags {
-	/** Stream generated images/metadata to browser storage instead of accumulating in memory */
+	/** Stream generated images/metadata to browser storage instead of accumulating in memory.
+	 *  The only remaining flag — others (enableOpfsStorage, enableLayerRef,
+	 *  enableAdaptiveBatchSize, enableZipWorkerOffloading) were inlined as constants. */
 	enableStreamingStorage: boolean;
-	/** Use OPFS as the primary browser storage backend for large binary payloads */
-	enableOpfsStorage: boolean;
-	/** Transfer layers once by reference (ID-based batching) instead of full layers per batch */
-	enableLayerRef: boolean;
-	/** Use adaptive batch sizing based on collection size, worker count, and resolution */
-	enableAdaptiveBatchSize: boolean;
-	/** Offload ZIP packaging to a dedicated Web Worker */
-	enableZipWorkerOffloading: boolean;
 }
 
 /** Check if a feature flag is enabled. */

@@ -16,16 +16,16 @@ Browser-based generative art collection designer. Built with SvelteKit 2, Svelte
 
 ## Tech Stack
 
-| Category    | Technologies                                                       |
-| ----------- | ------------------------------------------------------------------ |
-| Frontend    | SvelteKit 2, Svelte 5 (runes), TypeScript                          |
-| Styling     | Tailwind CSS 4, NeoBr-UI, Hugeicons                                |
-| Workers     | Multi-worker pool with dynamic scaling, work-stealing              |
-| Storage     | OPFS-backed object storage, LocalStorage (project settings), JSZip |
-| Validation  | Zod v4 schemas with branded types                                  |
-| Testing     | Vitest 4 + jsdom, @testing-library/svelte                          |
-| Lint/Format | Oxlint + Oxfmt (via Vite+)                                         |
-| Deployment  | Juno (ICP static hosting)                                          |
+| Category    | Technologies                                                                |
+| ----------- | --------------------------------------------------------------------------- |
+| Frontend    | SvelteKit 2, Svelte 5 (runes), TypeScript                                   |
+| Styling     | Tailwind CSS 4, NeoBr-UI, Hugeicons                                         |
+| Workers     | Multi-worker pool with dynamic scaling, work-stealing                       |
+| Storage     | OPFS-backed object storage, LocalStorage (project settings), @zip.js/zip.js |
+| Validation  | Zod v4 schemas with branded types                                           |
+| Testing     | Vitest 4 + jsdom, @testing-library/svelte                                   |
+| Lint/Format | Oxlint + Oxfmt (via Vite+)                                                  |
+| Deployment  | Juno (ICP static hosting)                                                   |
 
 ## Getting Started
 
@@ -97,7 +97,7 @@ GNStudio follows a layered, performance-first architecture:
 5. **Storage Layer** — OPFS-backed object storage with IndexedDB fallback
 6. **Utils Layer** — Performance monitoring, error handling, memory management
 
-**Export Pipeline**: Two paths — streaming ZIP (persistent worker, 700MB volume flush) or storage streaming (size-bounded 500MB ZIP batches, OPFS when available with IndexedDB fallback). Feature flags: `enableStreamingStorage` (default on), `enableZipWorkerOffloading` (default off).
+**Export Pipeline**: Two paths — streaming ZIP (persistent worker, 700MB volume flush) or storage streaming (size-bounded 500MB ZIP batches, OPFS when available with IndexedDB fallback). Feature flag: `enableStreamingStorage` (default on).
 
 Browser storage is private to the current browser profile and quota-managed by the browser. Users can export projects/collections to ZIP files when they need a portable copy.
 
@@ -119,7 +119,6 @@ For detailed architecture, see `docs/architecture-diagrams.md` and `docs/perform
 - `Preview.svelte` — Real-time item preview
 - `GenerationForm.svelte` — Collection generation controls
 - `GalleryImport.svelte` — ZIP import interface
-- `ModeSwitcher.svelte` — Generate ↔ Gallery navigation
 
 ## Documentation
 

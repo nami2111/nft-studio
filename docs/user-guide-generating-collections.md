@@ -96,7 +96,7 @@ GNStudio provides multiple export strategies optimized for different collection 
 ### Standard ZIP
 
 - **Best for**: Collections up to 1,000 items
-- **Library**: JSZip for in-browser ZIP creation
+- **Library**: @zip.js/zip.js for in-browser ZIP creation
 - **Behavior**: Generates a single ZIP file containing all images and metadata
 
 ### Optimized ZIP
@@ -131,18 +131,18 @@ GNStudio provides multiple export strategies optimized for different collection 
 - **Best for**: Collections with more than 500 items
 - **Behavior**: ZIP creation runs in a dedicated Web Worker
 - **Benefit**: Keeps the main thread responsive during compression
-- **When active**: Only when `enableZipWorkerOffloading` is enabled
 
 ## Feature Flags
 
 GNStudio exposes feature flags to fine-tune the generation pipeline:
 
-| Flag                        | Description                                                                                                | Default  |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------- | -------- |
-| `enableStreamingStorage`    | Streams generated images to browser storage during generation, then packages into size-bounded ZIP batches | Enabled  |
-| `enableLayerRef`            | Transfers layers by ID reference instead of full data per batch, reducing inter-worker message overhead    | Disabled |
-| `enableAdaptiveBatchSize`   | Adjusts batch size based on collection size and device hardware capabilities                               | Enabled  |
-| `enableZipWorkerOffloading` | Offloads one-shot ZIP creation to a dedicated Web Worker for collections > 500 items                       | Disabled |
+| Flag                     | Description                                                                                                | Default |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------- | ------- |
+| `enableStreamingStorage` | Streams generated images to browser storage during generation, then packages into size-bounded ZIP batches | Enabled |
+
+Former flags (`enableLayerRef`, `enableAdaptiveBatchSize`,
+`enableZipWorkerOffloading`) have been folded into default behavior — see
+[Feature Flags](./feature-flags.md).
 
 Enable or disable flags with `VITE_ENABLE_*` / `VITE_DISABLE_*` environment variables before running the app. See [Feature Flags](./feature-flags.md).
 

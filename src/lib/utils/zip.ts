@@ -10,9 +10,8 @@ interface ZipEntryInput {
 
 /** Build a ZIP Blob from in-memory files. */
 export async function createZipBlob(entries: ZipEntryInput[], level = 6): Promise<Blob> {
-	const { BlobWriter, TextReader, Uint8ArrayReader, ZipWriter, configure } = await import(
-		'@zip.js/zip.js'
-	);
+	const { BlobWriter, TextReader, Uint8ArrayReader, ZipWriter, configure } =
+		await import('@zip.js/zip.js');
 	configure({ useWebWorkers: false });
 	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
 	for (const entry of entries) {
@@ -38,9 +37,8 @@ export interface OpenedZip {
 
 /** Open a ZIP for reading; look entries up by exact path. */
 export async function openZip(source: Blob | Uint8Array): Promise<OpenedZip> {
-	const { BlobReader, BlobWriter, TextWriter, Uint8ArrayReader, ZipReader, configure } = await import(
-		'@zip.js/zip.js'
-	);
+	const { BlobReader, BlobWriter, TextWriter, Uint8ArrayReader, ZipReader, configure } =
+		await import('@zip.js/zip.js');
 	configure({ useWebWorkers: false });
 	const reader = new ZipReader(
 		source instanceof Blob ? new BlobReader(source) : new Uint8ArrayReader(source)

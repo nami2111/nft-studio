@@ -155,10 +155,11 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
   - Transaction-based operations for data integrity
 
 - **Object Storage Seam** (`src/lib/storage/`): Binary and JSON adapters selected at runtime
-  - OPFS backend when `enableOpfsStorage` is enabled and `navigator.storage.getDirectory()` is available
-  - Legacy storage seam adapter for browsers without OPFS support
+  - OPFS backend when available (`navigator.storage.getDirectory()`)
+  - IndexedDB object backend for browsers without OPFS support
   - In-memory backend used by focused storage tests
-  - Legacy IndexedDB data is migrated to OPFS on startup
+  - All persistence (project + gallery) writes through this single seam
+  - Pre-OPFS data (localStorage / legacy IndexedDB) migrates on project load via `src/lib/persistence/legacy-reader.ts`
   - Browser storage is profile-private and quota-managed by the browser
 
 - **OPFS Layout**: Manifests index binary files; display names stay inside JSON
@@ -184,24 +185,20 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 
 ##### Performance Monitoring and Error Handling
 
-- **`performance-monitor.ts`**: Unified performance monitoring
-  - Timer-based operation tracking with automatic metric collection
-  - Cache hit/miss/eviction monitoring with hit rate computation
-  - Database query timing and slow-query warnings
-  - Memory heap snapshot history with configurable time windows
-  - Alert creation with severity levels and threshold comparisons
-  - Batch progress tracking with ETA estimation
+- **`performance-monitor.ts`**: Minimal performance monitoring
+  - Timer-based operation tracking with slow-operation warnings (>5s)
+  - Database query timing and slow-query warnings (>100ms)
+
+- **`zip.ts`**: Single ZIP read/write helpers over `@zip.js/zip.js`
 
 - **`error-handler.ts`, `error-handling.ts` & `typed-errors.ts`**: Error management
   - Single-source-of-truth error hierarchy in `typed-errors.ts` (AppError subclasses)
   - Type guards for each error category (isValidationError, isStorageError, etc.)
   - Centralized error processing with `handleError()`, `withSafeOperation()`
-  - Toast-based user-facing errors with `showError()`, `withToastErrorHandling()`
+  - Toast-based user-facing errors with `showError()` / `showSuccess()`
   - Serialization support via `toJSON()` and `getErrorInfo()`
 
-- **`simple-debug.ts`**: Efficient debugging and logging
-  - Performance-optimized logging for development
-  - Conditional debug output based on environment
+- **`logger.ts`**: DEV-gated logging (`info`/`warn`/`error`/`debug`) plus gallery debug helpers (`debugLog`, `debugTime`, `debugCount`)
 
 ## Performance Architecture
 
@@ -260,10 +257,10 @@ GNStudio follows a sophisticated, performance-first architecture with clear sepa
 
 ### ZIP Export Pipeline
 
-- **Standard**: JSZip for ≤ 1000 items (main thread)
+- **Standard/optimized/multi-part**: all built with `@zip.js/zip.js` via `utils/zip.ts` helpers
 - **Optimized**: Chunked processing (100 items/chunk) for 1001–3000 items
 - **Multi-ZIP**: Size-based splitting (1GB max per ZIP) for 3000+ items or large files
-- **Worker Offloading**: One-shot dedicated ZIP worker for > 500 items (when `enableZipWorkerOffloading` enabled)
+- **Worker Offloading**: Dedicated ZIP Web Worker keeps packaging off the main thread
 - **Streaming ZIP**: Persistent ZIP worker accepts incremental `zip-chunk` messages during generation; flushes volumes at 700MB raw size threshold
 - **Storage Streaming**: When `enableStreamingStorage` is on, items stream to browser storage during generation, then packaged into 500MB-bounded ZIP batches post-generation
 - **Download Queue**: Sequential processing with 5-second delays between triggers to prevent browser download manager overload
