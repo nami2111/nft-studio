@@ -46,8 +46,6 @@ export interface GenerationState {
 	startTime: number | null;
 	completionTime: number | null;
 
-	previews: { index: number; url: string }[];
-
 	error: string | null;
 	sessionId: string | null;
 
@@ -71,7 +69,6 @@ const DEFAULT_STATE: GenerationState = {
 	statusText: 'Ready to generate',
 	startTime: null,
 	completionTime: null,
-	previews: [],
 	error: null,
 	sessionId: null,
 	memoryUsage: null,
@@ -81,7 +78,7 @@ const DEFAULT_STATE: GenerationState = {
 };
 
 function freshState(): GenerationState {
-	return { ...DEFAULT_STATE, previews: [] };
+	return { ...DEFAULT_STATE };
 }
 
 // ─── Reactive Singleton ───────────────────────────────────────
@@ -157,11 +154,6 @@ export function updateProgress(data: GenerationProgressUpdate): void {
 	}
 }
 
-export function addPreviews(previews: { index: number; url: string }[]): void {
-	if (!generationState.isGenerating) return;
-	generationState.previews.push(...previews);
-}
-
 export function handleError(msg: ErrorMessage): void {
 	generationState.error = msg.payload.message;
 	generationState.isGenerating = false;
@@ -171,15 +163,6 @@ export function handleError(msg: ErrorMessage): void {
 // ─── Reset ────────────────────────────────────────────────────
 
 export function resetState(): void {
-	// Revoke preview ObjectURLs
-	for (const p of generationState.previews) {
-		try {
-			URL.revokeObjectURL(p.url);
-		} catch {
-			/* ignore */
-		}
-	}
-
 	Object.assign(generationState, freshState());
 }
 

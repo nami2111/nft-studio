@@ -3,7 +3,6 @@ import {
 	generationState,
 	resetState,
 	cleanupGenerationState,
-	addPreviews,
 	startGeneration,
 	completeGeneration
 } from './generation-progress.svelte';
@@ -30,15 +29,6 @@ describe('generation state lifecycle', () => {
 		expect(generationState.totalItems).toBe(0);
 		expect(generationState.startTime).toBeNull();
 		expect(generationState.completionTime).toBeNull();
-	});
-
-	it('resetState clears preview array', () => {
-		// Add a preview
-		generationState.previews = [{ index: 0, url: 'blob:test-url' }];
-
-		resetState();
-
-		expect(generationState.previews).toEqual([]);
 	});
 
 	it('cleanupGenerationState is callable and resets state', () => {

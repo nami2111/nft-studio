@@ -22,6 +22,8 @@ Render is **native PNG-encode bound** — flat across 4/8/26 workers (machine sa
 | 5 | (Optional) Byte-adaptive chunk flush | Low | S |
 | 6 | (Decide) Implement or delete the inert live-preview system | Housekeeping | S/M |
 
+**Status:** #1 ✅ · #2 ✅ · #3 ✅ (no code change needed — copies became the one-time `init-layers` payload) · #4 ✅ · #5 ⏭️ skipped (no heap-pressure evidence) · #6 ✅ deleted (Option A, −79 lines across 9 files)
+
 ---
 
 ## 1. Enable layer-ref messaging (init-layers + batch-ref)

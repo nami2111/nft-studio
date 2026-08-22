@@ -6,7 +6,6 @@
 		pauseGeneration,
 		completeGeneration,
 		updateProgress,
-		addPreviews,
 		handleError,
 		resetState
 	} from '$lib/stores/generation-progress.svelte';
@@ -34,16 +33,10 @@
 	const isGenerating = $derived(generationState.isGenerating && !generationState.isBackground);
 	const isBackground = $derived(generationState.isBackground);
 	const isPaused = $derived(generationState.isPaused);
-	const previews = $derived(generationState.previews);
 
 	// ─── Lifecycle ───────────────────────────────────────────
 	onDestroy(() => {
 		isComponentDestroyed = true;
-
-		// Revoke preview URLs
-		for (const p of previews) {
-			try { URL.revokeObjectURL(p.url); } catch { /* ignore */ }
-		}
 
 		// Move to background if still generating
 		if (generationState.isGenerating && !generationState.isBackground) {
@@ -66,12 +59,6 @@
 				if (isComponentDestroyed) return;
 
 				// Status text already updated by updateProgress
-			},
-
-			onPreview(newPreviews: { index: number; url: string }[]) {
-				if (!isComponentDestroyed) {
-					addPreviews(newPreviews);
-				}
 			},
 
 			onComplete(_result) {

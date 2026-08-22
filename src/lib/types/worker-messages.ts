@@ -97,16 +97,6 @@ export interface CancelledMessage extends BaseOutgoingMessage {
 	};
 }
 
-// Preview generation message
-export interface PreviewMessage extends BaseOutgoingMessage {
-	type: 'preview';
-	payload: {
-		indexes: number[];
-		previewData: ArrayBuffer[];
-		metadata?: { name: string; data: object }[];
-	};
-}
-
 // Batch generation message for parallel processing
 export interface BatchMessage extends BaseIncomingMessage {
 	type: 'batch';
@@ -168,7 +158,6 @@ export type OutgoingWorkerMessage =
 	| CompleteMessage
 	| ErrorMessage
 	| CancelledMessage
-	| PreviewMessage
 	| GenerationChunkMessage
 	| { type: 'pingResponse'; pingResponse: string; taskId?: never };
 
@@ -178,7 +167,6 @@ export type PoolForwardedWorkerMessage =
 	| CompleteMessage
 	| ErrorMessage
 	| CancelledMessage
-	| PreviewMessage
 	| GenerationChunkMessage;
 
 // Messages that can be sent to workers
@@ -188,7 +176,6 @@ export type IncomingMessage =
 	| BatchRefMessage
 	| { type: 'cancel' }
 	| ReadyMessage
-	| { type: 'preview'; payload: Record<string, unknown> }
 	| { type: 'initialize' }
 	| { type: 'ping'; pingId: string };
 

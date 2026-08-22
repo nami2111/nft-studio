@@ -47,7 +47,6 @@ describe('generation.orchestrator', () => {
 	beforeEach(() => {
 		mockCallbacks = {
 			onProgress: vi.fn(),
-			onPreview: vi.fn(),
 			onComplete: vi.fn(),
 			onError: vi.fn(),
 			onCancelled: vi.fn()

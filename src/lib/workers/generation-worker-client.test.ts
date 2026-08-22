@@ -125,7 +125,6 @@ describe('runGeneration', () => {
 	function noopCallbacks(): GenerationCallbacks {
 		return {
 			onProgress: vi.fn(),
-			onPreview: vi.fn(),
 			onComplete: vi.fn(),
 			onError: vi.fn(),
 			onCancelled: vi.fn()
