@@ -23,7 +23,7 @@
 	import LoadingIndicator from '$lib/components/shared/LoadingIndicator.svelte';
 	import { mount, onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import NeedsReupload from '$components/ui/NeedsReupload.svelte';
+	import NeedsReupload from '$components/layer/NeedsReupload.svelte';
 	import { showError, showInfo, showSuccess, showWarning } from '$lib/utils/error-handling';
 
 	interface Props {

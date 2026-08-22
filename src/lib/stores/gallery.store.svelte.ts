@@ -23,7 +23,7 @@ import {
 	getStorageEstimate
 } from '$lib/utils/gallery-storage';
 import { imageUrlCache } from '$lib/utils/object-url-cache';
-import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
+import { debugLog, debugTime, debugCount } from '$lib/utils/logger';
 
 const SELECTED_COLLECTION_STORAGE_KEY = 'gnstudio-gallery-selected-collection';
 

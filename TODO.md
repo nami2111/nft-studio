@@ -13,6 +13,8 @@ performance are separate review passes.
 
 ### 1. Delete dead domain barrel and event types
 
+**Status:** DONE
+
 **Tag:** `delete`
 **Files:**
 
@@ -31,6 +33,8 @@ the second importer exists.
 ---
 
 ### 2. Shrink performance-monitor to what's used
+
+**Status:** DONE (686 → 97 lines)
 
 **Tag:** `shrink`
 **File:** `src/lib/utils/performance-monitor.ts` (686 lines)
@@ -55,6 +59,8 @@ unused report types.
 
 ### 3. Inline PERF_CONFIG
 
+**Status:** DONE (file deleted)
+
 **Tag:** `yagni`
 **File:** `src/lib/config/performance.config.ts` (209 lines)
 
@@ -75,6 +81,8 @@ tiny shared module. Delete the rest of the file.
 
 ### 4. Delete dead components
 
+**Status:** DONE (5 files)
+
 **Tag:** `delete`
 **Files (zero importers each):**
 
@@ -90,6 +98,8 @@ tiny shared module. Delete the rest of the file.
 
 ### 5. Delete image-format-detector
 
+**Status:** RETRACTED (GalleryImport.svelte uses detectImageFormat)
+
 **Tag:** `delete`
 **File:** `src/lib/utils/image-format-detector.ts` (86 lines)
 
@@ -102,6 +112,8 @@ tiny shared module. Delete the rest of the file.
 ## Medium impact
 
 ### 6. Shrink retry.ts
+
+**Status:** DONE (folded into error-handler.ts)
 
 **Tag:** `shrink`
 **File:** `src/lib/utils/retry.ts` (336 lines)
@@ -119,6 +131,8 @@ error-handler tests.
 ---
 
 ### 7. Collapse the two toast systems
+
+**Status:** DONE (+ dead exports removed from error-handling.ts)
 
 **Tag:** `yagni`
 **Files:**
@@ -138,6 +152,8 @@ The one-off wrappers encode messages that belong at call sites.
 ---
 
 ### 8. Remove ValidationService class
+
+**Status:** DONE
 
 **Tag:** `yagni`
 **File:** `src/lib/services/validation.service.ts`
@@ -194,6 +210,8 @@ both libs work today.
 
 ### 11. Delete dead exports in utils.ts
 
+**Status:** DONE (-2 deps: clsx, tailwind-merge)
+
 **Tag:** `delete`
 **File:** `src/lib/utils.ts`
 
@@ -211,6 +229,8 @@ have any importer — if not, `-2 devDependencies`.
 
 ### 12. Merge simple-debug into logger
 
+**Status:** DONE
+
 **Tag:** `shrink`
 **Files:** `src/lib/utils/simple-debug.ts`, `src/lib/utils/logger.ts`
 
@@ -224,6 +244,8 @@ callers in gallery.store) into `logger.ts`; delete simple-debug.
 ---
 
 ### 13. UI wrapper barrels — decide, don't half-maintain
+
+**Status:** DONE (kept wrappers; moved RulerRulesManager/TraitTypeToggle/NeedsReupload to layer/)
 
 **Tag:** `yagni` (borderline — project convention)
 **Files:** 13 × `src/lib/components/ui/*/index.ts`
@@ -247,6 +269,8 @@ Do not leave both conventions in place.
 
 ### 14. Prune package.json script aliases
 
+**Status:** DONE (+ postinstall npm→pnpm)
+
 **Tag:** `delete`
 **File:** `package.json`
 
@@ -258,6 +282,10 @@ inside a pnpm project.
 to `pnpm run`.
 
 ---
+
+## Status
+
+Completed: 1–8, 11–14. Remaining: #9 (storage consolidation), #10 (zip dep swap). Net so far: ~-1,700 lines, -2 deps.
 
 ## Suggested order
 

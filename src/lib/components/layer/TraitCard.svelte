@@ -11,8 +11,8 @@
 	import Icon from '$components/shared/Icon.svelte';
 	import { Edit02Icon, Delete02Icon, CheckmarkBadge01Icon, Cancel01Icon, AlertDiamondIcon } from '@hugeicons/core-free-icons';
 	import { onMount, onDestroy, untrack } from 'svelte';
-	import RulerRulesManager from '$lib/components/ui/ruler/RulerRulesManager.svelte';
-	import TraitTypeToggle from '$lib/components/ui/ruler/TraitTypeToggle.svelte';
+	import RulerRulesManager from '$lib/components/layer/RulerRulesManager.svelte';
+	import TraitTypeToggle from '$lib/components/layer/TraitTypeToggle.svelte';
 
 	interface Props {
 		trait: Trait;

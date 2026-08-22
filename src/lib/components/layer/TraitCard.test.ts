@@ -485,7 +485,7 @@ describe('TraitCard', () => {
 			let onRulesUpdate: ((rules: any[]) => void) | undefined;
 
 			// Mock the component to capture the onRulesUpdate prop
-			vi.doMock('$lib/components/ui/ruler/RulerRulesManager.svelte', () => ({
+			vi.doMock('$lib/components/layer/RulerRulesManager.svelte', () => ({
 				default: {
 					render: (props: any) => {
 						onRulesUpdate = props.onRulesUpdate;
