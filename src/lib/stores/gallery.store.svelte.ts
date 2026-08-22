@@ -25,7 +25,6 @@ import {
 import { imageUrlCache } from '$lib/utils/object-url-cache';
 import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
 import { PERF_CONFIG } from '$lib/config/performance.config';
-import { productionMonitor } from '$lib/utils/performance-monitor';
 
 const SELECTED_COLLECTION_STORAGE_KEY = 'gnstudio-gallery-selected-collection';
 
@@ -264,15 +263,11 @@ class GalleryStore {
 			const cached = this.filteredCache.get(filterKey)!;
 			this.filteredCache.delete(filterKey);
 			this.filteredCache.set(filterKey, cached);
-			// Record cache hit in production monitor
-			productionMonitor.recordCacheHit('galleryFilter');
 			endTiming();
 			return cached;
 		}
 
 		debugLog('❌ CACHE MISS - Running full filter process');
-		// Record cache miss in production monitor
-		productionMonitor.recordCacheMiss('galleryFilter');
 
 		// Perform filtering
 		let filtered = [...sourceItems];
@@ -390,13 +385,9 @@ class GalleryStore {
 			const firstKey = this.filteredCache.keys().next().value;
 			if (firstKey) {
 				this.filteredCache.delete(firstKey);
-				// Record cache eviction in production monitor
-				productionMonitor.recordCacheEviction('galleryFilter', 0);
 			}
 		}
 		this.filteredCache.set(filterKey, filtered);
-		// Update cache memory usage in production monitor
-		productionMonitor.updateCacheMemoryUsage('galleryFilter', this.filteredCache.size * 1024);
 
 		debugCount('✅ FINAL RESULT', filtered.length);
 		endTiming();

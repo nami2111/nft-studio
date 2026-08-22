@@ -739,7 +739,7 @@ export async function terminateWorkerPool(): Promise<void> {
 }
 
 export function postMessageToPool<T>(message: WorkerPoolDispatchMessage): Promise<T> {
-	const timerId = performanceMonitor.startTimer('worker.postMessageToPool', message.type);
+	const timerId = performanceMonitor.startTimer('worker.postMessageToPool');
 	if (!workerPool) {
 		throw new Error('Worker pool not initialized. Call initializeWorkerPool() first.');
 	}
