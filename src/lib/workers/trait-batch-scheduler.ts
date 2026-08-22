@@ -115,10 +115,7 @@ export class TraitBatchScheduler {
 		// here kept taskQueue ~0 and starved dynamic scaling (workers 4/8 unused).
 		const batchPromises: Promise<unknown>[] = [];
 		for (let b = 0; b < totalBatches; b++) {
-			const batchSolutions = solutions.slice(
-				b * effectiveBatchSize,
-				(b + 1) * effectiveBatchSize
-			);
+			const batchSolutions = solutions.slice(b * effectiveBatchSize, (b + 1) * effectiveBatchSize);
 
 			batchPromises.push(
 				postMessageToPool({

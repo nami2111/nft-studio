@@ -15,6 +15,7 @@ performance are separate review passes.
 
 **Tag:** `delete`
 **Files:**
+
 - `src/lib/domain/index.ts` (21 lines)
 - `src/lib/domain/models.ts` (70 lines)
 
@@ -35,6 +36,7 @@ the second importer exists.
 **File:** `src/lib/utils/performance-monitor.ts` (686 lines)
 
 **Evidence:** Actual usage across the codebase:
+
 - `performanceMonitor.startTimer()` / `.stopTimer()` (project.store,
   generation.orchestrator, worker pool)
 - `productionMonitor.recordCacheHit/Miss/Eviction/updateCacheMemoryUsage`
@@ -59,6 +61,7 @@ unused report types.
 **Evidence:** ~200 lines of tuning knobs across 9 sections (`batch`, `cache`,
 `memory`, `monitoring`, `fileOperations`, `generation`, `gallery`, `ui`),
 but only two things are ever read:
+
 - `PERF_CONFIG.cache.galleryFilter.maxEntries` → `gallery.store.svelte.ts`
 - `calculateAdaptiveDelay()` → `project.store.svelte.ts`
 
@@ -74,6 +77,7 @@ tiny shared module. Delete the rest of the file.
 
 **Tag:** `delete`
 **Files (zero importers each):**
+
 - `src/lib/components/shared/OptimizedList.svelte`
 - `src/lib/components/shared/FloatingElement.svelte`
 - `src/lib/components/shared/ModeSwitcher.svelte`
@@ -118,6 +122,7 @@ error-handler tests.
 
 **Tag:** `yagni`
 **Files:**
+
 - `src/lib/utils/toast.ts` (118 lines) — 26 one-off wrapper functions
   (`showProjectSaved`, `showTraitDeleted`, `showUploadPartialSuccess`, ...)
   with exactly one importer (`LayerItem.svelte`)
@@ -128,7 +133,7 @@ error-handler tests.
 The one-off wrappers encode messages that belong at call sites.
 
 **Action:** Delete `toast.ts`; convert its single importer to
-`error-handling`'s show* functions with inline messages.
+`error-handling`'s show\* functions with inline messages.
 
 ---
 
@@ -149,6 +154,7 @@ service and its test.
 
 **Tag:** `yagni` / structural
 **Files:**
+
 - `src/lib/storage/` — backend.ts + opfs.ts + capabilities.ts +
   indexeddb-legacy.ts + paths.ts (modern path-selection layer)
 - `src/lib/persistence/storage.ts` (531 lines) — SmartStorageStore with its
@@ -192,6 +198,7 @@ both libs work today.
 **File:** `src/lib/utils.ts`
 
 **Dead exports (zero callers):**
+
 - `cn()` — yes, the clsx/tailwind-merge helper itself is unused locally
 - `WithoutChild<T>`, `WithoutChildren<T>`, `WithElementRef<T>` type helpers
   (shadcn leftovers)
@@ -228,6 +235,7 @@ but today they add zero code. Only `modal/` actually wraps anything, and
 `RulerRulesManager.svelte` doesn't belong under `ui/` at all.
 
 **Action (pick one):**
+
 - Keep wrappers, move `RulerRulesManager` + `NeedsReupload` out of `ui/` into
   feature folders, **or**
 - Drop the pass-through barrels and import `@neobr/svelte` directly,
