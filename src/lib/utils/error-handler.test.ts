@@ -144,13 +144,10 @@ describe('withRetry', () => {
 	it('stops early when the condition rejects the error', async () => {
 		let calls = 0;
 		await expect(
-			withRetry(
-				() => {
-					calls++;
-					throw new Error('validation failed: invalid input');
-				},
-				'validation'
-			)
+			withRetry(() => {
+				calls++;
+				throw new Error('validation failed: invalid input');
+			}, 'validation')
 		).rejects.toThrow('validation failed');
 		expect(calls).toBe(1);
 	});

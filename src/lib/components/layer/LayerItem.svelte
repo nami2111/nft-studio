@@ -24,19 +24,7 @@
 	import { mount, onMount, onDestroy, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import NeedsReupload from '$components/ui/NeedsReupload.svelte';
-	import {
-		showSuccess,
-		showError,
-		showWarning,
-		showInfo,
-		showBulkTraitDeleteSuccess,
-		showTraitRenameSuccess,
-		showValidationError,
-		showLayerRemoved,
-		showUploadPartialSuccess,
-		showUploadError,
-		showDeleteError
-	} from '$lib/utils/toast';
+	import { showError, showInfo, showSuccess, showWarning } from '$lib/utils/error-handling';
 
 	interface Props {
 		layer: Layer;
@@ -96,11 +84,11 @@
 					removeTrait(layer.id, traitId);
 					deletedCount++;
 				});
-				showBulkTraitDeleteSuccess(deletedCount);
+				showSuccess(`${deletedCount} trait(s) deleted successfully.`);
 				clearSelection();
 			} catch (error) {
 				console.error('Failed to delete traits:', error);
-				showDeleteError();
+				showError('Failed to delete. Please try again.');
 			}
 		}
 	}
@@ -110,7 +98,7 @@
 		if (selectedTraits.size === 0 || !bulkNewName.trim()) return;
 
 		if (bulkNewName.length > 100) {
-			showValidationError('Base name for bulk rename cannot exceed 100 characters.');
+			showError('Base name for bulk rename cannot exceed 100 characters.');
 			return;
 		}
 
@@ -129,20 +117,20 @@
 			count++;
 		});
 		if (successCount > 0) {
-			showTraitRenameSuccess(successCount);
+			showSuccess(`${successCount} trait(s) renamed.`);
 		}
 		bulkNewName = '';
 	}
 
 	async function handleNameChange() {
 		if (editedName.trim() === '') {
-			showValidationError('Layer name cannot be empty.');
+			showError('Layer name cannot be empty.');
 			isEditing = false;
 			return;
 		}
 
 		if (editedName.length > 100) {
-			showValidationError('Layer name cannot exceed 100 characters.');
+			showError('Layer name cannot exceed 100 characters.');
 			isEditing = false;
 			return;
 		}
@@ -161,7 +149,7 @@
 	}
 
 	async function handleDeleteLayer() {
-		showLayerRemoved(layer.name);
+		showInfo(`Layer "${layer.name}" has been removed.`);
 		removeLayer(layer.id);
 	}
 
@@ -277,15 +265,15 @@
 			}
 
 			if (errorCount === 0) {
-				showUploadPartialSuccess(successCount, 0);
+				showSuccess(`${successCount} file(s) uploaded successfully.`);
 			} else if (successCount > 0) {
-				showUploadPartialSuccess(successCount, errorCount);
+				showWarning(`${successCount} file(s) uploaded, ${errorCount} failed.`);
 			} else {
 				showError('All files failed to upload. Please check the files and try again.');
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-			showUploadError(message);
+			showError(`Upload failed: ${message}`);
 		} finally {
 			// Stop loading state
 			stopLoading(`layer-upload-${layer.id}`);
