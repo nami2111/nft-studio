@@ -1,128 +1,270 @@
-# Generate Engine / Flow — Improvement Plan
+# Ponytail Audit — Over-Engineering Cleanup
 
-Deep research of the generation pipeline (Jul 2026). Biggest wins first.
-All findings verified against current code. Reference file: generation.orchestrator → trait-batch-scheduler → worker pool → generation.worker → export.
+Whole-repo audit for bloat: what to delete, simplify, or replace. One-shot
+findings from the 2025 session; nothing has been applied yet. Ranked biggest
+cut first. Scope is over-engineering only — correctness, security, and
+performance are separate review passes.
 
-## Perf profile (measured, 1000 items @ 1120×1120, 8 workers)
-
-- solve (CSP): **~0.2s** — negligible
-- render: **~9.1s** — PNG `convertToBlob` is **~90%** of it (~65ms/item; compose only ~5ms)
-- finalize (storage read + zip): **~3.2s**
-
-Render is **native PNG-encode bound** — flat across 4/8/26 workers (machine saturated at ~8). No structural pipeline fix remains; that stratum (ref-mode, pool cap, worker saturation) is fully shipped. To go faster either (a) accept as the 1.25MP PNG floor, (b) add a WebP/JPEG **output mode** for non-NFT bulk (≈3–4× faster encode; lossy — never for artifact-grade PNG), or (c) reduce output resolution. Tried-and-rejected: 26-worker profile (thrash, no win), windowed dispatch (starved scaling).
-
-## TL;DR
-
-| # | Change | Impact | Effort |
-|---|--------|--------|--------|
-| 1 | Wire the dead `init-layers` / `batch-ref` (enableLayerRef) path | High — kills per-window re-copy of all trait buffers | M |
-| 2 | Stop `warmUpWorkers` from capping pool at ~2 workers | High — doubles/thrid capability on 8-core machines | S |
-| 3 | Keep `prepareLayersForWorker`'s `slice(0)` copies only as the transferred ref-mode buffers | High — removes triple memory of trait images | S |
-| 4 | Prebuild layer-id→name Map for per-item metadata | Low — 5-line perf win | S |
-| 5 | (Optional) Byte-adaptive chunk flush | Low | S |
-| 6 | (Decide) Implement or delete the inert live-preview system | Housekeeping | S/M |
-
-**Status:** #1 ✅ · #2 ✅ · #3 ✅ (no code change needed — copies became the one-time `init-layers` payload) · #4 ✅ · #5 ⏭️ skipped (no heap-pressure evidence) · #6 ✅ deleted (Option A, −79 lines across 9 files)
+**Estimated total: ~-1,800 lines and -1 dependency.**
 
 ---
 
-## 1. Enable layer-ref messaging (init-layers + batch-ref)
+## High impact
 
-**Why.** `enableLayerRef` existed as a feature flag → was inlined to a constant and the *sender* never wired. Worker fully supports it (`handleInitLayers`, `resolveTraitRefs`, `batch-ref` handler in `generation.worker.ts`; pool has the `isInternal` init-layers guard in `pool.ts`). Nothing ever sends those messages, so the scheduler always posts `type:'batch'` with every solution's `trait.imageData`, and the pool deep-copies it twice per window:
-`prepareLayersForWorker slice(0)` → `safeStructuredClone(payload)` (which re-slices ArrayBuffers again) → `postMessage` structured clone. Meanwhile the worker already caches decoded buffers (ArrayBuffer cache) + 64 ImageBitmaps across batches, so the re-sent bytes are discarded each time. For large/high-res collections this is the dominant cost: memory spikes + serialization + main-thread GC.
+### 1. Delete dead domain barrel and event types
 
-**Design (lazy but correct).**
-- Clone-based single `init-layers`, not transfer. Reason: transferring the same buffer to N workers requires N main-thread copies anyway (a transferred buffer detaches and can't be reused), and ref-mode's real win is eliminating the *per-window* re-send. Revisit transfer-on-init later only if profiling demands it.
-- Reference batched message types already exist in `src/lib/types/worker-messages.ts` (`InitLayersMessage`, `BatchRefMessage`). No type changes needed.
+**Tag:** `delete`
+**Files:**
+- `src/lib/domain/index.ts` (21 lines)
+- `src/lib/domain/models.ts` (70 lines)
 
-**Steps.**
-1. `src/lib/workers/trait-batch-scheduler.ts`
-   - Add an `initLayers(solutions)` phase: when a pool is ready, post **one** `{ type: 'init-layers', payload: { layers } }` task (layers incl. `imageData`, i.e. do NOT strip).
-   - Post `{ type: 'batch-ref' }` per window instead of `batch`, with each solution reduced to `{ index, traitRefs: traits.map(t => ({ layerId: t.layerId, traitId: t.trait.id })) }`.
-   - Keep the existing windowing + adaptive batch size unchanged.
-   - Ensure `init-layers` completes before the first `batch-ref` dispatches (await the init postMessageToPool).
-2. `src/lib/workers/pool/pool.ts`
-   - `isInternal` guard for init-layers already suppresses forwarding (`task?.message?.type === 'init-layers'`). Verify + keep.
-   - No dispatch changes needed (clone path works).
-3. `src/lib/workers/generation.worker.ts`
-   - Already handles both messages. Audit `batch-ref`: it rebuilds `layers` from `layerMap.values()` — make sure the full layer list (with imageData) is passed; currently it does. Confirm `init-layers` resets `layerMap`/`traitMap` (`handleInitLayers` clears first) — already true.
-4. Remove the stale `enableLayerRef` constant/comment in `src/lib/config/feature-flags.ts` (already inlined; just delete the doc mention).
+**Evidence:** `src/lib/domain/index.ts` has zero importers — every consumer in
+the codebase imports the underlying files directly (`$lib/domain/validation`,
+`$lib/domain/collection-design-mutator`, etc.). The `DomainEvent`,
+`ProjectCreatedEvent`, and related types exported from `models.ts` are never
+referenced anywhere outside `models.ts` itself.
 
-**Edge cases.**
-- Empty layer/trait after init (project edited mid-run is not possible — generation locks the project config, so OK).
-- Worker restart mid-run: fresh worker needs its own `init-layers`. `restartWorker`/`reassignWorkerTasks` re-queues the task — plan must re-dispatch init to replacement workers. Simplest safe approach: send `init-layers` once per generation *per worker index* (track which workers have been inited; re-init on restart). Keep a `Set<workerIndex>` in the scheduler for this.
-- Single-session only (`_activeSession`) — no concurrency to coordinate.
-
-**Tests.**
-- Update `src/lib/workers/generation.orchestrator.test.ts`, `generation-worker-client.test.ts`, `pool/__tests__/tasks.test.ts` for the new message flow.
-- Add `trait-batch-scheduler` coverage: init posted once per available worker, batch-ref windows carry only refs, ordering init→refs.
+**Action:** Delete both files. If a domain barrel is wanted later, add it when
+the second importer exists.
 
 ---
 
-## 2. Fix warm-up pool capacity cap
+### 2. Shrink performance-monitor to what's used
 
-**Why.** `+layout.svelte` calls `warmUpWorkers()` on mount. `warmUpWorkers` sets `maxWorkers = max(2, floor(coreCount/2)-2)` → 2 workers on 8-core machines. Orchestrator only re-inits when `totalWorkers < 2`; dynamic scaling is capped by `config.maxWorkers`. Result: generation runs at the tiny warm-up count forever, even though `initializeWorkerPool`'s default (and `getOptimalWorkerCount`, which is collection-aware and currently *unused*) would give cores-1 workers.
+**Tag:** `shrink`
+**File:** `src/lib/utils/performance-monitor.ts` (686 lines)
 
-**Steps.**
-1. `src/lib/workers/pool/pool.ts` — `warmUpWorkers`: don't shrink `maxWorkers` below the init default. Simplest: delegate to the same sizing as `initializeWorkerPool` (drop the `computedMax` clamp), or make `warmUpWorkers` call `initializeWorkerPool()` with no `maxWorkers` override.
-2. Optional: in `runGeneration` (`generation.orchestrator.ts`) add `ensurePoolCapacity(collectionSize)` that scales the pool up to `getOptimalWorkerCount(collectionSize)` before scheduling — makes warmup irrelevant. Do the 1-line fix first; add capacity-scaling only if profiling shows it matters.
-3. `getOptimalWorkerCount` is exported from pool but unused — wire it up here or delete it.
+**Evidence:** Actual usage across the codebase:
+- `performanceMonitor.startTimer()` / `.stopTimer()` (project.store,
+  generation.orchestrator, worker pool)
+- `productionMonitor.recordCacheHit/Miss/Eviction/updateCacheMemoryUsage`
+  (gallery.store), `.recordDatabaseQuery` (gallery-storage)
+- `measureOperation()` — one caller (`file-operations.ts`)
 
-**Test.** Pool unit tests asserting warmed-up `maxWorkers` equals full init sizing.
+Dead exports: `timed()`, `withTiming()`, report/stats aggregation machinery,
+and most of the interfaces (`PerformanceReport`, `PerformanceStats`) have no
+callers.
 
----
-
-## 3. Repurpose the `slice(0)` buffer copies
-
-**Why.** `prepareLayersForWorker` (`src/lib/domain/project.domain.ts`) does `trait.imageData.slice(0)` — full copy of every trait buffer. Today nothing transfers those buffers (batch mode re-clones), nothing mutates store buffers, so the copies are pure waste: all trait images resident ×2 (×3 transiently per window). Under ref-mode (#1) these copies become the correct transfer/copy units owned by the worker path — but *only if* the store's originals stay referenced by the shell only and never get detached.
-
-**Steps.**
-1. After #1 lands, verify the `slice(0)` copies are the ones sent once in `init-layers` and keep the store buffers untouched.
-2. Add a short comment in `project.domain.ts` explaining the copy exists to protect the store buffer from worker ownership/detach — so the next dev doesn't "optimize" it away.
-3. If ref-mode proves the copy is still unnecessary (worker only reads, never detaches — true today), delete `slice(0)` and rely on `safeStructuredClone`'s own copy. Decide after measuring; do not do both.
-
-No code change standalone.
+**Action:** Replace with a ~60-line module: a timer map + a handful of named
+counters, DEV-gated output via `logger`. Delete `timed`, `withTiming`, and all
+unused report types.
 
 ---
 
-## 4. Prebuild layer-id → name map for metadata
+### 3. Inline PERF_CONFIG
 
-**Why.** `generateIsolatedItem` (generation.worker.ts) does `layers.find((l) => l.id === st.layerId)?.name` per trait per item. 10k items × ~10 traits × linear scan over layers.
+**Tag:** `yagni`
+**File:** `src/lib/config/performance.config.ts` (209 lines)
 
-**Steps.**
-1. In `handleBatchGeneration`, once per batch: `const layerNameById = new Map(layers.map((l) => [l.id, l.name]));`
-2. Pass `layerNameById` into `generateIsolatedItem`, replace `layers.find(...)?.name` with `layerNameById.get(st.layerId) ?? 'Unknown'`.
+**Evidence:** ~200 lines of tuning knobs across 9 sections (`batch`, `cache`,
+`memory`, `monitoring`, `fileOperations`, `generation`, `gallery`, `ui`),
+but only two things are ever read:
+- `PERF_CONFIG.cache.galleryFilter.maxEntries` → `gallery.store.svelte.ts`
+- `calculateAdaptiveDelay()` → `project.store.svelte.ts`
 
-**Test.** Existing worker tests still pass (same output); add nothing new (trivial).
+Config nobody sets is config nobody needs.
 
----
-
-## 5. (Optional) Byte-adaptive chunk flush
-
-`handleBatchGeneration` flushes every `CHUNK_FLUSH_SIZE = 10` images. For 5MB hi-res PNGs that's ~50MB held as blobs + converted to ArrayBuffers per flush. Threshold flush (e.g. 24MB) bounds worker memory better. Low priority; only if worker heap pressure observed.
-
----
-
-## 6. (Decide) Live-preview system: implement or delete
-
-Full plumbing exists (message emitters… no wait, nothing emits; routing + blob URLs + store + revoke) but **no worker ever sends `type:'preview'`** and nothing renders `generationState.previews`. It is 100% inert.
-- **Option A — delete:** remove `PreviewMessage` from types, the `'preview'` branch in `routePoolMessage`, `onPreview` from `GenerationCallbacks` + `GenerationForm`, `previews`/`addPreviews`/revoke logic from `generation-progress.svelte.ts`. Touches ~4 files + their tests.
-- **Option B — build:** worker posts small preview thumbnails per chunk (reuse the already-rendered canvas → downscale → `convertToBlob('png')` transfer), UI shows a flowing strip. Genuine feature value, but real work (throttling, retention cap, URL lifecycle).
-Recommend A (YAGNI) unless live previews are on the roadmap. If building, cap stored previews (e.g. keep last 50) and revoke evicted URLs.
+**Action:** Inline `maxEntries` as a constant in gallery.store; move
+`calculateAdaptiveDelay` (with its small delay table) into project.store or a
+tiny shared module. Delete the rest of the file.
 
 ---
 
-## Phasing & verification
+### 4. Delete dead components
 
-1. **Phase 1 (ship):** #1 + #3 (they are one change) → verify no memory regression at scale.
-2. **Phase 2:** #2 warm-up fix (one-liner core).
-3. **Phase 3:** #4 map prebuild (while touching the worker).
-4. **Phase 4 (decide):** #6.
-5. Optional #5 only on evidence.
+**Tag:** `delete`
+**Files (zero importers each):**
+- `src/lib/components/shared/OptimizedList.svelte`
+- `src/lib/components/shared/FloatingElement.svelte`
+- `src/lib/components/shared/ModeSwitcher.svelte`
+- `src/lib/components/shared/FeatureItem.svelte`
+- `src/lib/components/layout/ResponsiveContainer.svelte`
 
-Verification order per AGENTS.md: `pnpm fmt` → `pnpm lint` → `pnpm test` → `pnpm build`. Manual: generate a 1000-item collection on a hi-res trait set; measure peak JS heap (worker + main) before/after in DevTools Performance recorder.
+**Action:** Delete all five.
 
-**Risks**
-- Ref-mode shares buffer ownership between scheduler worker copies and store — keep the `slice(0)` copies isolated; never transfer the store's originals.
-- Restart path must re-init the replacement worker (see #1 edge cases) or it will silently render nothing.
-- Do not merge #3's copy removal and #1's transfer plan simultaneously without a decision comment.
+---
+
+### 5. Delete image-format-detector
+
+**Tag:** `delete`
+**File:** `src/lib/utils/image-format-detector.ts` (86 lines)
+
+**Evidence:** Zero importers anywhere in `src/`.
+
+**Action:** Delete.
+
+---
+
+## Medium impact
+
+### 6. Shrink retry.ts
+
+**Tag:** `shrink`
+**File:** `src/lib/utils/retry.ts` (336 lines)
+
+**Evidence:** Only two exports are imported anywhere:
+`RetryConfigs` and `retryWithErrorHandling`, both consumed exclusively by
+`src/lib/utils/error-handler.ts`. The `RetryOperation<T>` class and most of
+the `RetryConfig` surface (hooks, per-attempt callbacks) have no callers.
+
+**Action:** Fold a minimal retry loop (~50 lines: attempts + backoff +
+optional condition) into `error-handler.ts` where `withRetry` already wraps
+it. Delete `retry.ts` and its test file; port relevant test cases to
+error-handler tests.
+
+---
+
+### 7. Collapse the two toast systems
+
+**Tag:** `yagni`
+**Files:**
+- `src/lib/utils/toast.ts` (118 lines) — 26 one-off wrapper functions
+  (`showProjectSaved`, `showTraitDeleted`, `showUploadPartialSuccess`, ...)
+  with exactly one importer (`LayerItem.svelte`)
+- `src/lib/utils/error-handling.ts` — already exports generic
+  `showError/showSuccess/showInfo/showWarning`
+
+**Evidence:** Two parallel toast layers over svelte-sonner doing the same job.
+The one-off wrappers encode messages that belong at call sites.
+
+**Action:** Delete `toast.ts`; convert its single importer to
+`error-handling`'s show* functions with inline messages.
+
+---
+
+### 8. Remove ValidationService class
+
+**Tag:** `yagni`
+**File:** `src/lib/services/validation.service.ts`
+
+**Evidence:** A singleton class wrapping `$lib/domain/validation` functions,
+with exactly one consumer: `project.store.svelte.ts`.
+
+**Action:** Import the validation functions directly in the store; delete the
+service and its test.
+
+---
+
+### 9. Consolidate the three storage stacks
+
+**Tag:** `yagni` / structural
+**Files:**
+- `src/lib/storage/` — backend.ts + opfs.ts + capabilities.ts +
+  indexeddb-legacy.ts + paths.ts (modern path-selection layer)
+- `src/lib/persistence/storage.ts` (531 lines) — SmartStorageStore with its
+  own localStorage quota estimation / fallback strategy
+- `src/lib/persistence/indexeddb.ts` (83 lines) — legacy IndexedDB project
+  store
+
+**Evidence:** Two independent "smart storage with fallback" implementations.
+Both route through `capabilities.ts`; only `persistence.service.ts` consumes
+the persistence/ pair, while gallery-storage and streaming-storage use the
+storage/ backend directly.
+
+**Action:** Standardize on the `lib/storage/backend.ts` path. Port
+SmartStorageStore's still-needed behavior onto `ObjectStorageBackend`, fold
+the legacy project reader into it (or keep as one small migration helper),
+then delete `persistence/storage.ts` and `persistence/indexeddb.ts`.
+Biggest single refactor on this list — do it after items 1–8.
+
+---
+
+## Low impact
+
+### 10. Drop one ZIP library
+
+**Tag:** `native:` / dep consolidation
+**Deps:** `jszip` AND `@zip.js/zip.js`
+
+**Evidence:** zip.js earns its keep for large-ZIP streaming import
+(`GalleryImport.svelte` large-file branch). jszip handles everything else:
+export.service, file-operations, zip.worker, GalleryImport standard branch.
+
+**Action:** Migrate the small jszip reads/writes to zip.js (its API covers
+both), remove `jszip` from dependencies. Do opportunistically, not upfront —
+both libs work today.
+
+---
+
+### 11. Delete dead exports in utils.ts
+
+**Tag:** `delete`
+**File:** `src/lib/utils.ts`
+
+**Dead exports (zero callers):**
+- `cn()` — yes, the clsx/tailwind-merge helper itself is unused locally
+- `WithoutChild<T>`, `WithoutChildren<T>`, `WithElementRef<T>` type helpers
+  (shadcn leftovers)
+- `normalizeFilename()`
+
+**Action:** Delete them. Then check whether `clsx` and `tailwind-merge` still
+have any importer — if not, `-2 devDependencies`.
+
+---
+
+### 12. Merge simple-debug into logger
+
+**Tag:** `shrink`
+**Files:** `src/lib/utils/simple-debug.ts`, `src/lib/utils/logger.ts`
+
+**Evidence:** Two DEV-gated console wrappers doing the same job.
+simple-debug adds emoji prefixes and a counter; logger adds a `[gnstudio]`
+prefix. Three callers each.
+
+**Action:** Add `debugLog/debugTime/debugCount` aliases (or migrate the three
+callers in gallery.store) into `logger.ts`; delete simple-debug.
+
+---
+
+### 13. UI wrapper barrels — decide, don't half-maintain
+
+**Tag:** `yagni` (borderline — project convention)
+**Files:** 13 × `src/lib/components/ui/*/index.ts`
+
+**Evidence:** All except modal are verbatim re-exports of `@neobr/svelte`
+(e.g. `export { Button } from '@neobr/svelte'`). AGENTS.md currently mandates
+importing through these wrappers, so they are a deliberate indirection point —
+but today they add zero code. Only `modal/` actually wraps anything, and
+`RulerRulesManager.svelte` doesn't belong under `ui/` at all.
+
+**Action (pick one):**
+- Keep wrappers, move `RulerRulesManager` + `NeedsReupload` out of `ui/` into
+  feature folders, **or**
+- Drop the pass-through barrels and import `@neobr/svelte` directly,
+  updating AGENTS.md accordingly.
+
+Do not leave both conventions in place.
+
+---
+
+### 14. Prune package.json script aliases
+
+**Tag:** `delete`
+**File:** `package.json`
+
+**Duplicates:** `verify-lock` (= verify-lockfile), `verify-lockfile-ci` (=),
+`lint-ci` (= lint), plus `postinstall:copy-auth` chain that uses `npm run`
+inside a pnpm project.
+
+**Action:** Keep canonical names, delete aliases; switch internal invocations
+to `pnpm run`.
+
+---
+
+## Suggested order
+
+1. Pure deletions first (items 1, 4, 5, 11, 12, 14) — zero risk, run
+   `vp fmt && vp lint && vp test` after each batch.
+2. Shrinks with existing tests to port (2, 6, 7).
+3. Single-consumer refactors (3, 8).
+4. Storage consolidation (9) — schedule separately, it touches persistence.
+5. Dep swap (10) — opportunistic.
+
+## Verification
+
+After every item:
+
+```sh
+vp fmt && vp lint && vp test
+vp run build   # catches tsconfig/type breakage deletions can cause
+```
