@@ -9,6 +9,7 @@ import {
 	createTypedError,
 	getDetailedErrorInfo,
 	isErrorRecoverable,
+	withRetry,
 	withSafeOperation
 } from './error-handler';
 import { AppError, ErrorCodes } from './typed-errors';
@@ -116,5 +117,56 @@ describe('withSafeOperation', () => {
 			{ fallbackValue: 'fallback', silent: true }
 		);
 		expect(result).toBe('fallback');
+	});
+});
+
+describe('withRetry', () => {
+	it('succeeds without calling retryable check on first success', async () => {
+		const result = await withRetry(() => Promise.resolve('ok'));
+		expect(result).toBe('ok');
+	});
+
+	it('retries until success', async () => {
+		let calls = 0;
+		const result = await withRetry(
+			() => {
+				calls++;
+				if (calls < 3) throw new Error('storage quota hit');
+				return Promise.resolve('done');
+			},
+			'storage',
+			{ retryConfig: { initialDelayMs: 1, maxDelayMs: 2 } }
+		);
+		expect(result).toBe('done');
+		expect(calls).toBe(3);
+	});
+
+	it('stops early when the condition rejects the error', async () => {
+		let calls = 0;
+		await expect(
+			withRetry(
+				() => {
+					calls++;
+					throw new Error('validation failed: invalid input');
+				},
+				'validation'
+			)
+		).rejects.toThrow('validation failed');
+		expect(calls).toBe(1);
+	});
+
+	it('throws after exhausting attempts', async () => {
+		let calls = 0;
+		await expect(
+			withRetry(
+				() => {
+					calls++;
+					throw new Error('storage unavailable');
+				},
+				'storage',
+				{ retryConfig: { initialDelayMs: 1, maxDelayMs: 2 } }
+			)
+		).rejects.toThrow('storage unavailable');
+		expect(calls).toBe(5); // storage category maxAttempts
 	});
 });
