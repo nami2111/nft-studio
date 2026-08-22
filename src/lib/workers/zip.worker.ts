@@ -1,5 +1,5 @@
-import JSZip from 'jszip';
 import { logger } from '$lib/utils/logger';
+import { createZipBlob } from '$lib/utils/zip';
 
 interface ZipMessage {
 	type: 'zip-project';
@@ -70,10 +70,7 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 		);
 	}
 
-	const zip = new JSZip();
-	for (const file of filesToZip) {
-		zip.file(file.path, file.data);
-	}
+	const entries = filesToZip.map((file) => ({ path: file.path, data: file.data }));
 
 	// Remove flushed files from pending
 	if (!isFinal && filesToZip.length < pendingFiles.length) {
@@ -92,7 +89,7 @@ async function flushVolume(isFinal: boolean): Promise<void> {
 			logger.debug(
 				`[zip-worker] Generating ZIP volume ${volumeIndex + 1} with ${filesToZip.length} files...`
 			);
-			content = await zip.generateAsync({ type: 'arraybuffer' });
+			content = await (await createZipBlob(entries)).arrayBuffer();
 			volumeIndex++;
 			partIndex = volumeIndex;
 			logger.debug(
@@ -159,15 +156,14 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 
 	if (type === 'zip-project') {
 		const { projectData, imageFiles } = payload;
-		const zip = new JSZip();
 
 		try {
-			zip.file('project.json', projectData);
+			const entries = [
+				{ path: 'project.json', data: projectData },
+				...imageFiles.map((file) => ({ path: file.path, data: file.data }))
+			];
 
 			for (let i = 0; i < imageFiles.length; i++) {
-				const file = imageFiles[i];
-				zip.file(file.path, file.data);
-
 				if (i % 50 === 0 || i === imageFiles.length - 1) {
 					(self as unknown as Worker).postMessage({
 						type: 'zip-progress',
@@ -179,7 +175,7 @@ self.onmessage = async (event: MessageEvent<IncomingZipMessage>) => {
 				}
 			}
 
-			const content = await zip.generateAsync({ type: 'arraybuffer' });
+			const content = await (await createZipBlob(entries)).arrayBuffer();
 
 			(self as unknown as Worker).postMessage(
 				{

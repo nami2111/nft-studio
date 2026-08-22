@@ -167,11 +167,7 @@
                 const strategy = determineProcessingStrategy(file);
                 let result: { metadata: MetadataEntry[]; imageNames: string[] };
 
-                if (strategy === "streaming") {
-                    result = await extractLargeZipMetadata(file);
-                } else {
-                    result = await extractStandardZipMetadata(file);
-                }
+                result = await extractLargeZipMetadata(file);
 
                 metadataList.push(...result.metadata);
                 imageNamesByFile.push({
@@ -258,23 +254,13 @@
                     importMessage = message;
                 };
 
-                if (strategy === "streaming") {
-                    await streamLargeZipImages(
-                        file,
-                        imageNames,
-                        itemIdMap,
-                        collection.id,
-                        onProgress,
-                    );
-                } else {
-                    await streamStandardZipImages(
-                        file,
-                        imageNames,
-                        itemIdMap,
-                        collection.id,
-                        onProgress,
-                    );
-                }
+                await streamLargeZipImages(
+                    file,
+                    imageNames,
+                    itemIdMap,
+                    collection.id,
+                    onProgress,
+                );
             }
 
             importProgress = 95;
@@ -321,133 +307,6 @@
             trait: (attr.value as string) || (attr.trait as string) || "None",
             rarity: (attr.rarity as number) || 0,
         }));
-    }
-
-    // ── Standard ZIP (JSZip): metadata extraction + image streaming ──
-
-    async function extractStandardZipMetadata(zipFile: File): Promise<{
-        metadata: MetadataEntry[];
-        imageNames: string[];
-    }> {
-        const { default: JSZip } = await import("jszip");
-        const zip = await JSZip.loadAsync(zipFile);
-
-        const metadata: MetadataEntry[] = [];
-        const imageNames: string[] = [];
-
-        for (const [path, entry] of Object.entries(zip.files)) {
-            if (entry.dir) continue;
-
-            if (path.startsWith("metadata/") && path.endsWith(".json")) {
-                try {
-                    const text = await entry.async("text");
-                    const data = JSON.parse(text);
-                    const name = path
-                        .replace(/^metadata\//, "")
-                        .replace(/\.json$/i, "");
-                    const traits = normalizeTraits(
-                        (data.attributes as Record<string, unknown>[]) || [],
-                    );
-                    metadata.push({
-                        name,
-                        traits,
-                        description: (data.description as string) || "",
-                        imageFormat: "png",
-                    });
-                } catch {
-                    // Skip malformed metadata
-                }
-            }
-
-            if (
-                path.startsWith("images/") &&
-                /\.(png|jpe?g|webp|gif)$/i.test(path)
-            ) {
-                const name = path
-                    .replace(/^images\//, "")
-                    .replace(/\.(png|jpe?g|webp|gif)$/i, "");
-                const fmt = detectFormatFromName(path);
-                imageNames.push(name);
-
-                // Update imageFormat on matching metadata entry
-                const meta = metadata.find((m) => m.name === name);
-                if (meta) meta.imageFormat = fmt;
-            }
-        }
-
-        return { metadata, imageNames };
-    }
-
-    async function streamStandardZipImages(
-        zipFile: File,
-        imageNames: string[],
-        itemIdMap: Map<string, string>,
-        collectionId: string,
-        onProgress: (count: number) => void,
-    ): Promise<void> {
-        const { default: JSZip } = await import("jszip");
-        const zip = await JSZip.loadAsync(zipFile);
-
-        // Build a name→path map from actual ZIP entries (JSZip is case-sensitive)
-        const pathMap = new Map<string, string>();
-        for (const [path, entry] of Object.entries(zip.files)) {
-            if (entry.dir) continue;
-            if (
-                path.startsWith("images/") &&
-                /\.(png|jpe?g|webp|gif)$/i.test(path)
-            ) {
-                const name = path
-                    .replace(/^images\//, "")
-                    .replace(/\.(png|jpe?g|webp|gif)$/i, "");
-                pathMap.set(name, path);
-            }
-        }
-
-        let count = 0;
-        const batchSize = 50;
-
-        for (let i = 0; i < imageNames.length; i += batchSize) {
-            const batch = imageNames.slice(i, i + batchSize);
-
-            for (const name of batch) {
-                const itemId = itemIdMap.get(name);
-                if (!itemId) continue;
-
-                const entryPath = pathMap.get(name);
-                if (!entryPath) {
-                    count++;
-                    continue;
-                }
-
-                const entry = zip.file(entryPath);
-                if (!entry) {
-                    count++;
-                    continue;
-                }
-
-                try {
-                    const imageData = await entry.async("arraybuffer");
-                    if (imageData.byteLength > 0) {
-                        const fmt = detectImageFormat(imageData);
-                        await galleryStore.streamItemImage(
-                            collectionId,
-                            itemId,
-                            imageData,
-                            fmt,
-                        );
-                    }
-                } catch {
-                    // Skip failed entry
-                }
-                count++;
-            }
-
-            if (i + batchSize < imageNames.length) {
-                await new Promise((r) => setTimeout(r, 0));
-            }
-        }
-
-        onProgress(count);
     }
 
     // ── Large ZIP (zip.js): metadata extraction + image streaming ──

@@ -197,6 +197,8 @@ Biggest single refactor on this list — do it after items 1–8.
 
 ### 10. Drop one ZIP library
 
+**Status:** DONE — jszip removed; all read/write now via `@zip.js/zip.js` through new `utils/zip.ts` helpers (`createZipBlob`, `openZip`). Migrated: export.service, file-operations, zip.worker, GalleryImport (standard/streaming split collapsed to zip.js path). Verified in browser: project ZIP load + 1000-item generation.
+
 **Tag:** `native:` / dep consolidation
 **Deps:** `jszip` AND `@zip.js/zip.js`
 
@@ -287,7 +289,7 @@ to `pnpm run`.
 
 ## Status
 
-Completed: 1–9, 11–14. Remaining: #10 (zip dep swap, opportunistic). Net so far: ~-2,200 lines, -2 deps.
+Completed: all items (1–14). Net: ~-2,300 lines, -3 deps (jszip, clsx, tailwind-merge).
 
 ## Suggested order
 

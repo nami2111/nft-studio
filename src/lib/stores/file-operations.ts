@@ -17,7 +17,7 @@ import type { Layer, Project, Trait } from '$lib/types/project';
 import { fileToArrayBuffer } from '$lib/utils';
 import { handleTypedError } from '$lib/utils/error-handler';
 import { measureOperation } from '$lib/utils/performance-monitor';
-import JSZip from 'jszip';
+import { openZip, type OpenedZip } from '$lib/utils/zip';
 import { globalResourceManager } from './resource-manager';
 
 const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024;
@@ -168,9 +168,10 @@ export async function loadProjectFromZip(file: File): Promise<Project> {
 		}
 
 		const arrayBuffer = await fileToArrayBuffer(file, 3, 150);
-		const zip = await JSZip.loadAsync(arrayBuffer);
+		const zip = await openZip(new Blob([arrayBuffer]));
 
 		const project = await parseAndHydrateProject(zip, file.name);
+		await zip.close();
 		return finalizeImportedProject(project);
 	} catch (error) {
 		await handleTypedError(error, 'file', { description: 'Failed to load project from ZIP file' });
@@ -207,16 +208,15 @@ function validateZipFile(file: File): void {
 	}
 }
 
-async function parseAndHydrateProject(zip: JSZip, fileName: string): Promise<Project> {
-	const projectFile = zip.file('project.json');
-	if (!projectFile) {
+async function parseAndHydrateProject(zip: OpenedZip, fileName: string): Promise<Project> {
+	const projectData = JSON.parse(await zip.text('project.json'));
+	if (!projectData) {
 		throw new Error(
 			`Invalid project file: "project.json" not found in ${fileName}. ` +
 				`This file may be corrupted or is not a valid GNStudio project file.`
 		);
 	}
 
-	const projectData = JSON.parse(await projectFile.async('text'));
 	const validationResult = validateImportedProject(projectData);
 	if (!validationResult.success) {
 		throw new Error(`Invalid project structure in ${fileName}: ${validationResult.error}`);
@@ -257,7 +257,7 @@ function remapProjectIds(project: Project): IdRemap {
 	return { layers, traits };
 }
 
-async function hydrateTraitImages(zip: JSZip, project: Project, remap: IdRemap): Promise<void> {
+async function hydrateTraitImages(zip: OpenedZip, project: Project, remap: IdRemap): Promise<void> {
 	// Build reverse maps so we can find original IDs for ZIP paths
 	const newToOriginalLayer = new Map<string, string>();
 	const newToOriginalTrait = new Map<string, string>();
@@ -270,15 +270,14 @@ async function hydrateTraitImages(zip: JSZip, project: Project, remap: IdRemap):
 		for (const trait of layer.traits) {
 			const originalTraitId = newToOriginalTrait.get(trait.id) ?? trait.id;
 			const imagePath = `images/${originalLayerId}/${originalTraitId}.png`;
-			const imageFile = zip.file(imagePath);
+			const imageData = await zip.arrayBuffer(imagePath);
 
-			if (!imageFile) {
+			if (imageData.byteLength === 0) {
 				console.error(`[loadProjectFromZip] Image not found in ZIP: ${imagePath}`);
 				trait.imageData = new ArrayBuffer(0);
 				continue;
 			}
 
-			const imageData = await imageFile.async('arraybuffer');
 			trait.imageData = imageData;
 
 			const blob = new Blob([imageData], { type: 'image/png' });
