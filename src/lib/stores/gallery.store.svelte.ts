@@ -24,7 +24,6 @@ import {
 } from '$lib/utils/gallery-storage';
 import { imageUrlCache } from '$lib/utils/object-url-cache';
 import { debugLog, debugTime, debugCount } from '$lib/utils/simple-debug';
-import { PERF_CONFIG } from '$lib/config/performance.config';
 
 const SELECTED_COLLECTION_STORAGE_KEY = 'gnstudio-gallery-selected-collection';
 
@@ -32,7 +31,7 @@ const SELECTED_COLLECTION_STORAGE_KEY = 'gnstudio-gallery-selected-collection';
 class GalleryStore {
 	// LRU cache for filtered results - tracks access for efficient eviction
 	private filteredCache = new Map<string, GalleryItem[]>();
-	private readonly MAX_CACHE_ENTRIES = PERF_CONFIG.cache.galleryFilter.maxEntries;
+	private readonly MAX_CACHE_ENTRIES = 50;
 
 	// Memoized naturalCompare results
 	private compareCache = new Map<string, number>();

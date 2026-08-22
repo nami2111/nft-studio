@@ -8,7 +8,6 @@
  * migrate to Svelte context (setContext/getContext).
  */
 
-import { calculateAdaptiveDelay } from '$lib/config/performance.config';
 import type { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
 import {
 	updateProjectName as mutateProjectName,
@@ -289,6 +288,15 @@ function processBatchQueue(): void {
 	if (import.meta.env.DEV) {
 		console.debug(`[perf] Batch flush: ${queueSize} items in ${flushTime.toFixed(2)}ms`);
 	}
+}
+
+/**
+ * Adaptive persist delay based on queue size: 50ms per pending item,
+ * clamped to [100ms, 5000ms] so small batches stay responsive and
+ * large batches don't block the UI thread with rapid flushes.
+ */
+function calculateAdaptiveDelay(queueSize: number): number {
+	return Math.min(5000, Math.max(100, queueSize * 50));
 }
 
 function scheduleBatchPersist(): void {
