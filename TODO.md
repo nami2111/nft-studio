@@ -168,6 +168,8 @@ service and its test.
 
 ### 9. Consolidate the three storage stacks
 
+**Status:** DONE — persistence.service always uses `getStorageBackend()` (indexeddb-legacy object backend covers no-OPFS browsers); `persistence/storage.ts` (531 lines) deleted, replaced by read-only `legacy-reader.ts` (80 lines) for migration; `saveProjectToLegacyStorage` branch removed. Verified in browser: existing project loads + mutation persists.
+
 **Tag:** `yagni` / structural
 **Files:**
 
@@ -285,7 +287,7 @@ to `pnpm run`.
 
 ## Status
 
-Completed: 1–8, 11–14. Remaining: #9 (storage consolidation), #10 (zip dep swap). Net so far: ~-1,700 lines, -2 deps.
+Completed: 1–9, 11–14. Remaining: #10 (zip dep swap, opportunistic). Net so far: ~-2,200 lines, -2 deps.
 
 ## Suggested order
 

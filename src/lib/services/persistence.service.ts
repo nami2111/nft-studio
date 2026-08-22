@@ -8,8 +8,8 @@
  * decides what to persist by comparing snapshots against last-saved state.
  */
 
+import { readLegacyAssetStore, readLegacyLocalStorageJson } from '$lib/persistence/legacy-reader';
 import { deleteLegacyProject, loadProjectFromLegacyStorage } from '$lib/persistence/indexeddb';
-import { LegacyIndexedDbStore, SmartStorageStore } from '$lib/persistence/storage';
 import { getStorageBackend } from '$lib/storage/backend';
 import { requestPersistentStorageOnce } from '$lib/storage/capabilities';
 import { storagePaths } from '$lib/storage/paths';
@@ -51,27 +51,17 @@ interface ProjectBootHint {
 
 type LayerSaveTarget = { layer: Layer } | { missingLayerId: string };
 
-async function getProjectStorageBackend(): Promise<ObjectStorageBackend | null> {
-	const backend = await getStorageBackend();
-	return backend.kind === 'indexeddb-legacy' ? null : backend;
-}
-
 function isArrayBuffer(value: unknown): value is ArrayBuffer {
 	return value instanceof ArrayBuffer;
 }
 
 export class PersistenceService {
-	private metaStorage = new SmartStorageStore<StoredProjectManifest>(METADATA_KEY);
 	private persistTimeout: ReturnType<typeof setTimeout> | null = null;
 	private lastSavedMetadata: string | null = null;
 	private lastSavedLayerFingerprints = new Map<string, string>();
 	private lastSavedTraitBuffers = new Map<string, ArrayBuffer>();
 	private dirtyMetadata = false;
 	private dirtyLayers = new Set<string>();
-
-	private getLegacyAssetStorage(layerId: string): LegacyIndexedDbStore<LegacyLayerAssets> {
-		return new LegacyIndexedDbStore<LegacyLayerAssets>(`${LAYER_ASSETS_PREFIX}${layerId}`);
-	}
 
 	/**
 	 * Schedule a debounced save. Service detects changes internally.
@@ -126,29 +116,25 @@ export class PersistenceService {
 
 	async loadProject(): Promise<Project | null> {
 		try {
-			const backend = await getProjectStorageBackend();
+			const backend = await getStorageBackend();
 
-			if (backend) {
-				const storedProject = await this.loadProjectFromObjectStorage(backend);
-				if (storedProject) return storedProject;
+			const storedProject = await this.loadProjectFromObjectStorage(backend);
+			if (storedProject) return storedProject;
 
-				const legacyProject = await this.loadProjectFromLegacyStorage();
-				if (legacyProject) {
-					logger.info('Migrating legacy project data to object storage');
-					this.dirtyMetadata = true;
-					for (const layer of legacyProject.layers) {
-						this.dirtyLayers.add(layer.id);
-					}
-					await this.saveProjectToObjectStorage(backend, legacyProject, {
-						forceFullAssetWrite: true
-					});
-					return legacyProject;
+			const legacyProject = await this.loadProjectFromLegacyStorage();
+			if (legacyProject) {
+				logger.info('Migrating legacy project data to object storage');
+				this.dirtyMetadata = true;
+				for (const layer of legacyProject.layers) {
+					this.dirtyLayers.add(layer.id);
 				}
-
-				return null;
+				await this.saveProjectToObjectStorage(backend, legacyProject, {
+					forceFullAssetWrite: true
+				});
+				return legacyProject;
 			}
 
-			return await this.loadProjectFromLegacyStorage();
+			return null;
 		} catch (error) {
 			logger.error('Failed to load project:', error);
 			return null;
@@ -157,11 +143,8 @@ export class PersistenceService {
 
 	async clearData(): Promise<void> {
 		try {
-			const backend = await getProjectStorageBackend();
-
-			if (backend) {
-				await backend.binary.removeTree(storagePaths.projectRoot());
-			}
+			const backend = await getStorageBackend();
+			await backend.binary.removeTree(storagePaths.projectRoot());
 
 			this.clearProjectBootHint();
 
@@ -186,9 +169,8 @@ export class PersistenceService {
 	}
 
 	async hasDataAsync(): Promise<boolean> {
-		const backend = await getProjectStorageBackend();
-
-		if (backend && (await backend.binary.exists(storagePaths.projectManifest()))) {
+		const backend = await getStorageBackend();
+		if (await backend.binary.exists(storagePaths.projectManifest())) {
 			return true;
 		}
 
@@ -223,13 +205,8 @@ export class PersistenceService {
 		try {
 			this.detectChanges(project);
 
-			const backend = await getProjectStorageBackend();
-			if (backend) {
-				await this.saveProjectToObjectStorage(backend, project);
-				return;
-			}
-
-			await this.saveProjectToLegacyStorage(project);
+			const backend = await getStorageBackend();
+			await this.saveProjectToObjectStorage(backend, project);
 		} catch (error) {
 			logger.error('Failed to persist project:', error);
 		}
@@ -324,30 +301,6 @@ export class PersistenceService {
 		void requestPersistentStorageOnce('project-save');
 	}
 
-	private async saveProjectToLegacyStorage(project: Project): Promise<void> {
-		const manifest = this.createProjectManifest(project);
-		const manifestJson = JSON.stringify(manifest);
-		const shouldSaveManifest =
-			this.dirtyMetadata ||
-			this.lastSavedMetadata === null ||
-			manifestJson !== this.lastSavedMetadata;
-		const layersToSave = this.getLayersToSave(project, manifestJson);
-
-		if (shouldSaveManifest) {
-			await this.metaStorage.save(manifest);
-			this.lastSavedMetadata = manifestJson;
-			this.dirtyMetadata = false;
-		}
-
-		await Promise.all(
-			layersToSave.map((target) =>
-				'layer' in target ? this.saveLayerAssetsToLegacyStorage(target.layer) : Promise.resolve()
-			)
-		);
-		this.refreshLayerSnapshots(project);
-		this.dirtyLayers.clear();
-	}
-
 	private getLayersToSave(
 		project: Project,
 		manifestJson: string,
@@ -427,16 +380,6 @@ export class PersistenceService {
 		);
 	}
 
-	private async saveLayerAssetsToLegacyStorage(layer: Layer): Promise<void> {
-		await this.getLegacyAssetStorage(layer.id).save({
-			layerId: layer.id,
-			traits: layer.traits.map((trait) => ({
-				id: trait.id,
-				imageData: isArrayBuffer(trait.imageData) ? trait.imageData : new ArrayBuffer(0)
-			}))
-		});
-	}
-
 	private async loadProjectFromObjectStorage(
 		backend: ObjectStorageBackend
 	): Promise<Project | null> {
@@ -463,7 +406,9 @@ export class PersistenceService {
 
 						if (backend.kind !== 'opfs') return;
 
-						legacyLayerAssets ??= await this.getLegacyAssetStorage(layer.id).load();
+						legacyLayerAssets ??= await readLegacyAssetStore<LegacyLayerAssets>(
+							`${LAYER_ASSETS_PREFIX}${layer.id}`
+						);
 						const legacyAsset = legacyLayerAssets?.traits.find(
 							(assetTrait) => assetTrait.id === trait.id
 						);
@@ -499,7 +444,7 @@ export class PersistenceService {
 	}
 
 	private async loadProjectFromLegacyStorage(): Promise<Project | null> {
-		const skeleton = await this.metaStorage.load();
+		const skeleton = readLegacyLocalStorageJson<StoredProjectManifest>(METADATA_KEY);
 		if (skeleton) {
 			const project = this.hydrateProjectManifest(skeleton);
 			await this.hydrateProjectFromLegacyLayerAssets(project);
@@ -507,7 +452,7 @@ export class PersistenceService {
 			return project;
 		}
 
-		const legacyData = await new SmartStorageStore<Project>(LEGACY_STORAGE_KEY).load();
+		const legacyData = readLegacyLocalStorageJson<Project>(LEGACY_STORAGE_KEY);
 		if (legacyData) {
 			const project = this.normalizeProject(legacyData);
 			this.rememberSavedProject(project);
@@ -527,7 +472,9 @@ export class PersistenceService {
 	private async hydrateProjectFromLegacyLayerAssets(project: Project): Promise<void> {
 		await Promise.all(
 			project.layers.map(async (layer) => {
-				const assets = await this.getLegacyAssetStorage(layer.id).load();
+				const assets = await readLegacyAssetStore<LegacyLayerAssets>(
+					`${LAYER_ASSETS_PREFIX}${layer.id}`
+				);
 				if (!assets?.traits) return;
 
 				for (const assetTrait of assets.traits) {
