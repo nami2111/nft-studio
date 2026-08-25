@@ -9,8 +9,16 @@
 
 import type { ErrorContext, ErrorOptions } from './error-handling';
 import { showError } from './error-handling';
-import { type RetryConfig, RetryConfigs, retryWithErrorHandling } from './retry';
 import { AppError, ErrorCodes, getErrorInfo, isRecoverableError } from './typed-errors';
+
+interface RetryConfig {
+	maxAttempts: number;
+	initialDelayMs: number;
+	maxDelayMs: number;
+	backoffFactor: number;
+	jitter: boolean;
+	retryCondition?: (error: unknown) => boolean;
+}
 
 export type ErrorCategory =
 	| 'storage'
@@ -36,7 +44,8 @@ interface CategorySpec {
 	description: string;
 	code: string;
 	recoverable: boolean;
-	retryConfig: Partial<RetryConfig>;
+	/** [maxAttempts, initialDelayMs, maxDelayMs, backoffFactor, jitter] */
+	retry: readonly [number, number, number, number, boolean];
 	isRetryable: (error: unknown) => boolean;
 }
 
@@ -66,6 +75,17 @@ function isFileRetryable(error: unknown): boolean {
 	return false;
 }
 
+function isNetworkRetryable(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+	return (
+		error.name === 'NetworkError' ||
+		(error.name === 'TypeError' && error.message.includes('fetch')) ||
+		error.message.includes('network') ||
+		error.message.includes('ECONNREFUSED') ||
+		error.message.includes('ETIMEDOUT')
+	);
+}
+
 function isWorkerRetryable(error: unknown): boolean {
 	if (error instanceof AppError && error.code === ErrorCodes.WORKER_ERROR) return true;
 	if (error instanceof Error && error.message.includes('Worker is not defined')) return false;
@@ -92,15 +112,8 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 		description: 'Failed to access storage. Please check your browser settings.',
 		code: ErrorCodes.STORAGE_ERROR,
 		recoverable: true,
-		retryConfig: {
-			...RetryConfigs.default,
-			maxAttempts: 5,
-			initialDelayMs: 500,
-			maxDelayMs: 5000,
-			backoffFactor: 2,
-			jitter: false,
-			retryCondition: isStorageRetryable
-		},
+		// [maxAttempts, initialDelayMs, maxDelayMs, backoffFactor, jitter]
+		retry: [5, 500, 5000, 2, false],
 		isRetryable: isStorageRetryable
 	},
 	file: {
@@ -108,7 +121,7 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 		description: 'Failed to process file. Please check the file and try again.',
 		code: ErrorCodes.FILE_ERROR,
 		recoverable: true,
-		retryConfig: { ...RetryConfigs.file, retryCondition: isFileRetryable },
+		retry: [3, 500, 5000, 2, false],
 		isRetryable: isFileRetryable
 	},
 	validation: {
@@ -116,7 +129,7 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 		description: 'Invalid input provided. Please check your data.',
 		code: ErrorCodes.VALIDATION_ERROR,
 		recoverable: true,
-		retryConfig: { ...RetryConfigs.default, maxAttempts: 1 },
+		retry: [1, 1000, 10000, 2, true],
 		isRetryable: () => false
 	},
 	worker: {
@@ -124,13 +137,7 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 		description: 'Failed to execute worker operation. Please try again.',
 		code: ErrorCodes.WORKER_ERROR,
 		recoverable: true,
-		retryConfig: {
-			...RetryConfigs.server,
-			maxAttempts: 3,
-			initialDelayMs: 2000,
-			maxDelayMs: 10000,
-			retryCondition: isWorkerRetryable
-		},
+		retry: [3, 2000, 10000, 2, true],
 		isRetryable: isWorkerRetryable
 	},
 	generation: {
@@ -138,13 +145,7 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 		description: 'Failed to generate items. Please check your project configuration.',
 		code: ErrorCodes.GENERATION_ERROR,
 		recoverable: true,
-		retryConfig: {
-			...RetryConfigs.server,
-			maxAttempts: 2,
-			initialDelayMs: 5000,
-			maxDelayMs: 15000,
-			retryCondition: isGenerationRetryable
-		},
+		retry: [2, 5000, 15000, 2, true],
 		isRetryable: isGenerationRetryable
 	},
 	network: {
@@ -152,18 +153,15 @@ const CATEGORIES: Record<ErrorCategory, CategorySpec> = {
 		description: 'Failed to connect to the network. Please check your internet connection.',
 		code: ErrorCodes.NETWORK_ERROR,
 		recoverable: true,
-		retryConfig: {
-			...RetryConfigs.network,
-			retryCondition: (error: unknown) => RetryConfigs.network.retryCondition?.(error) ?? false
-		},
-		isRetryable: (error: unknown) => RetryConfigs.network.retryCondition?.(error) ?? false
+		retry: [3, 1000, 10000, 2, true],
+		isRetryable: isNetworkRetryable
 	},
 	generic: {
 		title: 'Operation Failed',
 		description: 'An unexpected error occurred. Please try again.',
 		code: ErrorCodes.UNHANDLED_ERROR,
 		recoverable: true,
-		retryConfig: { ...RetryConfigs.default },
+		retry: [3, 1000, 10000, 2, true],
 		isRetryable: isRecoverableError
 	}
 };
@@ -293,6 +291,37 @@ export function withSafeOperationSync<T>(operation: () => T, options: ErrorHandl
  * Retry an operation using the strategy registered for `category`.
  * On terminal failure, reports a typed error with user-facing messaging.
  */
+/**
+ * Run `operation` with exponential backoff (±20% jitter when enabled) until it
+ * succeeds, the condition rejects the error, or attempts are exhausted.
+ */
+async function runWithRetry<T>(operation: () => Promise<T>, config: RetryConfig): Promise<T> {
+	let lastError: unknown;
+
+	for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
+		try {
+			return await operation();
+		} catch (error) {
+			lastError = error;
+			if (config.retryCondition && !config.retryCondition(error)) break;
+			if (attempt === config.maxAttempts) break;
+
+			const delayMs = Math.min(
+				config.maxDelayMs,
+				config.initialDelayMs * config.backoffFactor ** (attempt - 1)
+			);
+			const jittered = config.jitter ? delayMs * (0.8 + Math.random() * 0.4) : delayMs;
+			await new Promise((resolve) => setTimeout(resolve, Math.floor(jittered)));
+		}
+	}
+
+	throw lastError instanceof Error ? lastError : new Error('Operation failed after retries');
+}
+
+/**
+ * Retry an operation using the strategy registered for `category`.
+ * On terminal failure, reports a typed error with user-facing messaging.
+ */
 export async function withRetry<T>(
 	operation: () => Promise<T>,
 	category: ErrorCategory = 'generic',
@@ -305,30 +334,21 @@ export async function withRetry<T>(
 		return withSafeOperation(operation, handlerOptions);
 	}
 
-	const mergedConfig: Partial<RetryConfig> = {
-		...spec.retryConfig,
+	const [maxAttempts, initialDelayMs, maxDelayMs, backoffFactor, jitter] = spec.retry;
+	const config: RetryConfig = {
+		maxAttempts,
+		initialDelayMs,
+		maxDelayMs,
+		backoffFactor,
+		jitter,
 		...retryConfig,
 		retryCondition: retryConfig?.retryCondition ?? spec.isRetryable
 	};
 
 	try {
-		return await retryWithErrorHandling(
-			operation,
-			mergedConfig,
-			{
-				operation: handlerOptions.operation,
-				additionalData: {
-					enableRetry: true,
-					category,
-					...((handlerOptions.context as unknown as Record<string, unknown>)
-						?.additionalData as Record<string, unknown>)
-				}
-			} as unknown as ErrorContext,
-			`Operation "${handlerOptions.operation || 'unknown'}" failed after multiple attempts`
-		);
+		return await runWithRetry(operation, config);
 	} catch (error) {
-		await handleTypedError(error, category, {
-			...handlerOptions,
+		showError(error, {
 			title: handlerOptions.title ?? spec.title,
 			description: handlerOptions.description ?? spec.description,
 			action: {

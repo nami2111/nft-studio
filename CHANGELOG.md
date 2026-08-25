@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Over-Engineering Cleanup (Ponytail Audit)
+
+**Removed ~2,300 lines and 3 dependencies without behavior change. Full findings in `TODO.md`.**
+
+#### Removed
+
+- **Dependencies**: `jszip` (replaced by `@zip.js/zip.js` everywhere), `clsx`, `tailwind-merge`
+- **Modules**: `utils/toast.ts` (merged into `error-handling.ts`), `utils/simple-debug.ts` (merged into `logger.ts`), `utils/retry.ts` (folded into `error-handler.ts`), `services/validation.service.ts` (stores call domain validators directly), `config/performance.config.ts` (two used values inlined), `domain/index.ts` + `domain/models.ts` (dead barrel), `persistence/storage.ts` (legacy SmartStorage stack), five dead components
+- **Dead API surface**: unused PerformanceMonitor reports/cache-metrics/batch-tracking, toast wrapper helpers in `error-handling.ts`
+
+#### Changed
+
+- **Storage**: persistence service always writes through the object-storage seam (`src/lib/storage/backend.ts`) — OPFS primary, IndexedDB fallback; old localStorage/IDB data migrates on load via new read-only `persistence/legacy-reader.ts`
+- **ZIP**: single library (`@zip.js/zip.js`) behind new `utils/zip.ts` helpers; GalleryImport's standard/streaming split collapsed to one code path
+- **PerformanceMonitor**: reduced to timers + DB-query timing with slow-operation warnings
+- **Docs**: README, architecture, performance, feature-flags, onboarding, and API documentation updated to match the code
+
 ## [0.5.4] - 2026-01-15
 
 ### Svelte 5 Modernization & Premium UX Enhancement

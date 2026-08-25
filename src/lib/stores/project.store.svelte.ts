@@ -8,7 +8,6 @@
  * migrate to Svelte context (setContext/getContext).
  */
 
-import { calculateAdaptiveDelay } from '$lib/config/performance.config';
 import type { MetadataStandard } from '$lib/domain/metadata/metadata.strategy';
 import {
 	updateProjectName as mutateProjectName,
@@ -42,12 +41,19 @@ import {
 	type TraitBatchUpdate,
 	type LayerBatchUpdate
 } from '$lib/domain/collection-design-mutator';
-import type { LayerId, ProjectId, TraitId } from '$lib/types/ids';
+import { createProjectId, type LayerId, type ProjectId, type TraitId } from '$lib/types/ids';
+import {
+	validateDimensions,
+	validateLayerName,
+	validateProjectName,
+	validateRarityWeight,
+	validateTraitName,
+	type ValidationResult
+} from '$lib/domain/validation';
 import type { RulerRule, StrictPairConfig, TraitType } from '$lib/types/layer';
 import type { Layer, Project, ProjectDimensions, Trait } from '$lib/types/project';
 import { performanceMonitor } from '$lib/utils/performance-monitor';
 import { persistenceService } from '../services/persistence.service';
-import { validationService } from '../services/validation.service';
 import {
 	loadProjectFromZip as loadProjectFromZipImpl,
 	saveProjectToZip as saveProjectToZipImpl
@@ -64,8 +70,28 @@ import {
 import { globalResourceManager } from './resource-manager';
 import { traitUploadManager } from './trait-upload-manager';
 
+/**
+ * Create a fresh default project.
+ */
+function createDefaultProject(): Project {
+	return {
+		id: createProjectId(crypto.randomUUID()),
+		name: 'My Collection',
+		description: 'A collection of unique items',
+		outputSize: { width: 0, height: 0 },
+		layers: [],
+		_needsProperLoad: true
+	};
+}
+
+/** Unwrap a domain validation result, throwing on the first error. */
+function assertValid<T>(result: ValidationResult): T {
+	if (!result.success) throw new Error(result.error);
+	return result.data as T;
+}
+
 // Initialize project with a fresh default project.
-export const project = $state<Project>(validationService.createDefaultProject());
+export const project = $state<Project>(createDefaultProject());
 
 // Export a simple store wrapper for components
 export const projectStore = {
@@ -93,7 +119,7 @@ export function updateProject(updates: Partial<Project>): void {
 }
 
 export function updateProjectName(name: string): void {
-	validationService.validateProjectName(name);
+	assertValid(validateProjectName(name));
 	const result = mutateProjectName(project, name);
 	handleMutationResult(result);
 }
@@ -134,7 +160,7 @@ export function updateProjectCreators(creators: { address: string; share: number
 }
 
 export function updateProjectDimensions(dimensions: ProjectDimensions): void {
-	validationService.validateDimensions(dimensions);
+	assertValid(validateDimensions(dimensions.width, dimensions.height));
 	const result = mutateProjectDimensions(project, dimensions);
 	handleMutationResult(result);
 }
@@ -147,7 +173,7 @@ export function updateLayer(layerId: LayerId, updates: Partial<Layer>): void {
 }
 
 export function addLayer(name: string): void {
-	validationService.validateLayerName(name);
+	assertValid(validateLayerName(name));
 	const result = mutateAddLayer(project, name);
 	handleMutationResult(result);
 }
@@ -167,7 +193,7 @@ export function removeLayer(layerId: LayerId): void {
 }
 
 export function updateLayerName(layerId: LayerId, name: string): void {
-	validationService.validateLayerName(name);
+	assertValid(validateLayerName(name));
 	const result = mutateLayerName(project, layerId, name);
 	handleMutationResult(result);
 }
@@ -189,7 +215,7 @@ export async function addTrait(layerId: LayerId, file: File): Promise<void> {
 	if (!layer) throw new Error(`Layer with ID ${layerId} not found`);
 
 	const traitName = file.name.replace(/\.[^/.]+$/, '');
-	validationService.validateTraitName(traitName);
+	assertValid(validateTraitName(traitName));
 
 	await traitUploadManager.uploadTrait(layerId, layer, file, traitName);
 	persistenceService.save(project);
@@ -209,13 +235,13 @@ export function removeTrait(layerId: LayerId, traitId: TraitId): void {
 }
 
 export function updateTraitName(layerId: LayerId, traitId: TraitId, name: string): void {
-	validationService.validateTraitName(name);
+	assertValid(validateTraitName(name));
 	const result = mutateTraitName(project, layerId, traitId, name);
 	handleMutationResult(result);
 }
 
 export function updateTraitRarity(layerId: LayerId, traitId: TraitId, rarityWeight: number): void {
-	validationService.validateRarityWeight(rarityWeight);
+	assertValid(validateRarityWeight(rarityWeight));
 	const result = mutateTraitRarity(project, layerId, traitId, rarityWeight);
 	handleMutationResult(result);
 }
@@ -289,6 +315,15 @@ function processBatchQueue(): void {
 	if (import.meta.env.DEV) {
 		console.debug(`[perf] Batch flush: ${queueSize} items in ${flushTime.toFixed(2)}ms`);
 	}
+}
+
+/**
+ * Adaptive persist delay based on queue size: 50ms per pending item,
+ * clamped to [100ms, 5000ms] so small batches stay responsive and
+ * large batches don't block the UI thread with rapid flushes.
+ */
+function calculateAdaptiveDelay(queueSize: number): number {
+	return Math.min(5000, Math.max(100, queueSize * 50));
 }
 
 function scheduleBatchPersist(): void {
@@ -471,6 +506,6 @@ export function getActiveLayerCombinations(): string[] {
 export function resetProject(): void {
 	globalResourceManager.cleanup();
 	persistenceService.clearData();
-	const defaultProject = validationService.createDefaultProject();
+	const defaultProject = createDefaultProject();
 	mutateResetProject(project, defaultProject);
 }

@@ -162,14 +162,14 @@ When `enableStreamingStorage` is enabled:
 
 ## ZIP Export Pipeline
 
-| Collection Size | Strategy        | Details                                                                    |
-| --------------- | --------------- | -------------------------------------------------------------------------- |
-| ≤ 1000 items    | Standard ZIP    | JSZip in main thread                                                       |
-| 1001-3000 items | Optimized ZIP   | Chunked processing, 100 items per chunk                                    |
-| 3001+ items     | Multi-ZIP       | Split into multiple 1GB ZIP files                                          |
-| ≥ 500 items     | Worker Offload  | Dedicated one-shot ZIP Web Worker (if `enableZipWorkerOffloading` enabled) |
-| During gen      | Streaming ZIP   | Persistent worker accumulates chunks, flushes at 700MB raw                 |
-| Storage stream  | Batch packaging | 500MB-bounded ZIP batches read from storage post-gen                       |
+| Collection Size | Strategy        | Details                                                    |
+| --------------- | --------------- | ---------------------------------------------------------- |
+| ≤ 1000 items    | Standard ZIP    | @zip.js/zip.js in main thread                              |
+| 1001-3000 items | Optimized ZIP   | Chunked processing, 100 items per chunk                    |
+| 3001+ items     | Multi-ZIP       | Split into multiple 1GB ZIP files                          |
+| ≥ 500 items     | Worker Offload  | Dedicated ZIP Web Worker keeps the main thread free        |
+| During gen      | Streaming ZIP   | Persistent worker accumulates chunks, flushes at 700MB raw |
+| Storage stream  | Batch packaging | 500MB-bounded ZIP batches read from storage post-gen       |
 
 ### ZIP Worker Volume Management
 

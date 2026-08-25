@@ -61,7 +61,7 @@ vi.mock('$lib/stores', async () => {
 // Mock dependent components of LayerItem to avoid deep rendering issues
 vi.mock('$lib/components/layer/TraitCard.svelte', () => ({ default: vi.fn() }));
 vi.mock('$lib/components/layer/VirtualTraitList.svelte', () => ({ default: vi.fn() }));
-vi.mock('$lib/components/ui/NeedsReupload.svelte', () => ({ default: vi.fn() }));
+vi.mock('$lib/components/layer/NeedsReupload.svelte', () => ({ default: vi.fn() }));
 
 vi.mock('$lib/utils/error-handling', () => ({
 	showError: vi.fn(),

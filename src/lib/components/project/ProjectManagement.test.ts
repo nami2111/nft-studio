@@ -63,19 +63,6 @@ vi.mock('svelte-sonner', () => ({
 	}
 }));
 
-// Mock JSZip
-vi.mock('jszip', () => {
-	return {
-		default: class JSZipMock {
-			static loadAsync = vi.fn().mockResolvedValue({
-				file: vi.fn(),
-				files: {}
-			});
-			file = vi.fn();
-		}
-	};
-});
-
 // Mock resource manager
 vi.mock('$lib/stores/resource-manager', () => ({
 	globalResourceManager: {

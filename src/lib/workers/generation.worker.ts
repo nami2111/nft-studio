@@ -13,14 +13,12 @@ import type {
 	InitLayersMessage,
 	BatchRefMessage
 } from '$lib/types/worker-messages';
-import { PerformanceMonitor } from '$lib/utils/performance-monitor';
 // Refactored Cache & Optimization Imports
 import { WorkerArrayBufferCache } from './cache/array-buffer.cache';
 import { OptimizedMemoryManager } from './memory/memory.manager';
 
 // Global worker instances
 const workerArrayBufferCache = new WorkerArrayBufferCache();
-const perfMonitor = new PerformanceMonitor();
 
 // Bounded LRU cache for ImageBitmaps (max 64 entries to bound GPU memory)
 // Uses Map insertion-order semantics for O(1) LRU tracking.
@@ -186,8 +184,6 @@ async function generateIsolatedItem(
 			return undefined;
 		}
 
-		const generationStartTime = performance.now();
-
 		ctx.clearRect(0, 0, targetWidth, targetHeight);
 		await compositeTraitsDirect(solutionTraits, ctx, targetWidth, targetHeight, index);
 
@@ -210,8 +206,6 @@ async function generateIsolatedItem(
 			attributes,
 			extraData
 		);
-
-		perfMonitor.recordBatchItem(performance.now() - generationStartTime);
 
 		return {
 			index,
@@ -252,8 +246,6 @@ async function handleBatchGeneration(
 	metadataStandard: MetadataStandard = MetadataStandard.ERC721,
 	extraData?: Record<string, unknown>
 ) {
-	perfMonitor.startBatch(solutions.length);
-
 	// Prebuilt layer id → name for metadata; avoids layers.find per trait per item.
 	const layerNameById = new Map(layers.map((l) => [l.id, l.name]));
 
@@ -308,7 +300,6 @@ async function handleBatchGeneration(
 			}
 		}
 
-		perfMonitor.finishBatch();
 		// NOTE: ImageBitmap cache intentionally NOT cleared between batches.
 		// In enableLayerRef mode the same traits appear across many batches;
 		// keeping the cache alive avoids re-decoding the same images thousands of times.

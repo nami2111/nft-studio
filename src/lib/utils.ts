@@ -9,46 +9,6 @@ export interface ImageDimensions {
 	height: number;
 }
 
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-/**
- * Merge Tailwind CSS class strings, handling conditional classes.
- *
- * @param inputs - An array of class values (strings, objects, arrays, etc.).
- * @returns A merged class string safe for Tailwind.
- */
-export function cn(...inputs: ClassValue[]): string {
-	return twMerge(clsx(inputs));
-}
-
-/**
- * Remove the `child` property from a type, if present.
- *
- * @template T - The original type.
- * @returns The type without the `child` key.
- */
-export type WithoutChild<T> = T extends { child?: unknown } ? Omit<T, 'child'> : T;
-
-/**
- * Remove the `children` property from a type, if present.
- *
- * @template T - The original type.
- * @returns The type without the `children` key.
- */
-export type WithoutChildren<T> = T extends { children?: unknown } ? Omit<T, 'children'> : T;
-
-/**
- * Remove both `child` and `children` properties from a type.
- *
- * a type with an optional element reference.
- *
- * @template T - Base type.
- * @template U - HTMLElement type (defaults to `HTMLElement`).
- * @returns The extended type with an optional `ref` property.
- */
-export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };
-
 /**
  * Get the natural dimensions (width & height) of an image file.
  *
@@ -205,23 +165,3 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
 	}
 	return bytes.buffer;
 }
-
-/**
- * Normalize a filename by removing path separators, trimming, limiting length,
- * and allowing common safe characters.
- *
- * @param name - The filename to normalize.
- * @returns A normalized filename safe for file operations.
- */
-export function normalizeFilename(name: string): string {
-	// Remove path separators, trim, limit length, and allow common safe chars
-	const trimmed = name.trim().slice(0, 100);
-	return trimmed.replace(/[^a-zA-Z0-9._ -]/g, '_').replace(/[\\/]+/g, '_');
-}
-
-// Utility type to drop either 'children' or 'child' prop from generic props
-export type WithoutChildrenOrChild<T> = T extends { children?: unknown }
-	? Omit<T, 'children'>
-	: T extends { child?: unknown }
-		? Omit<T, 'child'>
-		: T;

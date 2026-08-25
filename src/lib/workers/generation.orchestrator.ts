@@ -14,7 +14,6 @@ import type { Layer, StrictPairConfig } from '$lib/types/layer';
 import type {
 	CompleteMessage,
 	PoolForwardedWorkerMessage,
-	PreviewMessage,
 	TransferrableLayer,
 	TransferrableTrait
 } from '$lib/types/worker-messages';
@@ -48,8 +47,6 @@ export interface GenerationCallbacks {
 			memoryUsage?: number | { used: number; available: number; units: string };
 		};
 	}) => void;
-	/** Called when live previews are available */
-	onPreview: (previews: { index: number; url: string }[]) => void;
 	/** Called when generation finishes (images & metadata are already streamed to ZIP) */
 	onComplete: (result: {
 		images: { name: string; imageData: ArrayBuffer }[];
@@ -399,17 +396,6 @@ function routePoolMessage(data: PoolForwardedWorkerMessage, session: GenerationS
 		case 'progress':
 			callbacks.onProgress(data);
 			break;
-
-		case 'preview': {
-			const { payload } = data as PreviewMessage;
-			const previews: { index: number; url: string }[] = [];
-			for (let j = 0; j < payload.indexes.length; j++) {
-				const blob = new Blob([payload.previewData[j]], { type: 'image/png' });
-				previews.push({ index: payload.indexes[j], url: URL.createObjectURL(blob) });
-			}
-			callbacks.onPreview(previews);
-			break;
-		}
 
 		case 'chunk': {
 			// Intermediate chunk from worker — stream directly to ZIP or storage.

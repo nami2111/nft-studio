@@ -128,7 +128,6 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 		type === 'complete' ||
 		type === 'error' ||
 		type === 'cancelled' ||
-		type === 'preview' ||
 		type === 'chunk'
 	) {
 		const taskId = data.taskId;
@@ -144,9 +143,6 @@ function handleWorkerMessage(event: MessageEvent, workerIndex: number): void {
 				messageCallback(data as PoolForwardedWorkerMessage);
 			}
 		}
-
-		// Preview messages don't finalize tasks
-		if (type === 'preview') return;
 
 		// Finalize task on completion/error/cancellation
 		if (type === 'complete' || type === 'error' || type === 'cancelled') {
@@ -520,10 +516,7 @@ function performDynamicScaling(): void {
 			(queueLength > 0 && activeTaskCount >= currentWorkerCount)) &&
 		currentWorkerCount + pendingWorkerCreations < maxWorkers
 	) {
-		const workersToAdd = Math.min(
-			2,
-			maxWorkers - currentWorkerCount - pendingWorkerCreations
-		);
+		const workersToAdd = Math.min(2, maxWorkers - currentWorkerCount - pendingWorkerCreations);
 		if (workersToAdd <= 0) return;
 		addWorkers(workersToAdd).catch((error) => {
 			console.error('Failed to add workers during dynamic scaling:', error);
@@ -746,7 +739,7 @@ export async function terminateWorkerPool(): Promise<void> {
 }
 
 export function postMessageToPool<T>(message: WorkerPoolDispatchMessage): Promise<T> {
-	const timerId = performanceMonitor.startTimer('worker.postMessageToPool', message.type);
+	const timerId = performanceMonitor.startTimer('worker.postMessageToPool');
 	if (!workerPool) {
 		throw new Error('Worker pool not initialized. Call initializeWorkerPool() first.');
 	}

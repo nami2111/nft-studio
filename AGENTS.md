@@ -32,17 +32,20 @@ Browser-based generative art collection designer. SvelteKit 2 (static adapter) +
 src/
 ├── routes/              # SvelteKit routes: / (landing), /app (main), /app/gallery
 ├── lib/
-│   ├── components/      # UI: layer/, preview/, ui/ (NeoBr-UI wrappers)
+│   ├── components/      # UI: layer/, generation/, gallery/, project/, shared/, layout/, ui/ (NeoBr-UI wrappers)
+│   ├── config/          # Feature flags + constants
 │   ├── domain/          # Business logic + Zod validation schemas
+│   ├── services/        # persistence.service (storage seam consumer), export.service
+│   ├── storage/         # Object-storage backends: OPFS primary, IndexedDB fallback
 │   ├── stores/          # Svelte 5 rune stores (*.svelte.ts suffix)
-│   ├── workers/         # Web workers for generation (multi-worker pool)
-│   ├── persistence/     # IndexedDB + LocalStorage abstraction
-│   ├── utils/           # Optimization: sprite-packer, combination-indexer
+│   ├── workers/         # Web workers for generation (multi-worker pool) + zip.worker
+│   ├── persistence/     # Read-only legacy readers (pre-OPFS data migration on load)
+│   ├── utils/           # zip.ts, error handling, performance-monitor, combination-indexer
 │   └── types/           # Branded types (ProjectId, LayerId, TraitId)
 └── satellite/           # Juno satellite config
 ```
 
-**Key stores**: `project.store.svelte.ts` (auto-persists with 500ms debounce), `gallery.store.svelte.ts` (IndexedDB), `resource-manager.ts` (3-tier cache).
+**Key stores**: `project.store.svelte.ts` (auto-persists with 1s debounce via `persistenceService`), `gallery.store.svelte.ts` (object-storage backed), `resource-manager.ts` (3-tier cache).
 
 **Custom path aliases**: `$components` → `src/lib/components`, `$utils` → `src/lib/utils` (in addition to SvelteKit defaults).
 
@@ -74,9 +77,9 @@ src/
 - PWA is enabled in dev mode (`devOptions.enabled: true` in vite config)
 - `global` is mapped to `globalThis` in vite optimizeDeps (needed for some deps)
 - Worker format is `es` — don't use CommonJS patterns in worker files
-- NeoBr-UI components are wrapped in `src/lib/components/ui/` — use those wrappers, not raw imports
+- NeoBr-UI components are wrapped in `src/lib/components/ui/` — use those wrappers, not raw imports (exception: pass-through barrels only; real components live in feature folders)
 - `@neobr/tailwind-preset` is overridden to v1.0.4 in pnpm overrides — don't upgrade without testing
-- Projects with traits are skipped during auto-save to avoid broken references
+- ZIP read/write goes through `utils/zip.ts` (`@zip.js/zip.js`) — jsdom can't execute zip.js writes, verify ZIP changes in a real browser
 
 ## How to navigate this repo
 

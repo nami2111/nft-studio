@@ -71,7 +71,6 @@ vi.mock('$lib/stores/generation-progress.svelte', () => ({
 	completeGeneration: vi.fn(),
 	cancelGeneration: vi.fn(),
 	updateProgress: vi.fn(),
-	addPreviews: vi.fn(),
 	handleError: vi.fn(),
 	cleanupGenerationState: vi.fn()
 }));

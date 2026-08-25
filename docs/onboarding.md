@@ -86,7 +86,7 @@ GNStudio provides two sophisticated modes for working with item collections:
 - **Independent State**: Each mode maintains its own workspace and data
 - **Data Flow**: Generate Mode → Export ZIP → Import to Gallery Mode for analysis
 - **Performance Optimization**: Each mode has specialized caching and performance tuning
-- **Feature Flags**: Generation behavior can be tuned via feature flags (`enableStreamingStorage`, `enableAdaptiveBatchSize`, `enableLayerRef`, `enableZipWorkerOffloading`) — see [Feature Flags](#feature-flags) section for details
+- **Feature Flags**: Generation behavior can be tuned via feature flags (`enableStreamingStorage`) — see [Feature Flags](#feature-flags) section for details
 
 ### Metadata Standards
 
@@ -136,8 +136,7 @@ gnstudio/
 │   │   │       ├── metadata.strategy.ts  # Strategy interface & types
 │   │   │       └── strategies.ts         # ERC-721 & Solana implementations
 │   │   ├── services/         # Application services
-│   │   │   ├── persistence.service.ts  # Storage management
-│   │   │   ├── validation.service.ts   # Core validation service
+│   │   │   ├── persistence.service.ts  # Storage management (OPFS/object backends)
 │   │   │   └── export.service.ts       # ZIP packaging & download workflow
 │   │   ├── workers/          # Advanced worker pool system
 │   │   │   ├── cache/                 # Worker-level caching
@@ -152,11 +151,12 @@ gnstudio/
 │   │   │   └── generation.worker.ts  # Canvas-based generation
 │   │   ├── utils/            # Performance and utility functions
 │   │   │   ├── performance-monitor.ts  # Performance tracking
-│   │   │   ├── error-handler.ts       # Error management
-│   │   │   ├── advanced-cache.ts       # Three-tier caching system
+│   │   │   ├── error-handler.ts       # Error management + retry
+│   │   │   ├── zip.ts                 # ZIP read/write helpers (@zip.js/zip.js)
 │   │   │   └── combination-indexer.ts  # Trait combination indexing
 │   │   ├── config/           # Application configuration
 │   │   │   └── feature-flags.ts       # Runtime feature flag system
+│   │   ├── storage/          # Object storage backends (OPFS, IndexedDB)
 │   │   ├── types/            # TypeScript definitions
 │   │   └── persistence/      # Data storage abstraction
 │   ├── routes/               # SvelteKit page routes
@@ -232,13 +232,13 @@ vp preview
 
 Runtime feature flags allow phased rollout of optimizations without redeployment. Flags are defined in `src/lib/config/feature-flags.ts` and toggled via environment variables:
 
-| Flag                        | Default  | Purpose                                                                                |
-| --------------------------- | -------- | -------------------------------------------------------------------------------------- |
-| `enableStreamingStorage`    | Enabled  | Stream generated images to browser storage, then package into size-bounded ZIP batches |
-| `enableOpfsStorage`         | Enabled  | Use OPFS for large binary payloads with legacy storage fallback                        |
-| `enableLayerRef`            | Disabled | Transfer layers by reference (ID-based batching) instead of full layers per batch      |
-| `enableAdaptiveBatchSize`   | Enabled  | Dynamic batch sizing based on collection size, worker count, and resolution            |
-| `enableZipWorkerOffloading` | Disabled | Offload one-shot ZIP packaging to a dedicated Web Worker for > 500 items               |
+| Flag                     | Default | Purpose                                                                                |
+| ------------------------ | ------- | -------------------------------------------------------------------------------------- |
+| `enableStreamingStorage` | Enabled | Stream generated images to browser storage, then package into size-bounded ZIP batches |
+
+Former flags (`enableOpfsStorage`, `enableLayerRef`, `enableAdaptiveBatchSize`,
+`enableZipWorkerOffloading`) were inlined as constants — see
+[Feature Flags](feature-flags.md).
 
 ### Environment Variable Convention
 
